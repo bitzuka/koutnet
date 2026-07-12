@@ -1,5 +1,5 @@
 // KOutNet — Reassembles chunked file transfers received over UDP
-// Ported from gdf_network.py (GoidaPhone NT Server 1.8) → C++/Qt6
+// Ported from gdf_network.py ( NT Server 1.8) → C++/Qt6
 #pragma once
 
 #include <QObject>
