@@ -34,7 +34,7 @@ Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
         }
         Text {
-            text: "v1.8  •  KOutNet"
+            text: "v2.0  •  KOutNet"
             color: "#888"
             font.pixelSize: 12
             anchors.horizontalCenter: parent.horizontalCenter
