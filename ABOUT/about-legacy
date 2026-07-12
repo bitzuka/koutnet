@@ -1,1 +1,17 @@
-nothing now
+Legacy core of KOutNet (1.8) for PC (GNU Linux/WIndows)
+GNU GPL v2 License
+
+k_apps - TextFormatter, ImageViewer, HoverCard   NetworkManager, S, AudioEngine
+k_wnsbrowser - browser WNS for KOutNet based in chromium #DO NOT USE IN ANYMORE IN NEW CORE!!!
+k_chat - Chat UI (bubbles, peer panel, chat panel) 
+k_core - Constants, Security, Utilities, Toast, Themes, Localization, Settings
+k_dialogs - Dialogs (settings, profile, calls, notes)
+k_construct - build your own KOutNet
+k_imports - Provides Qt6 + all KOutNet core symbols (TR, _L, S, get_theme, etc.)
+k_mainstart - Main Window + Entry Point
+k_network - network & audio
+koutnet - entry point imports all modules and launches the app
+k_uibase - Base UI widgets (launcher, splash, hover cards)
+LIСENCE - GNU GPL v2
+
+old and strange, lol
