@@ -1,0 +1,26 @@
+{
+  "gcc_version": "1.1",
+  "app_name": "GoidaPhone Full",
+  "app_version": "1.8.0",
+  "build_id": "full-build",
+  "gcc_mark": true,
+  "gcc_mark_text": "⚡GC++",
+  "modules": {
+    "core": true,
+    "network": true,
+    "ui_base": true,
+    "chat": true,
+    "dialogs": true,
+    "browser": true,
+    "apps": true,
+    "main": true
+  },
+  "module_config": {},
+  "plugins": [],
+  "output_format": "appimage",
+  "output_dir": "./dist",
+  "metadata": {
+    "author": "Winora",
+    "description": "Full build"
+  }
+}

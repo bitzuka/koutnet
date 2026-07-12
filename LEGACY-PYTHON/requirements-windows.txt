@@ -1,0 +1,3 @@
+-r requirements.txt
+pywin32==308
+win10toast==0.9

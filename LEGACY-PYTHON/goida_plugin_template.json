@@ -1,0 +1,13 @@
+{
+  "name": "my_plugin",
+  "version": "1.0.0",
+  "author": "Your Name",
+  "description": "What this plugin does",
+  "goidaphone_version": "1.8.0",
+  "entry_point": "my_plugin.py",
+  "inject_into": "gdf_main.py",
+  "inject_after": "class MainWindow(",
+  "requires": [],
+  "settings_tab": false,
+  "settings_tab_label": "My Plugin"
+}
