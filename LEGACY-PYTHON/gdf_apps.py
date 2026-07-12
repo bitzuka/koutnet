@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# GoidaPhone NT Server 1.8 — Apps (GoidaTerminal, Mewa, Visualizer)
+# KOutNet 1.8 — Apps (Terminal, Player, Visualizer)
 from gdf_imports import *
 from gdf_core import _L, TR, S, get_theme, build_stylesheet, THEMES, AppSettings
 from gdf_network  import *
@@ -229,7 +229,7 @@ class StickerPackDialog(QDialog):
             return
         fn, _ = QFileDialog.getSaveFileName(
             self, "Экспорт пака", f"{pack_name}.gstickers",
-            "GoidaPhone Sticker Pack (*.gstickers)")
+            "KOutNet Sticker Pack (*.gstickers)")
         if fn:
             data = json.dumps({"name": pack_name,
                                "stickers": self._packs[pack_name],
@@ -241,7 +241,7 @@ class StickerPackDialog(QDialog):
     def _import_pack(self):
         fn, _ = QFileDialog.getOpenFileName(
             self, "Импорт пака", "",
-            "GoidaPhone Sticker Pack (*.gstickers);;JSON (*.json)")
+            "KoutNet Sticker Pack (*.gstickers);;JSON (*.json)")
         if not fn:
             return
         try:
@@ -263,7 +263,7 @@ class StickerPackDialog(QDialog):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  GOIDA TERMINAL  (floating in-app console, Shift+F10) FIX!!!!!!!!!
+#  kon TERMINAL  (floating in-app console, Shift+F10) FIX!!!!!!!!!
 # ═══════════════════════════════════════════════════════════════════════════
 class AdminManager:
     """
@@ -356,7 +356,7 @@ class AdminManager:
 
 class GoidaTerminal(QWidget):
     """
-    Goida Terminal — встроенный терминал GoidaPhone
+     Terminal — встроенный терминал 
     Shift+F10 для открытия | Tab — автодополнение | ↑↓ — история команд
     """
 
@@ -658,7 +658,7 @@ class GoidaTerminal(QWidget):
             hostname = platform.node().split(".")[0]
             user     = S().username or "user"
         except Exception:
-            hostname = "goidaphone"; user = "user"
+            hostname = "koutnet"; user = "user"
 
         _tc2 = self._tt.get('accent', '#39FF14')
         self._prompt_lbl = QLabel("goida ❯")
@@ -1067,36 +1067,7 @@ class GoidaTerminal(QWidget):
     # ══════════════════════════════════════════════════════════════════
     #  BOOT HEADER
     # ══════════════════════════════════════════════════════════════════
-    def _print_header(self):
-        self._output.clear()
-        t_str  = datetime.now().strftime("%Y-%m-%d  %H:%M:%S")
-        _acc   = self.C_GREEN
-        _acc2  = self.C_CYAN
-        _dim   = self.C_DIM
-        self._print("")
-        self._print("  ██████╗  ██████╗ ██╗██████╗  █████╗ ", _acc)
-        self._print(" ██╔════╝ ██╔═══██╗██║██╔══██╗██╔══██╗", _acc)
-        self._print(" ██║  ███╗██║   ██║██║██║  ██║███████║", _acc2)
-        self._print(" ██║   ██║██║   ██║██║██║  ██║██╔══██║", _acc2)
-        self._print(" ╚██████╔╝╚██████╔╝██║██████╔╝██║  ██║", _acc)
-        self._print("  ╚═════╝  ╚═════╝ ╚═╝╚═════╝ ╚═╝  ╚═╝", _acc)
-        self._print("")
-        self._print(f"  Terminal  ·  GoidaPhone v{APP_VERSION}  ·  {t_str}", _dim)
-        self._print(f"  {COMPANY_NAME}", _dim)
-        self._print("  " + "─" * 54, _dim)
-        self._print("")
-        if AdminManager.is_admin():
-            self._print(f"  ◆ Авторизован: {AdminManager.get_admin_name()}", self.C_YELLOW)
-            if AdminManager.network_password_enabled():
-                self._print("  ● Пароль сети активен", self.C_GREEN)
-        else:
-            self._print("  ⚠  Администратор не настроен.", self.C_ORANGE)
-            self._print("     /admin setup <name> <пароль>", _dim)
-        self._print("")
-        self._print("  /help — список команд   Tab — автодополнение   ↑↓ — история", _dim)
-        self._print("")
-
-    # ══════════════════════════════════════════════════════════════════
+     ════════════════════════════════════════════════════════
     #  COMMAND DISPATCHER
     # ══════════════════════════════════════════════════════════════════
     def _run_cmd(self):
@@ -1185,7 +1156,7 @@ class GoidaTerminal(QWidget):
             sub = raw.split(" ", 1)[1].strip() if " " in raw else ""
             if sub == "test":
                 self._print_sep()
-                self._print("  ТЕСТ ЗВУКОВ GoidaPhone", self.C_CYAN)
+                self._print("  ТЕСТ ЗВУКОВ", self.C_CYAN)
                 self._print_sep()
                 # Check QMediaPlayer availability
                 try:
@@ -1227,7 +1198,7 @@ class GoidaTerminal(QWidget):
                     self._print(f"  или в ~/Desktop/gdfsound/", self.C_YELLOW)
             else:
                 self._print_sep()
-                self._print("  ЗВУКОВАЯ SYSTEM GoidaPhone", self.C_CYAN)
+                self._print("  ЗВУКОВАЯ СИСТЕМА", self.C_CYAN)
                 self._print_sep()
                 # QMediaPlayer status
                 try:
@@ -1386,7 +1357,7 @@ class GoidaTerminal(QWidget):
         sections = [
             ("GENERAL", _a, [
                 ("/help [admin]",       "Справка"),
-                ("/version",            "Версия GoidaPhone"),
+                ("/version",            "Версия"),
                 ("/sysinfo",            "Системная информация"),
                 ("/uptime",             "Время работы"),
                 ("/date",               "Дата и время"),
@@ -1402,7 +1373,7 @@ class GoidaTerminal(QWidget):
                 ("/ping <ip>",          "Пинг до IP"),
                 ("/traceroute <ip>",    "Трассировка маршрута"),
                 ("/netstat",            "Статистика сети"),
-                ("/stats",              "Статистика GoidaPhone"),
+                ("/stats",              "Статистика"),
                 ("/monitor [on|off]",   "Live-мониторинг пакетов"),
                 ("/crypto",             "Статус шифрования"),
             ]),
@@ -1443,7 +1414,7 @@ class GoidaTerminal(QWidget):
 
     def _cmd_version(self):
         self._print_sep()
-        self._print(f"  GoidaPhone  v{APP_VERSION}  |  {COMPANY_NAME}", self.C_CYAN)
+        self._print(f"  KOutNet  v{APP_VERSION}  |  {COMPANY_NAME}", self.C_CYAN)
         self._print(f"  Protocol:   v{PROTOCOL_VERSION}  (совместимость с v{PROTOCOL_COMPAT}+)", self.C_WHITE)
         self._print(f"  Python:     {platform.python_version()}", self.C_WHITE)
         self._print(f"  Qt:         PyQt6", self.C_WHITE)
@@ -1618,7 +1589,7 @@ class GoidaTerminal(QWidget):
     def _cmd_stats(self):
         peers = getattr(self._net, 'peers', {})
         self._print_sep()
-        self._print("  GOIDAPHONE STATS", self.C_CYAN)
+        self._print(" STATS", self.C_CYAN)
         self._print_sep()
         self._print(f"  Online:      {len(peers)} users", self.C_WHITE)
         self._print(f"  Banned:      {len(AdminManager.get_banned())} IP", self.C_WHITE)
@@ -1701,37 +1672,10 @@ class GoidaTerminal(QWidget):
 
         # delay: time-1=800ms time-10=40ms
         delay_ms = int(800 - (speed - 1) * (760 / 9))
-
-        FRAMES = [
-            [
-                " ██████╗  ██████╗ ██╗██████╗  █████╗ ",
-                "██╔════╝ ██╔═══██╗██║██╔══██╗██╔══██╗",
-                "██║  ███╗██║   ██║██║██║  ██║███████║",
-                "██║   ██║██║   ██║██║██║  ██║██╔══██║",
-                "╚██████╔╝╚██████╔╝██║██████╔╝██║  ██║",
-                " ╚═════╝  ╚═════╝ ╚═╝╚═════╝ ╚═╝  ╚═╝",
-            ],
-            [
-                "░██████╗░░█████╗░██╗██████╗░░█████╗░",
-                "██╔════╝██╔══██╗██║██╔══██╗██╔══██╗",
-                "██║░░██╗██║░░██║██║██║░░██║███████║",
-                "██║░░██║██║░░██║██║██║░░██║██╔══██║",
-                "╚██████╔╝╚█████╔╝██║██████╔╝██║░░██║",
-                "░╚═════╝░╚═════╝╚═╝╚═════╝░╚═╝░░╚═╝",
-            ],
-            [
-                "▓██████╗▓██████╗██╗██████╗▓█████╗",
-                "██║════╝██║═══█║██║██║══█║██║══█║",
-                "██║▓▓██╗██║▓▓▓║██║██║▓▓█║███████║",
-                "██║▓▓██║██║▓▓▓║██║██║▓▓█║██║══█║",
-                "╚██████╝╚██████╝██║██████╝██║▓▓█║",
-                "▓╚════╝▓╚═════╝╚═╝╚═════╝▓╚═╝▓▓╝",
-            ],
-        ]
         TAGLINES = [
             "  P2P · Encrypted · No Servers",
-            "  Winora Company © 2026",
-            f"  GoidaPhone v{APP_VERSION}",
+            "   Company © 2026",
+            f"   v{APP_VERSION}",
             "  goida ❯ _",
         ]
 
@@ -2275,7 +2219,7 @@ class GoidaTerminal(QWidget):
 
     def _cmd_wipe(self):
         reply = QMessageBox.warning(self, "УДАЛЕНИЕ ДАННЫХ",
-            "⚠ УДАЛИТЬ ВСЕ ДАННЫЕ GoidaPhone?\n"
+            "⚠ УДАЛИТЬ ВСЕ ДАННЫЕ?\n"
             "История, настройки, аватары, файлы — всё будет удалено.\n\n"
             "Это действие НЕОБРАТИМО.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
@@ -2326,7 +2270,7 @@ class GoidaTerminal(QWidget):
 
     def _cmd_restart(self):
         reply = QMessageBox.question(self, "Перезапуск",
-            "Перезапустить GoidaPhone?",
+            "Перезапустить?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
             self._print("  Перезапуск...", self.C_YELLOW)
@@ -2776,7 +2720,7 @@ class _FSKeyFilter(QObject):
 
 class MewaPlayer(QWidget):
     """
-    Mewa 1-2-3 v1.32 — медиаплеер GoidaPhone.
+    Mewa 1-2-3 v1.32 — медиаплеер.
     Структура: боковая иконочная панель + основная область со стеком страниц
     + нижняя полоска управления воспроизведением. Всё следует текущей теме.
     """
@@ -2862,7 +2806,7 @@ class MewaPlayer(QWidget):
             sb.addWidget(btn)
 
         sb.addStretch()
-        ver = QLabel("v1.32\nWinora")
+        ver = QLabel("v1.32\n")
         ver.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ver.setStyleSheet(f"font-size:7px;color:{t['text_dim']};background:transparent;padding:6px 0;")
         sb.addWidget(ver)
@@ -3683,7 +3627,7 @@ class MewaPlayer(QWidget):
                     "artist_name": a, "track_name": t_str})
                 url = f"https://lrclib.net/api/get?{params}"
                 req = urllib.request.Request(url,
-                    headers={"User-Agent": f"GoidaPhone/{S().get('version','1.8')}"})
+                    headers={"User-Agent": f"KOutNet/{S().get('version','1.8')}"})
                 with urllib.request.urlopen(req, timeout=10) as resp:
                     data = _j.loads(resp.read().decode())
                 # Предпочитаем синхронизированный текст (LRC), потом plainLyrics

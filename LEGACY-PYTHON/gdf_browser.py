@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# GoidaPhone NT Server 1.8 — WNS Browser
+# WNS Browser
 from gdf_imports import *
 from gdf_core import _L, TR, S, get_theme, build_stylesheet, THEMES, AppSettings
 from gdf_network  import *
 from gdf_ui_base  import *      # TextFormatter, ImageViewer, HoverCard      # VoiceCallManager, play_system_sound, S
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  WINORA NETSCAPE  (WNS 2.0) — full-featured embedded browser
+#   (WNS 2.0) — full-featured embedded browser
 # ═══════════════════════════════════════════════════════════════════════════
 
 
 # ════════════════════════════════════════════════════════════════════════════
-#  WINORA NETSCAPE 3.0
+#   3.0
 #  Тотальный реврайт: sidebar, reader mode, devtools, extensions, pip bar,
 #  find bar встроенный, bokmrk manager, история с группировкой по дням,
 #  мультипоиск, dark-reader js injection, zoom, screenshot, picture-in-picture
@@ -57,7 +57,7 @@ _WNS_READER_JS = """
   <div id="_wns_reader_hdr">
     <span style="font-size:20px">📖</span>
     <div><div style="font-weight:bold;font-size:15px">${title}</div>
-    <div style="font-size:11px;color:#606080">Режим чтения · Winora NetScape 3.0</div></div>
+    <div style="font-size:11px;color:#606080">Режим чтения ·  NetScape 3.0</div></div>
   </div>
   ${content}
   </body></html>`);document.close();
@@ -148,8 +148,8 @@ WNS_HOME_HTML = """<!DOCTYPE html>
 <div class="shortcuts">
   <a class="shortcut" href="https://www.youtube.com">
     <div class="fav">&#9654;</div><span>YouTube</span></a>
-  <a class="shortcut" href="https://github.com/nft1212/GoidaPhone-NT-Server-1.8-OPEN">
-    <div class="fav">&#128025;</div><span>GoidaPhone</span></a>
+  <a class="shortcut" href="https://github.com/nft1212/-NT-Server-1.8-OPEN">
+    <div class="fav">&#128025;</div><span></span></a>
   <a class="shortcut" href="https://www.wikipedia.org">
     <div class="fav">&#128218;</div><span>Wikipedia</span></a>
   <a class="shortcut" href="https://www.reddit.com">
@@ -206,9 +206,9 @@ document.getElementById('q').focus();
 </html>"""
 
 
-class WinoraNetScape(QWidget):
+class NetScape(QWidget):
     """
-    Winora NetScape 3.0 — встроенный браузер, работает как вкладка.
+     NetScape 3.0 — встроенный браузер, работает как вкладка.
     Новое: sidebar (history/bookmarks/downloads), find bar, reader mode,
     dark reader injection, devtools, zoom, screenshot, pip, extensions stub,
     мультипоисковик на новой вкладке, часы, группировка истории по дням.
@@ -288,7 +288,7 @@ body {{ background: var(--bg) !important; color: var(--text) !important; }}
         return WNS_HOME_HTML.replace("</head>", css_override + "</head>", 1)
 
     def _apply_style(self):
-        """Chrome-style layout но цвета из текущей темы GoidaPhone."""
+        """Chrome-style layout но цвета из текущей темы ."""
         t = get_theme(S().theme)
 
         # Derive Chrome-like shades from theme palette
@@ -937,7 +937,7 @@ body {{ background: var(--bg) !important; color: var(--text) !important; }}
         hl  = QHBoxLayout(bar); hl.setContentsMargins(0,0,10,0); hl.setSpacing(0)
         self._stat_lbl = QLabel("Done"); self._stat_lbl.setObjectName("wns_stat")
         hl.addWidget(self._stat_lbl, stretch=1)
-        brand = QLabel(f"Winora NetScape {self.WNS_VERSION}")
+        brand = QLabel(f" NetScape {self.WNS_VERSION}")
         brand.setObjectName("wns_stat"); hl.addWidget(brand)
         return bar
 
@@ -1012,7 +1012,7 @@ body {{ background: var(--bg) !important; color: var(--text) !important; }}
         vl = QVBoxLayout(w); vl.setAlignment(Qt.AlignmentFlag.AlignCenter); vl.setSpacing(16)
         lgo = QLabel("🌐"); lgo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lgo.setStyleSheet("font-size:64px;background:transparent;"); vl.addWidget(lgo)
-        ttl = QLabel("Winora NetScape 3.0")
+        ttl = QLabel(" NetScape 3.0")
         ttl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ttl.setStyleSheet(f"font-size:22px;font-weight:bold;color:{t['text']};background:transparent;")
         vl.addWidget(ttl)
@@ -1331,7 +1331,7 @@ body {{ background: var(--bg) !important; color: var(--text) !important; }}
             dev_view = __import__('PyQt6.QtWebEngineWidgets',
                 fromlist=['QWebEngineView']).QWebEngineView()
             dev_view.resize(1000, 600)
-            dev_view.setWindowTitle("DevTools — Winora NetScape")
+            dev_view.setWindowTitle("DevTools —  NetScape")
             w.page().setDevToolsPage(dev_view.page())
             dev_view.show()
             self._stat_lbl.setText("🔧 DevTools открыты")
@@ -1472,7 +1472,7 @@ body {{ background: var(--bg) !important; color: var(--text) !important; }}
         menu.addAction("🔑 Пароли  Ctrl+Shift+P",         self._open_password_manager)
         menu.addAction("🕵 Инкогнито  Ctrl+Shift+N",      self._new_incognito_tab)
         menu.addSeparator()
-        menu.addAction("ℹ О Winora NetScape",              self._show_about)
+        menu.addAction("ℹ О  NetScape",              self._show_about)
         menu.addAction("✕ Закрыть WNS",                    self.close)
 
         btn = self.sender()
@@ -1832,20 +1832,20 @@ body {{ background: var(--bg) !important; color: var(--text) !important; }}
 
     def _show_about(self):
         t = get_theme(S().theme)
-        dlg = QDialog(self); dlg.setWindowTitle("О Winora NetScape 3.0"); dlg.resize(420, 320)
+        dlg = QDialog(self); dlg.setWindowTitle("О  NetScape 3.0"); dlg.resize(420, 320)
         dlg.setStyleSheet(f"background:{t['bg2']};color:{t['text']};")
         vl = QVBoxLayout(dlg); vl.setContentsMargins(24,20,24,20); vl.setSpacing(12)
         ico = QLabel("🌐"); ico.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ico.setStyleSheet("font-size:48px;background:transparent;")
         vl.addWidget(ico)
-        ttl = QLabel("<b>Winora NetScape 3.0</b>")
+        ttl = QLabel("<b> NetScape 3.0</b>")
         ttl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ttl.setStyleSheet(f"font-size:16px;color:{t['accent']};background:transparent;")
         ttl.setTextFormat(Qt.TextFormat.RichText)
         vl.addWidget(ttl)
         info = QLabel(
-            "Встроенный браузер экосистемы Winora.\n"
-            "Часть GoidaPhone v1.8.0  ·  Winora Company\n\n"
+            "Встроенный браузер экосистемы .\n"
+            "Часть  v1.8.0 \n\n"
             "Движок: QtWebEngine (Chromium) + FFmpeg\n"
             "Новое в 3.0: sidebar, reader mode, dark reader,\n"
             "devtools, zoom, screenshot, мультипоиск, история по дням\n\n"
@@ -2999,7 +2999,7 @@ class GroupCallWindow(QWidget):
     def _copy_invite(self):
         gid  = getattr(self, '_gid', "")
         ip   = get_local_ip()
-        link = f"goidaphone://call/{gid}?host={ip}"
+        link = f"://call/{gid}?host={ip}"
         QApplication.clipboard().setText(link)
         # Brief tooltip feedback
         from PyQt6.QtWidgets import QToolTip
@@ -3078,7 +3078,7 @@ class GroupCallWindow(QWidget):
         menu.addSeparator()
         menu.addAction("❓  Справка",
                         lambda: QMessageBox.information(self, "Справка",
-                            "Групповой звонок GoidaPhone\n\n"
+                            "Групповой звонок \n\n"
                             "M — mute/unmute mic\n"
                             "V — включить/выключить камеру\n"
                             "Esc — свернуть окно\n\n"

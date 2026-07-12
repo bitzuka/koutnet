@@ -503,7 +503,7 @@ class CryptoEngine:
 
 # ── QSettings helpers for early crypto init (before S() is available) ────────
 def _load_raw_setting(key: str, default: str = "") -> str:
-    s = QSettings("Company", "")
+    s = QSettings("WinoraCompany", "")
     v = s.value(key, default)
     return str(v) if v is not None else default
 
