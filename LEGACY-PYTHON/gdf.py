@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-GoidaPhone NT Server 1.8
+ NT Server 1.8
 Entry point — imports all modules and launches the app.
 
 Usage:

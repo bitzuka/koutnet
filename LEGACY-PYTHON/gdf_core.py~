@@ -503,12 +503,12 @@ class CryptoEngine:
 
 # ── QSettings helpers for early crypto init (before S() is available) ────────
 def _load_raw_setting(key: str, default: str = "") -> str:
-    s = QSettings("WinoraCompany", "")
+    s = QSettings("Company", "")
     v = s.value(key, default)
     return str(v) if v is not None else default
 
 def _save_raw_setting(key: str, value: str):
-    s = QSettings("WinoraCompany", "")
+    s = QSettings("Company", "")
     s.setValue(key, value)
     s.sync()
 
@@ -1150,9 +1150,9 @@ def _play_system_sound_compat(event: str = "message"):
 #  IN-APP TOAST NOTIFICATION  (slide-in from bottom-right)
 # ═══════════════════════════════════════════════════════════════════════════
 # ─────────────────────────────────────────────────────────────────────────────
-#  MEDIA OPEN HELPER — always ask: Mewa or system default
+#  MEDIA OPEN HELPER — always ask:  or system default
 # ─────────────────────────────────────────────────────────────────────────────
-_MEDIA_PREF: str = ""   # "mewa" | "system" | "" (ask each time)
+_MEDIA_PREF: str = ""   # "" | "system" | "" (ask each time)
 
 MEDIA_EXTS = {".mp3",".wav",".ogg",".flac",".aac",".m4a",".opus",".wma",
               ".mp4",".avi",".mkv",".webm",".mov",".m4v",".mpg",".mpeg",
@@ -1239,7 +1239,7 @@ def _open_link(url: str, parent=None):
 
 
 def _open_media_smart(path: str, parent=None):
-    """Open a media file: ask whether to use Mewa or system default.
+    """Open a media file: ask whether to use  or system default.
     Respects remembered choice from settings."""
     global _MEDIA_PREF
     # Load saved pref from settings
@@ -1254,8 +1254,8 @@ def _open_media_smart(path: str, parent=None):
         # Not a known media file — open with system default directly
         _open_system(path); return
 
-    if _MEDIA_PREF == "mewa":
-        _open_in_mewa(path, parent); return
+    if _MEDIA_PREF == "":
+        _open_in_(path, parent); return
     elif _MEDIA_PREF == "system":
         _open_system(path); return
 
@@ -1286,8 +1286,8 @@ def _open_media_smart(path: str, parent=None):
 
     btn_row = QHBoxLayout(); btn_row.setSpacing(10)
 
-    btn_mewa = QPushButton(TR("player_builtin"))
-    btn_mewa.setObjectName("accent_btn"); btn_mewa.setFixedHeight(34)
+    btn_ = QPushButton(TR("player_builtin"))
+    btn_.setObjectName("accent_btn"); btn_.setFixedHeight(34)
     btn_sys  = QPushButton(TR("player_system"))
     btn_sys.setFixedHeight(34)
     btn_sys.setStyleSheet(
@@ -1303,14 +1303,14 @@ def _open_media_smart(path: str, parent=None):
             global _MEDIA_PREF; _MEDIA_PREF = ch
         dlg.accept()
 
-    btn_mewa.clicked.connect(lambda: _pick("mewa"))
+    btn_.clicked.connect(lambda: _pick(""))
     btn_sys.clicked.connect(lambda: _pick("system"))
-    btn_row.addWidget(btn_mewa); btn_row.addWidget(btn_sys)
+    btn_row.addWidget(btn_); btn_row.addWidget(btn_sys)
     vl.addLayout(btn_row)
     dlg.exec()
 
-    if _choice[0] == "mewa":
-        _open_in_mewa(path, parent)
+    if _choice[0] == "":
+        _open_in_(path, parent)
     elif _choice[0] == "system":
         _open_system(path)
 
@@ -1331,15 +1331,15 @@ def _open_system(path: str):
         print(f"[open_system] {e}")
 
 
-def _open_in_mewa(path: str, parent=None):
-    """Add file to Mewa, switch to Mewa tab, and start playback."""
-    # Search all top-level windows for MainWindow (has _mewa_player)
+def _open_in_(path: str, parent=None):
+    """Add file to , switch to  tab, and start playback."""
+    # Search all top-level windows for MainWindow (has __player)
     app_inst = QApplication.instance()
     if app_inst:
         for w in app_inst.topLevelWidgets():
-            if hasattr(w, '_mewa_player') and hasattr(w, '_tabs'):
-                mp = w._mewa_player
-                # Switch to Mewa tab first
+            if hasattr(w, '__player') and hasattr(w, '_tabs'):
+                mp = w.__player
+                # Switch to  tab first
                 w._tabs.setCurrentWidget(mp)
                 # open_file handles _add_track + _play_idx (auto-switches to video page)
                 mp.open_file(path)
@@ -1348,9 +1348,9 @@ def _open_in_mewa(path: str, parent=None):
     w = parent
     for _ in range(12):
         if w is None: break
-        if hasattr(w, '_mewa_player') and hasattr(w, '_tabs'):
-            w._tabs.setCurrentWidget(w._mewa_player)
-            w._mewa_player.open_file(path)
+        if hasattr(w, '__player') and hasattr(w, '_tabs'):
+            w._tabs.setCurrentWidget(w.__player)
+            w.__player.open_file(path)
             return
         w = w.parent() if callable(getattr(w, 'parent', None)) else None
     # Last resort: system open
@@ -1359,7 +1359,7 @@ def _open_in_mewa(path: str, parent=None):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  MEDIA OPEN HELPER — спрашивает открыть через Mewa или системой
+#  MEDIA OPEN HELPER — спрашивает открыть через  или системой
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  GoidaCRYPTO — Защищённое локальное хранилище и многоуровневая безопасность
@@ -3057,7 +3057,7 @@ _STRINGS_RU = {
     "browser_builtin": "🌐 WNS (Встроенный)",
     "browser_system": "🖥 Системный браузер",
     "open_media": "Открыть медиа",
-    "player_builtin": "🎵 Mewa (Встроенный)",
+    "player_builtin": "🎵  (Встроенный)",
     "player_system": "📂 Системный плеер",
     "update_platform": "Выберите платформу:",
     "update_release_page": "🌐 Открыть страницу релиза",
@@ -3253,7 +3253,7 @@ _STRINGS_RU = {
     "menu_hangup_all": "📵 Завершить все звонки",
     "menu_about": "О программе",
     "menu_terminal": "⌨ ZLink Терминал",
-    "menu_wns": "🌐 Winora NetScape (WNS)",
+    "menu_wns": "🌐  NetScape (WNS)",
     "menu_tutorial": "❓ Учебник / Tutorial",
     "menu_lang_ru": "🇷🇺 Русский",
     "menu_lang_en": "🇬🇧 English",
@@ -3386,7 +3386,7 @@ _STRINGS_EN = {
     "browser_builtin": "🌐 WNS (built-in)",
     "browser_system": "🖥 Default browser",
     "open_media": "Open media file",
-    "player_builtin": "🎵 Mewa (built-in)",
+    "player_builtin": "🎵  (built-in)",
     "player_system": "📂 System player",
     "update_platform": "Choose your platform:",
     "update_release_page": "🌐 Open release page",
@@ -3583,7 +3583,7 @@ _STRINGS_EN = {
     "menu_hangup_all": "📵 End All Calls",
     "menu_about": "About ",
     "menu_terminal": "⌨ ZLink Terminal",
-    "menu_wns": "🌐 Winora NetScape (WNS)",
+    "menu_wns": "🌐  NetScape (WNS)",
     "menu_tutorial": "❓ Tutorial",
     "menu_lang_ru": "🇷🇺 Russian",
     "menu_lang_en": "🇬🇧 English",
@@ -3715,7 +3715,7 @@ _STRINGS_JA = {
     "browser_builtin": "🌐 WNS (内蔵)",
     "browser_system": "🖥 デフォルトブラウザ",
     "open_media": "メディアを開く",
-    "player_builtin": "🎵 Mewa (内蔵)",
+    "player_builtin": "🎵  (内蔵)",
     "player_system": "📂 システムプレーヤー",
     "update_platform": "プラットフォームを選択:",
     "update_release_page": "🌐 リリースページ",
@@ -3912,7 +3912,7 @@ _STRINGS_JA = {
     "menu_hangup_all": "📵 全通話終了",
     "menu_about": "",
     "menu_terminal": "⌨ ZLink ターミナル",
-    "menu_wns": "🌐 Winora NetScape (WNS)",
+    "menu_wns": "🌐  NetScape (WNS)",
     "menu_tutorial": "❓ チュートリアル",
     "menu_lang_ru": "🇷🇺 ロシア語",
     "menu_lang_en": "🇬🇧 英語",
@@ -3973,7 +3973,7 @@ class AppSettings:
         return cls._inst
 
     def __init__(self):
-        self._s = QSettings("WinoraCompany", "")
+        self._s = QSettings("Company", "")
 
     def get(self, key, default=None, t=None):
         v = self._s.value(key, default)

@@ -1,5 +1,5 @@
 // KOutNet — Voice call manager
-// Ported from gdf_network.py (GoidaPhone NT Server 1.8) → C++/Qt6
+// Ported from gdf_network.py ( NT Server 1.8) → C++/Qt6
 #include "VoiceCallManager.h"
 #include "NetworkManager.h"
 

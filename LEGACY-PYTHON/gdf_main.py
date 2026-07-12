@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# GoidaPhone NT Server 1.8 — Main Window + Entry Point
+#  NT Server 1.8 — Main Window + Entry Point
 from gdf_imports import *
 from gdf_core import _L, TR, S, get_theme, build_stylesheet, THEMES, AppSettings, _get_sound_dirs       # Qt6 + gdf_core (TR, _L, S, themes...)
 from gdf_network  import *      # NetworkManager, VoiceCallManager, AudioEngine
 from gdf_ui_base  import *      # SplashScreen, LauncherScreen, ImageViewer
 from gdf_chat     import *      # ChatPanel, PeerPanel, MessageBubble
 from gdf_dialogs  import *      # SettingsDialog, ProfileDialog, call windows
-from gdf_browser  import *      # WinoraNetScape, OutgoingCallWindow, IncomingCallDialog
-from gdf_apps     import *      # GoidaTerminal, MewaPlayer, _BarVisualizer
+from gdf_browser  import *      # NetScape, OutgoingCallWindow, IncomingCallDialog
+from gdf_apps     import *      # GoidaTerminal, Player, _BarVisualizer
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  MAIN WINDOW
@@ -19,7 +19,7 @@ from gdf_apps     import *      # GoidaTerminal, MewaPlayer, _BarVisualizer
 # ═══════════════════════════════════════════════════════════════════════════
 class QuickSetupWizard(QDialog):
     """
-    Быстрая настройка GoidaPhone — серия простых вопросов.
+    Быстрая настройка  — серия простых вопросов.
     Вызывается автоматически после обучения или через Справка → Быстрая настройка.
     """
     done_signal = pyqtSignal()
@@ -51,10 +51,10 @@ class QuickSetupWizard(QDialog):
          "History is stored locally on your computer",
          "yesno", None, True),
         ("show_splash",     "Show splash screen on startup?",
-         "Экран загрузки с логотипом GoidaPhone",
+         "Экран загрузки с логотипом ",
          "yesno", None, True),
         ("_summary",        "Всё ready!",
-         "Settings applied. We recommend restarting GoidaPhone for best results.",
+         "Settings applied. We recommend restarting  for best results.",
          "summary", None, None),
     ]
 
@@ -115,8 +115,8 @@ class QuickSetupWizard(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle(_L("Быстрая настройка GoidaPhone",
-                               "GoidaPhone Quick Setup", "クイック設定"))
+        self.setWindowTitle(_L("Быстрая настройка ",
+                               " Quick Setup", "クイック設定"))
         self.setModal(False)   # inline в вкладке — не модальный
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._t = get_theme(S().theme)
@@ -412,7 +412,7 @@ class QuickSetupWizard(QDialog):
 
         self._q_title.setText("✅ Настройка завершена!")
         self._q_hint.setText(
-            "Все настройки применены. Для корректной работы рекомендуем перезапустить GoidaPhone.")
+            "Все настройки применены. Для корректной работы рекомендуем перезапустить .")
         self._clear_answer_area()
 
         # Список применённых настроек
@@ -523,13 +523,13 @@ class TutorialOverlay(QWidget):
     finished = pyqtSignal()
 
     STEPS_RU = [
-        ("👋 Welcome to GoidaPhone!",
-         "GoidaPhone — мессенджер для общения в локальной сети (LAN) и через VPN.\n\n"
+        ("👋 Welcome to !",
+         " — мессенджер для общения в локальной сети (LAN) и через VPN.\n\n"
          "Здесь no серверов — всё P2P. Твои сообщения не покидают сеть.\n"
          "Press → to start the tutorial.",
          None),
         ("🌐 How it works",
-         "GoidaPhone находит других пользователей автоматически через broadcast.\n\n"
+         " находит других пользователей автоматически через broadcast.\n\n"
          "• Одна сеть (Wi-Fi/LAN) → все видят друг друга сразу\n"
          "• Разные сети → нужен VPN (Radmin, Hamachi, ZeroTier)\n"
          "• Нет интерnoа → всё равно работает внутри LAN",
@@ -567,8 +567,8 @@ class TutorialOverlay(QWidget):
          "• Групповые voice calls с несколькими участниками\n"
          "• Иконка, описание, права участников",
          "groups_tab"),
-        ("🎵 Mewa — музыкальный плеер",
-         "Вкладка «Mewa» → плеер с плейлистом, эквалайзером и online-радио.\n\n"
+        ("🎵  — музыкальный плеер",
+         "Вкладка «» → плеер с плейлистом, эквалайзером и online-радио.\n\n"
          "• Добавляй файлы или папки\n"
          "• 10-полосный эквалайзер с пресетами\n"
          "• Онлайн-радио — список станций встроен\n"
@@ -581,7 +581,7 @@ class TutorialOverlay(QWidget):
          "• Ctrl+T → новая вкладка, Ctrl+W → закрыть",
          None),
         ("🔐 Безопасность",
-         "GoidaPhone поддерживает несколько уровней защиты.\n\n"
+         " поддерживает несколько уровней защиты.\n\n"
          "• Encryption сообщений: Настройки → Сеть → включить\n"
          "• PIN-блокировка: Настройки → Блокировка\n"
          "• GoidaCRYPTO SecureVault: Настройки → Приватность\n"
@@ -595,7 +595,7 @@ class TutorialOverlay(QWidget):
          "• Звуковая схема: свой звук для каждого события",
          None),
         ("🎉 Готово!",
-         "Ты прошёл полное обучение GoidaPhone!\n\n"
+         "Ты прошёл полное обучение !\n\n"
          "Дальше предлагаем пройти быструю настройку — это займёт 1 минуту\n"
          "и поможет сразу настроить самое важное под тебя.\n\n"
          "Всё можно изменить позже в Настройках.",
@@ -603,7 +603,7 @@ class TutorialOverlay(QWidget):
     ]
 
     STEPS_EN = [
-        ("Welcome to GoidaPhone!",
+        ("Welcome to !",
          "This is a LAN/VPN messenger for local network communication.\n"
          "Press → to continue the tutorial.",
          None),
@@ -612,7 +612,7 @@ class TutorialOverlay(QWidget):
          "Double-click to open a private chat. Right-click for actions.",
          "peer_list"),
         ("Chat Tabs",
-         "Tabs at the top: Chat (public), Notes, Calls, Mewa player.\n"
+         "Tabs at the top: Chat (public), Notes, Calls,  player.\n"
          "The Chat tab is a public channel for everyone on the network.",
          "chat_tabs"),
         ("Message Input",
@@ -636,7 +636,7 @@ class TutorialOverlay(QWidget):
          "Type /help to see all commands.",
          None),
         ("All done!",
-         "You've completed the GoidaPhone tutorial! 🎉\n"
+         "You've completed the  tutorial! 🎉\n"
          "If you have questions, check Help → About.",
          None),
     ]
@@ -1009,7 +1009,7 @@ class MainWindow(QMainWindow):
         # Name + version
         info_lay = QVBoxLayout()
         info_lay.setSpacing(0)
-        name_lbl = QLabel(f"<b>{S().username or 'GoidaPhone'}</b>")
+        name_lbl = QLabel(f"<b>{S().username or ''}</b>")
         name_lbl.setStyleSheet(f"color:{t['text']};font-size:12px;background:transparent;")
         ver_lbl = QLabel(f"v{APP_VERSION}")
         ver_lbl.setStyleSheet(f"color:{t['text_dim']};font-size:10px;background:transparent;")
@@ -1163,7 +1163,7 @@ class MainWindow(QMainWindow):
                 return
         # Fallback: create if missing
         if not hasattr(self, '_wns_player') or self._wns_player is None:
-            self._wns_player = WinoraNetScape()
+            self._wns_player = NetScape()
         idx = self._tabs.addTab(self._wns_player, "🌐 WNS")
         self._tabs.setCurrentIndex(idx)
 
@@ -1207,9 +1207,9 @@ class MainWindow(QMainWindow):
         reply = QMessageBox.question(
             self,
             "Учебник" if lang == "ru" else "Tutorial",
-            ("Запустить учебник GoidaPhone?\nОн покажет основные функции приложения."
+            ("Запустить учебник ?\nОн покажет основные функции приложения."
              if lang == "ru" else
-             "Start the GoidaPhone tutorial?\nIt will walk you through the main features."),
+             "Start the  tutorial?\nIt will walk you through the main features."),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if reply == QMessageBox.StandardButton.Yes:
             S().set("tutorial_done", False)
@@ -1229,7 +1229,7 @@ class MainWindow(QMainWindow):
         self._add_tab_close_btn(idx)
 
     def _toggle_terminal(self):
-        """Toggle the floating GoidaPhone terminal panel with animation."""
+        """Toggle the floating  terminal panel with animation."""
         if not hasattr(self, '_terminal_panel'):
             return
         tp = self._terminal_panel
@@ -1312,11 +1312,11 @@ class MainWindow(QMainWindow):
         self._call_log_widget = CallLogWidget()
         self._tabs.addTab(self._call_log_widget, TR("tab_main_calls"))
 
-        self._mewa_player = MewaPlayer()
-        self._tabs.addTab(self._mewa_player, "♫ Mewa")
+        self.__player = Player()
+        self._tabs.addTab(self.__player, "♫ ")
 
         # WNS as inline tab (not separate window)
-        self._wns_player = WinoraNetScape()
+        self._wns_player = NetScape()
         self._tabs.addTab(self._wns_player, "🌐 WNS")
         self._wns_window = None  # no longer used as window
 
@@ -1364,7 +1364,7 @@ class MainWindow(QMainWindow):
             tm.addAction(act(td["label"], lambda _, k=key: self._switch_theme(k)))
         vm.addSeparator()
         vm.addAction(act(TR("menu_public_chat"), self._go_public))
-        vm.addAction(act("♫ Mewa 1-2-3", lambda: self._tabs.setCurrentWidget(self._mewa_player)))
+        vm.addAction(act("♫  1-2-3", lambda: self._tabs.setCurrentWidget(self.__player)))
         vm.addSeparator()
         vm.addAction(act(TR("menu_fullscreen"), self._toggle_fullscreen, "F11"))
         vm.addAction(act(TR("menu_lang_ru"),  lambda: self._switch_language("ru")))
@@ -1379,7 +1379,7 @@ class MainWindow(QMainWindow):
         # Help
         hm = mb.addMenu(TR("menu_help"))
         hm.addAction(act(TR("menu_about"), self._about))
-        hm.addAction(act("📊 Отчёт для Winora", self._generate_report))
+        hm.addAction(act("📊 Отчёт для ", self._generate_report))
         hm.addSeparator()
         hm.addAction(act(TR("menu_terminal"), self._open_terminal, "Ctrl+`"))
         hm.addAction(act(TR("menu_wns"), self._open_wns, "Ctrl+B"))
@@ -1964,13 +1964,13 @@ class MainWindow(QMainWindow):
                 "border-radius:3px; padding:1px 7px; font-size:10px;")
 
     def _generate_report(self):
-        """Собрать детальный отчёт для Winora — ВСЁ что может помочь."""
+        """Собрать детальный отчёт для  — ВСЁ что может помочь."""
         import platform, os, sys, time, json, socket, subprocess
         from datetime import datetime
         
         report = []
         report.append("=" * 60)
-        report.append("GoidaPhone NT Server 1.8 - Winora Company")
+        report.append(" NT Server 1.8 - ")
         now_str = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
         report.append(f"Отчёт сгенерирован: {now_str}")
         report.append("=" * 60)
@@ -1989,7 +1989,7 @@ class MainWindow(QMainWindow):
         except:
             pass
         
-        report.append("\n[GOIDAPHONE]")
+        report.append("\n[]")
         report.append(f"  Версия: {APP_VERSION}")
         report.append(f"  Протокол: v{PROTOCOL_VERSION}")
         report.append(f"  Пользователь: {cfg.username}")
@@ -2070,13 +2070,13 @@ class MainWindow(QMainWindow):
         report.append("Конец отчёта")
         
         report_text = "\n".join(report)
-        fn = f"goidaphone_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        fn = f"_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         fp = os.path.join(os.path.expanduser("~"), fn)
         with open(fp, "w", encoding="utf-8") as f:
             f.write(report_text)
         
         from PyQt6.QtWidgets import QMessageBox
-        QMessageBox.information(self, "Отчёт", f"Отчёт сохранён:\n{fp}\n\nОтправьте его команде Winora для анализа.")
+        QMessageBox.information(self, "Отчёт", f"Отчёт сохранён:\n{fp}\n\nОтправьте его команде  для анализа.")
 
         report.append(f"  Все IP: {', '.join(all_ips)}")
     def _about(self):
@@ -2122,7 +2122,7 @@ class MainWindow(QMainWindow):
         sep.setStyleSheet(f"color:{t['border']};"); lay.addWidget(sep)
 
         desc = QLabel(
-            "🚀 <b>GoidaPhone</b> — P2P messenger for LAN and VPN.<br>"
+            "🚀 <b></b> — P2P messenger for LAN and VPN.<br>"
             "No servers. No registration. No tracking.<br>"
             "Works on any LAN: home, corporate, Hamachi, Radmin VPN.")
         desc.setTextFormat(Qt.TextFormat.RichText)
@@ -2191,7 +2191,7 @@ class MainWindow(QMainWindow):
         _section("🛠 Developers",        ["Щербинин Матвей","Давид Юзефович"], t['accent'])
         _section("💜 Help developing",   ["Андрей Хромов","Демид Черепанов","Давид Юзефович"])
         _section("💰 Financial support", ["Давид Юзефович","Демид Черепанов","Андрей Хромов"])
-        _section("📢 Promotion",         ["Матвей Нечаев","Winora Racing Team"])
+        _section("📢 Promotion",         ["Матвей Нечаев"," Racing Team"])
         _section("🧪 Testers",           [
             "Давид Юзефович","Матвей Щербинин","Матвей Нечаев","Демид Черепанов",
             "Дима Юзефович","Андрей Хромов","Николай Ходырев",
@@ -2253,7 +2253,7 @@ class MainWindow(QMainWindow):
             self.hide()
             self._tray.showMessage(
                 APP_NAME,
-                "GoidaPhone свёрнут в трей. Двойной клик — открыть. Выход → ПКМ на иконке.",
+                " свёрнут в трей. Двойной клик — открыть. Выход → ПКМ на иконке.",
                 QSystemTrayIcon.MessageIcon.Information, 3000)
             return
 
@@ -2278,7 +2278,7 @@ class MainWindow(QMainWindow):
 #  ENTRY POINT
 # ═══════════════════════════════════════════════════════════════════════════
 # ═══════════════════════════════════════════════════════════════════════════
-#  GOIDA DEATH SCREEN  — синий экран смерти GoidaPhone
+#  GOIDA DEATH SCREEN  — синий экран смерти 
 # ═══════════════════════════════════════════════════════════════════════════
 class GoidaDeathScreen(QWidget):
     """BSOD with QR, auto-restart 30s, halts all windows."""
@@ -2335,7 +2335,7 @@ class GoidaDeathScreen(QWidget):
         lay.addWidget(sad)
         lay.addSpacing(14)
 
-        title = QLabel("GoidaPhone encountered a problem and stopped responding.")
+        title = QLabel(" encountered a problem and stopped responding.")
         title.setStyleSheet(
             "font-size:26px;font-weight:bold;color:white;background:transparent;")
         title.setWordWrap(True)
@@ -2365,7 +2365,7 @@ class GoidaDeathScreen(QWidget):
              "font-size:13px;font-weight:bold;color:white;background:transparent;"),
             (f"Time: {ts}",
              "font-size:11px;color:#A0C0FF;background:transparent;"),
-            (f"GoidaPhone v{APP_VERSION}  |  Python {sys.version.split()[0]}  |  "
+            (f" v{APP_VERSION}  |  Python {sys.version.split()[0]}  |  "
              f"{platform.system()} {platform.release()}",
              "font-size:10px;color:#8AAAEE;background:transparent;"),
         ]:
@@ -2448,7 +2448,7 @@ class GoidaDeathScreen(QWidget):
         btn_row.addWidget(
             _make_btn(_L("📋 Copy", "📋 Copy", "📋 コピー"), "#0050CC", "#0066EE",
                       lambda: QApplication.clipboard().setText(
-                          f"GoidaPhone Death Report\n{ts}\n{error_code}\n\n{tb_str}")))
+                          f" Death Report\n{ts}\n{error_code}\n\n{tb_str}")))
         if manual:
             btn_row.addWidget(
                 _make_btn("↩ Return", "#005522", "#007733", self.close))
@@ -2501,8 +2501,8 @@ class GoidaDeathScreen(QWidget):
 
     def _generate_qr(self, tb: str, code: str, ts: str):
         import urllib.parse
-        subject = f"GoidaPhone Crash — {code}"
-        body = (f"GoidaPhone v{APP_VERSION}\n"
+        subject = f" Crash — {code}"
+        body = (f" v{APP_VERSION}\n"
                 f"Time: {ts}\n"
                 f"Platform: {platform.system()} {platform.release()}\n"
                 f"Python: {sys.version.split()[0]}\n\n"
@@ -2552,12 +2552,12 @@ class GoidaDeathScreen(QWidget):
     def _save_report(tb: str, code: str, ts: str):
         fn, _ = QFileDialog.getSaveFileName(
             None, "Сохранить отчёт",
-            f"goidaphone_crash_{ts.replace(':','-').replace(' ','_')}.txt",
+            f"_crash_{ts.replace(':','-').replace(' ','_')}.txt",
             "Text (*.txt)")
         if fn:
             try:
                 open(fn, "w", encoding="utf-8").write(
-                    f"GoidaPhone v{APP_VERSION} — Crash Report\n"
+                    f" v{APP_VERSION} — Crash Report\n"
                     f"Time: {ts}\nCode: {code}\n"
                     f"Platform: {platform.system()} {platform.release()}\n"
                     f"Python: {sys.version}\n\nTraceback:\n{tb}\n")
@@ -2856,7 +2856,7 @@ def main():
             print(f"{CYAN}  ╚██████╔╝╚██████╔╝██║██████╔╝██║  ██║{RST}")
             print(f"{CYAN}   ╚═════╝  ╚═════╝ ╚═╝╚═════╝ ╚═╝  ╚═╝{RST}")
             print(f"{PURP}{'═'*62}{RST}")
-            print(f"  {BOLD}GoidaPhone v{APP_VERSION} — CMD Mode{RST}  {DIM}Winora Company{RST}")
+            print(f"  {BOLD} v{APP_VERSION} — CMD Mode{RST}  {DIM}{RST}")
             print(f"  {DIM}Type /help for commands  •  /quit to exit{RST}")
             print(f"{PURP}{'═'*62}{RST}\n")
 
@@ -2907,7 +2907,7 @@ def main():
 
             _help_text = f"""
 {PURP}{'─'*56}{RST}
-{BOLD}  GoidaPhone CMD Mode v{APP_VERSION}{RST}  {DIM}Winora Company{RST}
+{BOLD}   CMD Mode v{APP_VERSION}{RST}  {DIM}{RST}
 {PURP}{'─'*56}{RST}
 
 {BOLD}{CYAN}GENERAL{RST}
@@ -3108,7 +3108,7 @@ def main():
 
                     elif cmd == "/log":
                         n_lines = int(parts[1]) if len(parts) >= 2 and parts[1].isdigit() else 20
-                        log_file = DATA_DIR / "goidaphone.log"
+                        log_file = DATA_DIR / ".log"
                         if log_file.exists():
                             lines_list = log_file.read_text(encoding='utf-8', errors='replace').splitlines()
                             for ln in lines_list[-n_lines:]:
@@ -3155,7 +3155,7 @@ def main():
             voice.cleanup()
             net.stop()
             print(f"\n{PURP}{'═'*62}{RST}")
-            print(f"  {DIM}GoidaPhone stopped. Goodbye! 👋{RST}")
+            print(f"  {DIM} stopped. Goodbye! 👋{RST}")
             print(f"{PURP}{'═'*62}{RST}")
             app.quit()
             return
@@ -3207,8 +3207,8 @@ def main():
         # ── ASCII header ────────────────────────────────────────────────
         print()
         print(f"  {_B}{_G}{'─'*W}{_R}")
-        print(f"  {_B}{_G}  GoidaPhone™ NT Server 1.8{_R}")
-        print(f"  {_D}  Powered by Winora Company  ©  2026{_R}")
+        print(f"  {_B}{_G}  ™ NT Server 1.8{_R}")
+        print(f"  {_D}  Powered by   ©  2026{_R}")
         print(f"  {_B}{_G}{'─'*W}{_R}")
         print()
         _t.sleep(0.1)
@@ -3226,7 +3226,7 @@ def main():
         _ok(f"Qt framework:    PyQt6 + Fusion renderer")
 
         _t.sleep(0.06)
-        _ok(f"Build:           GoidaPhone v{APP_VERSION}  [{__import__('time').strftime('%Y-%m-%d')}]")
+        _ok(f"Build:            v{APP_VERSION}  [{__import__('time').strftime('%Y-%m-%d')}]")
 
         # ── Data & config ────────────────────────────────────────────────
         print()

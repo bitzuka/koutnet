@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-gdf_imports.py — Centralized imports for GoidaPhone modules.
+gdf_imports.py — Centralized imports for  modules.
 Every module: from gdf_imports import *
-Provides Qt6 + all GoidaPhone core symbols (TR, _L, S, get_theme, etc.)
+Provides Qt6 + all  core symbols (TR, _L, S, get_theme, etc.)
 """
 
 # ── Standard library ─────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ try:
 except ImportError:
     _HAS_MULTIMEDIA = False
 
-# ── GoidaPhone Core — TR, _L, S, AppSettings, themes, utils ─────────────────
+# ──  Core — TR, _L, S, AppSettings, themes, utils ─────────────────
 # gdf_core.py has no Qt imports of its own (only std lib),
 # so importing it here is safe — no circular dependency.
 try:

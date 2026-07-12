@@ -3973,8 +3973,8 @@ class ChatPanel(QWidget):
 
     def _on_system_audio_output_changed(self):
         """Системное аудио-устройство изменилось — уведомляем все модули."""
-        # Mewa: пересоздаёт QAudioOutput автоматически через свой коннект
-        # Mewa делает это сам через self._media_devices в _init_player
+        # : пересоздаёт QAudioOutput автоматически через свой коннект
+        #  делает это сам через self._media_devices в _init_player
         
         # VoiceCallManager: если идёт звонок — переподключаем стримы
         try:

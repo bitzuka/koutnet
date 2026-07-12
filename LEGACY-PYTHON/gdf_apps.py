@@ -1642,7 +1642,7 @@ class GoidaTerminal(QWidget):
         self._print(f"  {COMPANY_NAME}", self.C_DIM)
         self._print("", self.C_WHITE)
         self._print("  P2P LAN/VPN мессенджер с шифрованием, группами,", self.C_WHITE)
-        self._print("  голосовыми звонками, медиаплеером Mewa 1-2-3.", self.C_WHITE)
+        self._print("  голосовыми звонками, медиаплеером  1-2-3.", self.C_WHITE)
         self._print("", self.C_WHITE)
         self._print("  Encryption: AES-256-GCM + X25519 ECDH + Ed25519", self.C_WHITE)
         self._print("  Protocol:   UDP + TCP (п2п, без сервера)", self.C_WHITE)
@@ -2456,7 +2456,7 @@ class GoidaTerminal(QWidget):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  MEWA BAR VISUALIZER
+#   BAR VISUALIZER
 # ═══════════════════════════════════════════════════════════════════════════
 class _BarVisualizer(QWidget):
     """
@@ -2718,9 +2718,9 @@ class _FSKeyFilter(QObject):
         return super().eventFilter(obj, event)
 
 
-class MewaPlayer(QWidget):
+class Player(QWidget):
     """
-    Mewa 1-2-3 v1.32 — медиаплеер.
+     1-2-3 v1.32 — медиаплеер.
     Структура: боковая иконочная панель + основная область со стеком страниц
     + нижняя полоска управления воспроизведением. Всё следует текущей теме.
     """
@@ -2745,15 +2745,15 @@ class MewaPlayer(QWidget):
         # ── SIDEBAR ───────────────────────────────────────────────────────────
         self._sidebar = QWidget()
         self._sidebar.setFixedWidth(80)
-        self._sidebar.setObjectName("mewa_side")
+        self._sidebar.setObjectName("_side")
         self._sidebar.setStyleSheet(
-            f"QWidget#mewa_side{{background:{t['bg3']};"
+            f"QWidget#_side{{background:{t['bg3']};"
             f"border-right:1px solid {t['border']};}}")
         sb = QVBoxLayout(self._sidebar)
         sb.setContentsMargins(0, 6, 0, 6)
         sb.setSpacing(0)
 
-        # Logo bar with accent bg — MEWA ASCII
+        # Logo bar with accent bg —  ASCII
         logo_bar = QWidget()
         logo_bar.setFixedHeight(64)
         logo_bar.setStyleSheet(
@@ -2762,7 +2762,7 @@ class MewaPlayer(QWidget):
         logo_lay = QVBoxLayout(logo_bar)
         logo_lay.setContentsMargins(0, 4, 0, 4)
         logo_lay.setSpacing(0)
-        logo = QLabel("MEWA")
+        logo = QLabel("")
         logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
         logo.setStyleSheet(
             "font-size:16px;color:white;background:transparent;"
@@ -2814,8 +2814,8 @@ class MewaPlayer(QWidget):
 
         # ── RIGHT COLUMN ──────────────────────────────────────────────────────
         right_col = QWidget()
-        right_col.setObjectName("mewa_right")
-        right_col.setStyleSheet(f"QWidget#mewa_right{{background:{t['bg']};}}")
+        right_col.setObjectName("_right")
+        right_col.setStyleSheet(f"QWidget#_right{{background:{t['bg']};}}")
         rc_lay = QVBoxLayout(right_col)
         rc_lay.setContentsMargins(0, 0, 0, 0)
         rc_lay.setSpacing(0)
@@ -2823,9 +2823,9 @@ class MewaPlayer(QWidget):
         # ── TOOLBAR ───────────────────────────────────────────────────────────
         tb = QWidget()
         tb.setFixedHeight(38)
-        tb.setObjectName("mewa_tb")
+        tb.setObjectName("_tb")
         tb.setStyleSheet(
-            f"QWidget#mewa_tb{{background:{t['bg2']};"
+            f"QWidget#_tb{{background:{t['bg2']};"
             f"border-bottom:1px solid {t['border']};}}")
         tbl = QHBoxLayout(tb)
         tbl.setContentsMargins(8, 0, 8, 0)
@@ -2883,9 +2883,9 @@ class MewaPlayer(QWidget):
 
         art_panel = QWidget()
         art_panel.setFixedWidth(210)
-        art_panel.setObjectName("mewa_art")
+        art_panel.setObjectName("_art")
         art_panel.setStyleSheet(
-            f"QWidget#mewa_art{{background:qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+            f"QWidget#_art{{background:qlineargradient(x1:0,y1:0,x2:0,y2:1,"
             f"stop:0 {t['bg3']},stop:1 {t['bg2']});"
             f"border-right:1px solid {t['border']};}}")
         apl = QVBoxLayout(art_panel)
@@ -2895,9 +2895,9 @@ class MewaPlayer(QWidget):
         self._art_lbl = QLabel("♫")
         self._art_lbl.setFixedSize(186, 186)
         self._art_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._art_lbl.setObjectName("mewa_art_img")
+        self._art_lbl.setObjectName("_art_img")
         self._art_lbl.setStyleSheet(
-            f"QLabel#mewa_art_img{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,"
+            f"QLabel#_art_img{{background:qlineargradient(x1:0,y1:0,x2:1,y2:1,"
             f"stop:0 {t['bg3']},stop:1 {t['bg']});"
             f"border-radius:14px;font-size:64px;color:{t['accent']};"
             f"border:2px solid {t['border']};}}")
@@ -2985,8 +2985,8 @@ class MewaPlayer(QWidget):
 
         # ── Page 4 — Video player ─────────────────────────────────────────────
         vp = QWidget()
-        vp.setObjectName("mewa_video_page")
-        vp.setStyleSheet(f"QWidget#mewa_video_page{{background:#000;}}")
+        vp.setObjectName("_video_page")
+        vp.setStyleSheet(f"QWidget#_video_page{{background:#000;}}")
         vp_lay = QVBoxLayout(vp)
         vp_lay.setContentsMargins(0, 0, 0, 0)
         vp_lay.setSpacing(0)
@@ -3278,10 +3278,10 @@ class MewaPlayer(QWidget):
 
         # ── PLAYER BAR ────────────────────────────────────────────────────────
         pbar = QWidget()
-        pbar.setObjectName("mewa_pbar")
+        pbar.setObjectName("_pbar")
         pbar.setFixedHeight(84)
         pbar.setStyleSheet(
-            f"QWidget#mewa_pbar{{background:qlineargradient(x1:0,y1:0,x2:0,y2:1,"
+            f"QWidget#_pbar{{background:qlineargradient(x1:0,y1:0,x2:0,y2:1,"
             f"stop:0 {t['bg3']},stop:1 {t['bg2']});"
             f"border-top:2px solid {t['accent']};}}")
         pbl = QVBoxLayout(pbar)
@@ -3544,7 +3544,7 @@ class MewaPlayer(QWidget):
         vals = [s.value() for s in self._eq_sliders]
         try:
             import json as _j
-            S().set("mewa_eq", _j.dumps(vals))
+            S().set("_eq", _j.dumps(vals))
         except Exception: pass
 
         # Обновим label значений на слайдерах
@@ -4125,25 +4125,25 @@ class MewaPlayer(QWidget):
         name, ok = QInputDialog.getText(self,"Сохранить плейлист",_L("Название:", "Name:", "名前:"))
         if not ok or not name.strip(): return
         import json as _json
-        pls = _json.loads(S().get("mewa_playlists","[]",t=str))
+        pls = _json.loads(S().get("_playlists","[]",t=str))
         pls.append({"name":name.strip(),"tracks":[x["path"] for x in self._playlist]})
-        S().set("mewa_playlists", _json.dumps(pls, ensure_ascii=False))
+        S().set("_playlists", _json.dumps(pls, ensure_ascii=False))
         self._refresh_saved_playlists()
 
     def _delete_saved_playlist(self):
         row = self._pl_list.currentRow()
         if row < 0: return
         import json as _json
-        pls = _json.loads(S().get("mewa_playlists","[]",t=str))
+        pls = _json.loads(S().get("_playlists","[]",t=str))
         if row < len(pls):
             pls.pop(row)
-            S().set("mewa_playlists", _json.dumps(pls, ensure_ascii=False))
+            S().set("_playlists", _json.dumps(pls, ensure_ascii=False))
         self._refresh_saved_playlists()
 
     def _load_saved_playlist(self, idx):
         import json as _json
         row = idx.row()
-        pls = _json.loads(S().get("mewa_playlists","[]",t=str))
+        pls = _json.loads(S().get("_playlists","[]",t=str))
         if row < len(pls):
             self._clear_queue()
             for path in pls[row].get("tracks",[]):
@@ -4155,7 +4155,7 @@ class MewaPlayer(QWidget):
         try:
             import json as _json
             self._pl_list.clear()
-            pls = _json.loads(S().get("mewa_playlists","[]",t=str))
+            pls = _json.loads(S().get("_playlists","[]",t=str))
             for pl in pls:
                 self._pl_list.addItem(
                     f"≡  {pl.get('name','?')}   ({len(pl.get('tracks',[]))} треков)")

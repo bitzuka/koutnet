@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# GoidaPhone NT Server 1.8 — Dialogs (settings, profile, calls, notes)
+#  NT Server 1.8 — Dialogs (settings, profile, calls, notes)
 from gdf_imports import *
 from gdf_core import _L, TR, S, get_theme, build_stylesheet, THEMES, AppSettings, _SOUND_EVENT_LABELS, _SOUND_MAP_DEFAULT, play_system_sound
 from gdf_network  import *
@@ -776,7 +776,7 @@ class ProfilePreviewWidget(QWidget):
             f"font-size: 10px; color: {dot_colors.get(status,'#4CAF50')};"
             "background: transparent;")
         self._status_txt.setText(dot_labels.get(status, "в сети"))
-        self._version_lbl.setText(f"GoidaPhone v{APP_VERSION}")
+        self._version_lbl.setText(f" v{APP_VERSION}")
 
         # Info rows
         ip_raw = get_local_ip()
@@ -1669,9 +1669,9 @@ class SettingsDialog(QDialog):
         
         chk_row = QHBoxLayout()
         self._internet_enabled = QCheckBox(
-            _L("Использовать VDS сервер goidaphone.ru вместо LAN/VPN соединения",
-               "Use goidaphone.ru VDS server instead of LAN/VPN connection",
-               "LAN/VPN接続の代わりにgoidaphone.ru VDSサーバーを使用"))
+            _L("Использовать VDS сервер  вместо LAN/VPN соединения",
+               "Use  VDS server instead of LAN/VPN connection",
+               "LAN/VPN接続の代わりに VDSサーバーを使用"))
         self._internet_enabled.setChecked(S().connection_mode == "internet")
         self._internet_enabled._was_checked = self._internet_enabled.isChecked()
         def _on_internet_toggled(checked):
@@ -1693,17 +1693,17 @@ class SettingsDialog(QDialog):
                         "«Разрешить relay-соединения» (пролистайте вниз в разделе «Сеть», если вы это читаете — "
                         "вы уже в этом разделе).\n\n"
                         "Закройте это окно → пролистайте в самый низ страницы → разрешите использование relay.\n"
-                        "Только после этого GoidaPhone сможет использовать интернет. Сделано в соображениях безопасности.",
+                        "Только после этого  сможет использовать интернет. Сделано в соображениях безопасности.",
                         
                         "To activate VDS connection, you need to enable the «Allow relay connections» checkbox "
                         "(scroll down in the «Network» section — if you're reading this, you're already there).\n\n"
                         "Close this window → scroll to the bottom of the page → enable relay.\n"
-                        "Only then GoidaPhone will be able to use the internet. Done for security reasons.",
+                        "Only then  will be able to use the internet. Done for security reasons.",
                         
                         "VDS接続を有効にするには、「リレー接続を許可する」チェックボックスをオンにする必要があります"
                         "（「ネットワーク」セクションを下にスクロールしてください — これを読んでいるなら、すでにそこにいます）。\n\n"
                         "このウィンドウを閉じる → ページの一番下までスクロール → リレーを有効にする。\n"
-                        "その後でのみ、GoidaPhoneはインターネットを使用できます。セキュリティ上の理由によるものです。"))
+                        "その後でのみ、はインターネットを使用できます。セキュリティ上の理由によるものです。"))
                 self._internet_enabled.setChecked(False)
                 self._internet_enabled._handling = False
                 return
@@ -1712,9 +1712,9 @@ class SettingsDialog(QDialog):
             reply = QMessageBox.question(
                 self,
                 _L("Интернет-режим", "Internet mode", "インターネットモード"),
-                _L("Вы действительно хотите включить Интернет-режим?\nДанные будут проходить через goidaphone.ru\nи приложению потребуется перезагрузка для применения настроек.",
-                   "Do you really want to enable Internet mode?\nData will go through goidaphone.ru\nand the app needs to restart to apply changes.",
-                   "本当にインターネットモードを有効にしますか？\nデータはgoidaphone.ruを経由し、\n設定を適用するには再起動が必要です。") if checked else
+                _L("Вы действительно хотите включить Интернет-режим?\nДанные будут проходить через \nи приложению потребуется перезагрузка для применения настроек.",
+                   "Do you really want to enable Internet mode?\nData will go through \nand the app needs to restart to apply changes.",
+                   "本当にインターネットモードを有効にしますか？\nデータはを経由し、\n設定を適用するには再起動が必要です。") if checked else
                 _L("Вы действительно хотите выключить Интернет-режим?\nПриложению потребуется перезагрузка для применения настроек.",
                    "Do you really want to disable Internet mode?\nThe app needs to restart to apply changes.",
                    "本当にインターネットモードを無効にしますか？\n設定を適用するには再起動が必要です。"),
@@ -1732,9 +1732,9 @@ class SettingsDialog(QDialog):
         info_btn = QPushButton(_L("(что это?)", "(what's this?)", "(これは？)"))
         info_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         info_msg = _L(
-            "При включении весь трафик (сообщения, звонки, файлы, реакции) пойдёт через сервер goidaphone.ru в интернете, а не напрямую между компьютерами (P2P) в локальной сети.",
-            "When enabled, all traffic (messages, calls, files, reactions) will go through goidaphone.ru server on the internet instead of direct P2P in local network.",
-            "有効にすると、すべてのトラフィック（メッセージ、通話、ファイル、リアクション）はローカルネットワークの直接P2Pではなく、インターネット上のgoidaphone.ruサーバーを経由します。")
+            "При включении весь трафик (сообщения, звонки, файлы, реакции) пойдёт через сервер  в интернете, а не напрямую между компьютерами (P2P) в локальной сети.",
+            "When enabled, all traffic (messages, calls, files, reactions) will go through  server on the internet instead of direct P2P in local network.",
+            "有効にすると、すべてのトラフィック（メッセージ、通話、ファイル、リアクション）はローカルネットワークの直接P2Pではなく、インターネット上のサーバーを経由します。")
         info_btn.setToolTip(info_msg)
         info_btn.setStyleSheet("QPushButton{background:transparent;border:none;color:#6af;font-size:10px;text-decoration:underline;}"
                                "QPushButton:hover{color:#8cf;}")
@@ -1749,15 +1749,15 @@ class SettingsDialog(QDialog):
         inet_lay.addLayout(chk_row)
         
         warn = QLabel(_L(
-            "⚠ Если вы не доверяете интернет-соединению goidaphone.ru с GoidaCRYPTO, мы не советуем включать это. "
+            "⚠ Если вы не доверяете интернет-соединению  с GoidaCRYPTO, мы не советуем включать это. "
             "Данные будут передаваться через сервер, а не между компьютерами (P2P).\n"
-            "Компания заботится о конфиденциальности вашей информации и тайны переписки, и вам решать как использовать GoidaPhone.",
-            "⚠ If you don't trust goidaphone.ru internet connection with GoidaCRYPTO, we advise against enabling this. "
+            "Компания заботится о конфиденциальности вашей информации и тайны переписки, и вам решать как использовать .",
+            "⚠ If you don't trust  internet connection with GoidaCRYPTO, we advise against enabling this. "
             "Data will go through the server, not directly between computers (P2P).\n"
-            "The company cares about your privacy and confidentiality — you decide how to use GoidaPhone.",
-            "⚠ goidaphone.ruとGoidaCRYPTOのインターネット接続を信頼できない場合、有効にしないことをお勧めします。"
+            "The company cares about your privacy and confidentiality — you decide how to use .",
+            "⚠ とGoidaCRYPTOのインターネット接続を信頼できない場合、有効にしないことをお勧めします。"
             "データはコンピューター間（P2P）ではなくサーバーを経由します。\n"
-            "当社はお客様のプライバシーと通信の秘密を大切にします。GoidaPhoneの使用方法はあなたが決めます。"))
+            "当社はお客様のプライバシーと通信の秘密を大切にします。の使用方法はあなたが決めます。"))
         warn.setWordWrap(True)
         warn.setStyleSheet("font-size:9px;color:#FFB060;background:transparent;padding:4px;")
         inet_lay.addWidget(warn)
@@ -2059,7 +2059,7 @@ class SettingsDialog(QDialog):
             S().set("tcp_port", srv.get("tcp_port",45679))
             S().set("broadcast_addr", host)
             QMessageBox.information(self,"Подключение",
-                f"Параметры сохранены.\nПерезапустите GoidaPhone для применения.")
+                f"Параметры сохранены.\nПерезапустите  для применения.")
 
     # ── Themes tab ─────────────────────────────────────────────────────
     def _tab_themes(self) -> QWidget:
@@ -2118,7 +2118,7 @@ class SettingsDialog(QDialog):
         reply = QMessageBox.information(
             self, "Смена темы",
             "⚠ Быстрое переключение тем может быть нестабильным.\n"
-            "Для полного применения рекомендуется перезапуск GoidaPhone.",
+            "Для полного применения рекомендуется перезапуск .",
             QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
         if reply == QMessageBox.StandardButton.Ok:
             QApplication.instance().setStyleSheet(build_stylesheet(get_theme(key)))
@@ -2181,7 +2181,7 @@ class SettingsDialog(QDialog):
         top_row.addWidget(badge)
 
         plan_col = QVBoxLayout()
-        plan_name = QLabel("GoidaPhone Premium" if is_premium else "Стандартная версия")
+        plan_name = QLabel(" Premium" if is_premium else "Стандартная версия")
         plan_name.setStyleSheet(
             f"font-size:16px;font-weight:700;"
             f"color:{'#FFD700' if is_premium else t['text']};"
@@ -2312,7 +2312,7 @@ class SettingsDialog(QDialog):
                 f"border:1px solid {t['accent']};border-radius:8px;padding:0 14px;}}"
                 f"QPushButton:hover{{background:{t['accent']};color:white;}}")
             buy_btn.clicked.connect(lambda: QDesktopServices.openUrl(
-                QUrl("https://t.me/WinoraCompany")))
+                QUrl("https://t.me/Company")))
             btn_row.addWidget(buy_btn)
             act_l.addLayout(btn_row)
 
@@ -2461,7 +2461,7 @@ class SettingsDialog(QDialog):
             QMessageBox.information(self,"Обновление",
                 "Настройте GITHUB_REPO в исходном коде для автообновления.")
             return
-        dest = str(Path(sys.argv[0]).parent / f"goidaphone_update_{APP_VERSION}.py")
+        dest = str(Path(sys.argv[0]).parent / f"_update_{APP_VERSION}.py")
         dlg  = QProgressDialog("Загрузка обновления...", _L(_L("Отмена", "Cancel", "キャンセル"), "Cancel", "キャンセル"), 0, 100, self)
         dlg.setWindowModality(Qt.WindowModality.WindowModal)
         dlg.show()
@@ -2834,10 +2834,10 @@ class SettingsDialog(QDialog):
         self._priv_media_pref = QComboBox()
         self._priv_media_pref.addItems([
             "Спрашивать каждый раз",
-            "Всегда Mewa (встроенный плеер)",
+            "Всегда  (встроенный плеер)",
             "Всегда системный плеер",
         ])
-        pref_map = {"": 0, "mewa": 1, "system": 2}
+        pref_map = {"": 0, "": 1, "system": 2}
         cur_pref = S().get("media_open_pref", "", t=str)
         self._priv_media_pref.setCurrentIndex(pref_map.get(cur_pref, 0))
         fl5.addWidget(self._priv_media_pref)
@@ -2854,11 +2854,11 @@ class SettingsDialog(QDialog):
         self._media_pref_combo = QComboBox()
         self._media_pref_combo.addItems([
             "Спрашивать каждый раз",
-            "Всегда открывать в Mewa",
+            "Всегда открывать в ",
             "Всегда открывать системным плеером",
         ])
         pref = S().get("media_open_pref", "", t=str)
-        idx = {"": 0, "mewa": 1, "system": 2}.get(pref, 0)
+        idx = {"": 0, "": 1, "system": 2}.get(pref, 0)
         self._media_pref_combo.setCurrentIndex(idx)
         fl5_form.addRow("По умолчанию открывать медиа:", self._media_pref_combo)
 
@@ -2890,7 +2890,7 @@ class SettingsDialog(QDialog):
 
         # ── GoidaCRYPTO — слои защиты ──────────────────────────────────
         g_crypto = QGroupBox("🔐  GoidaCRYPTO — Слои защиты")
-        g_crypto.setToolTip("Многоуровневая защита данных GoidaPhone")
+        g_crypto.setToolTip("Многоуровневая защита данных ")
         cfl = QVBoxLayout(g_crypto)
 
         _vault_exists = VAULT.vault_exists()
@@ -3028,7 +3028,7 @@ class SettingsDialog(QDialog):
              False),
             ("crypto_layer6_clipboard",
              "Layer 6  — Авто-очистка буфера обмена",
-             "Буфер очищается через 30 секунд после копирования из GoidaPhone.",
+             "Буфер очищается через 30 секунд после копирования из .",
              False),
             ("crypto_layer7_idle_lock",
              "Layer 7  — Блокировка при бездействии",
@@ -3127,7 +3127,7 @@ class SettingsDialog(QDialog):
     def _save_privacy(self):
         # Save media preference
         if hasattr(self, '_media_pref_combo'):
-            pref_map = {0: "", 1: "mewa", 2: "system"}
+            pref_map = {0: "", 1: "", 2: "system"}
             S().set("media_open_pref", pref_map.get(self._media_pref_combo.currentIndex(), ""))
         if hasattr(self, '_link_pref_combo'):
             link_map = {0: "ask", 1: "wns", 2: "system"}
@@ -3145,7 +3145,7 @@ class SettingsDialog(QDialog):
         S().set("save_history",           self._priv_save_history.isChecked())
         S().set("priv_encrypt_history",   self._priv_encrypt_history.isChecked())
         S().set("priv_allow_fwd",         self._priv_allow_fwd.isChecked())
-        pref_vals = ["", "mewa", "system"]
+        pref_vals = ["", "", "system"]
         pref = pref_vals[self._priv_media_pref.currentIndex()]
         S().set("media_open_pref", pref)
         import builtins as _b
@@ -3173,7 +3173,7 @@ class SettingsDialog(QDialog):
                     dh_priv.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())).decode())
                 QMessageBox.information(self, "Ключи",
                     "✅ Новые E2E-ключи сгенерированы.\n"
-                    "Перезапустите GoidaPhone для применения.")
+                    "Перезапустите  для применения.")
             except Exception as e:
                 QMessageBox.critical(self, "Error", f"Не удалось сгенерировать ключи:\n{e}")
 
@@ -3565,9 +3565,9 @@ class SettingsDialog(QDialog):
         # Warning banner
         warn = QLabel(
             "⚠ ВНИМАНИЕ: Эти настройки предназначены для опытных пользователей.\n"
-            "Неправильная конфигурация может нарушить работу GoidaPhone.\n\n"
+            "Неправильная конфигурация может нарушить работу .\n\n"
             "WARNING: These settings are for advanced users only.\n"
-            "Incorrect configuration may break GoidaPhone.")
+            "Incorrect configuration may break .")
         warn.setWordWrap(True)
         warn.setStyleSheet(f"""
             background: #3A2000; color: #FFB060;
@@ -3617,7 +3617,7 @@ class SettingsDialog(QDialog):
         relay_info = QLabel(
             "Relay server позволяет подключаться через интерno без VPN.\n"
             "Relay только передаёт пакеты — не читает содержимое.\n"
-            "Поддерживает: GoidaPhone Relay Server v1+")
+            "Поддерживает:  Relay Server v1+")
         relay_info.setWordWrap(True)
         relay_info.setStyleSheet(f"color: {t['text_dim']}; font-size: 9px;")
         rfl.addRow(relay_info)
@@ -3755,7 +3755,7 @@ class SettingsDialog(QDialog):
         self._so_reuseaddr = QCheckBox("SO_REUSEADDR")
         self._so_reuseaddr.setToolTip(
             "Разрешает повторное использование порта без ожидания TIME_WAIT.\n"
-            "Полезно при частых перезапусках GoidaPhone.")
+            "Полезно при частых перезапусках .")
         self._so_reuseaddr.setChecked(S().get("so_reuseaddr", True, t=bool))
         bind_fl.addRow(self._so_reuseaddr)
 
@@ -3849,11 +3849,11 @@ class SettingsDialog(QDialog):
 
     def _export_log(self):
         fn, _ = QFileDialog.getSaveFileName(
-            self, "Экспорт лога", f"goidaphone_log_{int(time.time())}.txt", "Text (*.txt)")
+            self, "Экспорт лога", f"_log_{int(time.time())}.txt", "Text (*.txt)")
         if fn:
             try:
                 log_lines = [
-                    f"GoidaPhone v{APP_VERSION} Session Log",
+                    f" v{APP_VERSION} Session Log",
                     f"Time: {datetime.now().isoformat()}",
                     f"Username: {S().username}",
                     f"IP: {get_local_ip()}",
@@ -4492,5 +4492,5 @@ class PeerProfileDialog(QDialog):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  WINORA NETSCAPE  (WNS)  —  встроенный браузер GoidaPhone
+#   NETSCAPE  (WNS)  —  встроенный браузер 
 # ═══════════════════════════════════════════════════════════════════════════

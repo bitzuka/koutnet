@@ -1688,14 +1688,14 @@ class PeerListItem(QWidget):
             legacy_badge = QLabel("🕰")
             legacy_badge.setStyleSheet("font-size:11px;background:transparent;")
             legacy_badge.setToolTip(
-                f"Устаревший клиент GoidaPhone (протокол v{peer_proto})\n"
+                f"Устаревший клиент  (протокол v{peer_proto})\n"
                 f"Некоторые функции могут не работать.")
             lay.addWidget(legacy_badge)
         elif is_modded:
             mod_badge = QLabel("⚠")
             mod_badge.setStyleSheet("font-size:11px;color:#FFD700;background:transparent;")
             mod_badge.setToolTip(
-                f"Модифицированная версия GoidaPhone ({peer_ver})\n"
+                f"Модифицированная версия  ({peer_ver})\n"
                 f"Поведение клиента может отличаться от оригинала.\n"
                 f"Будьте осторожны при передаче файлов.")
             lay.addWidget(mod_badge)
@@ -2297,7 +2297,7 @@ class PeerPanel(QWidget):
         # Invite link
         dl.addWidget(QLabel(_L("Ссылка-приглашение:", "Invite link:", "招待リンク:")))
         ip_self = get_local_ip()
-        invite_str = f"goidaphone://join/{gid}?host={ip_self}&name={g.get('name','')}"
+        invite_str = f"://join/{gid}?host={ip_self}&name={g.get('name','')}"
         inv_row = QHBoxLayout()
         inv_lbl = QLineEdit(invite_str)
         inv_lbl.setReadOnly(True)
@@ -2908,7 +2908,7 @@ class ChatPanel(QWidget):
         "/help":     "Список команд",
         "/me":       "Действие (/me прыгает)",
         "/ping":     "Проверка соединения",
-        "/version":  "Версия GoidaPhone",
+        "/version":  "Версия ",
         "/nick":     "Сменить ник (/nick Имя)",
         "/away":     "Status: отошёл",
         "/busy":     "Status: занят",
@@ -3044,7 +3044,7 @@ class ChatPanel(QWidget):
 
         elif cmd == "/version":
             self._display.add_system(
-                f"GoidaPhone v{APP_VERSION} | Protocol v{PROTOCOL_VERSION} | {COMPANY_NAME}")
+                f" v{APP_VERSION} | Protocol v{PROTOCOL_VERSION} | {COMPANY_NAME}")
             return True
 
         elif cmd == "/nick":
@@ -3973,8 +3973,8 @@ class ChatPanel(QWidget):
 
     def _on_system_audio_output_changed(self):
         """Системное аудио-устройство изменилось — уведомляем все модули."""
-        # Mewa: пересоздаёт QAudioOutput автоматически через свой коннект
-        # Mewa делает это сам через self._media_devices в _init_player
+        # : пересоздаёт QAudioOutput автоматически через свой коннект
+        #  делает это сам через self._media_devices в _init_player
         
         # VoiceCallManager: если идёт звонок — переподключаем стримы
         try:

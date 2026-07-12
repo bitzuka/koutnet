@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# GoidaPhone NT Server 1.8 — Base UI widgets (launcher, splash, hover cards)
+#  NT Server 1.8 — Base UI widgets (launcher, splash, hover cards)
 from gdf_imports import *
 from gdf_core import _L, TR, S, get_theme, build_stylesheet, THEMES, AppSettings
 from gdf_network  import *      # S, AppSettings
@@ -242,7 +242,7 @@ class UserHoverCard(QFrame):
         lay.addWidget(sep)
 
         lay.addWidget(QLabel(f"💻 {p.get('os','?')}"))
-        lay.addWidget(QLabel(f"📦 GoidaPhone v{p.get('version','?')}"))
+        lay.addWidget(QLabel(f"📦  v{p.get('version','?')}"))
         ts = p.get("last_seen", 0)
         if ts:
             dt = datetime.fromtimestamp(ts).strftime("%H:%M:%S")
@@ -260,7 +260,7 @@ class AnimationHelper:
     Helper for common UI animations.
     Uses QPropertyAnimation — no external deps.
 
-    Animations used in GoidaPhone:
+    Animations used in :
     - fade_in(widget)         — плавное появление виджета
     - fade_out(widget, cb)    — плавное исчезновение → callback
     - slide_in(widget, dir)   — выезд сбоку/снизу
@@ -983,7 +983,7 @@ class GroupCallWindow(QWidget):
     def _copy_invite(self):
         gid  = getattr(self, '_gid', "")
         ip   = get_local_ip()
-        link = f"goidaphone://call/{gid}?host={ip}"
+        link = f"://call/{gid}?host={ip}"
         QApplication.clipboard().setText(link)
         # Brief tooltip feedback
         from PyQt6.QtWidgets import QToolTip
@@ -1062,7 +1062,7 @@ class GroupCallWindow(QWidget):
         menu.addSeparator()
         menu.addAction("❓  Справка",
                         lambda: QMessageBox.information(self, "Справка",
-                            "Групповой звонок GoidaPhone\n\n"
+                            "Групповой звонок \n\n"
                             "M — mute/unmute mic\n"
                             "V — включить/выключить камеру\n"
                             "Esc — свернуть окно\n\n"

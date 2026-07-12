@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 GoidaConstruct++ (GC++) v1.1
-GoidaPhone NT Server 1.8 — Official Build System
+ NT Server 1.8 — Official Build System
 
 Lang: Russian if OS locale starts with 'ru', else English.
 """
@@ -116,12 +116,12 @@ MODULES = [
      "config":{}},
     {"id":"browser", "file":"gdf_browser.py", "required":False, "size_kb":340,
      "label": T("WNS Браузер (Chromium)","WNS Browser (Chromium)"),
-     "detail":T("Winora NetScape 3.0. Нужен PyQt6-WebEngine.","Winora NetScape 3.0. Needs PyQt6-WebEngine."),
-     "config":{"doh_enabled":True,"homepage":"https://winora.xyz"}},
+     "detail":T(" NetScape 3.0. Нужен PyQt6-WebEngine."," NetScape 3.0. Needs PyQt6-WebEngine."),
+     "config":{"doh_enabled":True,"homepage":"https://.xyz"}},
     {"id":"apps",    "file":"gdf_apps.py",    "required":False, "size_kb":460,
-     "label": T("Приложения (Terminal, Mewa)","Apps (Terminal, Mewa player)"),
-     "detail":T("GoidaTerminal ZLink, Mewa 1-2-3, визуализатор.","GoidaTerminal ZLink, Mewa 1-2-3, visualizer."),
-     "config":{"terminal_enabled":True,"mewa_enabled":True}},
+     "label": T("Приложения (Terminal, )","Apps (Terminal,  player)"),
+     "detail":T("GoidaTerminal ZLink,  1-2-3, визуализатор.","GoidaTerminal ZLink,  1-2-3, visualizer."),
+     "config":{"terminal_enabled":True,"_enabled":True}},
     {"id":"main",    "file":"gdf_main.py",    "required":True,  "size_kb":335,
      "label": T("Главное окно + точка входа","Main Window + Entry Point"),
      "detail":T("MainWindow, QuickSetup, Tutorial, BSOD.","MainWindow, QuickSetup, Tutorial, BSOD."),
@@ -129,17 +129,17 @@ MODULES = [
 ]
 
 DEFAULT_CFG = {
-    "gcc_version":"1.1","app_name":"GoidaPhone NT Server","app_version":"1.8.0",
+    "gcc_version":"1.1","app_name":" NT Server","app_version":"1.8.0",
     "build_id":"gcc-custom","gcc_mark":True,"gcc_mark_text":"⚡GC++",
     "modules":{m["id"]:True for m in MODULES},
     "module_config":{m["id"]:m["config"] for m in MODULES},
     "plugins":[],"output_format":"auto","output_dir":"./dist",
     "icon":"","splash":"","pyinstaller_extra_args":[],
-    "metadata":{"author":"","description":"Custom GoidaPhone build via GC++"},
+    "metadata":{"author":"","description":"Custom  build via GC++"},
 }
 
 CFG_FILE = Path("goida.json")
-SOURCES_URL = "https://github.com/nft1212/GoidaPhone-NT-Server-1.8-OPEN/archive/refs/heads/main.zip"
+SOURCES_URL = "https://github.com/nft1212/-NT-Server-1.8-OPEN/archive/refs/heads/main.zip"
 
 # ─── Config I/O ───────────────────────────────────────────────────────────────
 def load_cfg():
@@ -161,7 +161,7 @@ def save_cfg(cfg):
 # ─── Download sources ─────────────────────────────────────────────────────────
 def cmd_download():
     _clr(); _header()
-    print(f"  {BOLD}{T('Загрузка исходников GoidaPhone','Download GoidaPhone Sources')}{R}\n")
+    print(f"  {BOLD}{T('Загрузка исходников ','Download  Sources')}{R}\n")
 
     local = list(Path('.').glob('gdf_*.py'))
     if local:
@@ -341,7 +341,7 @@ def cmd_build(cfg):
     system = platform.system()
     fmt    = cfg.get("output_format","auto")
     if fmt=="auto": fmt = "exe" if system=="Windows" else "appimage"
-    print(f"  {BOLD}{T('Сборка GoidaPhone','Building GoidaPhone')}{R}\n")
+    print(f"  {BOLD}{T('Сборка ','Building ')}{R}\n")
     _info(f"{T('Платформа:','Platform:')} {system}")
     _info(f"{T('Формат:','Format:')} {fmt.upper()}")
     mark = cfg.get("gcc_mark_text","⚡GC++") if cfg.get("gcc_mark") else T("выкл","off")
@@ -376,7 +376,7 @@ def cmd_build(cfg):
         _info(f"Files in work_dir: {list(work_dir.glob('*.py'))}")
         _pyinstaller(cfg, work_dir, out_dir, fmt, system)
     else:
-        final = out_dir/f"GoidaPhone_{cfg['build_id']}"
+        final = out_dir/f"_{cfg['build_id']}"
         if final.exists(): shutil.rmtree(final)
         shutil.rmtree(work_dir, ignore_errors=True)
         shutil.copytree(work_dir,final)
@@ -394,13 +394,13 @@ _MODULE_IMPORTS = {
 }
 # Классы из модулей, которые используются в MainWindow — заменяем на заглушки
 _MODULE_STUBS = {
-    "browser": {"WinoraNetScape": "QWidget", "OutgoingCallWindow": "QWidget", "IncomingCallDialog": "QWidget"},
+    "browser": {"NetScape": "QWidget", "OutgoingCallWindow": "QWidget", "IncomingCallDialog": "QWidget"},
     "apps":    {"GoidaTerminal": "QWidget", "GoidaConstruct": "QWidget"},
     "network": {"VoiceCallManager": "object", "FileTransferHandler": "object"},
 }
 _MODULE_ATTRS = {
     "browser": ["_wns_player", "_wns_tabs"],
-    "apps":    ["_mewa_player", "_terminal"],
+    "apps":    ["__player", "_terminal"],
     "network": ["voice", "net"],
 }
 
@@ -452,7 +452,7 @@ def _inject_plugin(wd, plugin):
 def _pyinstaller(cfg, wd, out, fmt, system):
     if not shutil.which("pyinstaller"):
         _err(T("PyInstaller не найден! pip install pyinstaller","PyInstaller not found! pip install pyinstaller")); return
-    name = cfg.get("app_name","GoidaPhone").replace(" ","_")
+    name = cfg.get("app_name","").replace(" ","_")
     icon = ["--icon",cfg["icon"]] if cfg.get("icon") and Path(cfg["icon"]).exists() else []
     cmd  = ["pyinstaller","--onefile","--name",name,"--distpath",str(out),
             "--workpath",str(out/"pw"),"--specpath",str(out),
@@ -464,7 +464,7 @@ def _pyinstaller(cfg, wd, out, fmt, system):
 
 # ─── Add plugin ───────────────────────────────────────────────────────────────
 MANIFEST_TPL = {"name":"my_plugin","version":"1.0.0","author":"","description":"",
-                "goidaphone_version":"1.8.0","entry_point":"my_plugin.py",
+                "_version":"1.8.0","entry_point":"my_plugin.py",
                 "inject_into":"gdf_main.py","inject_after":"class MainWindow(","requires":[]}
 
 def cmd_add_plugin(cfg):
@@ -517,7 +517,7 @@ def cmd_help():
         (T("ФАЙЛЫ","FILES"),[
             ("goida.json",           T("Конфиг сборки","Build config")),
             ("goida_plugin.json",    T("Манифест плагина","Plugin manifest")),
-            ("gdf_*.py",             T("Модули GoidaPhone","GoidaPhone modules")),
+            ("gdf_*.py",             T("Модули "," modules")),
             ("dist/",                T("Готовая сборка","Output build")),
         ]),
         (T("ПЛАГИНЫ","PLUGINS"),[

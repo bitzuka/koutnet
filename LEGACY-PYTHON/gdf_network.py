@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# GoidaPhone NT Server 1.8 — Network & Audio
+#  NT Server 1.8 — Network & Audio
 from gdf_imports import *
 from gdf_core import _L, TR, S, get_theme, build_stylesheet, THEMES, AppSettings
 
@@ -94,7 +94,7 @@ class NetworkManager(QObject):
         self.running = True
         self._internet_mode = S().connection_mode == "internet"
         if self._internet_mode:
-            print(f"[net] Internet mode: relay to goidaphone.ru")
+            print(f"[net] Internet mode: relay to ")
         self._local_ips = get_all_local_ips() | {self.host_ip}
         self._last_scan  = 0.0
         self._last_arp   = 0.0
@@ -437,10 +437,10 @@ class NetworkManager(QObject):
         try:
             self._relay_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self._relay_sock.settimeout(30)
-            self._relay_sock.connect(("goidaphone.ru", 9090))
+            self._relay_sock.connect(("", 9090))
             self._relay_sock.setblocking(True)
             self._relay_connected = True
-            print("[net] Internet tunnel: goidaphone.ru:9090")
+            print("[net] Internet tunnel: :9090")
             self._relay_recv_thread = threading.Thread(target=self._tunnel_recv_loop, daemon=True)
             self._relay_recv_thread.start()
             self._broadcast()
@@ -1142,7 +1142,7 @@ class LauncherScreen(QDialog):
 
         txt = QLabel(
             "<b>🖥 GUI mode</b><br>"
-            "Полноценный графический интерфейс GoidaPhone.<br>"
+            "Полноценный графический интерфейс .<br>"
             "Доступны: публичный чат, личные сообщения, группы,<br>"
             "голосовые и групповые звонки, передача файлов,<br>"
             "стикеры, темы, настройки, GoidaTerminal, WNS-браузер.<br><br>"
