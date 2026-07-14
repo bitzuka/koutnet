@@ -2,12 +2,13 @@
 // Ported from gdf_network.py (VoiceCallManager, NT Server 1.8) -> C++/Qt6
 #include "VoiceCallManager.h"
 #include "NetworkManager.h"
+#include "../core/security/CryptoManager.h"
 #include "../core/audio/AudioEngine.h"
 
 namespace koutnet {
 
-VoiceCallManager::VoiceCallManager(NetworkManager *net, QObject *parent)
-    : QObject(parent), m_net(net)
+VoiceCallManager::VoiceCallManager(NetworkManager *net, CryptoManager *crypto, QObject *parent)
+    : QObject(parent), m_net(net), m_crypto(crypto)
 {
     m_audio = new AudioEngine(this);
 
@@ -99,16 +100,30 @@ void VoiceCallManager::cleanup()
 
 void VoiceCallManager::onCaptured(const QByteArray &data)
 {
-    // Send mic audio to every active peer.
-    for (const auto &ip : std::as_const(m_active))
-        m_net->sendVoice(ip, data);
+    // Send mic audio to every active peer, encrypted per-peer with that
+    // peer's ECDH session key if one exists (falls back to plaintext frames
+    // until the handshake completes — same fallback behaviour as text chat).
+    for (const auto &ip : std::as_const(m_active)) {
+        const QByteArray toSend = m_crypto ? m_crypto->encryptBytes(ip, data) : data;
+        m_net->sendVoice(ip, toSend);
+    }
 }
 
 void VoiceCallManager::onPeerAudio(const QString &ip, const QByteArray &data)
 {
-    // Incoming audio from a peer -> push into their jitter buffer.
-    if (m_active.contains(ip))
-        m_audio->pushPeerAudio(ip, data);
+    // Incoming audio from a peer -> decrypt (if a session exists) -> push
+    // into their jitter buffer.
+    if (!m_active.contains(ip))
+        return;
+
+    QByteArray plain;
+    if (m_crypto) {
+        if (!m_crypto->decryptBytes(ip, data, &plain))
+            return; // bad tag / tampered frame — drop it, don't play garbage audio
+    } else {
+        plain = data;
+    }
+    m_audio->pushPeerAudio(ip, plain);
 }
 
 } // namespace koutnet
