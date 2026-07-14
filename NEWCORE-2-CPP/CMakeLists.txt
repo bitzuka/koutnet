@@ -1,0 +1,52 @@
+cmake_minimum_required(VERSION 3.21)
+project(KOutNet VERSION 2.0 LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Multimedia Network)
+find_package(OpenSSL REQUIRED)
+
+qt_standard_project_setup(REQUIRES 6.4)
+
+qt_add_executable(KOutNet
+    main.cpp
+    core/audio/AudioEngine.cpp
+    core/audio/AudioEngine.h
+    core/audio/AudioMixer.cpp
+    core/audio/AudioMixer.h
+    core/security/CryptoManager.cpp
+    core/security/CryptoManager.h
+    network/NetworkManager.cpp
+    network/NetworkManager.h
+    network/Protocol.h
+    network/VoiceCallManager.cpp
+    network/VoiceCallManager.h
+    network/FileTransferHandler.cpp
+    network/FileTransferHandler.h
+)
+
+qt_add_qml_module(KOutNet
+    URI koutnet.app
+    VERSION 1.0
+    QML_FILES
+        qml/main_window/Main.qml
+        qml/main_window/MainChatWindow.qml
+        qml/components/SplashScreen.qml
+)
+
+target_link_libraries(KOutNet PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Quick
+    Qt6::QuickControls2
+    Qt6::Multimedia
+    Qt6::Network
+    OpenSSL::Crypto
+)
+
+set_target_properties(KOutNet PROPERTIES
+    WIN32_EXECUTABLE TRUE
+    MACOSX_BUNDLE TRUE
+)
