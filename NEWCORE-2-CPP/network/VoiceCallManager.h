@@ -11,14 +11,20 @@
 namespace koutnet {
 
 class NetworkManager;
-// TODO: AudioEngine lives in core/audio (not yet ported) — forward-declared.
+class CryptoManager;
 class AudioEngine;
 
 class VoiceCallManager : public QObject {
     Q_OBJECT
 
 public:
-    explicit VoiceCallManager(NetworkManager *net, QObject *parent = nullptr);
+    // CryptoManager is the same shared instance used by NetworkManager — see
+    // its constructor comment. Voice frames are encrypted/decrypted here
+    // (raw AES-GCM bytes, no JSON/base64 overhead) rather than in
+    // NetworkManager, since only VoiceCallManager knows which IPs are
+    // actually active calls.
+    explicit VoiceCallManager(NetworkManager *net, CryptoManager *crypto,
+                              QObject *parent = nullptr);
 
     bool call(const QString &ip);
     void hangup(const QString &ip);
@@ -48,7 +54,8 @@ private slots:
 
 private:
     NetworkManager *m_net;
-    AudioEngine *m_audio = nullptr; // TODO: construct once core/audio is ported
+    CryptoManager *m_crypto;
+    AudioEngine *m_audio = nullptr;
     QSet<QString> m_active;
     bool m_muted = false;
     QVector<SpeakingCallback> m_speakingCallbacks;

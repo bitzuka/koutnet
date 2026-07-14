@@ -2,7 +2,7 @@
 // Ported from gdf_network.py ( NT Server 1.8) → C++/Qt6
 #include "NetworkManager.h"
 #include "Protocol.h"
-
+#include "../core/security/CryptoManager.h"
 #include <QNetworkInterface>
 #include <QNetworkDatagram>
 #include <QJsonDocument>
@@ -11,12 +11,11 @@
 #include <QFile>
 #include <QFileInfo>
 
-// TODO: wire these up once the corresponding modules are ported:
-//  - core/security      -> Crypto (session keys, HMAC, replay guard)
-//  - core/constructor    -> AppSettings (S() equivalent)
-//  - network/utils       -> getLocalIp / getAllLocalIps / detectConnectionType
-// For now the network layer compiles standalone with sane fallbacks so the
-// module skeleton is usable while those pieces are being ported in parallel.
+// TODO: wire this up once core/constructor lands:
+//  - core/constructor    -> AppSettings (S() equivalent) — group passphrase,
+//    static peer list, connection mode (LAN/internet), relay credentials.
+//    See I_Do_It_Latet.! markers below and in Protocol.h.
+// core/security (CryptoManager) is already wired in — see constructor.
 
 namespace koutnet {
 
@@ -56,9 +55,18 @@ double nowEpoch()
     return QDateTime::currentMSecsSinceEpoch() / 1000.0;
 }
 
+// Canonical bytes used for HMAC sign/verify: compact JSON of the payload
+// with "_sig" removed (or absent). Both sides must build this identically.
+QByteArray signableBytes(QJsonObject obj)
+{
+    obj.remove("_sig");
+    return QJsonDocument(obj).toJson(QJsonDocument::Compact);
+}
+
 } // namespace
 
-NetworkManager::NetworkManager(QObject *parent) : QObject(parent)
+NetworkManager::NetworkManager(CryptoManager *crypto, QObject *parent)
+    : QObject(parent), m_crypto(crypto)
 {
     m_hostIp = localIpFallback();
 
@@ -70,6 +78,15 @@ NetworkManager::NetworkManager(QObject *parent) : QObject(parent)
 NetworkManager::~NetworkManager()
 {
     stop();
+}
+
+void NetworkManager::setRelayServer(const QString &host, quint16 port)
+{
+    // I_Do_It_Latet.! — stores the override; startInternetTunnel() still
+    // needs to actually prefer this over Protocol::kRelayHost, and
+    // AppSettings needs to persist it across restarts once ported.
+    m_relayHostOverride = host;
+    m_relayPortOverride = port;
 }
 
 void NetworkManager::refreshLocalIps()
@@ -115,7 +132,9 @@ bool NetworkManager::start()
     connect(m_tcpServer, &QTcpServer::newConnection, this, &NetworkManager::onNewTcpConnection);
 
     m_running = true;
-    m_internetMode = false; // TODO: read from AppSettings::connectionMode() == "internet"
+    // I_Do_It_Latet.! — read from AppSettings::connectionMode() == "internet"
+    // once ported; LAN mode (false) is the only fully working path today.
+    m_internetMode = false;
     m_localIps = allLocalIpsFallback();
     m_localIps.insert(m_hostIp);
 
@@ -208,8 +227,17 @@ QJsonObject NetworkManager::presencePayload() const
     payload["protocol_version"] = protocol::kProtocolVersion;
     payload["ts"] = nowEpoch();
     payload["nonce"] = randomHex(8);
-    // TODO: username, avatar, bio, status, premium, ECDH handshake keys —
-    // pull from AppSettings + CryptoManager once those modules are ported.
+
+    // ECDH handshake bundle — lets any peer that sees this presence packet
+    // derive a session key with us (Layer 1, see CryptoManager).
+    if (m_crypto) {
+        const QJsonObject hs = m_crypto->handshakePayload();
+        for (auto it = hs.constBegin(); it != hs.constEnd(); ++it)
+            payload[it.key()] = it.value();
+    }
+
+    // TODO: username, avatar, bio, status, premium — pull from AppSettings
+    // once that module is ported.
     return payload;
 }
 
@@ -264,7 +292,8 @@ void NetworkManager::onBroadcastTimer()
     }
 
     // 5. TODO: unicast to manually-added static peers (AppSettings::staticPeers())
-    // 6. TODO: relay server unicast (AppSettings::relayServer())
+    // 6. I_Do_It_Latet.! — relay server unicast (needs default/custom relay,
+    //    see setRelayServer() and Protocol::kRelayHost).
 
     pruneStalePeers();
 }
@@ -303,8 +332,10 @@ void NetworkManager::onUdpReadyRead()
 
 void NetworkManager::dispatch(const QString &host, QJsonObject msg)
 {
-    // TODO: rate limiting (CryptoManager::checkRate), HMAC verification
-    // (CryptoManager::verifyPacket) — depends on core/security module.
+    // Layer 6 — rate limiting: max N packets/sec per source IP.
+    if (m_crypto && !m_crypto->checkRate(host)) {
+        return; // dropped — over rate limit
+    }
 
     const QString msgFromIp = msg.value("from_ip").toString();
     const QSet<QString> myIps = m_localIps.isEmpty() ? QSet<QString>{m_hostIp} : m_localIps;
@@ -317,15 +348,32 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
             return; // own broadcast echoed back
     }
 
+    // Layer 4 — HMAC verification (only meaningful once a session exists;
+    // verifyPacket() itself returns true if there's no session yet, so
+    // unauthenticated peers can still complete their first handshake).
+    if (m_crypto && type != protocol::kMsgPresence && !type.isEmpty()) {
+        const QString sig = msg.value("_sig").toString();
+        if (!sig.isEmpty()) {
+            const QByteArray payloadBytes = signableBytes(msg);
+            if (!m_crypto->verifyPacket(host, payloadBytes, sig)) {
+                emit errorOccurred(QStringLiteral("HMAC verification failed from %1 — dropping").arg(host));
+                return;
+            }
+        }
+    }
+
     if (type == protocol::kMsgPresence) {
         handlePresence(host, msg);
     } else if (type == protocol::kMsgChat || type == protocol::kMsgGroup
                || type == protocol::kMsgReaction || type == protocol::kMsgEdit
                || type == protocol::kMsgDelete || type == protocol::kMsgRead) {
+        decryptMessageText(host, msg);
         emit message(msg);
     } else if (type == protocol::kMsgPrivate) {
-        if (msg.value("to").toString() == m_hostIp)
+        if (msg.value("to").toString() == m_hostIp) {
+            decryptMessageText(host, msg);
             emit message(msg);
+        }
     } else if (type == protocol::kMsgCallReq) {
         // TODO: check VoiceCallManager::active() and reply call_busy if in a call
         emit callRequest(msg.value("username").toString("?"), host);
@@ -344,6 +392,19 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
     }
 }
 
+void NetworkManager::decryptMessageText(const QString &fromIp, QJsonObject &msg) const
+{
+    if (!m_crypto || !msg.value("encrypted").toBool(false))
+        return;
+
+    const QString cipherText = msg.value("text").toString();
+    // I_Do_It_Latet.! — group passphrase should come from AppSettings once
+    // ported; until then only ECDH session decryption (peer-to-peer) works,
+    // matching CryptoManager::decrypt()'s own plaintext-passthrough fallback.
+    const QString plain = m_crypto->decrypt(cipherText, QString(), fromIp);
+    msg["text"] = plain;
+}
+
 void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
 {
     QString ip = msg.value("ip").toString(host);
@@ -354,13 +415,23 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
     if (host != ip && !host.isEmpty() && host != QLatin1String("0.0.0.0"))
         msg["source_ip"] = host;
 
-    // TODO: replay guard (CryptoManager::checkReplay) using nonce/ts fields
-    // TODO: ECDH handshake processing (CryptoManager::processHandshake)
+    // Layer 5 — replay guard on presence packets (nonce + timestamp window).
+    if (m_crypto) {
+        const QString nonce = msg.value("nonce").toString();
+        const double ts = msg.value("ts").toDouble();
+        if (!nonce.isEmpty() && !m_crypto->checkReplay(ip, nonce, ts))
+            return; // replayed presence packet
+
+        // ECDH handshake — derives (or refreshes) the session key with this peer.
+        if (msg.contains("dh_pub"))
+            m_crypto->processHandshake(ip, msg);
+    }
 
     const bool isNew = !m_peers.contains(ip);
     msg["last_seen"] = nowEpoch();
     // TODO: msg["conn_type"] = detectConnectionType(ip);
-    // TODO: msg["e2e"] = CryptoManager::hasSession(ip);
+    if (m_crypto)
+        msg["e2e"] = m_crypto->hasSession(ip);
     m_peers[ip] = msg;
 
     if (isNew)
@@ -388,7 +459,9 @@ void NetworkManager::onVoiceData(QTcpSocket *sock, const QString &ip)
         const QByteArray data = sock->read(2048);
         if (!data.isEmpty()) {
             emit voiceData(data);          // legacy single-call path
-            emit voiceDataFrom(ip, data);  // group-call mixer path
+            emit voiceDataFrom(ip, data);  // group-call mixer path — VoiceCallManager
+                                            // decrypts (CryptoManager::decryptBytes)
+                                            // before pushing into the jitter buffer.
         }
     }
 }
@@ -403,6 +476,12 @@ void NetworkManager::onVoiceDisconnected(const QString &ip)
 // ── internet relay tunnel (TODO: move to network/vds once that module lands) ──
 void NetworkManager::startInternetTunnel()
 {
+    // I_Do_It_Latet.! — prefer m_relayHostOverride/m_relayPortOverride (set
+    // via setRelayServer()) over Protocol::kRelayHost once a default public
+    // relay exists; right now neither is a real, reachable address.
+    const QString host = !m_relayHostOverride.isEmpty() ? m_relayHostOverride : protocol::kRelayHost;
+    const quint16 port = m_relayPortOverride ? m_relayPortOverride : protocol::kRelayTunnelPort;
+
     m_relaySocket = new QTcpSocket(this);
     connect(m_relaySocket, &QTcpSocket::connected, this, [] {
         // tunnel established
@@ -411,7 +490,7 @@ void NetworkManager::startInternetTunnel()
         m_relayConnected = false;
         QTimer::singleShot(3000, this, &NetworkManager::startInternetTunnel);
     });
-    m_relaySocket->connectToHost(protocol::kRelayHost, protocol::kRelayTunnelPort);
+    m_relaySocket->connectToHost(host, port);
     m_relayConnected = m_relaySocket->waitForConnected(3000);
     if (m_relayConnected)
         onBroadcastTimer();
@@ -431,7 +510,13 @@ void NetworkManager::sendUdp(QJsonObject payload, const QString &targetIp)
     if (msgType != protocol::kMsgPresence) {
         payload["nonce"] = randomHex(8);
         payload["ts"] = nowEpoch();
-        // TODO: HMAC sign via CryptoManager::signPacket if session exists
+
+        // Layer 4 — HMAC-sign unicast packets once a session key exists with
+        // the target (broadcasts have no single peer session to sign for).
+        if (m_crypto && !targetIp.isEmpty() && m_crypto->hasSession(targetIp)) {
+            const QByteArray payloadBytes = signableBytes(payload);
+            payload["_sig"] = m_crypto->signPacket(targetIp, payloadBytes);
+        }
     }
 
     const QByteArray data = QJsonDocument(payload).toJson(QJsonDocument::Compact);
@@ -455,7 +540,9 @@ void NetworkManager::sendUdp(QJsonObject payload, const QString &targetIp)
 
 void NetworkManager::sendChat(const QString &text)
 {
-    // TODO: encrypt via CryptoManager if enabled — see AppSettings::encryptionEnabled()
+    // Public/broadcast chat has no single peer to hold an ECDH session with,
+    // so it can only be protected by a shared group passphrase.
+    // I_Do_It_Latet.! — passphrase should come from AppSettings once ported.
     QJsonObject payload;
     payload["type"] = protocol::kMsgChat;
     payload["text"] = text;
@@ -466,12 +553,25 @@ void NetworkManager::sendChat(const QString &text)
 
 void NetworkManager::sendPrivate(const QString &text, const QString &toIp)
 {
+    QString outText = text;
+    bool encrypted = false;
+
+    if (m_crypto) {
+        // I_Do_It_Latet.! — passphrase fallback source (AppSettings) once ported;
+        // for now this only actually encrypts once an ECDH session exists.
+        const QString cipherText = m_crypto->encrypt(text, QString(), toIp);
+        if (cipherText != text) {
+            outText = cipherText;
+            encrypted = true;
+        }
+    }
+
     QJsonObject payload;
     payload["type"] = protocol::kMsgPrivate;
-    payload["text"] = text;
+    payload["text"] = outText;
     payload["to"] = toIp;
     payload["from_ip"] = m_hostIp;
-    payload["encrypted"] = false; // TODO: E2E via CryptoManager
+    payload["encrypted"] = encrypted;
     sendUdp(payload, toIp);
 
     // Also send to alternate IPs the peer reported (VPN/LAN redundancy)
@@ -487,6 +587,8 @@ void NetworkManager::sendPrivate(const QString &text, const QString &toIp)
 void NetworkManager::sendGroupMessage(const QString &gid, const QString &text,
                                       const QVector<QString> &members)
 {
+    // I_Do_It_Latet.! — group E2E (per-group passphrase or per-member ECDH
+    // fan-out) needs AppSettings for the passphrase; sent plaintext for now.
     QJsonObject payload;
     payload["type"] = protocol::kMsgGroup;
     payload["gid"] = gid;
@@ -587,6 +689,8 @@ void NetworkManager::sendGroupInvite(const QString &gid, const QString &gname, c
 void NetworkManager::sendFile(const QString &toIp, const QString &filePath,
                               const QByteArray &rawBytes, const QString &filename)
 {
+    // TODO: encrypt file bytes via CryptoManager::encryptBytes before chunking,
+    // same as voice — not wired yet, tracked separately from the E2E pass above.
     QByteArray data;
     QString fname;
     QString ext;
@@ -665,7 +769,8 @@ bool NetworkManager::connectVoice(const QString &ip)
 
     auto *sock = new QTcpSocket(this);
     if (m_internetMode) {
-        sock->connectToHost(QHostAddress(protocol::kRelayVoiceHost), protocol::kRelayVoicePort);
+        // I_Do_It_Latet.! — same default/custom relay gap as startInternetTunnel().
+        sock->connectToHost(protocol::kRelayVoiceHost, protocol::kRelayVoicePort);
     } else {
         sock->connectToHost(QHostAddress(ip), m_voiceTcpPort);
     }
