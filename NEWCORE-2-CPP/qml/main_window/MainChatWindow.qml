@@ -5,6 +5,7 @@
 // so outgoing text is appended locally right after sendPrivate().
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 
 Rectangle {
     id: root
@@ -24,7 +25,20 @@ Rectangle {
 
     function appendMessage(ip, text, fromMe) {
         ensureHistory(ip)
-        var entry = { text: text, fromMe: fromMe, ts: Date.now() }
+        var entry = { text: text, fromMe: fromMe, ts: Date.now(), isFile: false, filePath: "", isImage: false }
+        histories[ip].push(entry)
+        if (root.selectedIp === ip)
+            chatModel.append(entry)
+    }
+
+    function appendFile(ip, filePath, fromMe) {
+        ensureHistory(ip)
+        const lower = filePath.toLowerCase()
+        const isImage = lower.endsWith(".png") || lower.endsWith(".jpg")
+                        || lower.endsWith(".jpeg") || lower.endsWith(".gif")
+                        || lower.endsWith(".bmp") || lower.endsWith(".webp")
+        var entry = { text: filePath.split("/").pop(), fromMe: fromMe, ts: Date.now(),
+                      isFile: true, filePath: filePath, isImage: isImage }
         histories[ip].push(entry)
         if (root.selectedIp === ip)
             chatModel.append(entry)
@@ -46,6 +60,19 @@ Rectangle {
         networkManager.sendPrivate(text, root.selectedIp)
         root.appendMessage(root.selectedIp, text, true)
         inputField.text = ""
+    }
+
+    function sendAttachedFile(localFilePath) {
+        if (root.selectedIp === "")
+            return
+        networkManager.sendFile(root.selectedIp, localFilePath)
+        root.appendFile(root.selectedIp, localFilePath, true)
+    }
+
+    FileDialog {
+        id: fileDialog
+        title: "Attach file"
+        onAccepted: root.sendAttachedFile(selectedFile.toString().replace("file://", ""))
     }
 
     function upsertPeer(info) {
@@ -81,6 +108,15 @@ Rectangle {
             // chat is a separate pass (see qml/chats/ TODOs).
             if (msg.type === "private")
                 root.appendMessage(msg.from_ip, msg.text, false)
+        }
+    }
+
+    Connections {
+        target: fileTransferHandler
+        function onFileSaved(meta, localPath) {
+            const fromIp = meta.from_ip
+            if (fromIp)
+                root.appendFile(fromIp, localPath, false)
         }
     }
 
@@ -207,8 +243,9 @@ Rectangle {
 
                         Rectangle {
                             id: bubble
-                            width: Math.min(bubbleText.implicitWidth + 24, chatList.width * 0.7)
-                            height: bubbleText.implicitHeight + 16
+                            width: model.isFile === true ? Math.min(240, chatList.width * 0.7) : Math.min(implicitWidth + 24, chatList.width * 0.7)
+                            height: model.isFile === true ? (model.isImage === true ? 160 : 40) : 40
+                            implicitWidth: 200
                             radius: 12
                             color: model.fromMe ? "#4A90D9" : "#2A2A3E"
                             anchors.right: model.fromMe ? parent.right : undefined
@@ -217,14 +254,47 @@ Rectangle {
                             anchors.leftMargin: model.fromMe ? 0 : 14
                             anchors.top: parent.top
 
-                            Text {
-                                id: bubbleText
+                            Loader {
                                 anchors.centerIn: parent
-                                text: model.text
-                                color: "white"
-                                font.pixelSize: 13
-                                wrapMode: Text.Wrap
-                                width: Math.min(implicitWidth, chatList.width * 0.7 - 24)
+                                sourceComponent: (model.isFile === true && model.isImage === true)
+                                                 ? imageComponent
+                                                 : (model.isFile === true ? fileComponent : textComponent)
+
+                                Component {
+                                    id: textComponent
+                                    Text {
+                                        text: model.text
+                                        color: "white"
+                                        font.pixelSize: 13
+                                        wrapMode: Text.Wrap
+                                        width: Math.min(implicitWidth, chatList.width * 0.7 - 24)
+                                    }
+                                }
+
+                                Component {
+                                    id: imageComponent
+                                    Image {
+                                        source: "file://" + model.filePath
+                                        fillMode: Image.PreserveAspectFit
+                                        width: Math.min(220, chatList.width * 0.6)
+                                        height: width * 0.7
+                                    }
+                                }
+
+                                Component {
+                                    id: fileComponent
+                                    Row {
+                                        spacing: 6
+                                        Text { text: "📎"; font.pixelSize: 16 }
+                                        Text {
+                                            text: model.text
+                                            color: "white"
+                                            font.pixelSize: 13
+                                            wrapMode: Text.Wrap
+                                            width: Math.min(implicitWidth, chatList.width * 0.6 - 40)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -240,9 +310,16 @@ Rectangle {
                         anchors.margins: 8
                         spacing: 8
 
+                        Button {
+                            id: attachButton
+                            text: "📎"
+                            height: parent.height
+                            onClicked: fileDialog.open()
+                        }
+
                         TextField {
                             id: inputField
-                            width: parent.width - sendButton.width - 8
+                            width: parent.width - sendButton.width - attachButton.width - 16
                             height: parent.height
                             placeholderText: "Message..."
                             color: "white"
