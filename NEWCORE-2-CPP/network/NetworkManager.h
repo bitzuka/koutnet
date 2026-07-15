@@ -33,8 +33,8 @@ public:
     bool start();
     void stop();
 
-    bool isRunning() const { return m_running; }
-    QString hostIp() const { return m_hostIp; }
+    Q_INVOKABLE bool isRunning() const { return m_running; }
+    Q_INVOKABLE QString hostIp() const { return m_hostIp; }
     const QMap<QString, QJsonObject> &peers() const { return m_peers; }
 
     // I_Do_It_Latet.! — self-hosted / custom relay server support, and
@@ -45,15 +45,15 @@ public:
 
     // ── outgoing messages ───────────────────────────────────────────
     void sendUdp(QJsonObject payload, const QString &targetIp = QString());
-    void sendChat(const QString &text);
-    void sendPrivate(const QString &text, const QString &toIp);
+    Q_INVOKABLE void sendChat(const QString &text);
+    Q_INVOKABLE void sendPrivate(const QString &text, const QString &toIp);
     void sendGroupMessage(const QString &gid, const QString &text,
                           const QVector<QString> &members);
-    void sendTyping(const QString &chatId, const QString &targetIp = QString());
-    void sendCallRequest(const QString &toIp);
-    void sendCallAccept(const QString &toIp);
-    void sendCallReject(const QString &toIp);
-    void sendCallEnd(const QString &toIp);
+    Q_INVOKABLE void sendTyping(const QString &chatId, const QString &targetIp = QString());
+    Q_INVOKABLE void sendCallRequest(const QString &toIp);
+    Q_INVOKABLE void sendCallAccept(const QString &toIp);
+    Q_INVOKABLE void sendCallReject(const QString &toIp);
+    Q_INVOKABLE void sendCallEnd(const QString &toIp);
     void sendReaction(const QString &toIp, const QString &chatId,
                       double ts, const QString &emoji, bool added);
     void sendMessageEdit(const QString &toIp, const QString &chatId,
