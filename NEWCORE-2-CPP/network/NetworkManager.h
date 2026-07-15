@@ -63,6 +63,9 @@ public:
     void sendGroupInvite(const QString &gid, const QString &gname, const QString &toIp);
     void sendFile(const QString &toIp, const QString &filePath,
                   const QByteArray &rawBytes = {}, const QString &filename = "file");
+    // QML-facing overload — QML can't supply the QByteArray/filename default
+    // args cleanly, so this is the entry point for "attach file" in the UI.
+    Q_INVOKABLE void sendFile(const QString &toIp, const QString &filePath);
 
     // ── voice TCP ────────────────────────────────────────────────────
     bool connectVoice(const QString &ip);
@@ -80,6 +83,7 @@ signals:
     void voiceData(QByteArray raw);              // legacy single-call
     void voiceDataFrom(QString ip, QByteArray raw);
     void fileMeta(QJsonObject meta);
+    void fileChunk(QJsonObject chunk);            // file_data packets -> FileTransferHandler
     void groupInvite(QString groupId, QString name, QString fromIp);
     void errorOccurred(QString message);
     void typing(QString username, QString chatId);

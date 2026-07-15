@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Multimedia Network)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Quick QuickControls2 QuickDialogs2 Multimedia Network)
 find_package(OpenSSL REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.4)
@@ -41,6 +41,7 @@ target_link_libraries(KOutNet PRIVATE
     Qt6::Gui
     Qt6::Quick
     Qt6::QuickControls2
+    Qt6::QuickDialogs2
     Qt6::Multimedia
     Qt6::Network
     OpenSSL::Crypto

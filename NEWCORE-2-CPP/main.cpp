@@ -26,9 +26,8 @@ int main(int argc, char *argv[])
 
     QObject::connect(network, &koutnet::NetworkManager::fileMeta,
                      fileTransfer, &koutnet::FileTransferHandler::onMeta);
-    // TODO: file_data (chunk) packets aren't routed to FileTransferHandler
-    // yet — NetworkManager::dispatch only emits fileMeta for file_meta.
-    // Needs a dedicated fileChunk signal wired to onChunkMessage().
+    QObject::connect(network, &koutnet::NetworkManager::fileChunk,
+                     fileTransfer, &koutnet::FileTransferHandler::onChunkMessage);
 
     if (!network->start())
         qWarning("KOutNet: failed to start network layer");
@@ -42,6 +41,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("cryptoManager", crypto);
     engine.rootContext()->setContextProperty("networkManager", network);
     engine.rootContext()->setContextProperty("voiceCallManager", voice);
+    engine.rootContext()->setContextProperty("fileTransferHandler", fileTransfer);
 
     engine.loadFromModule("koutnet.app", "Main");
 

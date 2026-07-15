@@ -385,6 +385,8 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
         emit callEnded(host);
     } else if (type == protocol::kMsgFileMeta) {
         emit fileMeta(msg);
+    } else if (type == protocol::kMsgFileData) {
+        emit fileChunk(msg);
     } else if (type == protocol::kMsgGroupInv) {
         emit groupInvite(msg.value("gid").toString(), msg.value("gname").toString(), host);
     } else if (type == protocol::kMsgTyping) {
@@ -801,6 +803,11 @@ void NetworkManager::disconnectVoice(const QString &ip)
 {
     if (auto *sock = m_voiceConnections.take(ip))
         sock->disconnectFromHost();
+}
+
+void NetworkManager::sendFile(const QString &toIp, const QString &filePath)
+{
+    sendFile(toIp, filePath, QByteArray(), QStringLiteral("file"));
 }
 
 } // namespace koutnet
