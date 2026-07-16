@@ -475,41 +475,7 @@ bool CryptoManager::decryptBytes(const QString &peerIp, const QByteArray &data, 
     return gcmDecrypt(m_sessionKeys.value(peerIp), data, outPlain);
 }
 
-// ── Raw byte encryption (voice) ────────────────────────────────────────
-QByteArray CryptoManager::encryptBytes(const QString &peerIp, const QByteArray &plaintext) const
-{
-    if (!m_sessionKeys.contains(peerIp))
-        return plaintext; // no session yet — send unencrypted, same fallback as text path
-
-    return gcmEncrypt(m_sessionKeys.value(peerIp), plaintext); // nonce+ciphertext+tag
-}
-
-bool CryptoManager::decryptBytes(const QString &peerIp, const QByteArray &data, QByteArray *outPlain) const
-{
-    if (!m_sessionKeys.contains(peerIp)) {
-        *outPlain = data; // no session — treat as plaintext passthrough
-        return true;
-    }
-    return gcmDecrypt(m_sessionKeys.value(peerIp), data, outPlain);
-}
 
 
-// ── Raw byte encryption (voice) ────────────────────────────────────────
-QByteArray CryptoManager::encryptBytes(const QString &peerIp, const QByteArray &plaintext) const
-{
-    if (!m_sessionKeys.contains(peerIp))
-        return plaintext; // no session yet — send unencrypted, same fallback as text path
-
-    return gcmEncrypt(m_sessionKeys.value(peerIp), plaintext); // nonce+ciphertext+tag
-}
-
-bool CryptoManager::decryptBytes(const QString &peerIp, const QByteArray &data, QByteArray *outPlain) const
-{
-    if (!m_sessionKeys.contains(peerIp)) {
-        *outPlain = data; // no session — treat as plaintext passthrough
-        return true;
-    }
-    return gcmDecrypt(m_sessionKeys.value(peerIp), data, outPlain);
-}
 
 } // namespace koutnet
