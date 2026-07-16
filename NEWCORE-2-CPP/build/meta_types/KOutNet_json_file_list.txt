@@ -1,6 +1,0 @@
-/home/pixless/koutnet/NEWCORE-2-CPP/build/KOutNet_autogen/include/../5SSUPNRDSB/moc_FileTransferHandler.cpp.json
-/home/pixless/koutnet/NEWCORE-2-CPP/build/KOutNet_autogen/include/../5SSUPNRDSB/moc_NetworkManager.cpp.json
-/home/pixless/koutnet/NEWCORE-2-CPP/build/KOutNet_autogen/include/../5SSUPNRDSB/moc_VoiceCallManager.cpp.json
-/home/pixless/koutnet/NEWCORE-2-CPP/build/KOutNet_autogen/include/../6SDBVJ2PSG/moc_CryptoManager.cpp.json
-/home/pixless/koutnet/NEWCORE-2-CPP/build/KOutNet_autogen/include/../AA4BILD5QQ/moc_Translations.cpp.json
-/home/pixless/koutnet/NEWCORE-2-CPP/build/KOutNet_autogen/include/../VZNOKYALN7/moc_AudioEngine.cpp.json

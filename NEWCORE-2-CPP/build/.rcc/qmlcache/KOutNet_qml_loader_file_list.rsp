@@ -1,8 +1,0 @@
---resource
-/home/pixless/koutnet/NEWCORE-2-CPP/build/.qt/rcc/qmake_koutnet_app.qrc
---resource
-/home/pixless/koutnet/NEWCORE-2-CPP/build/.qt/rcc/KOutNet_raw_qml_0.qrc
-/koutnet/app/qml/main_window/Main.qml
-/koutnet/app/qml/main_window/ContactDelegate.qml
-/koutnet/app/qml/main_window/ChatPage.qml
-/koutnet/app/qml/components/SplashScreen.qml
