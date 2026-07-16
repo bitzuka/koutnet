@@ -54,5 +54,9 @@
   "log.scanning": "Scanning network…",
   "log.mesh_error": "Mesh error",
   "log.connected_relay": "Connected to relay server",
-  "log.relay_error": "Relay connection error"
+  "log.relay_error": "Relay connection error",
+  "contacts_header": "Contacts",
+  "no_contacts_title": "No one here yet",
+  "no_contacts_explanation": "KOutNet is looking for other users, but it's quiet here for now...",
+  "select_contact_placeholder": "Select a peer on the left to start a conversation."
 }

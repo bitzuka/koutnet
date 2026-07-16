@@ -1,0 +1,54 @@
+{
+    "classes": [
+        {
+            "className": "FileTransferHandler",
+            "lineNumber": 13,
+            "object": true,
+            "qualifiedClassName": "koutnet::FileTransferHandler",
+            "signals": [
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "meta",
+                            "type": "QJsonObject"
+                        },
+                        {
+                            "name": "data",
+                            "type": "QByteArray"
+                        }
+                    ],
+                    "index": 0,
+                    "lineNumber": 28,
+                    "name": "fileReceived",
+                    "returnType": "void"
+                },
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "meta",
+                            "type": "QJsonObject"
+                        },
+                        {
+                            "name": "localPath",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 1,
+                    "lineNumber": 33,
+                    "name": "fileSaved",
+                    "returnType": "void"
+                }
+            ],
+            "superClasses": [
+                {
+                    "access": "public",
+                    "name": "QObject"
+                }
+            ]
+        }
+    ],
+    "inputFile": "FileTransferHandler.h",
+    "outputRevision": 69
+}

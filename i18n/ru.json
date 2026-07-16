@@ -54,5 +54,9 @@
   "log.scanning": "Сканирование сети…",
   "log.mesh_error": "Ошибка сети",
   "log.connected_relay": "Подключено к релей-серверу",
-  "log.relay_error": "Ошибка подключения к релею"
+  "log.relay_error": "Ошибка подключения к релею",
+  "contacts_header": "Контакты",
+  "no_contacts_title": "Пока никого не видно",
+  "no_contacts_explanation": "KOutNet ищет других пользователей, но пока здесь тихо...",
+  "select_contact_placeholder": "Выбери собеседника слева чтобы начать переписку"
 }

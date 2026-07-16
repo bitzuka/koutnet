@@ -6,6 +6,7 @@
 #include <QNetworkInterface>
 #include <QNetworkDatagram>
 #include <QJsonDocument>
+#include <QJsonArray>
 #include <QDateTime>
 #include <QRandomGenerator>
 #include <QFile>
@@ -688,7 +689,7 @@ void NetworkManager::sendGroupInvite(const QString &gid, const QString &gname, c
     sendUdp(payload, toIp);
 }
 
-void NetworkManager::sendFile(const QString &toIp, const QString &filePath,
+void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePath,
                               const QByteArray &rawBytes, const QString &filename)
 {
     // TODO: encrypt file bytes via CryptoManager::encryptBytes before chunking,
@@ -807,7 +808,7 @@ void NetworkManager::disconnectVoice(const QString &ip)
 
 void NetworkManager::sendFile(const QString &toIp, const QString &filePath)
 {
-    sendFile(toIp, filePath, QByteArray(), QStringLiteral("file"));
+    sendFileInternal(toIp, filePath, QByteArray(), QStringLiteral("file"));
 }
 
 } // namespace koutnet

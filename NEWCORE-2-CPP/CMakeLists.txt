@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Quick QuickControls2 QuickDialogs2 Multimedia Network)
+find_package(KF6Kirigami REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.4)
@@ -18,6 +19,8 @@ qt_add_executable(KOutNet
     core/audio/AudioMixer.h
     core/security/CryptoManager.cpp
     core/security/CryptoManager.h
+    core/i18n/Translations.cpp
+    core/i18n/Translations.h
     network/NetworkManager.cpp
     network/NetworkManager.h
     network/Protocol.h
@@ -32,7 +35,8 @@ qt_add_qml_module(KOutNet
     VERSION 1.0
     QML_FILES
         qml/main_window/Main.qml
-        qml/main_window/MainChatWindow.qml
+        qml/main_window/ContactDelegate.qml
+        qml/main_window/ChatPage.qml
         qml/components/SplashScreen.qml
 )
 
@@ -44,6 +48,7 @@ target_link_libraries(KOutNet PRIVATE
     Qt6::QuickDialogs2
     Qt6::Multimedia
     Qt6::Network
+    KF6::Kirigami
     OpenSSL::Crypto
 )
 

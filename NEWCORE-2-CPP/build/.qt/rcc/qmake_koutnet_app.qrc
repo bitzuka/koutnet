@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/koutnet/app">
+    <file alias="qmldir">/home/pixless/koutnet/NEWCORE-2-CPP/build/koutnet/app/qmldir</file>
+  </qresource>
+</RCC>
+

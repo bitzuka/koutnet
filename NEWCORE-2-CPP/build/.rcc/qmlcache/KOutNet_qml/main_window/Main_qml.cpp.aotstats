@@ -1,0 +1,407 @@
+{
+    "formatRevision": 1,
+    "modules": [
+        {
+            "moduleFiles": [
+                {
+                    "entries": [
+                        {
+                            "codegenResult": 2,
+                            "column": 41,
+                            "durationMicroseconds": 68,
+                            "functionName": "compactMode",
+                            "line": 20,
+                            "message": "Cannot access value for name width"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 29,
+                            "durationMicroseconds": 65,
+                            "functionName": "histories",
+                            "line": 22,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 5,
+                            "durationMicroseconds": 0,
+                            "functionName": "modelForPeer",
+                            "line": 24,
+                            "message": "Functions without type annotations won't be compiled"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 5,
+                            "durationMicroseconds": 0,
+                            "functionName": "appendMessage",
+                            "line": 30,
+                            "message": "Functions without type annotations won't be compiled"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 5,
+                            "durationMicroseconds": 0,
+                            "functionName": "appendFile",
+                            "line": 34,
+                            "message": "Functions without type annotations won't be compiled"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 5,
+                            "durationMicroseconds": 0,
+                            "functionName": "upsertPeer",
+                            "line": 45,
+                            "message": "Functions without type annotations won't be compiled"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 5,
+                            "durationMicroseconds": 0,
+                            "functionName": "removePeer",
+                            "line": 57,
+                            "message": "Functions without type annotations won't be compiled"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 16,
+                            "durationMicroseconds": 117,
+                            "functionName": "flags",
+                            "line": 76,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 32,
+                            "durationMicroseconds": 294,
+                            "functionName": "onCompleted",
+                            "line": 80,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 27,
+                            "durationMicroseconds": 39,
+                            "functionName": "fill",
+                            "line": 86,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 26,
+                            "durationMicroseconds": 27,
+                            "functionName": "onTriggered",
+                            "line": 92,
+                            "message": "Cannot retrieve a non-object type by ID: root"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 17,
+                            "durationMicroseconds": 55,
+                            "functionName": "target",
+                            "line": 100,
+                            "message": "Cannot access value for name networkManager"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 9,
+                            "durationMicroseconds": 0,
+                            "functionName": "onUserOnline",
+                            "line": 101,
+                            "message": "Functions without type annotations won't be compiled"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 9,
+                            "durationMicroseconds": 0,
+                            "functionName": "onUserOffline",
+                            "line": 102,
+                            "message": "Functions without type annotations won't be compiled"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 9,
+                            "durationMicroseconds": 0,
+                            "functionName": "onMessage",
+                            "line": 103,
+                            "message": "Functions without type annotations won't be compiled"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 17,
+                            "durationMicroseconds": 46,
+                            "functionName": "target",
+                            "line": 110,
+                            "message": "Cannot access value for name fileTransferHandler"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 9,
+                            "durationMicroseconds": 0,
+                            "functionName": "onFileSaved",
+                            "line": 111,
+                            "message": "Functions without type annotations won't be compiled"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 28,
+                            "durationMicroseconds": 9,
+                            "functionName": "initialPage",
+                            "line": 118,
+                            "message": "Cannot retrieve a non-object type by ID: mainPage"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 29,
+                            "durationMicroseconds": 60,
+                            "functionName": "globalToolBarStyle",
+                            "line": 122,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 26,
+                            "durationMicroseconds": 0,
+                            "functionName": "orientation",
+                            "line": 128,
+                            "message": "Could not find property \"orientation\"."
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 27,
+                            "durationMicroseconds": 0,
+                            "functionName": "fill",
+                            "line": 127,
+                            "message": "Could not find property \"fill\"."
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 26,
+                            "durationMicroseconds": 87,
+                            "functionName": "visible",
+                            "line": 134,
+                            "message": "Cannot retrieve a non-object type by ID: root"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 37,
+                            "durationMicroseconds": 74,
+                            "functionName": "margins",
+                            "line": 139,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 31,
+                            "durationMicroseconds": 0,
+                            "functionName": "text",
+                            "line": 142,
+                            "message": "Could not find property \"text\"."
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 38,
+                            "durationMicroseconds": 0,
+                            "functionName": "weight",
+                            "line": 145,
+                            "message": "Could not find property \"weight\"."
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 28,
+                            "durationMicroseconds": 52,
+                            "functionName": "model",
+                            "line": 156,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 32,
+                            "durationMicroseconds": 168,
+                            "functionName": "width",
+                            "line": 161,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 34,
+                            "durationMicroseconds": 82,
+                            "functionName": "visible",
+                            "line": 162,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 31,
+                            "durationMicroseconds": 207,
+                            "functionName": "text",
+                            "line": 163,
+                            "message": "Cannot access value for name Translations"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 38,
+                            "durationMicroseconds": 166,
+                            "functionName": "explanation",
+                            "line": 164,
+                            "message": "Cannot access value for name Translations"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 43,
+                            "durationMicroseconds": 40,
+                            "functionName": "centerIn",
+                            "line": 160,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 32,
+                            "durationMicroseconds": 27,
+                            "functionName": "width",
+                            "line": 168,
+                            "message": "Cannot access value for name peersList"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 33,
+                            "durationMicroseconds": 16,
+                            "functionName": "peerIp",
+                            "line": 169,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 33,
+                            "durationMicroseconds": 19,
+                            "functionName": "peerOs",
+                            "line": 170,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 30,
+                            "durationMicroseconds": 17,
+                            "functionName": "e2e",
+                            "line": 171,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 35,
+                            "durationMicroseconds": 31,
+                            "functionName": "selected",
+                            "line": 172,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 36,
+                            "durationMicroseconds": 32,
+                            "functionName": "onClicked",
+                            "line": 173,
+                            "message": "Cannot access value for name root"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 26,
+                            "durationMicroseconds": 71,
+                            "functionName": "visible",
+                            "line": 180,
+                            "message": "Cannot retrieve a non-object type by ID: root"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 34,
+                            "durationMicroseconds": 55,
+                            "functionName": "sourceComponent",
+                            "line": 181,
+                            "message": "Cannot retrieve a non-object type by ID: root"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 21,
+                            "durationMicroseconds": 23,
+                            "functionName": "peerIp",
+                            "line": 189,
+                            "message": "Cannot access value for name root"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 28,
+                            "durationMicroseconds": 34,
+                            "functionName": "messagesModel",
+                            "line": 190,
+                            "message": "Cannot access value for name root"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 29,
+                            "durationMicroseconds": 16,
+                            "functionName": "showBackButton",
+                            "line": 191,
+                            "message": "Cannot access value for name root"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 38,
+                            "durationMicroseconds": 19,
+                            "functionName": "onReturnToListRequested",
+                            "line": 193,
+                            "message": "Cannot access value for name root"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 30,
+                            "durationMicroseconds": 89,
+                            "functionName": "onSendRequested",
+                            "line": 194,
+                            "message": "Cannot access value for name networkManager"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 30,
+                            "durationMicroseconds": 32,
+                            "functionName": "onSendRequested",
+                            "line": 194,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 32,
+                            "durationMicroseconds": 85,
+                            "functionName": "onAttachRequested",
+                            "line": 198,
+                            "message": "Cannot access value for name networkManager"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 32,
+                            "durationMicroseconds": 27,
+                            "functionName": "onAttachRequested",
+                            "line": 198,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 19,
+                            "durationMicroseconds": 200,
+                            "functionName": "text",
+                            "line": 209,
+                            "message": "Cannot access value for name Translations"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 31,
+                            "durationMicroseconds": 40,
+                            "functionName": "centerIn",
+                            "line": 208,
+                            "message": ""
+                        }
+                    ],
+                    "filePath": "/home/pixless/koutnet/NEWCORE-2-CPP/qml/main_window/Main.qml"
+                }
+            ],
+            "moduleId": "koutnet.app(KOutNet)"
+        }
+    ]
+}

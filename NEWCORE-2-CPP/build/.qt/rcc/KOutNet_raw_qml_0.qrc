@@ -1,0 +1,9 @@
+<RCC>
+  <qresource prefix="/koutnet/app/">
+    <file alias="qml/main_window/Main.qml">/home/pixless/koutnet/NEWCORE-2-CPP/qml/main_window/Main.qml</file>
+    <file alias="qml/main_window/ContactDelegate.qml">/home/pixless/koutnet/NEWCORE-2-CPP/qml/main_window/ContactDelegate.qml</file>
+    <file alias="qml/main_window/ChatPage.qml">/home/pixless/koutnet/NEWCORE-2-CPP/qml/main_window/ChatPage.qml</file>
+    <file alias="qml/components/SplashScreen.qml">/home/pixless/koutnet/NEWCORE-2-CPP/qml/components/SplashScreen.qml</file>
+  </qresource>
+</RCC>
+

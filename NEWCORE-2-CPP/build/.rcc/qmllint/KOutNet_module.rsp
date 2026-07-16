@@ -1,0 +1,10 @@
+-I
+/home/pixless/koutnet/NEWCORE-2-CPP/build
+-I
+/usr/lib64/qt6/qml
+--resource
+/home/pixless/koutnet/NEWCORE-2-CPP/build/.qt/rcc/qmake_koutnet_app.qrc
+--resource
+/home/pixless/koutnet/NEWCORE-2-CPP/build/.qt/rcc/KOutNet_raw_qml_0.qrc
+--module
+koutnet.app

@@ -1,0 +1,9 @@
+module koutnet.app
+typeinfo KOutNet.qmltypes
+prefer :/koutnet/app/
+Main 1.0 qml/main_window/Main.qml
+ContactDelegate 1.0 qml/main_window/ContactDelegate.qml
+ChatPage 1.0 qml/main_window/ChatPage.qml
+SplashScreen 1.0 qml/components/SplashScreen.qml
+depends QtQuick
+

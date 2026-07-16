@@ -1,0 +1,263 @@
+{
+    "formatRevision": 1,
+    "modules": [
+        {
+            "moduleFiles": [
+                {
+                    "entries": [
+                        {
+                            "codegenResult": 2,
+                            "column": 12,
+                            "durationMicroseconds": 0,
+                            "functionName": "title",
+                            "line": 18,
+                            "message": "Could not find property \"title\"."
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 22,
+                            "durationMicroseconds": 32,
+                            "functionName": "visible",
+                            "line": 25,
+                            "message": "Cannot access value for name root"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 26,
+                            "durationMicroseconds": 0,
+                            "functionName": "onTriggered",
+                            "line": 26,
+                            "message": "Could not find signal \"triggered\"."
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 23,
+                            "durationMicroseconds": 65,
+                            "functionName": "fill",
+                            "line": 31,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 38,
+                            "durationMicroseconds": 64,
+                            "functionName": "verticalLayoutDirection",
+                            "line": 38,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 20,
+                            "durationMicroseconds": 15,
+                            "functionName": "model",
+                            "line": 40,
+                            "message": "Cannot retrieve a non-object type by ID: root"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 24,
+                            "durationMicroseconds": 22,
+                            "functionName": "width",
+                            "line": 43,
+                            "message": "Cannot access value for name messagesList"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 25,
+                            "durationMicroseconds": 117,
+                            "functionName": "height",
+                            "line": 44,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 28,
+                            "durationMicroseconds": 125,
+                            "functionName": "width",
+                            "line": 48,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 29,
+                            "durationMicroseconds": 87,
+                            "functionName": "height",
+                            "line": 51,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 28,
+                            "durationMicroseconds": 48,
+                            "functionName": "color",
+                            "line": 55,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 36,
+                            "durationMicroseconds": 37,
+                            "functionName": "right",
+                            "line": 56,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 35,
+                            "durationMicroseconds": 41,
+                            "functionName": "left",
+                            "line": 57,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 38,
+                            "durationMicroseconds": 74,
+                            "functionName": "margins",
+                            "line": 58,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 33,
+                            "durationMicroseconds": 53,
+                            "functionName": "active",
+                            "line": 62,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 43,
+                            "durationMicroseconds": 43,
+                            "functionName": "centerIn",
+                            "line": 61,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 37,
+                            "durationMicroseconds": 32,
+                            "functionName": "source",
+                            "line": 64,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 39,
+                            "durationMicroseconds": 98,
+                            "functionName": "fillMode",
+                            "line": 65,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 36,
+                            "durationMicroseconds": 45,
+                            "functionName": "width",
+                            "line": 66,
+                            "message": "Cannot access value for name messagesList"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 37,
+                            "durationMicroseconds": 73,
+                            "functionName": "height",
+                            "line": 67,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 34,
+                            "durationMicroseconds": 60,
+                            "functionName": "visible",
+                            "line": 74,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 31,
+                            "durationMicroseconds": 72,
+                            "functionName": "text",
+                            "line": 75,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 35,
+                            "durationMicroseconds": 50,
+                            "functionName": "wrapMode",
+                            "line": 76,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 32,
+                            "durationMicroseconds": 72,
+                            "functionName": "color",
+                            "line": 77,
+                            "message": "Cannot access value for name model"
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 43,
+                            "durationMicroseconds": 47,
+                            "functionName": "centerIn",
+                            "line": 73,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 0,
+                            "column": 29,
+                            "durationMicroseconds": 72,
+                            "functionName": "margins",
+                            "line": 89,
+                            "message": ""
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 28,
+                            "durationMicroseconds": 0,
+                            "functionName": "onClicked",
+                            "line": 93,
+                            "message": "Could not find signal \"clicked\"."
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 29,
+                            "durationMicroseconds": 0,
+                            "functionName": "onAccepted",
+                            "line": 100,
+                            "message": "Could not find signal \"accepted\"."
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 26,
+                            "durationMicroseconds": 0,
+                            "functionName": "enabled",
+                            "line": 106,
+                            "message": "Could not find property \"enabled\"."
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 28,
+                            "durationMicroseconds": 0,
+                            "functionName": "onClicked",
+                            "line": 107,
+                            "message": "Could not find signal \"clicked\"."
+                        },
+                        {
+                            "codegenResult": 2,
+                            "column": 21,
+                            "durationMicroseconds": 42,
+                            "functionName": "onAccepted",
+                            "line": 118,
+                            "message": "Cannot retrieve a non-object type by ID: root"
+                        }
+                    ],
+                    "filePath": "/home/pixless/koutnet/NEWCORE-2-CPP/qml/main_window/ChatPage.qml"
+                }
+            ],
+            "moduleId": "koutnet.app(KOutNet)"
+        }
+    ]
+}

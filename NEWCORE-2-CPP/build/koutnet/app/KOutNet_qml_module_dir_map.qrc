@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/">
+    <file alias="/koutnet/app">/home/pixless/koutnet/NEWCORE-2-CPP/build/koutnet/app</file>
+
+  </qresource>
+</RCC>

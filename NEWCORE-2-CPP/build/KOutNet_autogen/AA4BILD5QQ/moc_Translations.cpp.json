@@ -1,0 +1,61 @@
+{
+    "classes": [
+        {
+            "className": "Translations",
+            "lineNumber": 13,
+            "methods": [
+                {
+                    "access": "public",
+                    "arguments": [
+                        {
+                            "name": "key",
+                            "type": "QString"
+                        }
+                    ],
+                    "index": 1,
+                    "isConst": true,
+                    "lineNumber": 23,
+                    "name": "t",
+                    "returnType": "QString"
+                }
+            ],
+            "object": true,
+            "properties": [
+                {
+                    "constant": false,
+                    "designable": true,
+                    "final": false,
+                    "index": 0,
+                    "lineNumber": 15,
+                    "name": "current",
+                    "notify": "currentChanged",
+                    "read": "current",
+                    "required": false,
+                    "scriptable": true,
+                    "stored": true,
+                    "type": "QString",
+                    "user": false,
+                    "write": "setCurrent"
+                }
+            ],
+            "qualifiedClassName": "koutnet::Translations",
+            "signals": [
+                {
+                    "access": "public",
+                    "index": 0,
+                    "lineNumber": 26,
+                    "name": "currentChanged",
+                    "returnType": "void"
+                }
+            ],
+            "superClasses": [
+                {
+                    "access": "public",
+                    "name": "QObject"
+                }
+            ]
+        }
+    ],
+    "inputFile": "Translations.h",
+    "outputRevision": 69
+}
