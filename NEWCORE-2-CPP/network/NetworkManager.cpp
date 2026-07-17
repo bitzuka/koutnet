@@ -81,13 +81,41 @@ NetworkManager::~NetworkManager()
     stop();
 }
 
-void NetworkManager::setRelayServer(const QString &host, quint16 port)
+void NetworkManager::setRelayServer(const QString &host, quint16 tunnelPort, quint16 voicePort)
 {
-    // I_Do_It_Latet.! — stores the override; startInternetTunnel() still
-    // needs to actually prefer this over Protocol::kRelayHost, and
-    // AppSettings needs to persist it across restarts once ported.
+    // TODO: persist across restarts once AppSettings lands.
     m_relayHostOverride = host;
-    m_relayPortOverride = port;
+    m_relayPortOverride = tunnelPort;
+    m_relayVoicePortOverride = voicePort ? voicePort : quint16(tunnelPort + 1);
+}
+
+void NetworkManager::setConnectionMode(ConnectionMode mode)
+{
+    const bool wantVds = (mode == ConnectionMode::Vds);
+    if (wantVds == m_internetMode)
+        return;
+
+    m_internetMode = wantVds;
+    if (!m_running)
+        return; // applied on next start()
+
+    if (m_internetMode) {
+        m_relayReconnectMs = protocol::kRelayReconnectBaseMs;
+        startInternetTunnel();
+    } else if (m_relaySocket) {
+        m_relaySocket->disconnect(this); // don't trigger the reconnect-on-disconnect handler below
+        m_relaySocket->close();
+        m_relaySocket->deleteLater();
+        m_relaySocket = nullptr;
+        m_relayConnected = false;
+    }
+}
+
+bool NetworkManager::vdsConfigured() const
+{
+    if (!m_relayHostOverride.isEmpty() && m_relayPortOverride != 0)
+        return true;
+    return !protocol::builtinRelays().isEmpty();
 }
 
 void NetworkManager::refreshLocalIps()
@@ -133,9 +161,9 @@ bool NetworkManager::start()
     connect(m_tcpServer, &QTcpServer::newConnection, this, &NetworkManager::onNewTcpConnection);
 
     m_running = true;
-    // I_Do_It_Latet.! — read from AppSettings::connectionMode() == "internet"
-    // once ported; LAN mode (false) is the only fully working path today.
-    m_internetMode = false;
+    // Connection mode is controlled explicitly via setConnectionMode()
+    // (defaults to LanOrVpn, see header) instead of being force-reset here.
+    // TODO: once AppSettings lands, read the persisted mode before start().
     m_localIps = allLocalIpsFallback();
     m_localIps.insert(m_hostIp);
 
@@ -487,26 +515,59 @@ void NetworkManager::onVoiceDisconnected(const QString &ip)
 // ── internet relay tunnel (TODO: move to network/vds once that module lands) ──
 void NetworkManager::startInternetTunnel()
 {
-    // I_Do_It_Latet.! — prefer m_relayHostOverride/m_relayPortOverride (set
-    // via setRelayServer()) over Protocol::kRelayHost once a default public
-    // relay exists; right now neither is a real, reachable address.
-    const QString host = !m_relayHostOverride.isEmpty() ? m_relayHostOverride : protocol::kRelayHost;
-    const quint16 port = m_relayPortOverride ? m_relayPortOverride : protocol::kRelayTunnelPort;
+    QString host = m_relayHostOverride;
+    quint16 port = m_relayPortOverride;
+
+    if (host.isEmpty() || port == 0) {
+        const auto &builtins = protocol::builtinRelays();
+        if (!builtins.isEmpty()) {
+            host = QString::fromLatin1(builtins.first().host);
+            port = builtins.first().tunnelPort;
+        }
+    }
+
+    if (host.isEmpty() || port == 0) {
+        // No VDS configured yet (no built-in relay ships, no custom one set
+        // via setRelayServer()). Don't spam-reconnect for something that
+        // can't possibly succeed — just check back periodically in case the
+        // user configures one, or an update ships a built-in relay.
+        emit errorOccurred(QStringLiteral(
+            "VDS mode is on but no relay server is configured — call setRelayServer(), "
+            "or switch back to LAN/VPN mode."));
+        QTimer::singleShot(protocol::kRelayReconnectMaxMs, this, [this] {
+            if (m_internetMode && m_running)
+                startInternetTunnel();
+        });
+        return;
+    }
 
     m_relaySocket = new QTcpSocket(this);
-    connect(m_relaySocket, &QTcpSocket::connected, this, [] {
-        // tunnel established
+    connect(m_relaySocket, &QTcpSocket::connected, this, [this] {
+        m_relayReconnectMs = protocol::kRelayReconnectBaseMs; // reset backoff on success
     });
     connect(m_relaySocket, &QTcpSocket::disconnected, this, [this] {
         m_relayConnected = false;
-        QTimer::singleShot(3000, this, &NetworkManager::startInternetTunnel);
+        const int delay = m_relayReconnectMs;
+        m_relayReconnectMs = qMin(m_relayReconnectMs * 2, protocol::kRelayReconnectMaxMs);
+        QTimer::singleShot(delay, this, [this] {
+            if (m_internetMode && m_running)
+                startInternetTunnel();
+        });
     });
     m_relaySocket->connectToHost(host, port);
     m_relayConnected = m_relaySocket->waitForConnected(3000);
-    if (m_relayConnected)
+    if (m_relayConnected) {
+        m_relayReconnectMs = protocol::kRelayReconnectBaseMs;
         onBroadcastTimer();
-    else
+    } else {
         emit errorOccurred(QStringLiteral("Tunnel connect failed"));
+        const int delay = m_relayReconnectMs;
+        m_relayReconnectMs = qMin(m_relayReconnectMs * 2, protocol::kRelayReconnectMaxMs);
+        QTimer::singleShot(delay, this, [this] {
+            if (m_internetMode && m_running)
+                startInternetTunnel();
+        });
+    }
     // TODO: length-prefixed frame reader (4-byte BE length + JSON payload)
     // feeding into dispatch(), matching the Python _tunnel_recv_loop.
 }
@@ -780,8 +841,21 @@ bool NetworkManager::connectVoice(const QString &ip)
 
     auto *sock = new QTcpSocket(this);
     if (m_internetMode) {
-        // I_Do_It_Latet.! — same default/custom relay gap as startInternetTunnel().
-        sock->connectToHost(protocol::kRelayVoiceHost, protocol::kRelayVoicePort);
+        QString host = m_relayHostOverride;
+        quint16 port = m_relayVoicePortOverride;
+        if (host.isEmpty() || port == 0) {
+            const auto &builtins = protocol::builtinRelays();
+            if (!builtins.isEmpty()) {
+                host = QString::fromLatin1(builtins.first().host);
+                port = builtins.first().voicePort;
+            }
+        }
+        if (host.isEmpty() || port == 0) {
+            sock->deleteLater();
+            emit errorOccurred(QStringLiteral("VDS voice relay not configured — cannot start call"));
+            return false;
+        }
+        sock->connectToHost(host, port);
     } else {
         sock->connectToHost(QHostAddress(ip), m_voiceTcpPort);
     }

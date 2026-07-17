@@ -13,6 +13,8 @@
 #include <QMap>
 #include <QVector>
 
+#include "Protocol.h"
+
 namespace koutnet {
 
 class CryptoManager;
@@ -23,6 +25,13 @@ class NetworkManager : public QObject {
     Q_OBJECT
 
 public:
+    // LanOrVpn: broadcast/mDNS/ARP discovery over any local interface,
+    // including VPN adapters — no server involved (default, fully working).
+    // Vds: discovery + NAT traversal via a relay server (self-hosted, or in
+    // future an official KOutNet relay — see network/Protocol.h, empty for
+    // now, so Vds mode requires setRelayServer() until one ships).
+    enum class ConnectionMode { LanOrVpn, Vds };
+    Q_ENUM(ConnectionMode)
     // CryptoManager is owned by the application (one instance shared across
     // NetworkManager / VoiceCallManager / UI) and injected here, never
     // created internally — identity keys and session state must stay
@@ -43,11 +52,22 @@ public:
     Q_INVOKABLE QString hostIp() const { return m_hostIp; }
     const QMap<QString, QJsonObject> &peers() const { return m_peers; }
 
-    // I_Do_It_Latet.! — self-hosted / custom relay server support, and
-    // selection of a default public relay when the user hasn't configured
-    // one. LAN discovery (broadcast/mDNS/ARP) needs none of this and already
-    // works without a server — see onBroadcastTimer / scanArpTable.
-    void setRelayServer(const QString &host, quint16 port);
+    // Switch between LAN/VPN discovery and VDS/relay mode. Safe to call
+    // before start() (applied on next start()) or while running (tears
+    // down/starts the relay tunnel immediately).
+    Q_INVOKABLE void setConnectionMode(ConnectionMode mode);
+    Q_INVOKABLE ConnectionMode connectionMode() const {
+        return m_internetMode ? ConnectionMode::Vds : ConnectionMode::LanOrVpn;
+    }
+    // True once a relay is actually usable — either a custom one was set via
+    // setRelayServer(), or the built-in list (network/Protocol.h) is
+    // non-empty. False means Vds mode can be selected but won't connect to
+    // anything yet — surface this in the UI before letting the user pick it.
+    Q_INVOKABLE bool vdsConfigured() const;
+
+    // Custom/self-hosted relay server. voicePort defaults to tunnelPort + 1
+    // if not given. TODO: persist across restarts once AppSettings lands.
+    void setRelayServer(const QString &host, quint16 tunnelPort, quint16 voicePort = 0);
 
     // ── outgoing messages ───────────────────────────────────────────
     void sendUdp(QJsonObject payload, const QString &targetIp = QString());
@@ -133,12 +153,14 @@ private:
     QTimer m_broadcastTimer;
     QTimer m_ipRefreshTimer;
 
-    // Relay / tunnel (internet mode) — TODO: move to network/vds module
+    // Relay / tunnel (Vds mode) — TODO: move to network/vds module
     QTcpSocket *m_relaySocket = nullptr;
     bool m_relayConnected = false;
     QByteArray m_relayBuffer;
-    QString m_relayHostOverride;   // I_Do_It_Latet.! — set via setRelayServer()
+    QString m_relayHostOverride;   // set via setRelayServer()
     quint16 m_relayPortOverride = 0;
+    quint16 m_relayVoicePortOverride = 0;
+    int m_relayReconnectMs = protocol::kRelayReconnectBaseMs; // grows via backoff, see .cpp
 
     double m_lastScan = 0.0;
 };
