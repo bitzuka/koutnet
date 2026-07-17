@@ -7,17 +7,20 @@
 #include <QObject>
 #include <QString>
 #include <QMap>
+#include <QStringList>
 
 namespace koutnet {
 
 class Translations : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString current READ current WRITE setCurrent NOTIFY currentChanged)
+    Q_PROPERTY(QStringList availableLanguages READ availableLanguages CONSTANT)
 
 public:
     explicit Translations(QObject *parent = nullptr);
 
     QString current() const { return m_current; }
+    QStringList availableLanguages() const { return m_dictionary.keys(); }
     void setCurrent(const QString &language);
 
     Q_INVOKABLE QString t(const QString &key) const;

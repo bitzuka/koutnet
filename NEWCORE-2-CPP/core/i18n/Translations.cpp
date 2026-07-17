@@ -39,8 +39,12 @@ Translations::Translations(QObject *parent)
         return;
     }
 
-    loadLanguage(i18nDir, "ru");
-    loadLanguage(i18nDir, "en");
+    const QDir dir(i18nDir);
+    const auto files = dir.entryList(QStringList() << "*.json", QDir::Files);
+    for (const QString &fileName : files) {
+        const QString lang = fileName.left(fileName.length() - 5); // strip ".json"
+        loadLanguage(i18nDir, lang);
+    }
 }
 
 void Translations::loadLanguage(const QString &i18nDir, const QString &language)

@@ -48,7 +48,7 @@
   "log.system": "СИСТЕМА",
   "log.user_joined": "Найден пользователь",
   "log.user_left": "отключился",
-  "log.started": "KOutNet Legacy запущен",
+  "log.started": "KOutNet запущен",
   "log.your_ip": "Ваш IP",
   "log.username": "Имя пользователя",
   "log.scanning": "Сканирование сети…",
