@@ -37,9 +37,21 @@ public:
     static constexpr int kSaltLen = 32;
     static constexpr double kReplayWindowSec = 30.0;
     static constexpr double kNonceCacheTtlSec = 60.0;
+    // Cap on cached PBKDF2 passphrase keys — without this, cycling through
+    // many different group passphrases over a long session grows this hash
+    // unboundedly.
+    static constexpr int kMaxPassphraseCacheSize = 256;
 
     explicit CryptoManager(QObject *parent = nullptr);
     ~CryptoManager() override;
+
+    // False if Ed25519/X25519 keypair generation or loading failed at
+    // startup (corrupted stored keys, OpenSSL failure, etc.). Callers must
+    // check this before relying on encryption — every crypto method below
+    // silently no-ops/passes through plaintext when keys are missing, by
+    // design, so a silent failure here would otherwise look like "it works"
+    // while sending everything unencrypted.
+    bool isValid() const { return m_valid; }
 
     // ── Handshake ────────────────────────────────────────────────────
     QJsonObject handshakePayload() const;
@@ -73,15 +85,17 @@ public:
     bool decryptBytes(const QString &peerIp, const QByteArray &data, QByteArray *outPlain) const;
 
 private:
-    void initKeypairs();
+    bool initKeypairs();
     bool loadStoredKeys();
-    void generateAndStoreKeys();
+    bool generateAndStoreKeys();
 
     static QByteArray gcmEncrypt(const QByteArray &key, const QByteArray &plaintext);
     static bool gcmDecrypt(const QByteArray &key, const QByteArray &data, QByteArray *outPlain);
     QByteArray deriveKey(const QString &passphrase, const QByteArray &salt) const;
     static QByteArray hkdfSha256(const QByteArray &secret, const QByteArray &info, int outLen);
     static QByteArray randomBytes(int n);
+
+    bool m_valid = false;
 
     EVP_PKEY *m_identityPriv = nullptr; // Ed25519
     EVP_PKEY *m_dhPriv = nullptr;       // X25519

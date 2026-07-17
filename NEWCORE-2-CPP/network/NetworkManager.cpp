@@ -139,7 +139,7 @@ bool NetworkManager::start()
     m_localIps = allLocalIpsFallback();
     m_localIps.insert(m_hostIp);
 
-    m_broadcastTimer.start(2000); // fast discovery — every 2s
+    m_broadcastTimer.start(kActiveBroadcastMs); // fast discovery until peers are found
     if (m_internetMode)
         startInternetTunnel();
 
@@ -249,6 +249,13 @@ void NetworkManager::onBroadcastTimer()
     if (!m_running || !m_udp)
         return;
 
+    // Adaptive interval: broadcast aggressively while we have no peers yet,
+    // then back off once discovery has succeeded. Also reduces how "loud"
+    // the full /24 sweep below looks on corporate/public Wi-Fi.
+    const int desiredInterval = m_peers.isEmpty() ? kActiveBroadcastMs : kIdleBroadcastMs;
+    if (m_broadcastTimer.interval() != desiredInterval)
+        m_broadcastTimer.setInterval(desiredInterval);
+
     const QJsonObject payload = presencePayload();
     const QByteArray data = QJsonDocument(payload).toJson(QJsonDocument::Compact);
     const quint16 port = protocol::kUdpPortDefault;
@@ -279,7 +286,8 @@ void NetworkManager::onBroadcastTimer()
 
     // 4. Unicast /24 subnet scan every 30s (fallback if broadcast blocked)
     const double now = nowEpoch();
-    if (now - m_lastScan > 30) {
+    const double scanIntervalSec = m_peers.isEmpty() ? 30.0 : 120.0;
+    if (now - m_lastScan > scanIntervalSec) {
         m_lastScan = now;
         const auto parts = m_hostIp.split('.');
         if (parts.size() == 4) {

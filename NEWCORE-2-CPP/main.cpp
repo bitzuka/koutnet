@@ -21,6 +21,10 @@ int main(int argc, char *argv[])
     // instance elsewhere; identity keys and session state must stay
     // single-sourced. See core/security/CryptoManager.h.
     auto *crypto = new koutnet::CryptoManager(&app);
+    if (!crypto->isValid()) {
+        qCritical("KOutNet: cryptographic identity failed to initialize — aborting startup");
+        return 1;
+    }
     auto *network = new koutnet::NetworkManager(crypto, &app);
     auto *voice = new koutnet::VoiceCallManager(network, crypto, &app);
     auto *fileTransfer = new koutnet::FileTransferHandler(&app);
