@@ -30,6 +30,12 @@ public:
     explicit NetworkManager(CryptoManager *crypto, QObject *parent = nullptr);
     ~NetworkManager() override;
 
+    // Discovery broadcast cadence: aggressive while no peers are known yet,
+    // then backs off once the mesh is established — cuts background network
+    // noise (battery/CPU on laptops too) once discovery has already worked.
+    static constexpr int kActiveBroadcastMs = 2000;
+    static constexpr int kIdleBroadcastMs = 8000;
+
     bool start();
     void stop();
 

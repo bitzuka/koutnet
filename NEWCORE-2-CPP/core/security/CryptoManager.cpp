@@ -5,6 +5,8 @@
 #include <QSettings>
 #include <QDateTime>
 #include <QCryptographicHash>
+#include <QFile>
+#include <QDebug>
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -36,7 +38,12 @@ QString bytesToFingerprint(const QByteArray &raw)
 
 CryptoManager::CryptoManager(QObject *parent) : QObject(parent)
 {
-    initKeypairs();
+    m_valid = initKeypairs();
+    if (!m_valid) {
+        qCritical("CryptoManager: failed to initialize identity/DH keypairs — "
+                  "encryption is unavailable for this session. Check isValid() "
+                  "before relying on encrypt()/handshakePayload().");
+    }
 }
 
 CryptoManager::~CryptoManager()
@@ -55,32 +62,54 @@ QByteArray CryptoManager::randomBytes(int n)
 // ── Key lifecycle ──────────────────────────────────────────────────────
 // TODO: route through AppSettings once core/constructor lands — QSettings
 // is used directly for now so identity persists across restarts.
-void CryptoManager::initKeypairs()
+bool CryptoManager::initKeypairs()
 {
-    if (!loadStoredKeys())
-        generateAndStoreKeys();
+    if (!loadStoredKeys()) {
+        if (!generateAndStoreKeys())
+            return false;
+    }
 
     size_t len = 0;
-    EVP_PKEY_get_raw_public_key(m_dhPriv, nullptr, &len);
+    if (EVP_PKEY_get_raw_public_key(m_dhPriv, nullptr, &len) != 1 || len == 0)
+        return false;
     m_dhPubBytes.resize(int(len));
-    EVP_PKEY_get_raw_public_key(m_dhPriv, reinterpret_cast<unsigned char *>(m_dhPubBytes.data()), &len);
+    if (EVP_PKEY_get_raw_public_key(m_dhPriv, reinterpret_cast<unsigned char *>(m_dhPubBytes.data()), &len) != 1)
+        return false;
 
     len = 0;
-    EVP_PKEY_get_raw_public_key(m_identityPriv, nullptr, &len);
+    if (EVP_PKEY_get_raw_public_key(m_identityPriv, nullptr, &len) != 1 || len == 0)
+        return false;
     m_identityPubBytes.resize(int(len));
-    EVP_PKEY_get_raw_public_key(m_identityPriv, reinterpret_cast<unsigned char *>(m_identityPubBytes.data()), &len);
+    if (EVP_PKEY_get_raw_public_key(m_identityPriv, reinterpret_cast<unsigned char *>(m_identityPubBytes.data()), &len) != 1)
+        return false;
 
     // Sign our DH public key with our identity key (Ed25519 one-shot sign).
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
-    EVP_DigestSignInit(mdctx, nullptr, nullptr, nullptr, m_identityPriv);
+    if (!mdctx)
+        return false;
+
+    bool ok = EVP_DigestSignInit(mdctx, nullptr, nullptr, nullptr, m_identityPriv) == 1;
+
     size_t sigLen = 0;
-    EVP_DigestSign(mdctx, nullptr, &sigLen,
-                   reinterpret_cast<const unsigned char *>(m_dhPubBytes.constData()), m_dhPubBytes.size());
-    m_dhPubSig.resize(int(sigLen));
-    EVP_DigestSign(mdctx, reinterpret_cast<unsigned char *>(m_dhPubSig.data()), &sigLen,
-                   reinterpret_cast<const unsigned char *>(m_dhPubBytes.constData()), m_dhPubBytes.size());
-    m_dhPubSig.resize(int(sigLen));
+    if (ok && EVP_DigestSign(mdctx, nullptr, &sigLen,
+                             reinterpret_cast<const unsigned char *>(m_dhPubBytes.constData()),
+                             m_dhPubBytes.size()) != 1) {
+        ok = false;
+    }
+
+    if (ok) {
+        m_dhPubSig.resize(int(sigLen));
+        if (EVP_DigestSign(mdctx, reinterpret_cast<unsigned char *>(m_dhPubSig.data()), &sigLen,
+                           reinterpret_cast<const unsigned char *>(m_dhPubBytes.constData()),
+                           m_dhPubBytes.size()) != 1) {
+            ok = false;
+        } else {
+            m_dhPubSig.resize(int(sigLen));
+        }
+    }
+
     EVP_MD_CTX_free(mdctx);
+    return ok;
 }
 
 bool CryptoManager::loadStoredKeys()
@@ -93,6 +122,11 @@ bool CryptoManager::loadStoredKeys()
 
     const QByteArray idRaw = QByteArray::fromBase64(idB64);
     const QByteArray dhRaw = QByteArray::fromBase64(dhB64);
+
+    // Ed25519/X25519 private keys are always exactly 32 raw bytes — guard
+    // against a truncated/corrupted settings file producing a garbage key.
+    if (idRaw.size() != 32 || dhRaw.size() != 32)
+        return false;
 
     m_identityPriv = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr,
         reinterpret_cast<const unsigned char *>(idRaw.constData()), idRaw.size());
@@ -107,32 +141,59 @@ bool CryptoManager::loadStoredKeys()
     return true;
 }
 
-void CryptoManager::generateAndStoreKeys()
+bool CryptoManager::generateAndStoreKeys()
 {
     EVP_PKEY_CTX *idCtx = EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, nullptr);
-    EVP_PKEY_keygen_init(idCtx);
-    EVP_PKEY_keygen(idCtx, &m_identityPriv);
+    if (!idCtx)
+        return false;
+    if (EVP_PKEY_keygen_init(idCtx) != 1 || EVP_PKEY_keygen(idCtx, &m_identityPriv) != 1) {
+        EVP_PKEY_CTX_free(idCtx);
+        return false;
+    }
     EVP_PKEY_CTX_free(idCtx);
 
     EVP_PKEY_CTX *dhCtx = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, nullptr);
-    EVP_PKEY_keygen_init(dhCtx);
-    EVP_PKEY_keygen(dhCtx, &m_dhPriv);
+    if (!dhCtx) {
+        EVP_PKEY_free(m_identityPriv);
+        m_identityPriv = nullptr;
+        return false;
+    }
+    if (EVP_PKEY_keygen_init(dhCtx) != 1 || EVP_PKEY_keygen(dhCtx, &m_dhPriv) != 1) {
+        EVP_PKEY_CTX_free(dhCtx);
+        EVP_PKEY_free(m_identityPriv);
+        m_identityPriv = nullptr;
+        return false;
+    }
     EVP_PKEY_CTX_free(dhCtx);
 
     size_t len = 0;
-    EVP_PKEY_get_raw_private_key(m_identityPriv, nullptr, &len);
+    if (EVP_PKEY_get_raw_private_key(m_identityPriv, nullptr, &len) != 1 || len == 0)
+        return false;
     QByteArray idRaw(int(len), 0);
-    EVP_PKEY_get_raw_private_key(m_identityPriv, reinterpret_cast<unsigned char *>(idRaw.data()), &len);
+    if (EVP_PKEY_get_raw_private_key(m_identityPriv, reinterpret_cast<unsigned char *>(idRaw.data()), &len) != 1)
+        return false;
 
     len = 0;
-    EVP_PKEY_get_raw_private_key(m_dhPriv, nullptr, &len);
+    if (EVP_PKEY_get_raw_private_key(m_dhPriv, nullptr, &len) != 1 || len == 0)
+        return false;
     QByteArray dhRaw(int(len), 0);
-    EVP_PKEY_get_raw_private_key(m_dhPriv, reinterpret_cast<unsigned char *>(dhRaw.data()), &len);
+    if (EVP_PKEY_get_raw_private_key(m_dhPriv, reinterpret_cast<unsigned char *>(dhRaw.data()), &len) != 1)
+        return false;
 
     QSettings settings;
     settings.setValue("security/identity_priv_b64", idRaw.toBase64());
     settings.setValue("security/dh_priv_b64", dhRaw.toBase64());
     settings.sync();
+
+    // Best-effort hardening: restrict the settings file to owner read/write
+    // only, so other local accounts/processes on the same machine can't just
+    // read the identity keys off disk. This is NOT a substitute for real OS
+    // keychain storage (Windows DPAPI / macOS Keychain / libsecret) — that's
+    // the real fix and should land before a public release. Tracked as TODO.
+    QFile::setPermissions(settings.fileName(),
+                          QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+
+    return true;
 }
 
 // ── Handshake ────────────────────────────────────────────────────────
@@ -313,6 +374,12 @@ QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray 
         reinterpret_cast<const unsigned char *>(salt.constData()), salt.size(),
         kKdfIters, EVP_sha256(), kKeyLen, reinterpret_cast<unsigned char *>(key.data()));
 
+    // Cheap unbounded-growth guard: each PBKDF2 derivation is expensive
+    // (480k iterations), which is why we cache it — but a long session
+    // cycling through many distinct passphrases must not grow this forever.
+    if (m_passphraseKeyCache.size() >= kMaxPassphraseCacheSize)
+        m_passphraseKeyCache.clear();
+
     m_passphraseKeyCache[cacheKey] = key;
     return key;
 }
@@ -456,7 +523,6 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
     return QString::fromUtf8(plain);
 }
 
-
 // ── Raw byte encryption (voice) ────────────────────────────────────────
 QByteArray CryptoManager::encryptBytes(const QString &peerIp, const QByteArray &plaintext) const
 {
@@ -474,8 +540,5 @@ bool CryptoManager::decryptBytes(const QString &peerIp, const QByteArray &data, 
     }
     return gcmDecrypt(m_sessionKeys.value(peerIp), data, outPlain);
 }
-
-
-
 
 } // namespace koutnet
