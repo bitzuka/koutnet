@@ -3,6 +3,7 @@
 #pragma once
 
 #include <QString>
+#include <QVector>
 
 namespace koutnet::protocol {
 
@@ -26,22 +27,41 @@ inline constexpr auto kMsgDelete    = "delete";
 inline constexpr auto kMsgRead      = "read";
 inline constexpr auto kMsgSticker   = "sticker";
 
-// ── Defaults ─────────────────────────────────────────────────────────
-// LAN discovery (broadcast + mDNS + ARP scan) works standalone, no server
-// needed — see NetworkManager::onBroadcastTimer / scanArpTable.
+// ── LAN / VPN mode (default) ────────────────────────────────────────
+// Broadcast + mDNS + ARP scan discovery, works standalone, no server
+// needed — see NetworkManager::onBroadcastTimer / scanArpTable. A VPN
+// adapter is just another local interface here, no special-casing needed
+// — see NetworkManager::refreshLocalIps. Primary supported path today.
 inline constexpr quint16 kUdpPortDefault = 42000;
 inline constexpr quint16 kTcpPortDefault = 42001;
 
-// Relay / VDS — used only in "internet mode" for NAT traversal + discovery
-// beyond LAN. Neither a default public relay nor self-hosted server config
-// exists yet.
-// I_Do_It_Latet.! — default public relay host/port (official KOutNet relay).
-// I_Do_It_Latet.! — self-hosted / custom relay server support (user-supplied
-//                    host:port, persisted via AppSettings once that lands).
-inline constexpr auto kRelayHost = "I_Do_It_Latet.!";
-inline constexpr quint16 kRelayTunnelPort = 0;
-inline constexpr auto kRelayVoiceHost = "I_Do_It_Latet.!";
-inline constexpr quint16 kRelayVoicePort = 0;
+// ── VDS / relay mode ─────────────────────────────────────────────────
+// Used only when NetworkManager::ConnectionMode::Vds is selected — relay
+// server handles discovery + NAT traversal beyond LAN.
+struct RelayServer {
+    const char *name;
+    const char *host;
+    quint16 tunnelPort;
+    quint16 voicePort;
+};
+
+// TODO(VDS): populate once an official KOutNet relay is deployed, e.g.:
+//   { "KOutNet Official", "relay.koutnet.example", 42010, 42011 },
+// Until then this stays empty, and Vds mode requires the user to supply
+// their own server via NetworkManager::setRelayServer().
+inline const QVector<RelayServer> &builtinRelays()
+{
+    static const QVector<RelayServer> relays = {
+        // (empty — no built-in relay ships yet)
+    };
+    return relays;
+}
+
+// Reconnect backoff for the relay/tunnel connection — starts fast, doubles
+// up to a ceiling, so an unreachable/unconfigured VDS doesn't hammer the
+// network or battery forever.
+inline constexpr int kRelayReconnectBaseMs = 3000;
+inline constexpr int kRelayReconnectMaxMs = 60000;
 
 inline constexpr auto kAppName = "KOutNet";
 inline constexpr int kProtocolVersion = 1;
