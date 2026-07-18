@@ -58,5 +58,7 @@
   "contacts_header": "संपर्क",
   "no_contacts_title": "यहाँ अभी कोई नहीं है",
   "no_contacts_explanation": "KOutNet अन्य उपयोगकर्ताओं की तलाश कर रहा है, लेकिन अभी यहाँ शांति है...",
-  "select_contact_placeholder": "बातचीत शुरू करने के लिए बाईं ओर से एक संपर्क चुनें।"
+  "select_contact_placeholder": "बातचीत शुरू करने के लिए बाईं ओर से एक संपर्क चुनें।",
+  "sidebar.favorites": "पसंदीदा",
+  "sidebar.search_placeholder": "खोजें"
 }

@@ -9,6 +9,7 @@
 #include "network/VoiceCallManager.h"
 #include "network/FileTransferHandler.h"
 #include "core/i18n/Translations.h"
+#include "core/constructor/AppSettings.h"
 
 int main(int argc, char *argv[])
 {
@@ -20,12 +21,20 @@ int main(int argc, char *argv[])
     // needs it (NetworkManager, VoiceCallManager). Never create a second
     // instance elsewhere; identity keys and session state must stay
     // single-sourced. See core/security/CryptoManager.h.
+    auto *appSettings = new koutnet::AppSettings(&app);
+
     auto *crypto = new koutnet::CryptoManager(&app);
     if (!crypto->isValid()) {
         qCritical("KOutNet: cryptographic identity failed to initialize — aborting startup");
         return 1;
     }
     auto *network = new koutnet::NetworkManager(crypto, &app);
+
+    // Apply persisted connection settings before start() — see AppSettings.
+    if (appSettings->vdsMode()) {
+        network->setRelayServer(appSettings->relayHost(), quint16(appSettings->relayPort()));
+        network->setConnectionMode(koutnet::NetworkManager::ConnectionMode::Vds);
+    }
     auto *voice = new koutnet::VoiceCallManager(network, crypto, &app);
     auto *fileTransfer = new koutnet::FileTransferHandler(&app);
     auto *translations = new koutnet::Translations(&app);
@@ -49,6 +58,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("voiceCallManager", voice);
     engine.rootContext()->setContextProperty("fileTransferHandler", fileTransfer);
     engine.rootContext()->setContextProperty("Translations", translations);
+    engine.rootContext()->setContextProperty("appSettings", appSettings);
 
     engine.loadFromModule("koutnet.app", "Main");
 

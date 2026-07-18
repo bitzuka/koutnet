@@ -18,6 +18,12 @@ Kirigami.ApplicationWindow {
 
     property string currentPeerIp: ""
     readonly property bool compactMode: width < 480
+    // Sentinel used for the pinned "Избранное" self-chat — never a real
+    // peer IP, so it can't collide with anything from the network.
+    readonly property string kSelfChatId: "__self__"
+
+    property bool sidebarCollapsed: false
+    property string contactSearchText: ""
 
     property var histories: ({})
 
@@ -124,19 +130,21 @@ Kirigami.ApplicationWindow {
         padding: 0
 
         SplitView {
+            id: splitView
             anchors.fill: parent
             orientation: Qt.Horizontal
 
             ColumnLayout {
-                SplitView.preferredWidth: 220
-                SplitView.minimumWidth: 160
+                SplitView.preferredWidth: root.sidebarCollapsed ? 0 : 220
+                SplitView.minimumWidth: root.sidebarCollapsed ? 0 : 160
                 SplitView.maximumWidth: 360
-                visible: !root.compactMode || root.currentPeerIp.length === 0
+                visible: !root.sidebarCollapsed && (!root.compactMode || root.currentPeerIp.length === 0)
                 spacing: 0
 
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.margins: Kirigami.Units.smallSpacing
+                    Layout.leftMargin: Kirigami.Units.smallSpacing + 28 // room for the floating collapse button
 
                     Kirigami.Heading {
                         text: Translations.t("contacts_header")
@@ -145,6 +153,26 @@ Kirigami.ApplicationWindow {
                         font.weight: Font.Black
                     }
                     Item { Layout.fillWidth: true }
+                }
+
+                Kirigami.Separator { Layout.fillWidth: true }
+
+                ContactDelegate {
+                    Layout.fillWidth: true
+                    peerIp: Translations.t("sidebar.favorites")
+                    iconName: "bookmarks"
+                    showOnlineIndicator: false
+                    showSecurityLabel: false
+                    selected: root.currentPeerIp === root.kSelfChatId
+                    onClicked: root.currentPeerIp = root.kSelfChatId
+                }
+
+                TextField {
+                    Layout.fillWidth: true
+                    Layout.margins: Kirigami.Units.smallSpacing
+                    placeholderText: Translations.t("sidebar.search_placeholder")
+                    text: root.contactSearchText
+                    onTextChanged: root.contactSearchText = text
                 }
 
                 Kirigami.Separator { Layout.fillWidth: true }
@@ -166,6 +194,9 @@ Kirigami.ApplicationWindow {
 
                     delegate: ContactDelegate {
                         width: peersList.width
+                        visible: root.contactSearchText.length === 0
+                                 || model.ip.toLowerCase().indexOf(root.contactSearchText.toLowerCase()) !== -1
+                        height: visible ? 60 : 0
                         peerIp: model.ip
                         peerOs: model.os || ""
                         e2e: model.e2e === true
@@ -181,22 +212,39 @@ Kirigami.ApplicationWindow {
                 sourceComponent: root.currentPeerIp.length > 0 ? chatComponent : placeholderComponent
             }
         }
+
+        // Floating sidebar collapse toggle — kept outside the ColumnLayout
+        // (and outside the "visible: !sidebarCollapsed" chain) on purpose,
+        // so it stays reachable even when the sidebar itself is hidden.
+        ToolButton {
+            icon.name: root.sidebarCollapsed ? "sidebar-expand-left" : "sidebar-collapse-left"
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.margins: 4
+            z: 10
+            onClicked: root.sidebarCollapsed = !root.sidebarCollapsed
+        }
     }
 
     Component {
         id: chatComponent
         ChatPage {
+            readonly property bool isSelfChat: peerIp === root.kSelfChatId
+
             peerIp: root.currentPeerIp
+            displayTitle: isSelfChat ? Translations.t("sidebar.favorites") : root.currentPeerIp
             messagesModel: root.modelForPeer(root.currentPeerIp)
             showBackButton: root.compactMode
 
             onReturnToListRequested: root.currentPeerIp = ""
             onSendRequested: function(text) {
-                networkManager.sendPrivate(text, peerIp)
+                if (!isSelfChat)
+                    networkManager.sendPrivate(text, peerIp)
                 root.appendMessage(peerIp, text, true)
             }
             onAttachRequested: function(localFilePath) {
-                networkManager.sendFile(peerIp, localFilePath)
+                if (!isSelfChat)
+                    networkManager.sendFile(peerIp, localFilePath)
                 root.appendFile(peerIp, localFilePath, true)
             }
         }

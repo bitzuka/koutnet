@@ -58,5 +58,7 @@
   "contacts_header": "Contatos",
   "no_contacts_title": "Ainda não há ninguém aqui",
   "no_contacts_explanation": "KOutNet está procurando outros usuários, mas por enquanto está tranquilo...",
-  "select_contact_placeholder": "Selecione um contato à esquerda para iniciar uma conversa."
+  "select_contact_placeholder": "Selecione um contato à esquerda para iniciar uma conversa.",
+  "sidebar.favorites": "Favoritos",
+  "sidebar.search_placeholder": "Pesquisar"
 }

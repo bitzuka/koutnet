@@ -58,5 +58,7 @@
   "contacts_header": "Contacts",
   "no_contacts_title": "Personne ici pour l'instant",
   "no_contacts_explanation": "KOutNet recherche d'autres utilisateurs, mais c'est calme pour le moment...",
-  "select_contact_placeholder": "Sélectionnez un contact à gauche pour commencer une conversation."
+  "select_contact_placeholder": "Sélectionnez un contact à gauche pour commencer une conversation.",
+  "sidebar.favorites": "Favoris",
+  "sidebar.search_placeholder": "Rechercher"
 }

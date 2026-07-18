@@ -6,7 +6,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Quick QuickControls2 QuickDialogs2 Multimedia Network)
-find_package(KF6Kirigami REQUIRED)
 find_package(OpenSSL REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.4)
@@ -21,6 +20,8 @@ qt_add_executable(KOutNet
     core/security/CryptoManager.h
     core/i18n/Translations.cpp
     core/i18n/Translations.h
+    core/constructor/AppSettings.cpp
+    core/constructor/AppSettings.h
     network/NetworkManager.cpp
     network/NetworkManager.h
     network/Protocol.h
@@ -48,7 +49,6 @@ target_link_libraries(KOutNet PRIVATE
     Qt6::QuickDialogs2
     Qt6::Multimedia
     Qt6::Network
-    KF6::Kirigami
     OpenSSL::Crypto
 )
 
