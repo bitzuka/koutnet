@@ -6,6 +6,8 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QDebug>
+#include <QSet>
+#include <algorithm>
 
 namespace koutnet {
 
@@ -44,6 +46,35 @@ Translations::Translations(QObject *parent)
     for (const QString &fileName : files) {
         const QString lang = fileName.left(fileName.length() - 5); // strip ".json"
         loadLanguage(i18nDir, lang);
+    }
+
+    validateDictionary();
+}
+
+void Translations::validateDictionary() const
+{
+    if (m_dictionary.isEmpty())
+        return;
+
+    // Build the union of every key seen across all languages — this is our
+    // "should exist everywhere" reference set, rather than trusting any one
+    // language file to be the complete/correct one.
+    QSet<QString> allKeys;
+    for (auto it = m_dictionary.constBegin(); it != m_dictionary.constEnd(); ++it)
+        for (auto keyIt = it.value().constBegin(); keyIt != it.value().constEnd(); ++keyIt)
+            allKeys.insert(keyIt.key());
+
+    for (auto it = m_dictionary.constBegin(); it != m_dictionary.constEnd(); ++it) {
+        QStringList missing;
+        for (const QString &key : std::as_const(allKeys)) {
+            if (!it.value().contains(key))
+                missing << key;
+        }
+        if (!missing.isEmpty()) {
+            std::sort(missing.begin(), missing.end());
+            qWarning().noquote() << "Translations: [" << it.key() << "] missing"
+                                 << missing.size() << "key(s):" << missing.join(", ");
+        }
     }
 }
 
