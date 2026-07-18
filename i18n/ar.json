@@ -58,5 +58,7 @@
   "contacts_header": "جهات الاتصال",
   "no_contacts_title": "لا يوجد أحد هنا بعد",
   "no_contacts_explanation": "يبحث KOutNet عن مستخدمين آخرين، لكن الأمر هادئ هنا الآن...",
-  "select_contact_placeholder": "اختر جهة اتصال من اليسار لبدء محادثة."
+  "select_contact_placeholder": "اختر جهة اتصال من اليسار لبدء محادثة.",
+  "sidebar.favorites": "المفضلة",
+  "sidebar.search_placeholder": "بحث"
 }

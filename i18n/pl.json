@@ -58,5 +58,7 @@
   "contacts_header": "Kontakty",
   "no_contacts_title": "Nikogo tu jeszcze nie ma",
   "no_contacts_explanation": "KOutNet szuka innych użytkowników, ale na razie jest tu cicho...",
-  "select_contact_placeholder": "Wybierz kontakt po lewej, aby rozpocząć rozmowę."
+  "select_contact_placeholder": "Wybierz kontakt po lewej, aby rozpocząć rozmowę.",
+  "sidebar.favorites": "Ulubione",
+  "sidebar.search_placeholder": "Szukaj"
 }

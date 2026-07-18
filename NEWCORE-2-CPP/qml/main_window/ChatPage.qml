@@ -8,6 +8,7 @@ Kirigami.Page {
     id: root
 
     property string peerIp: ""
+    property string displayTitle: peerIp
     property var messagesModel: null
     property bool showBackButton: false
 
@@ -15,7 +16,7 @@ Kirigami.Page {
     signal sendRequested(string text)
     signal attachRequested(string localFilePath)
 
-    title: root.peerIp
+    title: root.displayTitle
     padding: 0
 
     actions: [

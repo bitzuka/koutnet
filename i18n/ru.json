@@ -58,5 +58,7 @@
   "contacts_header": "Контакты",
   "no_contacts_title": "Пока никого не видно",
   "no_contacts_explanation": "KOutNet ищет других пользователей, но пока здесь тихо...",
-  "select_contact_placeholder": "Выбери собеседника слева чтобы начать переписку"
+  "select_contact_placeholder": "Выбери собеседника слева чтобы начать переписку",
+  "sidebar.favorites": "Избранное",
+  "sidebar.search_placeholder": "Поиск"
 }
