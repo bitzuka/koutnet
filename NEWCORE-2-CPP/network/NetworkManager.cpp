@@ -714,6 +714,7 @@ void NetworkManager::sendReaction(const QString &toIp, const QString &chatId,
 {
     QJsonObject payload;
     payload["type"] = protocol::kMsgReaction;
+    payload["from_ip"] = m_hostIp;
     payload["chat_id"] = chatId;
     payload["msg_ts"] = ts;
     payload["emoji"] = emoji;
@@ -726,6 +727,7 @@ void NetworkManager::sendMessageEdit(const QString &toIp, const QString &chatId,
 {
     QJsonObject payload;
     payload["type"] = protocol::kMsgEdit;
+    payload["from_ip"] = m_hostIp;
     payload["chat_id"] = chatId;
     payload["msg_ts"] = ts;
     payload["new_text"] = newText;
@@ -736,6 +738,7 @@ void NetworkManager::sendMessageDelete(const QString &toIp, const QString &chatI
 {
     QJsonObject payload;
     payload["type"] = protocol::kMsgDelete;
+    payload["from_ip"] = m_hostIp;
     payload["chat_id"] = chatId;
     payload["msg_ts"] = ts;
     sendUdp(payload, toIp);
@@ -745,6 +748,7 @@ void NetworkManager::sendReadReceipt(const QString &toIp, const QString &chatId)
 {
     QJsonObject payload;
     payload["type"] = protocol::kMsgRead;
+    payload["from_ip"] = m_hostIp;
     payload["chat_id"] = chatId;
     sendUdp(payload, toIp);
 }

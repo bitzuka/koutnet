@@ -36,46 +36,74 @@ Kirigami.Page {
             id: messagesList
             Layout.fillWidth: true
             Layout.fillHeight: true
-            verticalLayoutDirection: ListView.BottomToTop
             clip: true
             model: root.messagesModel
 
+            // Oldest at top, newest at bottom (normal chat order), and
+            // always scrolled to the latest message when one arrives.
+            onCountChanged: Qt.callLater(positionViewAtEnd)
+            Component.onCompleted: positionViewAtEnd()
+
             delegate: Item {
                 width: messagesList.width
-                height: bubble.height + Kirigami.Units.smallSpacing
+                height: contentColumn.height + Kirigami.Units.smallSpacing
 
-                Rectangle {
-                    id: bubble
-                    width: model.isFile === true
-                        ? Math.min(240, messagesList.width * 0.7)
-                        : Math.min(label.implicitWidth + Kirigami.Units.largeSpacing * 2, messagesList.width * 0.7)
-                    height: model.isFile === true && model.isImage === true
-                        ? 160
-                        : label.implicitHeight + Kirigami.Units.smallSpacing * 2
-                    radius: 10
-                    color: model.fromMe ? Kirigami.Theme.highlightColor : Kirigami.Theme.alternateBackgroundColor
+                Column {
+                    id: contentColumn
                     anchors.right: model.fromMe ? parent.right : undefined
                     anchors.left: model.fromMe ? undefined : parent.left
                     anchors.margins: Kirigami.Units.smallSpacing
+                    spacing: 2
 
-                    Loader {
-                        anchors.centerIn: parent
-                        active: model.isFile === true && model.isImage === true
-                        sourceComponent: Image {
-                            source: "file://" + model.filePath
-                            fillMode: Image.PreserveAspectFit
-                            width: Math.min(220, messagesList.width * 0.6)
-                            height: width * 0.7
+                    Rectangle {
+                        id: bubble
+                        width: model.isFile === true
+                            ? Math.min(240, messagesList.width * 0.7)
+                            : Math.min(label.implicitWidth + Kirigami.Units.largeSpacing * 2, messagesList.width * 0.7)
+                        height: model.isFile === true && model.isImage === true
+                            ? 160
+                            : label.implicitHeight + Kirigami.Units.smallSpacing * 2
+                        radius: 10
+                        color: model.fromMe ? Kirigami.Theme.highlightColor : Kirigami.Theme.alternateBackgroundColor
+
+                        Loader {
+                            anchors.centerIn: parent
+                            active: model.isFile === true && model.isImage === true
+                            sourceComponent: Image {
+                                source: "file://" + model.filePath
+                                fillMode: Image.PreserveAspectFit
+                                width: Math.min(220, messagesList.width * 0.6)
+                                height: width * 0.7
+                            }
+                        }
+
+                        Text {
+                            id: label
+                            anchors.centerIn: parent
+                            visible: !(model.isFile === true && model.isImage === true)
+                            text: model.isFile === true ? ("📎 " + model.text) : model.text
+                            wrapMode: Text.WordWrap
+                            color: model.fromMe ? "white" : Kirigami.Theme.textColor
                         }
                     }
 
-                    Text {
-                        id: label
-                        anchors.centerIn: parent
-                        visible: !(model.isFile === true && model.isImage === true)
-                        text: model.isFile === true ? ("📎 " + model.text) : model.text
-                        wrapMode: Text.WordWrap
-                        color: model.fromMe ? "white" : Kirigami.Theme.textColor
+                    Row {
+                        anchors.right: model.fromMe ? parent.right : undefined
+                        anchors.left: model.fromMe ? undefined : parent.left
+                        spacing: 3
+
+                        Text {
+                            text: model.ts ? Qt.formatTime(new Date(model.ts), "hh:mm") : ""
+                            color: Kirigami.Theme.disabledTextColor
+                            font.pointSize: Kirigami.Theme.smallFont.pointSize
+                        }
+
+                        Text {
+                            visible: model.fromMe === true
+                            text: model.read === true ? "✓✓" : "✓"
+                            color: model.read === true ? Kirigami.Theme.linkColor : Kirigami.Theme.disabledTextColor
+                            font.pointSize: Kirigami.Theme.smallFont.pointSize
+                        }
                     }
                 }
             }
