@@ -18,8 +18,6 @@ Kirigami.ApplicationWindow {
 
     property string currentPeerIp: ""
     readonly property bool compactMode: width < 480
-    // Sentinel used for the pinned "Избранное" self-chat — never a real
-    // peer IP, so it can't collide with anything from the network.
     readonly property string kSelfChatId: "__self__"
 
     property bool sidebarCollapsed: false
@@ -34,7 +32,10 @@ Kirigami.ApplicationWindow {
     }
 
     function appendMessage(ip, text, fromMe) {
-        modelForPeer(ip).append({ text: text, fromMe: fromMe, isFile: false, filePath: "", isImage: false })
+        modelForPeer(ip).append({
+            text: text, fromMe: fromMe, isFile: false, filePath: "", isImage: false,
+            ts: Date.now(), read: false
+        })
     }
 
     function appendFile(ip, filePath, fromMe) {
@@ -44,8 +45,20 @@ Kirigami.ApplicationWindow {
                         || lower.endsWith(".bmp") || lower.endsWith(".webp")
         modelForPeer(ip).append({
             text: filePath.split("/").pop(), fromMe: fromMe,
-            isFile: true, filePath: filePath, isImage: isImage
+            isFile: true, filePath: filePath, isImage: isImage,
+            ts: Date.now(), read: false
         })
+    }
+
+    // Called when a "read" receipt arrives from a peer: marks every message
+    // we sent them as read, driving the double-checkmark in ChatPage.
+    function markPeerMessagesRead(ip) {
+        const model = histories[ip]
+        if (!model) return
+        for (let i = 0; i < model.count; ++i) {
+            if (model.get(i).fromMe === true && model.get(i).read !== true)
+                model.setProperty(i, "read", true)
+        }
     }
 
     function upsertPeer(info) {
@@ -71,9 +84,13 @@ Kirigami.ApplicationWindow {
 
     ListModel { id: peersModel }
 
-    // Splash — separate top-level Window (not toggled flags on the main
-    // one; X11 WMs don't reliably re-decorate a window whose flags change
-    // at runtime).
+    // Tell the peer we've read their messages whenever we switch into their
+    // chat. Not sent for the self-chat (no peer to notify).
+    onCurrentPeerIpChanged: {
+        if (currentPeerIp.length > 0 && currentPeerIp !== kSelfChatId)
+            networkManager.sendReadReceipt(currentPeerIp, "dm")
+    }
+
     Window {
         id: splash
         width: 616
@@ -109,6 +126,8 @@ Kirigami.ApplicationWindow {
         function onMessage(msg) {
             if (msg.type === "private")
                 root.appendMessage(msg.from_ip, msg.text, false)
+            else if (msg.type === "read")
+                root.markPeerMessagesRead(msg.from_ip)
         }
     }
 
@@ -129,22 +148,27 @@ Kirigami.ApplicationWindow {
         title: "KOutNet"
         padding: 0
 
-        SplitView {
-            id: splitView
+        RowLayout {
             anchors.fill: parent
-            orientation: Qt.Horizontal
+            spacing: 0
 
             ColumnLayout {
-                SplitView.preferredWidth: root.sidebarCollapsed ? 0 : 220
-                SplitView.minimumWidth: root.sidebarCollapsed ? 0 : 160
-                SplitView.maximumWidth: 360
-                visible: !root.sidebarCollapsed && (!root.compactMode || root.currentPeerIp.length === 0)
+                id: sidebarColumn
+                Layout.preferredWidth: root.sidebarCollapsed ? 0 : 240
+                Layout.minimumWidth: 0
+                Layout.maximumWidth: 320
+                Layout.fillHeight: true
+                clip: true
                 spacing: 0
+
+                Behavior on Layout.preferredWidth {
+                    NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
+                }
 
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.margins: Kirigami.Units.smallSpacing
-                    Layout.leftMargin: Kirigami.Units.smallSpacing + 28 // room for the floating collapse button
+                    Layout.leftMargin: Kirigami.Units.smallSpacing + 36
 
                     Kirigami.Heading {
                         text: Translations.t("contacts_header")
@@ -153,6 +177,30 @@ Kirigami.ApplicationWindow {
                         font.weight: Font.Black
                     }
                     Item { Layout.fillWidth: true }
+                }
+
+                Kirigami.Separator { Layout.fillWidth: true }
+
+                ItemDelegate {
+                    Layout.fillWidth: true
+                    height: 44
+                    contentItem: RowLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        Kirigami.Icon { source: "settings-configure"; Layout.preferredWidth: 20; Layout.preferredHeight: 20 }
+                        Label { text: Translations.t("sidebar.settings"); Layout.fillWidth: true }
+                    }
+                    onClicked: settingsSheet.open()
+                }
+
+                ItemDelegate {
+                    Layout.fillWidth: true
+                    height: 44
+                    contentItem: RowLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        Kirigami.Icon { source: "help-contents"; Layout.preferredWidth: 20; Layout.preferredHeight: 20 }
+                        Label { text: Translations.t("sidebar.help"); Layout.fillWidth: true }
+                    }
+                    onClicked: helpSheet.open()
                 }
 
                 Kirigami.Separator { Layout.fillWidth: true }
@@ -206,23 +254,84 @@ Kirigami.ApplicationWindow {
                 }
             }
 
+            Kirigami.Separator {
+                Layout.fillHeight: true
+                visible: !root.sidebarCollapsed
+            }
+
             Loader {
-                SplitView.fillWidth: true
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 visible: !root.compactMode || root.currentPeerIp.length > 0
                 sourceComponent: root.currentPeerIp.length > 0 ? chatComponent : placeholderComponent
             }
         }
 
-        // Floating sidebar collapse toggle — kept outside the ColumnLayout
-        // (and outside the "visible: !sidebarCollapsed" chain) on purpose,
-        // so it stays reachable even when the sidebar itself is hidden.
-        ToolButton {
-            icon.name: root.sidebarCollapsed ? "sidebar-expand-left" : "sidebar-collapse-left"
+        // Hand-drawn hamburger — deliberately not an icon.name lookup.
+        // The icon theme available in this environment doesn't ship a
+        // sidebar-collapse glyph, so a themed icon silently renders as
+        // nothing; three rectangles always render regardless of theme.
+        Rectangle {
+            id: collapseButton
+            width: 32
+            height: 32
+            radius: 4
+            color: hamburgerMouse.containsMouse ? Kirigami.Theme.hoverColor : "transparent"
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.margins: 4
             z: 10
-            onClicked: root.sidebarCollapsed = !root.sidebarCollapsed
+
+            Column {
+                anchors.centerIn: parent
+                spacing: 3
+                Repeater {
+                    model: 3
+                    Rectangle { width: 16; height: 2; radius: 1; color: Kirigami.Theme.textColor }
+                }
+            }
+
+            MouseArea {
+                id: hamburgerMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                onClicked: root.sidebarCollapsed = !root.sidebarCollapsed
+            }
+        }
+    }
+
+    Kirigami.OverlaySheet {
+        id: settingsSheet
+        title: Translations.t("sidebar.settings")
+
+        ColumnLayout {
+            width: parent.width
+
+            Label { text: Translations.t("settings.username") }
+            TextField {
+                Layout.fillWidth: true
+                text: appSettings.username
+                onEditingFinished: appSettings.username = text
+            }
+
+            Label { text: Translations.t("menu.language") }
+            ComboBox {
+                Layout.fillWidth: true
+                model: Translations.availableLanguages
+                currentIndex: model.indexOf(Translations.current)
+                onActivated: Translations.current = model[currentIndex]
+            }
+        }
+    }
+
+    Kirigami.OverlaySheet {
+        id: helpSheet
+        title: Translations.t("sidebar.help")
+
+        Label {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: Translations.t("sidebar.help_text")
         }
     }
 
