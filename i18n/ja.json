@@ -60,5 +60,8 @@
   "no_contacts_explanation": "KOutNetは他のユーザーを探していますが、今のところ静かです…",
   "select_contact_placeholder": "左側から連絡先を選んで会話を始めてください。",
   "sidebar.favorites": "お気に入り",
-  "sidebar.search_placeholder": "検索"
+  "sidebar.search_placeholder": "検索",
+  "sidebar.settings": "設定",
+  "sidebar.help": "ヘルプ",
+  "sidebar.help_text": "KOutNetはLAN/VPN経由のP2Pチャットで、インターネットモード用のオプションのリレーがあります。"
 }

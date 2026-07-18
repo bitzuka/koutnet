@@ -60,5 +60,8 @@
   "no_contacts_explanation": "KOutNet szuka innych użytkowników, ale na razie jest tu cicho...",
   "select_contact_placeholder": "Wybierz kontakt po lewej, aby rozpocząć rozmowę.",
   "sidebar.favorites": "Ulubione",
-  "sidebar.search_placeholder": "Szukaj"
+  "sidebar.search_placeholder": "Szukaj",
+  "sidebar.settings": "Ustawienia",
+  "sidebar.help": "Pomoc",
+  "sidebar.help_text": "KOutNet to czat P2P przez LAN/VPN, z opcjonalnym przekaźnikiem dla trybu internetowego."
 }

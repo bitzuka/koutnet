@@ -60,5 +60,8 @@
   "no_contacts_explanation": "KOutNet шукає інших користувачів, але поки що тут тихо...",
   "select_contact_placeholder": "Виберіть контакт зліва, щоб почати розмову.",
   "sidebar.favorites": "Обране",
-  "sidebar.search_placeholder": "Пошук"
+  "sidebar.search_placeholder": "Пошук",
+  "sidebar.settings": "Налаштування",
+  "sidebar.help": "Довідка",
+  "sidebar.help_text": "KOutNet — P2P-чат локальною мережею/VPN, з опціональним релеєм для інтернет-режиму."
 }
