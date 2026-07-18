@@ -60,5 +60,8 @@
   "no_contacts_explanation": "KOutNet 正在寻找其他用户，目前这里很安静...",
   "select_contact_placeholder": "在左侧选择一个联系人开始对话。",
   "sidebar.favorites": "收藏",
-  "sidebar.search_placeholder": "搜索"
+  "sidebar.search_placeholder": "搜索",
+  "sidebar.settings": "设置",
+  "sidebar.help": "帮助",
+  "sidebar.help_text": "KOutNet 是通过局域网/VPN 的 P2P 聊天，互联网模式下可选中继。"
 }

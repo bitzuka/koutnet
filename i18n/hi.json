@@ -60,5 +60,8 @@
   "no_contacts_explanation": "KOutNet अन्य उपयोगकर्ताओं की तलाश कर रहा है, लेकिन अभी यहाँ शांति है...",
   "select_contact_placeholder": "बातचीत शुरू करने के लिए बाईं ओर से एक संपर्क चुनें।",
   "sidebar.favorites": "पसंदीदा",
-  "sidebar.search_placeholder": "खोजें"
+  "sidebar.search_placeholder": "खोजें",
+  "sidebar.settings": "सेटिंग्स",
+  "sidebar.help": "सहायता",
+  "sidebar.help_text": "KOutNet एक P2P चैट है जो LAN/VPN पर चलता है, इंटरनेट मोड के लिए वैकल्पिक रिले के साथ।"
 }

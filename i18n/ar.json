@@ -60,5 +60,8 @@
   "no_contacts_explanation": "يبحث KOutNet عن مستخدمين آخرين، لكن الأمر هادئ هنا الآن...",
   "select_contact_placeholder": "اختر جهة اتصال من اليسار لبدء محادثة.",
   "sidebar.favorites": "المفضلة",
-  "sidebar.search_placeholder": "بحث"
+  "sidebar.search_placeholder": "بحث",
+  "sidebar.settings": "الإعدادات",
+  "sidebar.help": "مساعدة",
+  "sidebar.help_text": "KOutNet هو دردشة P2P عبر الشبكة المحلية/VPN، مع تتابع اختياري لوضع الإنترنت."
 }

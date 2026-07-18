@@ -60,5 +60,8 @@
   "no_contacts_explanation": "KOutNet recherche d'autres utilisateurs, mais c'est calme pour le moment...",
   "select_contact_placeholder": "Sélectionnez un contact à gauche pour commencer une conversation.",
   "sidebar.favorites": "Favoris",
-  "sidebar.search_placeholder": "Rechercher"
+  "sidebar.search_placeholder": "Rechercher",
+  "sidebar.settings": "Paramètres",
+  "sidebar.help": "Aide",
+  "sidebar.help_text": "KOutNet est un chat P2P via LAN/VPN, avec un relais optionnel pour le mode internet."
 }

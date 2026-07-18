@@ -60,5 +60,8 @@
   "no_contacts_explanation": "KOutNet diğer kullanıcıları arıyor, ancak şu an burada sessizlik var...",
   "select_contact_placeholder": "Konuşmaya başlamak için soldan bir kişi seçin.",
   "sidebar.favorites": "Sık Kullanılanlar",
-  "sidebar.search_placeholder": "Ara"
+  "sidebar.search_placeholder": "Ara",
+  "sidebar.settings": "Ayarlar",
+  "sidebar.help": "Yardım",
+  "sidebar.help_text": "KOutNet, LAN/VPN üzerinden P2P sohbettir, internet modu için isteğe bağlı röle içerir."
 }
