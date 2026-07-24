@@ -34,6 +34,8 @@ qt_add_executable(KOutNet
     core/chat/GroupManager.h
     core/chat/ChatModel.cpp
     core/chat/ChatModel.h
+    core/theme/ThemeManager.cpp
+    core/theme/ThemeManager.h
     network/NetworkManager.cpp
     network/NetworkManager.h
     network/Protocol.h
@@ -50,6 +52,10 @@ qt_add_qml_module(KOutNet
         qml/main_window/Main.qml
         qml/main_window/ContactDelegate.qml
         qml/main_window/ChatPage.qml
+        qml/tabs/NotesTab.qml
+        qml/tabs/CallsTab.qml
+        qml/tabs/PlayerTab.qml
+        qml/tabs/WnsTab.qml
         qml/components/SplashScreen.qml
 )
 
@@ -70,5 +76,6 @@ set_target_properties(KOutNet PROPERTIES
 )
 
 target_include_directories(KOutNet PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/core/theme
     ${CMAKE_CURRENT_SOURCE_DIR}/core/chat
 )

@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
+import koutnet.app
 
 Kirigami.Page {
     id: root
@@ -17,9 +18,12 @@ Kirigami.Page {
     signal attachRequested(string localFilePath)
 
     property string replyToText: ""
+    readonly property var theme: ThemeManager.colors
 
     title: root.displayTitle
     padding: 0
+
+    background: Rectangle { color: root.theme.bg }
 
     actions: [
         Kirigami.Action {
@@ -55,7 +59,7 @@ Kirigami.Page {
                     text: model.text
                     font.italic: true
                     font.pointSize: Kirigami.Theme.smallFont.pointSize
-                    color: Kirigami.Theme.disabledTextColor
+                    color: root.theme.text_dim
                 }
 
                 Column {
@@ -67,13 +71,12 @@ Kirigami.Page {
                     spacing: 2
                     width: Math.min(bubble.implicitWidth + 16, messagesList.width * 0.7)
 
-                    // Sender name (only for others, in group-style chats)
                     Label {
                         visible: !model.isOwn && model.sender && model.sender.length > 0
                         text: model.sender
                         font.bold: true
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
-                        color: model.color || Kirigami.Theme.linkColor
+                        color: model.color || root.theme.accent
                     }
 
                     Rectangle {
@@ -84,7 +87,9 @@ Kirigami.Page {
                         implicitWidth: bubbleColumn.implicitWidth + Kirigami.Units.largeSpacing * 2
                         height: bubbleColumn.implicitHeight + Kirigami.Units.smallSpacing * 2
                         radius: 10
-                        color: model.isOwn ? Kirigami.Theme.highlightColor : Kirigami.Theme.alternateBackgroundColor
+                        color: model.isOwn ? root.theme.msg_own : root.theme.msg_other
+                        border.color: root.theme.border
+                        border.width: 1
 
                         ColumnLayout {
                             id: bubbleColumn
@@ -92,13 +97,14 @@ Kirigami.Page {
                             anchors.margins: Kirigami.Units.smallSpacing
                             spacing: 4
 
-                            // Reply quote
                             Rectangle {
                                 Layout.fillWidth: true
                                 visible: model.replyToText && model.replyToText.length > 0
                                 implicitHeight: replyLabel.implicitHeight + 8
                                 color: Qt.rgba(1, 1, 1, 0.08)
                                 radius: 4
+                                border.color: root.theme.accent
+                                border.width: 1
                                 Label {
                                     id: replyLabel
                                     anchors.fill: parent
@@ -106,7 +112,7 @@ Kirigami.Page {
                                     text: model.replyToText
                                     elide: Text.ElideRight
                                     font.pointSize: Kirigami.Theme.smallFont.pointSize
-                                    color: model.isOwn ? "white" : Kirigami.Theme.disabledTextColor
+                                    color: root.theme.text_dim
                                 }
                             }
 
@@ -126,7 +132,7 @@ Kirigami.Page {
                                 visible: !(model.isFile === true && model.isImage === true)
                                 text: model.isFile === true ? ("📎 " + model.text) : model.text
                                 wrapMode: Text.WordWrap
-                                color: model.isOwn ? "white" : Kirigami.Theme.textColor
+                                color: root.theme.text
 
                                 MouseArea {
                                     anchors.fill: parent
@@ -138,23 +144,12 @@ Kirigami.Page {
                                 }
                             }
 
-                            // Reactions row
-                            Row {
-                                Layout.fillWidth: true
-                                spacing: 4
-                                visible: model.reactions && model.reactions.length > 0
-                                Repeater {
-                                    model: root.messagesModel ? messagesList.model : null
-                                    delegate: Item { visible: false } // placeholder, replaced below
-                                }
-                            }
-
                             Flow {
                                 Layout.fillWidth: true
                                 spacing: 4
-                                visible: model.reactions && model.reactions.length > 0
+                                visible: !!(model && model.reactions && model.reactions.length > 0)
                                 Repeater {
-                                    model: model.reactions || []
+                                    model: (model && model.reactions) ? model.reactions : []
                                     delegate: Rectangle {
                                         radius: 10
                                         color: Qt.rgba(0, 0, 0, 0.25)
@@ -187,19 +182,19 @@ Kirigami.Page {
                             text: "изменено"
                             font.italic: true
                             font.pointSize: Kirigami.Theme.smallFont.pointSize
-                            color: Kirigami.Theme.disabledTextColor
+                            color: root.theme.text_dim
                         }
 
                         Text {
                             text: model.timeString || ""
-                            color: Kirigami.Theme.disabledTextColor
+                            color: root.theme.text_dim
                             font.pointSize: Kirigami.Theme.smallFont.pointSize
                         }
 
                         Text {
                             visible: model.isOwn === true
                             text: model.isRead === true ? "✓✓" : "✓"
-                            color: model.isRead === true ? Kirigami.Theme.linkColor : Kirigami.Theme.disabledTextColor
+                            color: model.isRead === true ? root.theme.accent : root.theme.text_dim
                             font.pointSize: Kirigami.Theme.smallFont.pointSize
                         }
                     }
@@ -207,12 +202,11 @@ Kirigami.Page {
             }
         }
 
-        // Reply preview bar above the input field
         Rectangle {
             Layout.fillWidth: true
             visible: root.replyToText.length > 0
             implicitHeight: 32
-            color: Kirigami.Theme.alternateBackgroundColor
+            color: root.theme.header_bg
 
             RowLayout {
                 anchors.fill: parent
@@ -222,6 +216,7 @@ Kirigami.Page {
                     text: "↩ " + root.replyToText
                     elide: Text.ElideRight
                     font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    color: root.theme.text
                 }
                 ToolButton {
                     icon.name: "dialog-close"
@@ -230,34 +225,44 @@ Kirigami.Page {
             }
         }
 
-        Kirigami.Separator {
+        Rectangle {
             Layout.fillWidth: true
+            implicitHeight: 1
+            color: root.theme.border
         }
 
-        RowLayout {
+        Rectangle {
             Layout.fillWidth: true
-            Layout.margins: Kirigami.Units.smallSpacing
+            color: root.theme.bg2
+            implicitHeight: inputRow.implicitHeight + Kirigami.Units.smallSpacing * 2
 
-            ToolButton {
-                icon.name: "mail-attachment"
-                onClicked: fileDialog.open()
-            }
+            RowLayout {
+                id: inputRow
+                anchors.fill: parent
+                anchors.margins: Kirigami.Units.smallSpacing
 
-            TextField {
-                id: inputField
-                Layout.fillWidth: true
-                placeholderText: "Сообщение..."
-                onAccepted: sendButton.clicked()
-            }
+                ToolButton {
+                    icon.name: "mail-attachment"
+                    onClicked: fileDialog.open()
+                }
 
-            Button {
-                id: sendButton
-                text: "Отправить"
-                enabled: inputField.text.length > 0
-                onClicked: {
-                    root.sendRequested(inputField.text)
-                    inputField.text = ""
-                    root.replyToText = ""
+                TextField {
+                    id: inputField
+                    Layout.fillWidth: true
+                    placeholderText: "Сообщение..."
+                    color: root.theme.text
+                    onAccepted: sendButton.clicked()
+                }
+
+                Button {
+                    id: sendButton
+                    text: "Отправить"
+                    enabled: inputField.text.length > 0
+                    onClicked: {
+                        root.sendRequested(inputField.text)
+                        inputField.text = ""
+                        root.replyToText = ""
+                    }
                 }
             }
         }
