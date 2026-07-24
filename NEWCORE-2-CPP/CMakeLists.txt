@@ -32,6 +32,8 @@ qt_add_executable(KOutNet
     core/chat/ReactionStore.h
     core/chat/GroupManager.cpp
     core/chat/GroupManager.h
+    core/chat/ChatModel.cpp
+    core/chat/ChatModel.h
     network/NetworkManager.cpp
     network/NetworkManager.h
     network/Protocol.h
