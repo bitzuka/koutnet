@@ -18,6 +18,10 @@ MessageEntry MessageEntry::fromJson(const QJsonObject &o)
     e.replyToText   = o.value("reply_to_text").toString();
     e.chatId        = o.value("chat_id").toString();
     e.msgId         = o.value("msg_id").toString();
+    e.isFile        = o.value("is_file").toBool();
+    e.filePath      = o.value("file_path").toString();
+    e.isImage       = o.value("is_image").toBool();
+    e.isRead        = o.value("is_read").toBool();
     e.ensureMsgId();
     return e;
 }
@@ -40,6 +44,10 @@ QJsonObject MessageEntry::toJson() const
     o["reply_to_text"]  = replyToText;
     o["chat_id"]        = chatId;
     o["msg_id"]         = msgId;
+    o["is_file"]        = isFile;
+    o["file_path"]      = filePath;
+    o["is_image"]       = isImage;
+    o["is_read"]        = isRead;
     return o;
 }
 

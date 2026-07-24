@@ -23,42 +23,20 @@ Kirigami.ApplicationWindow {
     property bool sidebarCollapsed: false
     property string contactSearchText: ""
 
-    property var histories: ({})
+    // ip -> ChatModel instance
+    property var chatModels: ({})
 
     function modelForPeer(ip) {
-        if (!histories[ip])
-            histories[ip] = Qt.createQmlObject('import QtQml.Models; ListModel {}', root)
-        return histories[ip]
-    }
-
-    function appendMessage(ip, text, fromMe) {
-        modelForPeer(ip).append({
-            text: text, fromMe: fromMe, isFile: false, filePath: "", isImage: false,
-            ts: Date.now(), read: false
-        })
-    }
-
-    function appendFile(ip, filePath, fromMe) {
-        const lower = filePath.toLowerCase()
-        const isImage = lower.endsWith(".png") || lower.endsWith(".jpg")
-                        || lower.endsWith(".jpeg") || lower.endsWith(".gif")
-                        || lower.endsWith(".bmp") || lower.endsWith(".webp")
-        modelForPeer(ip).append({
-            text: filePath.split("/").pop(), fromMe: fromMe,
-            isFile: true, filePath: filePath, isImage: isImage,
-            ts: Date.now(), read: false
-        })
-    }
-
-    // Called when a "read" receipt arrives from a peer: marks every message
-    // we sent them as read, driving the double-checkmark in ChatPage.
-    function markPeerMessagesRead(ip) {
-        const model = histories[ip]
-        if (!model) return
-        for (let i = 0; i < model.count; ++i) {
-            if (model.get(i).fromMe === true && model.get(i).read !== true)
-                model.setProperty(i, "read", true)
+        if (!chatModels[ip]) {
+            const m = Qt.createQmlObject(
+                'import koutnet.app; ChatModel {}', root, "dynamicChatModel")
+            m.historyManager = HistoryManager
+            m.reactionStore = ReactionStore
+            m.unreadManager = UnreadManager
+            m.chatId = ip
+            chatModels[ip] = m
         }
+        return chatModels[ip]
     }
 
     function upsertPeer(info) {
@@ -125,9 +103,9 @@ Kirigami.ApplicationWindow {
         function onUserOffline(ip) { root.removePeer(ip) }
         function onMessage(msg) {
             if (msg.type === "private")
-                root.appendMessage(msg.from_ip, msg.text, false)
+                root.modelForPeer(msg.from_ip).receiveMessage(msg.text, msg.from_ip)
             else if (msg.type === "read")
-                root.markPeerMessagesRead(msg.from_ip)
+                root.modelForPeer(msg.from_ip).markOwnMessagesRead()
         }
     }
 
@@ -135,8 +113,12 @@ Kirigami.ApplicationWindow {
         target: fileTransferHandler
         function onFileSaved(meta, localPath) {
             const fromIp = meta.from_ip
-            if (fromIp)
-                root.appendFile(fromIp, localPath, false)
+            if (!fromIp) return
+            const lower = localPath.toLowerCase()
+            const isImage = lower.endsWith(".png") || lower.endsWith(".jpg")
+                            || lower.endsWith(".jpeg") || lower.endsWith(".gif")
+                            || lower.endsWith(".bmp") || lower.endsWith(".webp")
+            root.modelForPeer(fromIp).receiveFile(localPath, isImage, fromIp)
         }
     }
 
@@ -267,10 +249,6 @@ Kirigami.ApplicationWindow {
             }
         }
 
-        // Hand-drawn hamburger — deliberately not an icon.name lookup.
-        // The icon theme available in this environment doesn't ship a
-        // sidebar-collapse glyph, so a themed icon silently renders as
-        // nothing; three rectangles always render regardless of theme.
         Rectangle {
             id: collapseButton
             width: 32
@@ -349,12 +327,16 @@ Kirigami.ApplicationWindow {
             onSendRequested: function(text) {
                 if (!isSelfChat)
                     networkManager.sendPrivate(text, peerIp)
-                root.appendMessage(peerIp, text, true)
+                messagesModel.sendMessage(text)
             }
             onAttachRequested: function(localFilePath) {
+                const lower = localFilePath.toLowerCase()
+                const isImage = lower.endsWith(".png") || lower.endsWith(".jpg")
+                                || lower.endsWith(".jpeg") || lower.endsWith(".gif")
+                                || lower.endsWith(".bmp") || lower.endsWith(".webp")
                 if (!isSelfChat)
                     networkManager.sendFile(peerIp, localFilePath)
-                root.appendFile(peerIp, localFilePath, true)
+                messagesModel.sendFile(localFilePath, isImage)
             }
         }
     }
