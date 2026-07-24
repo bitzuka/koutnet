@@ -6,7 +6,16 @@
 ![GPLv3](https://img.shields.io/badge/License-GPLv3-red?style=plastic&logo=gnu&logoColor=white)
 > P2P/VPN + VDS messenger under construction
 
-## What's inside
+## What is this?
+**KOutNet** is a *non-commercial*, completely free messaging platform available for Windows (10+) and Linux (kernel 6.12.xx+). It is being developed with a strong focus on security, usability, and stability. Unlike traditional messengers, KOutNet offers a **2-in-1 architecture**, allowing users to switch between usage scenarios depending on their tasks, providing configuration flexibility.
+
+1. **Autonomous mode without internet or VPN connection (LAN/VPN/P2P)**
+Operates exclusively within your local network or tunnel. All features are available locally — from messaging and calls to your KOutNet profile.
+
+2. **Dedicated server mode (LAN/VPS/Dedicated)**
+You can use our VDS server (all data remains with you, minimal server load), or you can deploy your own K-Server and configure it however you like.
+
+## What's inside?
 
 **NetworkManager** — networking core:
 - UDP broadcasts (224.0.0.251, LAN, /24 scanning)
