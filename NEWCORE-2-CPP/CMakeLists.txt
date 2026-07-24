@@ -22,6 +22,16 @@ qt_add_executable(KOutNet
     core/i18n/Translations.h
     core/constructor/AppSettings.cpp
     core/constructor/AppSettings.h
+    core/chat/MessageEntry.cpp
+    core/chat/MessageEntry.h
+    core/chat/HistoryManager.cpp
+    core/chat/HistoryManager.h
+    core/chat/UnreadManager.cpp
+    core/chat/UnreadManager.h
+    core/chat/ReactionStore.cpp
+    core/chat/ReactionStore.h
+    core/chat/GroupManager.cpp
+    core/chat/GroupManager.h
     network/NetworkManager.cpp
     network/NetworkManager.h
     network/Protocol.h
@@ -55,4 +65,8 @@ target_link_libraries(KOutNet PRIVATE
 set_target_properties(KOutNet PROPERTIES
     WIN32_EXECUTABLE TRUE
     MACOSX_BUNDLE TRUE
+)
+
+target_include_directories(KOutNet PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/core/chat
 )
