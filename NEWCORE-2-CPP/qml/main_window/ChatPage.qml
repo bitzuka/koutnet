@@ -27,6 +27,33 @@ Kirigami.Page {
         return (Translations.current, Translations.t(key))
     }
 
+    function isEmojiOnlyText(text) {
+        if (!text || text.trim().length === 0 || text.length > 16 || text.indexOf(' ') >= 0 || text.indexOf('\n') >= 0) return false
+        let count = 0
+        for (const ch of text) {
+            count++
+            const cp = ch.codePointAt(0)
+            if (!root.isEmojiCodePoint(cp)) return false
+        }
+        return count > 0 && count <= 6
+    }
+
+    function isEmojiCodePoint(cp) {
+        return (cp >= 0x1F600 && cp <= 0x1F64F) ||
+               (cp >= 0x1F300 && cp <= 0x1F5FF) ||
+               (cp >= 0x1F680 && cp <= 0x1F6FF) ||
+               (cp >= 0x1F1E0 && cp <= 0x1F1FF) ||
+               (cp >= 0x2600 && cp <= 0x26FF) ||
+               (cp >= 0x2700 && cp <= 0x27BF) ||
+               (cp >= 0x1F900 && cp <= 0x1F9FF) ||
+               (cp >= 0x1FA00 && cp <= 0x1FA6F) ||
+               (cp >= 0x1F7E0 && cp <= 0x1F7FF) ||
+               cp === 0x2764 || cp === 0x2665 || cp === 0x2728 ||
+               cp === 0x2B50 || cp === 0x2B55 || cp === 0xA9 || cp === 0xAE ||
+               cp === 0x2122 || cp === 0x3030 || cp === 0x303D ||
+               (cp >= 0x2000 && cp <= 0x200F) || (cp >= 0xFE00 && cp <= 0xFE0F)
+    }
+
     readonly property var quickEmojis: ["👍", "❤️", "😂", "😮", "😢", "🔥"]
     // Client-side only for now — not persisted, not synced to peers.
     // Making custom emoji durable/shared needs a backend store (e.g. a
@@ -356,14 +383,7 @@ Kirigami.Page {
 
             delegate: Item {
                 width: messagesList.width
-                readonly property bool isEmojiOnly: {
-                    const t = model.text
-                    if (!t || t.trim().length === 0 || t.length > 12 || model.isFile || model.isSystem) return false
-                    for (let i = 0; i < t.length; i++) {
-                        if (t.charCodeAt(i) < 256) return false
-                    }
-                    return true
-                }
+                readonly property bool isEmojiOnly: root.isEmojiOnlyText(model.text) && !model.isFile && !model.isSystem
                 height: model.isSystem ? sysLabel.implicitHeight + 12 : contentColumn.height + Kirigami.Units.smallSpacing
 
                 Label {
@@ -473,26 +493,11 @@ Kirigami.Page {
                                 }
                             }
 
-                            Label {
+                            Loader {
                                 Layout.fillWidth: true
                                 visible: !(model.isFile && model.isImage)
-                                text: model.isFile ? (root.tr("chat.file_attachment") + " " + model.text) : model.text
-                                wrapMode: Text.WordWrap
-                                color: root.theme.text
-                                font.pixelSize: isEmojiOnly ? 36 : Kirigami.Theme.defaultFont.pixelSize
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    acceptedButtons: model.isFile ? (Qt.LeftButton | Qt.RightButton) : Qt.RightButton
-                                    cursorShape: model.isFile ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                    onClicked: function(mouse) {
-                                        if (mouse.button === Qt.RightButton) {
-                                            root.openMessageMenu(index, model.text || "")
-                                        } else if (model.isFile) {
-                                            Qt.openUrlExternally("file://" + model.filePath)
-                                        }
-                                    }
-                                }
+                                active: true
+                                sourceComponent: model.isFile ? fileCardComponent : textLabelComponent
                             }
 
                             Flow {
@@ -660,9 +665,8 @@ Kirigami.Page {
         width: 340
         height: 320
         padding: 10
-        anchors.bottom: inputBar.top
-        anchors.bottomMargin: 4
-        anchors.horizontalCenter: inputBar.horizontalCenter
+        x: (parent.width - width) / 2
+        y: parent.height - height - inputBar.height - 4
         background: Rectangle { color: root.theme.bg2; radius: 12; border.color: root.theme.border; border.width: 1 }
 
         readonly property var emojiCategories: ({
