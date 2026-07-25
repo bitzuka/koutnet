@@ -577,7 +577,7 @@ Kirigami.ApplicationWindow {
                         anchors.fill: parent
                         spacing: 0
 
-                        Item { Layout.preferredWidth: 40; Layout.fillHeight: true }
+                        Item { Layout.preferredWidth: root.sidebarOpen ? 4 : 40; Layout.fillHeight: true }
 
                         Repeater {
                             model: tabStrip.tabLabels
