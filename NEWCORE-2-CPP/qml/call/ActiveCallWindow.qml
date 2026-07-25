@@ -136,14 +136,14 @@ Window {
                     Rectangle {
                         width: 56; height: 56; radius: 28
                         color: spkMouse.containsMouse ? "#3A3A60" : "#2A2A46"
-                        Label { anchors.centerIn: parent; text: "🔊"; font.pixelSize: 24 }
+                        Label { anchors.centerIn: parent; icon.name: "audio-volume-high"; width: 24; height: 24 }
                         MouseArea { id: spkMouse; anchors.fill: parent; hoverEnabled: true }
                     }
 
                     Rectangle {
                         width: 56; height: 56; radius: 28
                         color: screenMouse.containsMouse ? "#3A3A60" : "#2A2A46"
-                        Label { anchors.centerIn: parent; text: "🖥"; font.pixelSize: 24 }
+                        Label { anchors.centerIn: parent; icon.name: "video-display"; width: 24; height: 24 }
                         MouseArea { id: screenMouse; anchors.fill: parent; hoverEnabled: true }
                     }
                 }
@@ -151,9 +151,9 @@ Window {
                 RowLayout {
                     Layout.alignment: Qt.AlignHCenter
                     spacing: 20
-                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: "Мут"; font.pixelSize: 10; color: root.theme.text_dim }
-                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: "Динамик"; font.pixelSize: 10; color: root.theme.text_dim }
-                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: "Экран"; font.pixelSize: 10; color: root.theme.text_dim }
+                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: root.tr("call.mute"); font.pixelSize: 10; color: root.theme.text_dim }
+                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: root.tr("call.speaker"); font.pixelSize: 10; color: root.theme.text_dim }
+                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: root.tr("call.screen"); font.pixelSize: 10; color: root.theme.text_dim }
                 }
             }
 
@@ -167,7 +167,7 @@ Window {
                     Layout.alignment: Qt.AlignHCenter
                     width: 72; height: 72; radius: 36
                     color: endMouse.pressed ? "#B71C1C" : (endMouse.containsMouse ? "#EF5350" : "#E53935")
-                    Label { anchors.centerIn: parent; text: "📵"; font.pixelSize: 28 }
+                    Label { anchors.centerIn: parent; icon.name: "call-stop"; width: 28; height: 28 }
                     MouseArea {
                         id: endMouse
                         anchors.fill: parent
@@ -181,7 +181,7 @@ Window {
 
                 Label {
                     Layout.alignment: Qt.AlignHCenter
-                    text: "Завершить"
+                    text: root.tr("call.end")
                     font.pixelSize: 10
                     color: root.theme.text_dim
                 }

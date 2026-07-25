@@ -115,5 +115,17 @@
   "no_calls": "Нет звонков",
   "lang_choose": "Выбор языка",
   "copied_notice": "Скопировано!",
-  "chat.file_attachment": "File:"
+  "chat.file_attachment": "File:",
+  "call.calling": "कॉलिंग",
+  "call.cancel": "रद्द करें",
+  "call.mute": "म्यूट",
+  "call.speaker": "स्पीकर",
+  "call.screen": "स्क्रीन",
+  "call.incoming": "आने वाली कॉल",
+  "player.title": "Violla",
+  "wns.title": "Keenly",
+  "splash.loading": "लोड हो रहा है",
+  "status.ip_label": "IP: ",
+  "about.description": "KOutNet — P2P एन्क्रिप्टेड मैसेंजर",
+  "toast.copied": "कॉपी किया गया!"
 }

@@ -115,5 +115,17 @@
   "no_calls": "Нет звонков",
   "lang_choose": "Выбор языка",
   "copied_notice": "Скопировано!",
-  "chat.file_attachment": "File:"
+  "chat.file_attachment": "File:",
+  "call.calling": "جاري الاتصال",
+  "call.cancel": "إلغاء",
+  "call.mute": "كتم",
+  "call.speaker": "مكبر الصوت",
+  "call.screen": "الشاشة",
+  "call.incoming": "مكالمة واردة",
+  "player.title": "Violla",
+  "wns.title": "Keenly",
+  "splash.loading": "جاري التحميل",
+  "status.ip_label": "IP: ",
+  "about.description": "KOutNet — مراسل P2P مشفر",
+  "toast.copied": "تم النسخ!"
 }

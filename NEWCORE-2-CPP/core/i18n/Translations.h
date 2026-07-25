@@ -40,7 +40,7 @@ private:
     // from a user of a language nobody on the team reads.
     void validateDictionary() const;
 
-    QString m_current = "ru";
+    QString m_current = QString();
     QMap<QString, QMap<QString, QString>> m_dictionary;
 };
 

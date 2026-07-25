@@ -115,5 +115,17 @@
   "no_calls": "Нет звонков",
   "lang_choose": "Выбор языка",
   "copied_notice": "Скопировано!",
-  "chat.file_attachment": "File:"
+  "chat.file_attachment": "File:",
+  "call.calling": "Anrufen",
+  "call.cancel": "Abbrechen",
+  "call.mute": "Stumm",
+  "call.speaker": "Lautsprecher",
+  "call.screen": "Bildschirm",
+  "call.incoming": "Eingehender Anruf",
+  "player.title": "Violla",
+  "wns.title": "Keenly",
+  "splash.loading": "Laden",
+  "status.ip_label": "IP: ",
+  "about.description": "KOutNet — P2P-verschlüsselter Messenger",
+  "toast.copied": "Kopiert!"
 }

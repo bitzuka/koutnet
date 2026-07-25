@@ -115,5 +115,17 @@
   "no_calls": "Нет звонков",
   "lang_choose": "Выбор языка",
   "copied_notice": "Скопировано!",
-  "chat.file_attachment": "File:"
+  "chat.file_attachment": "File:",
+  "call.calling": "発信中",
+  "call.cancel": "キャンセル",
+  "call.mute": "ミュート",
+  "call.speaker": "スピーカー",
+  "call.screen": "画面",
+  "call.incoming": "着信",
+  "player.title": "Violla",
+  "wns.title": "Keenly",
+  "splash.loading": "読み込み中",
+  "status.ip_label": "IP: ",
+  "about.description": "KOutNet — P2P暗号化メッセンジャー",
+  "toast.copied": "コピーしました！"
 }

@@ -100,7 +100,7 @@ Window {
                 spacing: 4
 
                 Label {
-                    text: "📞 Входящий звонок"
+                    text: root.tr("call.incoming")
                     font.pixelSize: 10
                     font.bold: true
                     color: root.theme.text_dim
@@ -125,7 +125,7 @@ Window {
                 Rectangle {
                     width: 52; height: 52; radius: 26
                     color: acceptMouse.pressed ? "#1B5E20" : (acceptMouse.containsMouse ? "#388E3C" : "#2E7D32")
-                    Label { anchors.centerIn: parent; text: "✅"; font.pixelSize: 22 }
+                    Label { anchors.centerIn: parent; icon.name: "dialog-ok"; width: 22; height: 22 }
                     MouseArea {
                         id: acceptMouse
                         anchors.fill: parent
@@ -137,7 +137,7 @@ Window {
                 Rectangle {
                     width: 52; height: 52; radius: 26
                     color: rejectMouse.pressed ? "#B71C1C" : (rejectMouse.containsMouse ? "#E53935" : "#C62828")
-                    Label { anchors.centerIn: parent; text: "📵"; font.pixelSize: 22 }
+                    Label { anchors.centerIn: parent; icon.name: "dialog-cancel"; width: 22; height: 22 }
                     MouseArea {
                         id: rejectMouse
                         anchors.fill: parent

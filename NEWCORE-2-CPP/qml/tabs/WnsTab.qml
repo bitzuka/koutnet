@@ -16,7 +16,7 @@ Item {
 
     Kirigami.PlaceholderMessage {
         anchors.centerIn: parent
-        text: "🌐 Keenly"
+        text: root.tr("wns.title")
         explanation: "Свой рендер-движок — следующим этапом"
         icon.name: "internet-web-browser"
     }
