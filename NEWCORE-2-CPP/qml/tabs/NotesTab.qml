@@ -65,14 +65,14 @@ Item {
             }
 
             ToolButton {
-                text: "+"
+                icon.name: "list-add"
                 onClicked: {
                     sheetsModel.append({ title: root.tr("notes.new_sheet") + " " + (sheetsModel.count + 1), body: "" })
                     root.currentSheet = sheetsModel.count - 1
                 }
             }
             ToolButton {
-                text: "🗑"
+                icon.name: "edit-delete"
                 enabled: sheetsModel.count > 1
                 onClicked: {
                     sheetsModel.remove(root.currentSheet)

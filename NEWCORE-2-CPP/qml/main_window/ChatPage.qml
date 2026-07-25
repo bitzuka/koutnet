@@ -334,6 +334,7 @@ Kirigami.Page {
             flickDeceleration: 4500
             maximumFlickVelocity: 2500
             boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
             onCountChanged: Qt.callLater(positionViewAtEnd)
             Component.onCompleted: positionViewAtEnd()
@@ -453,7 +454,7 @@ Kirigami.Page {
                             Label {
                                 Layout.fillWidth: true
                                 visible: !(model.isFile === true && model.isImage === true)
-                                text: model.isFile === true ? ("📎 " + model.text) : model.text
+                                text: model.isFile === true ? (root.tr("chat.file_attachment") + " " + model.text) : model.text
                                 wrapMode: Text.WordWrap
                                 color: root.theme.text
 

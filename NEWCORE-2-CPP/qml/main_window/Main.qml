@@ -240,14 +240,12 @@ Kirigami.ApplicationWindow {
 
             Menu {
                 title: root.tr("menu.themes")
-                Instantiator {
+                Repeater {
                     model: ThemeManager.availableThemes
-                    delegate: MenuItem {
+                    MenuItem {
                         text: ThemeManager.themeLabel(modelData)
                         onTriggered: ThemeManager.currentTheme = modelData
                     }
-                    onObjectAdded: (index, object) => parent.insertItem(index, object)
-                    onObjectRemoved: (index, object) => parent.removeItem(object)
                 }
             }
 

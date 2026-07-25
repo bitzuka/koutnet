@@ -114,5 +114,6 @@
   "notes.edit_mode": "Редактор",
   "no_calls": "Нет звонков",
   "lang_choose": "Выбор языка",
-  "copied_notice": "Скопировано!"
+  "copied_notice": "Скопировано!",
+  "chat.file_attachment": "File:"
 }
