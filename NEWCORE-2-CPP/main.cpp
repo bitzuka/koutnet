@@ -38,6 +38,7 @@ int main(int argc, char *argv[])
     auto *voice = new koutnet::VoiceCallManager(network, crypto, &app);
     auto *fileTransfer = new koutnet::FileTransferHandler(&app);
     auto *translations = new koutnet::Translations(&app);
+    translations->setCurrent(appSettings->language());
 
     QObject::connect(network, &koutnet::NetworkManager::fileMeta,
                      fileTransfer, &koutnet::FileTransferHandler::onMeta);
