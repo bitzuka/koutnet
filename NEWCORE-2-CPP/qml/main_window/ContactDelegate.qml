@@ -2,15 +2,21 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import org.kde.kirigami as Kirigami
+import koutnet.app
 
 // Single row in the peer list: avatar (letter or icon), name, and optional
 // online/security status. Built on ItemDelegate rather than a bare
 // MouseArea + Item, so click/hover/keyboard handling is proven Qt Quick
-// Controls behavior instead of something hand-rolled — a bare MouseArea
-// inside a Layout is an easy place for click hit-testing to silently
-// misbehave depending on how the parent sizes it.
+// Controls behavior.
+//
+// Previously this used Kirigami.Theme.* colors, which is a separate
+// palette from ThemeManager — so switching themes in Settings never
+// touched the avatar circle, the online dot, or the selection background
+// here. Everything below now reads from ThemeManager.colors instead.
 ItemDelegate {
     id: root
+
+    readonly property var theme: ThemeManager.colors
 
     property string peerIp: ""
     property string peerOs: ""
@@ -27,8 +33,13 @@ ItemDelegate {
     property bool showSecurityLabel: true
 
     height: 60
-    highlighted: root.selected
     hoverEnabled: true
+
+    background: Rectangle {
+        color: root.selected ? root.theme.item_sel
+             : (root.hovered ? root.theme.btn_hover : root.theme.item_bg)
+        radius: 4
+    }
 
     contentItem: RowLayout {
         spacing: Kirigami.Units.smallSpacing
@@ -41,7 +52,7 @@ ItemDelegate {
             Rectangle {
                 anchors.fill: parent
                 radius: width / 2
-                color: Kirigami.Theme.highlightColor
+                color: root.theme.accent
             }
 
             Kirigami.Icon {
@@ -66,8 +77,8 @@ ItemDelegate {
                 width: 10
                 height: 10
                 radius: 5
-                color: "#2ecc71"
-                border.color: Kirigami.Theme.backgroundColor
+                color: root.theme.online
+                border.color: root.theme.bg2
                 border.width: 2
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
@@ -84,6 +95,7 @@ ItemDelegate {
                 level: 5
                 Layout.fillWidth: true
                 elide: Text.ElideRight
+                color: root.selected ? "white" : root.theme.text
             }
 
             Text {
@@ -91,7 +103,7 @@ ItemDelegate {
                 text: (root.showSecurityLabel ? (root.e2e ? "E2E" : "Plain") : "")
                       + (root.showSecurityLabel && root.peerOs.length > 0 ? " • " : "")
                       + root.peerOs
-                color: root.e2e ? "#2ecc71" : Kirigami.Theme.disabledTextColor
+                color: root.e2e ? root.theme.online : root.theme.text_dim
                 elide: Text.ElideRight
                 Layout.fillWidth: true
                 font.pointSize: Kirigami.Theme.smallFont.pointSize

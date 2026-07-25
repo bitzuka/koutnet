@@ -56,6 +56,9 @@ qt_add_qml_module(KOutNet
         qml/tabs/CallsTab.qml
         qml/tabs/PlayerTab.qml
         qml/tabs/WnsTab.qml
+        qml/call/OutgoingCallWindow.qml
+        qml/call/IncomingCallDialog.qml
+        qml/call/ActiveCallWindow.qml
         qml/components/SplashScreen.qml
 )
 

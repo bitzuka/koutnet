@@ -64,28 +64,120 @@ Kirigami.ApplicationWindow {
 
     ListModel { id: peersModel }
 
+    // ── Call windows (Outgoing / Incoming / Active) ──
+    property var outgoingCallWindow: null
+    property var incomingCallDialog: null
+    property var activeCallWindow: null
+
+    function peerDisplayName(ip) {
+        for (let i = 0; i < peersModel.count; ++i) {
+            if (peersModel.get(i).ip === ip)
+                return peersModel.get(i).username || ip
+        }
+        return ip
+    }
+
+    function startOutgoingCall(ip) {
+        if (root.outgoingCallWindow) return
+        networkManager.sendCallRequest(ip)
+        const comp = Qt.createComponent("qrc:/koutnet/app/qml/call/OutgoingCallWindow.qml")
+        const win = comp.createObject(root, { peerName: root.peerDisplayName(ip), peerIp: ip })
+        win.cancelled.connect(function() {
+            networkManager.sendCallEnd(ip)
+            root.outgoingCallWindow = null
+        })
+        root.outgoingCallWindow = win
+    }
+
+    function showIncomingCall(username, ip) {
+        if (root.incomingCallDialog) return
+        const comp = Qt.createComponent("qrc:/koutnet/app/qml/call/IncomingCallDialog.qml")
+        const dlg = comp.createObject(root, { callerName: username, callerIp: ip })
+        dlg.accepted.connect(function() {
+            networkManager.sendCallAccept(ip)
+            voiceCallManager.call(ip)
+            root.openActiveCall(username, ip)
+            root.incomingCallDialog = null
+        })
+        dlg.rejected.connect(function() {
+            networkManager.sendCallReject(ip)
+            root.incomingCallDialog = null
+        })
+        root.incomingCallDialog = dlg
+    }
+
+    function openActiveCall(username, ip) {
+        if (root.outgoingCallWindow) {
+            root.outgoingCallWindow.close()
+            root.outgoingCallWindow = null
+        }
+        if (root.activeCallWindow) return
+        const comp = Qt.createComponent("qrc:/koutnet/app/qml/call/ActiveCallWindow.qml")
+        const win = comp.createObject(root, { peerName: username, peerIp: ip })
+        win.hangup.connect(function() {
+            networkManager.sendCallEnd(ip)
+            voiceCallManager.hangup(ip)
+            root.activeCallWindow = null
+        })
+        win.muteToggled.connect(function(muted) {
+            voiceCallManager.setMute(muted)
+        })
+        root.activeCallWindow = win
+    }
+
     onCurrentPeerIpChanged: {
         if (currentPeerIp.length > 0 && currentPeerIp !== kSelfChatId)
             networkManager.sendReadReceipt(currentPeerIp, "dm")
     }
 
+    // ── Generic "not wired up yet" info sheet — used instead of silent
+    //    no-op buttons so clicking always gives feedback. Replace each
+    //    call site with the real feature once its backend exists. ──
+    function showStub(titleText, bodyText) {
+        stubSheet.title = titleText
+        stubBody.text = bodyText
+        stubSheet.open()
+    }
+
+    Kirigami.OverlaySheet {
+        id: stubSheet
+        Label {
+            id: stubBody
+            width: parent.width
+            wrapMode: Text.WordWrap
+            color: root.theme.text
+        }
+    }
+
     // ── Menu bar — mirrors legacy _setup_menubar (File / View / Calls / Help) ──
     menuBar: MenuBar {
+        background: Rectangle { color: root.theme.header_bg }
+
         Menu {
-            title: Translations.t("menu_file") || "Файл"
-            MenuItem { text: Translations.t("menu_my_profile") || "Мой профиль" }
-            MenuItem { text: Translations.t("menu_settings") || "Настройки"; onTriggered: settingsSheet.open() }
+            title: Translations.t("menu.file")
+            MenuItem {
+                text: Translations.t("menu.my_profile")
+                onTriggered: root.showStub(
+                    Translations.t("menu.my_profile"),
+                    Translations.t("profile_not_ported"))
+            }
+            MenuItem { text: Translations.t("menu.settings"); onTriggered: settingsSheet.open() }
             MenuSeparator {}
-            MenuItem { text: Translations.t("menu_check_updates") || "Проверить обновления" }
+            MenuItem {
+                text: Translations.t("menu.check_updates")
+                onTriggered: root.showStub(
+                    Translations.t("menu.check_updates"),
+                    Translations.t("updates_not_ported"))
+            }
             MenuSeparator {}
-            MenuItem { text: Translations.t("menu_quit") || "Выход"; onTriggered: Qt.quit() }
+            MenuItem { text: Translations.t("menu.quit"); onTriggered: Qt.quit() }
         }
 
         Menu {
-            title: Translations.t("menu_view") || "Вид"
+            title: Translations.t("menu.view")
 
             Menu {
-                title: Translations.t("menu_themes") || "Темы"
+                title: Translations.t("menu.themes")
                 Instantiator {
                     model: ThemeManager.availableThemes
                     delegate: MenuItem {
@@ -99,43 +191,66 @@ Kirigami.ApplicationWindow {
 
             MenuSeparator {}
             MenuItem {
-                text: Translations.t("menu_public_chat") || "Публичный чат"
+                text: Translations.t("menu.public_chat")
                 onTriggered: root.currentPeerIp = "public"
             }
             MenuItem {
-                text: "♫  1-2-3"
+                text: Translations.t("tab_player_violla")
                 onTriggered: tabBar.currentIndex = 3
             }
             MenuSeparator {}
             MenuItem {
-                text: Translations.t("menu_fullscreen") || "Полноэкранный режим"
+                text: Translations.t("menu.fullscreen")
                 onTriggered: root.visibility = (root.visibility === Window.FullScreen)
                     ? Window.Windowed : Window.FullScreen
             }
-            MenuItem { text: Translations.t("menu_lang_ru") || "Русский"; onTriggered: Translations.current = "ru" }
-            MenuItem { text: Translations.t("menu_lang_en") || "English"; onTriggered: Translations.current = "en" }
-            MenuItem { text: Translations.t("menu_lang_ja") || "日本語"; onTriggered: Translations.current = "ja" }
+            MenuItem { text: Translations.t("menu.lang_ru"); onTriggered: Translations.current = "ru" }
+            MenuItem { text: Translations.t("menu.lang_en"); onTriggered: Translations.current = "en" }
+            MenuItem { text: Translations.t("menu.lang_ja"); onTriggered: Translations.current = "ja" }
         }
 
         Menu {
-            title: Translations.t("menu_calls") || "Звонки"
+            title: Translations.t("menu.calls")
             MenuItem {
-                text: Translations.t("menu_mute_toggle") || "Выключить микрофон"
+                text: Translations.t("menu.mute_toggle")
                 checkable: true
                 checked: root.micMuted
-                onTriggered: root.micMuted = !root.micMuted
+                onTriggered: {
+                    root.micMuted = !root.micMuted
+                    voiceCallManager.setMute(root.micMuted)
+                }
             }
-            MenuItem { text: Translations.t("menu_hangup_all") || "Завершить все звонки" }
+            MenuItem {
+                text: Translations.t("menu.hangup_all")
+                onTriggered: {
+                    voiceCallManager.hangupAll()
+                    if (root.activeCallWindow) { root.activeCallWindow.close(); root.activeCallWindow = null }
+                    if (root.outgoingCallWindow) { root.outgoingCallWindow.close(); root.outgoingCallWindow = null }
+                }
+            }
         }
 
         Menu {
-            title: Translations.t("menu_help") || "Справка"
-            MenuItem { text: Translations.t("menu_about") || "О программе"; onTriggered: aboutSheet.open() }
+            title: Translations.t("menu.help")
+            MenuItem { text: Translations.t("menu.about"); onTriggered: aboutSheet.open() }
             MenuSeparator {}
-            MenuItem { text: Translations.t("menu_terminal") || "Терминал" }
-            MenuItem { text: Translations.t("menu_wns") || "WNS"; onTriggered: tabBar.currentIndex = 4 }
+            MenuItem {
+                text: Translations.t("menu.terminal")
+                onTriggered: root.showStub(
+                    Translations.t("menu.terminal"),
+                    Translations.t("terminal_not_ported"))
+            }
+            MenuItem {
+                text: Translations.t("tab_wns_keenly")
+                onTriggered: tabBar.currentIndex = 4
+            }
             MenuSeparator {}
-            MenuItem { text: Translations.t("menu_tutorial") || "Обучение" }
+            MenuItem {
+                text: Translations.t("menu.tutorial")
+                onTriggered: root.showStub(
+                    Translations.t("menu.tutorial"),
+                    Translations.t("tutorial_not_ported"))
+            }
         }
     }
 
@@ -151,7 +266,7 @@ Kirigami.ApplicationWindow {
             spacing: Kirigami.Units.largeSpacing
 
             Label {
-                text: Translations.t("searching") || "Поиск пиров..."
+                text: Translations.t("status.searching")
                 color: root.theme.text_dim
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
                 Layout.fillWidth: true
@@ -159,20 +274,26 @@ Kirigami.ApplicationWindow {
 
             Label {
                 text: "IP: " + (networkManager.localIp || "—")
-                color: "#8090B0"
+                color: root.theme.text_dim
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
 
             Label {
-                text: root.micMuted ? (Translations.t("mic_off") || "Микрофон выкл") : (Translations.t("mic_on") || "Микрофон вкл")
+                text: root.micMuted ? Translations.t("mic.off") : Translations.t("mic.on")
                 color: root.micMuted ? "#FF8080" : "#80FF80"
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
-                MouseArea { anchors.fill: parent; onClicked: root.micMuted = !root.micMuted }
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        root.micMuted = !root.micMuted
+                        voiceCallManager.setMute(root.micMuted)
+                    }
+                }
             }
 
             Label {
-                text: Translations.t("no_calls") || "Нет звонков"
-                color: "#A0A0A0"
+                text: Translations.t("status.no_calls")
+                color: root.theme.text_dim
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
         }
@@ -215,6 +336,22 @@ Kirigami.ApplicationWindow {
                 root.modelForPeer(msg.from_ip).receiveMessage(msg.text, msg.from_ip)
             else if (msg.type === "read")
                 root.modelForPeer(msg.from_ip).markOwnMessagesRead()
+        }
+        function onCallRequest(username, ip) { root.showIncomingCall(username, ip) }
+        function onCallAccepted(username, ip) {
+            voiceCallManager.call(ip)
+            root.openActiveCall(username, ip)
+        }
+        function onCallRejected(ip) {
+            if (root.outgoingCallWindow) {
+                root.outgoingCallWindow.close()
+                root.outgoingCallWindow = null
+            }
+        }
+        function onCallEnded(ip) {
+            if (root.outgoingCallWindow) { root.outgoingCallWindow.close(); root.outgoingCallWindow = null }
+            if (root.activeCallWindow) { root.activeCallWindow.close(); root.activeCallWindow = null }
+            voiceCallManager.hangup(ip)
         }
     }
 
@@ -294,13 +431,29 @@ Kirigami.ApplicationWindow {
                             onClicked: root.currentPeerIp = root.kSelfChatId
                         }
 
+                        // Themed search field — background/border/placeholder
+                        // now follow ThemeManager instead of the system
+                        // palette, which is why it used to stay the same
+                        // colour when switching themes.
                         TextField {
+                            id: searchField
                             Layout.fillWidth: true
                             Layout.margins: Kirigami.Units.smallSpacing
                             placeholderText: Translations.t("sidebar.search_placeholder")
                             text: root.contactSearchText
                             color: root.theme.text
+                            placeholderTextColor: root.theme.text_dim
+                            selectionColor: root.theme.accent
+                            leftPadding: 10
+                            rightPadding: 10
                             onTextChanged: root.contactSearchText = text
+
+                            background: Rectangle {
+                                radius: 6
+                                color: root.theme.bg3
+                                border.width: 1
+                                border.color: searchField.activeFocus ? root.theme.accent : root.theme.border
+                            }
                         }
 
                         Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.theme.border }
@@ -354,17 +507,46 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     implicitHeight: 32
 
-                    TabButton { text: Translations.t("tab_main_chat") || "Чат" }
-                    TabButton { text: Translations.t("tab_main_notes") || "Заметки" }
-                    TabButton { text: Translations.t("tab_main_calls") || "Звонки" }
-                    TabButton { text: "♫" }
-                    TabButton { text: "🌐 WNS" }
+                    background: Rectangle { color: root.theme.header_bg }
+
+                    TabButton {
+                        text: Translations.t("tab_main_chat")
+                        background: Rectangle { color: checked ? root.theme.bg : "transparent" }
+                    }
+                    TabButton {
+                        text: Translations.t("tab_main_notes")
+                        background: Rectangle { color: checked ? root.theme.bg : "transparent" }
+                    }
+                    TabButton {
+                        text: Translations.t("tab_main_calls")
+                        background: Rectangle { color: checked ? root.theme.bg : "transparent" }
+                    }
+                    TabButton {
+                        // Violla — media player tab (was hardcoded "♫")
+                        text: Translations.t("tab_player_violla")
+                        background: Rectangle { color: checked ? root.theme.bg : "transparent" }
+                    }
+                    TabButton {
+                        // Keenly — internal browser tab (was hardcoded "🌐 WNS")
+                        text: Translations.t("tab_wns_keenly")
+                        background: Rectangle { color: checked ? root.theme.bg : "transparent" }
+                    }
                 }
 
+                // StackLayout swaps children instantly with no transition,
+                // which is what made switching tabs feel stiff. Cheap fix
+                // without ripping TabBar+StackLayout out for a SwipeView:
+                // fade content out/in around the index change.
                 StackLayout {
+                    id: contentStack
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     currentIndex: tabBar.currentIndex
+
+                    opacity: 1.0
+                    Behavior on opacity {
+                        NumberAnimation { duration: 110; easing.type: Easing.OutQuad }
+                    }
 
                     Loader {
                         visible: !root.compactMode || root.currentPeerIp.length > 0
@@ -374,6 +556,19 @@ Kirigami.ApplicationWindow {
                     CallsTab {}
                     PlayerTab {}
                     WnsTab {}
+                }
+
+                Connections {
+                    target: tabBar
+                    function onCurrentIndexChanged() {
+                        contentStack.opacity = 0
+                        fadeInTimer.restart()
+                    }
+                }
+                Timer {
+                    id: fadeInTimer
+                    interval: 20
+                    onTriggered: contentStack.opacity = 1
                 }
             }
         }
@@ -429,7 +624,7 @@ Kirigami.ApplicationWindow {
                 onActivated: Translations.current = model[currentIndex]
             }
 
-            Label { text: "Тема"; color: root.theme.text }
+            Label { text: Translations.t("settings.theme"); color: root.theme.text }
             ComboBox {
                 id: themeCombo
                 Layout.fillWidth: true
@@ -447,7 +642,7 @@ Kirigami.ApplicationWindow {
 
     Kirigami.OverlaySheet {
         id: aboutSheet
-        title: Translations.t("menu_about") || "О программе"
+        title: Translations.t("menu.about")
         Label {
             width: parent.width
             wrapMode: Text.WordWrap
@@ -467,6 +662,10 @@ Kirigami.ApplicationWindow {
             showBackButton: root.compactMode
 
             onReturnToListRequested: root.currentPeerIp = ""
+            onCallRequested: {
+                if (!isSelfChat)
+                    root.startOutgoingCall(peerIp)
+            }
             onSendRequested: function(text) {
                 if (!isSelfChat)
                     networkManager.sendPrivate(text, peerIp)
@@ -481,6 +680,14 @@ Kirigami.ApplicationWindow {
                     networkManager.sendFile(peerIp, localFilePath)
                 messagesModel.sendFile(localFilePath, isImage)
             }
+            // ChatModel has no delete/forward API yet (see ChatModel.h) —
+            // tell the user honestly instead of pretending it worked.
+            onForwardRequested: root.showStub(
+                Translations.t("msg_forward"),
+                Translations.t("forward_not_ported"))
+            onDeleteRequested: root.showStub(
+                Translations.t("msg_delete"),
+                Translations.t("delete_not_ported"))
         }
     }
 
