@@ -636,7 +636,7 @@ Kirigami.ApplicationWindow {
             }
         }
 
-        // Hamburger toggle — top-left, above content
+        // Hamburger toggle — top-left, inside sidebar when open, over content when closed
         Rectangle {
             id: collapseButton
             width: 32
@@ -645,7 +645,8 @@ Kirigami.ApplicationWindow {
             color: hamburgerMouse.containsMouse ? root.theme.btn_hover : "transparent"
             anchors.top: parent.top
             anchors.left: parent.left
-            anchors.margins: 4
+            anchors.topMargin: 4
+            anchors.leftMargin: root.sidebarOpen ? 4 : 4
             z: 30
 
             Column {

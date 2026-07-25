@@ -346,16 +346,25 @@ Kirigami.Page {
             // and trackpad scrolling animate smoothly — Qt6 already routes
             // wheel events through the same flick/deceleration pipeline as
             // a mouse-drag release, it was just using very stiff defaults.
-            flickDeceleration: 4500
-            maximumFlickVelocity: 2500
+            flickDeceleration: 2800
+            maximumFlickVelocity: 3800
             boundsBehavior: Flickable.StopAtBounds
+
+            property real messageScale: 1.0
 
             WheelHandler {
                 target: messagesList
                 acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                 onWheel: (event) => {
-                    messagesList.flick(0, -event.angleDelta.y * 4)
-                    event.accepted = true
+                    if (event.modifiers & Qt.ControlModifier) {
+                        // Ctrl + wheel = zoom messages
+                        const delta = event.angleDelta.y > 0 ? 0.1 : -0.1
+                        messagesList.messageScale = Math.max(0.6, Math.min(2.0, messagesList.messageScale + delta))
+                        event.accepted = true
+                    } else {
+                        messagesList.flick(0, -event.angleDelta.y * 3)
+                        event.accepted = true
+                    }
                 }
             }
 
@@ -668,10 +677,10 @@ Kirigami.Page {
                 Layout.fillWidth: true
                 spacing: 4
                 Repeater {
-                    model: Object.keys(emojiPicker.categories)
+                    model: Object.keys(emojiPicker.emojiCategories())
                     delegate: ToolButton {
                         text: modelData
-                        onClicked: emojiGrid.model = emojiPicker.categories[modelData]
+                        onClicked: emojiGrid.model = emojiPicker.emojiCategories()[modelData]
                     }
                 }
             }
@@ -682,7 +691,7 @@ Kirigami.Page {
                 Layout.fillHeight: true
                 cellWidth: 40
                 cellHeight: 40
-                model: emojiPicker.categories["😀"]
+                model: emojiPicker.emojiCategories()["😀"]
                 clip: true
 
                 delegate: Rectangle {
