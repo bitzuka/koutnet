@@ -26,15 +26,20 @@ public:
     explicit VoiceCallManager(NetworkManager *net, CryptoManager *crypto,
                               QObject *parent = nullptr);
 
-    bool call(const QString &ip);
-    void hangup(const QString &ip);
-    void hangupAll();
+    // NOTE: these need Q_INVOKABLE to be callable from QML at all — a plain
+    // "public:" method is invisible to Qt's meta-object system, so without
+    // this annotation voiceCallManager.call(ip) etc. silently fail as a
+    // QML runtime "is not a function" error even though the C++ method
+    // exists and works fine when called from other C++ code.
+    Q_INVOKABLE bool call(const QString &ip);
+    Q_INVOKABLE void hangup(const QString &ip);
+    Q_INVOKABLE void hangupAll();
 
-    void setMute(bool muted);
-    bool toggleMute();
+    Q_INVOKABLE void setMute(bool muted);
+    Q_INVOKABLE bool toggleMute();
     bool isMuted() const { return m_muted; }
 
-    void setVad(bool enabled);
+    Q_INVOKABLE void setVad(bool enabled);
 
     const QSet<QString> &activeCalls() const { return m_active; }
 
