@@ -115,5 +115,17 @@
   "no_calls": "Нет звонков",
   "lang_choose": "Выбор языка",
   "copied_notice": "Скопировано!",
-  "chat.file_attachment": "File:"
+  "chat.file_attachment": "File:",
+  "call.calling": "Dzwonienie",
+  "call.cancel": "Anuluj",
+  "call.mute": "Wycisz",
+  "call.speaker": "Głośnik",
+  "call.screen": "Ekran",
+  "call.incoming": "Połączenie przychodzące",
+  "player.title": "Violla",
+  "wns.title": "Keenly",
+  "splash.loading": "Ładowanie",
+  "status.ip_label": "IP: ",
+  "about.description": "KOutNet — zaszyfrowany komunikator P2P",
+  "toast.copied": "Skopiowano!"
 }

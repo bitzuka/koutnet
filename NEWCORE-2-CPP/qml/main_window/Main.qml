@@ -341,7 +341,7 @@ Kirigami.ApplicationWindow {
             }
 
             Label {
-                text: "IP: " + (networkManager.localIp || "—")
+                text: root.tr("status.ip_label") + (networkManager.localIp || "—")
                 color: root.theme.text_dim
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
@@ -708,7 +708,7 @@ Kirigami.ApplicationWindow {
         Label {
             width: parent.width
             wrapMode: Text.WordWrap
-            text: "KOutNet — P2P encrypted messenger"
+            text: root.tr("about.description")
             color: root.theme.text
         }
     }

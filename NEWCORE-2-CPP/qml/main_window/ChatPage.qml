@@ -239,7 +239,7 @@ Kirigami.Page {
                 color: addEmojiMouse.containsMouse ? root.theme.btn_hover : root.theme.bg3
                 border.color: root.theme.border
                 border.width: 1
-                Text { anchors.centerIn: parent; text: "+"; color: root.theme.text_dim; font.pixelSize: 18 }
+                Text { anchors.centerIn: parent; icon.name: "list-add"; color: root.theme.text_dim; font.pixelSize: 18 }
                 MouseArea {
                     id: addEmojiMouse
                     anchors.fill: parent

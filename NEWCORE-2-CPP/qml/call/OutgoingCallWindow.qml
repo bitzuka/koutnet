@@ -133,7 +133,7 @@ Window {
             Label {
                 id: statusLabel
                 Layout.alignment: Qt.AlignHCenter
-                text: "Звоним"
+                text: root.tr("call.calling")
                 font.pixelSize: 14
                 color: root.theme.text_dim
 
@@ -179,7 +179,7 @@ Window {
 
                     Label {
                         anchors.centerIn: parent
-                        text: "📵"
+                        icon.name: "call-stop"
                         font.pixelSize: 28
                     }
 
@@ -196,7 +196,7 @@ Window {
 
                 Label {
                     Layout.alignment: Qt.AlignHCenter
-                    text: "Отмена"
+                    text: root.tr("call.cancel")
                     font.pixelSize: 10
                     color: root.theme.text_dim
                 }

@@ -54,7 +54,7 @@ Rectangle {
             anchors.centerIn: parent
             color: "#4A90D9"
             font.pixelSize: 11
-            text: "Loading" + ".".repeat(splash.dotCount)
+            text: root.tr("splash.loading") + ".".repeat(splash.dotCount)
         }
     }
 

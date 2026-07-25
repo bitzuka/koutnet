@@ -15,7 +15,7 @@ Item {
 
     Kirigami.PlaceholderMessage {
         anchors.centerIn: parent
-        text: "♫ Violla"
+        text: root.tr("player.title")
         explanation: "Движок на FFmpeg — следующим этапом"
         icon.name: "media-playback-start"
     }
