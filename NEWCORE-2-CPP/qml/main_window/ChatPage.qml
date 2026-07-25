@@ -350,8 +350,6 @@ Kirigami.Page {
             maximumFlickVelocity: 3800
             boundsBehavior: Flickable.StopAtBounds
 
-            property real messageScale: 1.0
-
             WheelHandler {
                 target: messagesList
                 acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
@@ -688,7 +686,7 @@ Kirigami.Page {
             GridView {
                 id: emojiGrid
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.preferredHeight: 240
                 cellWidth: 40
                 cellHeight: 40
                 model: emojiPicker.emojiCategories()["😀"]
@@ -722,6 +720,10 @@ Kirigami.Page {
     FileDialog {
         id: fileDialog
         title: root.tr("chat.attach_title")
-        onAccepted: root.attachRequested(selectedFile.toString().replace("file://", ""))
+        onAccepted: {
+            const path = selectedFile.toString().replace("file://", "")
+            console.log("FileDialog selected:", path)
+            root.attachRequested(path)
+        }
     }
 }
