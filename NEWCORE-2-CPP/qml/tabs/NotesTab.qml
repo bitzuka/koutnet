@@ -18,7 +18,11 @@ Item {
 
     ListModel {
         id: sheetsModel
-        ListElement { title: "Note 1"; body: "" }
+        ListElement { title: ""; body: "" }
+        Component.onCompleted: {
+            if (count > 0 && get(0).title === "")
+                setProperty(0, "title", root.tr("notes.new_sheet") + " 1")
+        }
     }
     property int currentSheet: 0
 
