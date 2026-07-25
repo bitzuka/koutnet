@@ -18,11 +18,37 @@ Kirigami.ApplicationWindow {
 
     readonly property var theme: ThemeManager.colors
 
+    // Q_INVOKABLE calls (Translations.t) don't register as QML binding
+    // dependencies — only reading a NOTIFYable Q_PROPERTY does. Reading
+    // Translations.current here (via the comma operator) forces every
+    // binding that calls tr() to also depend on "current", so switching
+    // language actually re-evaluates the UI instead of silently doing
+    // nothing everywhere t() was called directly.
+    function tr(key) {
+        return (Translations.current, Translations.t(key))
+    }
+
+    readonly property var languageLabels: ({
+        ru: "Русский", en: "English", ja: "日本語", ar: "العربية",
+        de: "Deutsch", es: "Español", fr: "Français", hi: "हिन्दी",
+        it: "Italiano", pl: "Polski", pt: "Português", tr: "Türkçe",
+        uk: "Українська", zh: "中文"
+    })
+    function languageLabel(code) {
+        return root.languageLabels[code] || code.toUpperCase()
+    }
+
     property string currentPeerIp: ""
     readonly property bool compactMode: width < 480
     readonly property string kSelfChatId: "__self__"
 
-    property bool sidebarCollapsed: false
+    // Overlay sidebar (Telegram-style): fixed width, slides over content
+    // on the X axis instead of resizing a Layout column. The old
+    // push-layout approach animated Layout.preferredWidth, which forced
+    // the whole content column (and any text inside, e.g. the "no
+    // contacts" placeholder) to reflow every animation frame — that was
+    // the source of the jumping/shifting reported when picking a chat.
+    property bool sidebarOpen: true
     property string contactSearchText: ""
     property bool micMuted: false
 
@@ -63,6 +89,44 @@ Kirigami.ApplicationWindow {
     }
 
     ListModel { id: peersModel }
+
+    // Returns a plain object describing the peer shown at the top of
+    // ChatPage: { username, os, e2e, avatarLetter, isFavorites, lastSeen }.
+    // peersModel.count is read here purely to register a dependency so
+    // this re-evaluates when peers come/go while a chat is open — the
+    // same trick as tr() above, applied to a ListModel instead of a
+    // Q_PROPERTY.
+    function peerInfoFor(ip) {
+        /* eslint-disable no-unused-expressions */
+        peersModel.count
+        if (ip === root.kSelfChatId) {
+            return {
+                username: root.tr("sidebar.favorites"),
+                os: "",
+                e2e: false,
+                avatarLetter: "★",
+                isFavorites: true,
+                lastSeen: 0
+            }
+        }
+        for (let i = 0; i < peersModel.count; ++i) {
+            const p = peersModel.get(i)
+            if (p.ip === ip) {
+                return {
+                    username: p.username || ip,
+                    os: p.os || "",
+                    e2e: p.e2e === true,
+                    avatarLetter: (p.username || ip).charAt(0).toUpperCase(),
+                    isFavorites: false,
+                    // NOTE: field name "last_seen" is assumed from the
+                    // legacy Python payload shape; confirm against
+                    // NetworkManager.h if this doesn't populate.
+                    lastSeen: p.last_seen || 0
+                }
+            }
+        }
+        return { username: ip, os: "", e2e: false, avatarLetter: "?", isFavorites: false, lastSeen: 0 }
+    }
 
     // ── Call windows (Outgoing / Incoming / Active) ──
     property var outgoingCallWindow: null
@@ -128,11 +192,18 @@ Kirigami.ApplicationWindow {
     onCurrentPeerIpChanged: {
         if (currentPeerIp.length > 0 && currentPeerIp !== kSelfChatId)
             networkManager.sendReadReceipt(currentPeerIp, "dm")
+        // Telegram-style: picking a chat auto-hides the overlay sidebar.
+        if (currentPeerIp.length > 0)
+            root.sidebarOpen = false
     }
 
-    // ── Generic "not wired up yet" info sheet — used instead of silent
-    //    no-op buttons so clicking always gives feedback. Replace each
-    //    call site with the real feature once its backend exists. ──
+    Shortcut {
+        sequence: "F11"
+        onActivated: root.visibility = (root.visibility === Window.FullScreen)
+            ? Window.Windowed : Window.FullScreen
+    }
+
+    // ── Generic "not wired up yet" info sheet ──
     function showStub(titleText, bodyText) {
         stubSheet.title = titleText
         stubBody.text = bodyText
@@ -149,35 +220,26 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // ── Menu bar — mirrors legacy _setup_menubar (File / View / Calls / Help) ──
+    // ── Menu bar ──
     menuBar: MenuBar {
         background: Rectangle { color: root.theme.header_bg }
 
         Menu {
-            title: Translations.t("menu.file")
+            title: root.tr("menu.file")
             MenuItem {
-                text: Translations.t("menu.my_profile")
-                onTriggered: root.showStub(
-                    Translations.t("menu.my_profile"),
-                    Translations.t("profile_not_ported"))
+                text: root.tr("menu.my_profile")
+                onTriggered: root.showStub(root.tr("menu.my_profile"), root.tr("profile_not_ported"))
             }
-            MenuItem { text: Translations.t("menu.settings"); onTriggered: settingsSheet.open() }
+            MenuItem { text: root.tr("menu.settings"); onTriggered: settingsSheet.open() }
             MenuSeparator {}
-            MenuItem {
-                text: Translations.t("menu.check_updates")
-                onTriggered: root.showStub(
-                    Translations.t("menu.check_updates"),
-                    Translations.t("updates_not_ported"))
-            }
-            MenuSeparator {}
-            MenuItem { text: Translations.t("menu.quit"); onTriggered: Qt.quit() }
+            MenuItem { text: root.tr("menu.quit"); onTriggered: Qt.quit() }
         }
 
         Menu {
-            title: Translations.t("menu.view")
+            title: root.tr("menu.view")
 
             Menu {
-                title: Translations.t("menu.themes")
+                title: root.tr("menu.themes")
                 Instantiator {
                     model: ThemeManager.availableThemes
                     delegate: MenuItem {
@@ -190,29 +252,43 @@ Kirigami.ApplicationWindow {
             }
 
             MenuSeparator {}
+
             MenuItem {
-                text: Translations.t("menu.public_chat")
-                onTriggered: root.currentPeerIp = "public"
+                text: root.tr("tab_player_violla")
+                onTriggered: tabStrip.currentIndex = 3
             }
-            MenuItem {
-                text: Translations.t("tab_player_violla")
-                onTriggered: tabBar.currentIndex = 3
-            }
+
             MenuSeparator {}
+
             MenuItem {
-                text: Translations.t("menu.fullscreen")
+                text: root.tr("menu.fullscreen") + "  (F11)"
                 onTriggered: root.visibility = (root.visibility === Window.FullScreen)
                     ? Window.Windowed : Window.FullScreen
             }
-            MenuItem { text: Translations.t("menu.lang_ru"); onTriggered: Translations.current = "ru" }
-            MenuItem { text: Translations.t("menu.lang_en"); onTriggered: Translations.current = "en" }
-            MenuItem { text: Translations.t("menu.lang_ja"); onTriggered: Translations.current = "ja" }
+
+            MenuSeparator {}
+
+            Menu {
+                id: langMenu
+                title: root.tr("lang_choose")
+                Instantiator {
+                    model: Translations.availableLanguages
+                    delegate: MenuItem {
+                        text: root.languageLabel(modelData)
+                        checkable: true
+                        checked: Translations.current === modelData
+                        onTriggered: Translations.current = modelData
+                    }
+                    onObjectAdded: (index, object) => langMenu.insertItem(index, object)
+                    onObjectRemoved: (index, object) => langMenu.removeItem(object)
+                }
+            }
         }
 
         Menu {
-            title: Translations.t("menu.calls")
+            title: root.tr("menu.calls")
             MenuItem {
-                text: Translations.t("menu.mute_toggle")
+                text: root.tr("menu.mute_toggle")
                 checkable: true
                 checked: root.micMuted
                 onTriggered: {
@@ -221,7 +297,7 @@ Kirigami.ApplicationWindow {
                 }
             }
             MenuItem {
-                text: Translations.t("menu.hangup_all")
+                text: root.tr("menu.hangup_all")
                 onTriggered: {
                     voiceCallManager.hangupAll()
                     if (root.activeCallWindow) { root.activeCallWindow.close(); root.activeCallWindow = null }
@@ -231,30 +307,16 @@ Kirigami.ApplicationWindow {
         }
 
         Menu {
-            title: Translations.t("menu.help")
-            MenuItem { text: Translations.t("menu.about"); onTriggered: aboutSheet.open() }
-            MenuSeparator {}
+            title: root.tr("menu.help")
+            MenuItem { text: root.tr("menu.about"); onTriggered: aboutSheet.open() }
             MenuItem {
-                text: Translations.t("menu.terminal")
-                onTriggered: root.showStub(
-                    Translations.t("menu.terminal"),
-                    Translations.t("terminal_not_ported"))
-            }
-            MenuItem {
-                text: Translations.t("tab_wns_keenly")
-                onTriggered: tabBar.currentIndex = 4
-            }
-            MenuSeparator {}
-            MenuItem {
-                text: Translations.t("menu.tutorial")
-                onTriggered: root.showStub(
-                    Translations.t("menu.tutorial"),
-                    Translations.t("tutorial_not_ported"))
+                text: root.tr("menu.tutorial")
+                onTriggered: root.showStub(root.tr("menu.tutorial"), root.tr("tutorial_not_ported"))
             }
         }
     }
 
-    // ── Status bar — mirrors legacy _setup_statusbar ──
+    // ── Status bar ──
     footer: Rectangle {
         implicitHeight: 26
         color: root.theme.header_bg
@@ -266,7 +328,7 @@ Kirigami.ApplicationWindow {
             spacing: Kirigami.Units.largeSpacing
 
             Label {
-                text: Translations.t("status.searching")
+                text: root.tr("status.searching")
                 color: root.theme.text_dim
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
                 Layout.fillWidth: true
@@ -279,7 +341,7 @@ Kirigami.ApplicationWindow {
             }
 
             Label {
-                text: root.micMuted ? Translations.t("mic.off") : Translations.t("mic.on")
+                text: root.micMuted ? root.tr("mic.off") : root.tr("mic.on")
                 color: root.micMuted ? "#FF8080" : "#80FF80"
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
                 MouseArea {
@@ -292,7 +354,7 @@ Kirigami.ApplicationWindow {
             }
 
             Label {
-                text: Translations.t("status.no_calls")
+                text: root.tr("status.no_calls")
                 color: root.theme.text_dim
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
@@ -313,9 +375,7 @@ Kirigami.ApplicationWindow {
             y = Screen.height / 2 - height / 2
         }
 
-        SplashScreen {
-            anchors.fill: parent
-        }
+        SplashScreen { anchors.fill: parent }
 
         Timer {
             interval: 2200
@@ -377,202 +437,200 @@ Kirigami.ApplicationWindow {
         padding: 0
         background: Rectangle { color: root.theme.bg }
 
-        RowLayout {
+        // ── Content: always full width, never resized by the sidebar. ──
+        ColumnLayout {
             anchors.fill: parent
             spacing: 0
 
-            // ── Left: peer panel (legacy: fixed 280px) ──
-            ColumnLayout {
-                id: sidebarColumn
-                Layout.preferredWidth: root.sidebarCollapsed ? 0 : 280
-                Layout.minimumWidth: 0
-                Layout.maximumWidth: 320
-                Layout.fillHeight: true
-                clip: true
-                spacing: 0
+            // Custom-painted tab strip (not QQC2 TabBar) — see prior fix,
+            // the active QQC2 style painted its own opaque background
+            // underneath our custom one. A reserved-width spacer at the
+            // start keeps every tab clear of the always-on-top hamburger
+            // button regardless of sidebar open/closed state (fixes the
+            // "Чат" tab being covered by the toggle button).
+            Rectangle {
+                id: tabStrip
+                Layout.fillWidth: true
+                implicitHeight: 32
+                color: root.theme.header_bg
 
-                Behavior on Layout.preferredWidth {
-                    NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
-                }
+                property int currentIndex: 0
+                readonly property var tabLabels: [
+                    root.tr("tab_main_chat"),
+                    root.tr("tab_main_notes"),
+                    root.tr("tab_main_calls"),
+                    root.tr("tab_player_violla"),
+                    root.tr("tab_wns_keenly"),
+                ]
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    color: root.theme.bg2
+                RowLayout {
+                    anchors.fill: parent
+                    spacing: 0
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        spacing: 0
+                    Item { Layout.preferredWidth: 40; Layout.fillHeight: true }
 
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Layout.margins: Kirigami.Units.smallSpacing
-                            Layout.leftMargin: Kirigami.Units.smallSpacing + 36
+                    Repeater {
+                        model: tabStrip.tabLabels
 
-                            Kirigami.Heading {
-                                text: Translations.t("contacts_header")
-                                level: 1
-                                font.bold: true
-                                font.weight: Font.Black
-                                color: root.theme.text
-                            }
-                            Item { Layout.fillWidth: true }
-                        }
-
-                        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.theme.border }
-
-                        ContactDelegate {
-                            Layout.fillWidth: true
-                            peerIp: Translations.t("sidebar.favorites")
-                            iconName: "bookmarks"
-                            showOnlineIndicator: false
-                            showSecurityLabel: false
-                            selected: root.currentPeerIp === root.kSelfChatId
-                            onClicked: root.currentPeerIp = root.kSelfChatId
-                        }
-
-                        // Themed search field — background/border/placeholder
-                        // now follow ThemeManager instead of the system
-                        // palette, which is why it used to stay the same
-                        // colour when switching themes.
-                        TextField {
-                            id: searchField
-                            Layout.fillWidth: true
-                            Layout.margins: Kirigami.Units.smallSpacing
-                            placeholderText: Translations.t("sidebar.search_placeholder")
-                            text: root.contactSearchText
-                            color: root.theme.text
-                            placeholderTextColor: root.theme.text_dim
-                            selectionColor: root.theme.accent
-                            leftPadding: 10
-                            rightPadding: 10
-                            onTextChanged: root.contactSearchText = text
-
-                            background: Rectangle {
-                                radius: 6
-                                color: root.theme.bg3
-                                border.width: 1
-                                border.color: searchField.activeFocus ? root.theme.accent : root.theme.border
-                            }
-                        }
-
-                        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.theme.border }
-
-                        ListView {
-                            id: peersList
-                            Layout.fillWidth: true
+                        delegate: Rectangle {
                             Layout.fillHeight: true
-                            model: peersModel
-                            clip: true
+                            Layout.preferredWidth: tabLabel.implicitWidth + 24
+                            color: tabStrip.currentIndex === index
+                                ? root.theme.bg
+                                : (tabMouse.containsMouse ? root.theme.btn_hover : root.theme.header_bg)
 
-                            Kirigami.PlaceholderMessage {
+                            Text {
+                                id: tabLabel
                                 anchors.centerIn: parent
-                                width: parent.width - Kirigami.Units.largeSpacing * 2
-                                visible: peersList.count === 0
-                                text: Translations.t("no_contacts_title")
-                                explanation: Translations.t("no_contacts_explanation")
+                                text: modelData
+                                color: tabStrip.currentIndex === index ? root.theme.accent : root.theme.text_dim
+                                font.bold: tabStrip.currentIndex === index
                             }
 
-                            delegate: ContactDelegate {
-                                width: peersList.width
-                                visible: root.contactSearchText.length === 0
-                                         || model.ip.toLowerCase().indexOf(root.contactSearchText.toLowerCase()) !== -1
-                                height: visible ? 60 : 0
-                                peerIp: model.ip
-                                peerOs: model.os || ""
-                                e2e: model.e2e === true
-                                selected: model.ip === root.currentPeerIp
-                                onClicked: root.currentPeerIp = model.ip
+                            Rectangle {
+                                visible: tabStrip.currentIndex === index
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                height: 2
+                                color: root.theme.accent
+                            }
+
+                            MouseArea {
+                                id: tabMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                onClicked: tabStrip.currentIndex = index
                             }
                         }
                     }
+
+                    Item { Layout.fillWidth: true }
                 }
+            }
+
+            StackLayout {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                currentIndex: tabStrip.currentIndex
+
+                Loader {
+                    visible: !root.compactMode || root.currentPeerIp.length > 0
+                    sourceComponent: root.currentPeerIp.length > 0 ? chatComponent : placeholderComponent
+                }
+                NotesTab {}
+                CallsTab {}
+                PlayerTab {}
+                WnsTab {}
+            }
+        }
+
+        // ── Overlay sidebar — floats on top of content, never resizes it. ──
+        Rectangle {
+            id: sidebar
+            width: 280
+            height: parent.height
+            x: root.sidebarOpen ? 0 : -width
+            z: 20
+            color: root.theme.bg2
+
+            Behavior on x {
+                NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
             }
 
             Rectangle {
-                Layout.fillHeight: true
-                implicitWidth: 1
+                anchors.right: parent.right
+                width: 1
+                height: parent.height
                 color: root.theme.border
-                visible: !root.sidebarCollapsed
             }
 
-            // ── Right: permanent tab strip (legacy: QTabWidget, 5 tabs) ──
             ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                anchors.fill: parent
                 spacing: 0
 
-                TabBar {
-                    id: tabBar
+                RowLayout {
                     Layout.fillWidth: true
-                    implicitHeight: 32
+                    Layout.margins: Kirigami.Units.smallSpacing
+                    Layout.leftMargin: Kirigami.Units.smallSpacing + 36
 
-                    background: Rectangle { color: root.theme.header_bg }
+                    Kirigami.Heading {
+                        text: root.tr("contacts_header")
+                        level: 1
+                        font.bold: true
+                        font.weight: Font.Black
+                        color: root.theme.text
+                    }
+                    Item { Layout.fillWidth: true }
+                }
 
-                    TabButton {
-                        text: Translations.t("tab_main_chat")
-                        background: Rectangle { color: checked ? root.theme.bg : "transparent" }
-                    }
-                    TabButton {
-                        text: Translations.t("tab_main_notes")
-                        background: Rectangle { color: checked ? root.theme.bg : "transparent" }
-                    }
-                    TabButton {
-                        text: Translations.t("tab_main_calls")
-                        background: Rectangle { color: checked ? root.theme.bg : "transparent" }
-                    }
-                    TabButton {
-                        // Violla — media player tab (was hardcoded "♫")
-                        text: Translations.t("tab_player_violla")
-                        background: Rectangle { color: checked ? root.theme.bg : "transparent" }
-                    }
-                    TabButton {
-                        // Keenly — internal browser tab (was hardcoded "🌐 WNS")
-                        text: Translations.t("tab_wns_keenly")
-                        background: Rectangle { color: checked ? root.theme.bg : "transparent" }
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.theme.border }
+
+                ContactDelegate {
+                    Layout.fillWidth: true
+                    peerIp: root.tr("sidebar.favorites")
+                    iconName: "bookmarks"
+                    showOnlineIndicator: false
+                    showSecurityLabel: false
+                    selected: root.currentPeerIp === root.kSelfChatId
+                    onClicked: root.currentPeerIp = root.kSelfChatId
+                }
+
+                TextField {
+                    id: searchField
+                    Layout.fillWidth: true
+                    Layout.margins: Kirigami.Units.smallSpacing
+                    placeholderText: root.tr("sidebar.search_placeholder")
+                    text: root.contactSearchText
+                    color: root.theme.text
+                    placeholderTextColor: root.theme.text_dim
+                    selectionColor: root.theme.accent
+                    leftPadding: 10
+                    rightPadding: 10
+                    onTextChanged: root.contactSearchText = text
+
+                    background: Rectangle {
+                        radius: 6
+                        color: root.theme.bg3
+                        border.width: 1
+                        border.color: searchField.activeFocus ? root.theme.accent : root.theme.border
                     }
                 }
 
-                // StackLayout swaps children instantly with no transition,
-                // which is what made switching tabs feel stiff. Cheap fix
-                // without ripping TabBar+StackLayout out for a SwipeView:
-                // fade content out/in around the index change.
-                StackLayout {
-                    id: contentStack
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.theme.border }
+
+                ListView {
+                    id: peersList
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    currentIndex: tabBar.currentIndex
+                    model: peersModel
+                    clip: true
 
-                    opacity: 1.0
-                    Behavior on opacity {
-                        NumberAnimation { duration: 110; easing.type: Easing.OutQuad }
+                    Kirigami.PlaceholderMessage {
+                        anchors.centerIn: parent
+                        width: parent.width - Kirigami.Units.largeSpacing * 2
+                        visible: peersList.count === 0
+                        text: root.tr("no_contacts_title")
+                        explanation: root.tr("no_contacts_explanation")
                     }
 
-                    Loader {
-                        visible: !root.compactMode || root.currentPeerIp.length > 0
-                        sourceComponent: root.currentPeerIp.length > 0 ? chatComponent : placeholderComponent
+                    delegate: ContactDelegate {
+                        width: peersList.width
+                        visible: root.contactSearchText.length === 0
+                                 || model.ip.toLowerCase().indexOf(root.contactSearchText.toLowerCase()) !== -1
+                        height: visible ? 60 : 0
+                        peerIp: model.ip
+                        peerOs: model.os || ""
+                        e2e: model.e2e === true
+                        selected: model.ip === root.currentPeerIp
+                        onClicked: root.currentPeerIp = model.ip
                     }
-                    NotesTab {}
-                    CallsTab {}
-                    PlayerTab {}
-                    WnsTab {}
-                }
-
-                Connections {
-                    target: tabBar
-                    function onCurrentIndexChanged() {
-                        contentStack.opacity = 0
-                        fadeInTimer.restart()
-                    }
-                }
-                Timer {
-                    id: fadeInTimer
-                    interval: 20
-                    onTriggered: contentStack.opacity = 1
                 }
             }
         }
 
+        // Hamburger toggle — always top-left, above the sidebar (z:30 > 20),
+        // so it's never covered and never covers a tab (spacer above).
         Rectangle {
             id: collapseButton
             width: 32
@@ -582,7 +640,7 @@ Kirigami.ApplicationWindow {
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.margins: 4
-            z: 10
+            z: 30
 
             Column {
                 anchors.centerIn: parent
@@ -597,34 +655,26 @@ Kirigami.ApplicationWindow {
                 id: hamburgerMouse
                 anchors.fill: parent
                 hoverEnabled: true
-                onClicked: root.sidebarCollapsed = !root.sidebarCollapsed
+                onClicked: root.sidebarOpen = !root.sidebarOpen
             }
         }
     }
 
     Kirigami.OverlaySheet {
         id: settingsSheet
-        title: Translations.t("sidebar.settings")
+        title: root.tr("sidebar.settings")
 
         ColumnLayout {
             width: parent.width
 
-            Label { text: Translations.t("settings.username"); color: root.theme.text }
+            Label { text: root.tr("settings.username"); color: root.theme.text }
             TextField {
                 Layout.fillWidth: true
                 text: appSettings.username
                 onEditingFinished: appSettings.username = text
             }
 
-            Label { text: Translations.t("menu.language"); color: root.theme.text }
-            ComboBox {
-                Layout.fillWidth: true
-                model: Translations.availableLanguages
-                currentIndex: model.indexOf(Translations.current)
-                onActivated: Translations.current = model[currentIndex]
-            }
-
-            Label { text: Translations.t("settings.theme"); color: root.theme.text }
+            Label { text: root.tr("settings.theme"); color: root.theme.text }
             ComboBox {
                 id: themeCombo
                 Layout.fillWidth: true
@@ -642,7 +692,7 @@ Kirigami.ApplicationWindow {
 
     Kirigami.OverlaySheet {
         id: aboutSheet
-        title: Translations.t("menu.about")
+        title: root.tr("menu.about")
         Label {
             width: parent.width
             wrapMode: Text.WordWrap
@@ -657,9 +707,9 @@ Kirigami.ApplicationWindow {
             readonly property bool isSelfChat: peerIp === root.kSelfChatId
 
             peerIp: root.currentPeerIp
-            displayTitle: isSelfChat ? Translations.t("sidebar.favorites") : root.currentPeerIp
-            messagesModel: root.modelForPeer(root.currentPeerIp)
+            peerInfo: root.peerInfoFor(root.currentPeerIp)
             showBackButton: root.compactMode
+            messagesModel: root.modelForPeer(root.currentPeerIp)
 
             onReturnToListRequested: root.currentPeerIp = ""
             onCallRequested: {
@@ -680,14 +730,8 @@ Kirigami.ApplicationWindow {
                     networkManager.sendFile(peerIp, localFilePath)
                 messagesModel.sendFile(localFilePath, isImage)
             }
-            // ChatModel has no delete/forward API yet (see ChatModel.h) —
-            // tell the user honestly instead of pretending it worked.
-            onForwardRequested: root.showStub(
-                Translations.t("msg_forward"),
-                Translations.t("forward_not_ported"))
-            onDeleteRequested: root.showStub(
-                Translations.t("msg_delete"),
-                Translations.t("delete_not_ported"))
+            onForwardRequested: root.showStub(root.tr("msg_forward"), root.tr("forward_not_ported"))
+            onDeleteRequested: root.showStub(root.tr("msg_delete"), root.tr("delete_not_ported"))
         }
     }
 
@@ -695,7 +739,7 @@ Kirigami.ApplicationWindow {
         id: placeholderComponent
         Kirigami.PlaceholderMessage {
             anchors.centerIn: parent
-            text: Translations.t("select_contact_placeholder")
+            text: root.tr("select_contact_placeholder")
         }
     }
 }

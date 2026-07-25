@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Dialogs
-import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
@@ -10,7 +9,7 @@ Kirigami.Page {
     id: root
 
     property string peerIp: ""
-    property string displayTitle: peerIp
+    property var peerInfo: null
     property var messagesModel: null
     property bool showBackButton: false
 
@@ -18,74 +17,75 @@ Kirigami.Page {
     signal sendRequested(string text)
     signal attachRequested(string localFilePath)
     signal callRequested()
-    // ChatModel currently has no delete/forward API (see ChatModel.h —
-    // only sendMessage/sendFile/receiveMessage/receiveFile/toggleReaction/
-    // markOwnMessagesRead/markAllRead exist). These bubble up so Main.qml
-    // can show an honest "not implemented yet" message instead of this
-    // page pretending to call a C++ method that doesn't exist.
     signal forwardRequested(int index)
     signal deleteRequested(int index)
 
     property string replyToText: ""
     readonly property var theme: ThemeManager.colors
 
-    // Quick-reaction palette — mirrors legacy chat reaction picker.
-    readonly property var quickEmojis: ["👍", "❤️", "😂", "😮", "😢", "🔥"]
+    function tr(key) {
+        return (Translations.current, Translations.t(key))
+    }
 
-    title: root.displayTitle
+    readonly property var quickEmojis: ["👍", "❤️", "😂", "😮", "😢", "🔥"]
+    // Client-side only for now — not persisted, not synced to peers.
+    // Making custom emoji durable/shared needs a backend store (e.g. a
+    // ReactionStore/EmojiStore extension) which isn't wired up yet.
+    property var customEmojis: []
+
+    title: root.peerInfo ? root.peerInfo.username : root.peerIp
     padding: 0
 
     background: Rectangle { color: root.theme.bg }
 
     actions: [
         Kirigami.Action {
-            text: Translations.t("chat.back")
+            text: root.tr("chat.back")
             icon.name: "go-previous"
             visible: root.showBackButton
             onTriggered: root.returnToListRequested()
         },
         Kirigami.Action {
-            text: Translations.t("call.button")
+            text: root.tr("call.button")
             icon.name: "call-start"
             onTriggered: root.callRequested()
         }
     ]
 
-    // ── Full-screen image viewer — click on a photo bubble opens this. ──
-    Window {
-        id: imageViewer
-        visible: false
-        flags: Qt.Dialog
-        modality: Qt.WindowModal
-        color: "black"
-        width: Math.min(Screen.width * 0.9, 1200)
-        height: Math.min(Screen.height * 0.9, 900)
-        property string source: ""
-        title: Translations.t("chat.image_viewer_title")
+    // ── Small transient toast ("Скопировано!") ──
+    Rectangle {
+        id: toast
+        z: 100
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 76
+        radius: 8
+        color: root.theme.item_sel
+        opacity: 0
+        implicitWidth: toastLabel.implicitWidth + 24
+        implicitHeight: toastLabel.implicitHeight + 14
 
-        Image {
-            anchors.fill: parent
-            anchors.margins: 8
-            source: imageViewer.source
-            fillMode: Image.PreserveAspectFit
+        Label {
+            id: toastLabel
+            anchors.centerIn: parent
+            color: "white"
+            text: ""
         }
 
-        MouseArea {
-            anchors.fill: parent
-            onClicked: imageViewer.close()
-        }
+        Behavior on opacity { NumberAnimation { duration: 150 } }
 
-        Shortcut {
-            sequence: "Escape"
-            onActivated: imageViewer.close()
+        function show(msg) {
+            toastLabel.text = msg
+            toast.opacity = 1
+            toastTimer.restart()
+        }
+        Timer {
+            id: toastTimer
+            interval: 1400
+            onTriggered: toast.opacity = 0
         }
     }
 
-    // Invisible helper for clipboard copy — QtQuick has no bare "set
-    // clipboard text" call without extra C++ plumbing, but TextEdit's
-    // copy() does exactly this via the normal Qt clipboard, so this avoids
-    // inventing a fake clipboardHelper singleton that doesn't exist in the
-    // C++ side.
     TextEdit {
         id: clipboardHelper
         visible: false
@@ -96,48 +96,169 @@ Kirigami.Page {
         }
     }
 
-    // ── Reused per-message context menu: reply / copy / forward /
-    //    react / delete. Opened on right-click for both text and image
-    //    bubbles (legacy used exactly this set). Forward/delete are wired
-    //    as signals since ChatModel doesn't expose those operations yet. ──
+    // ── Inline full-view image viewer — overlay inside this page instead
+    //    of a separate top-level Window. ──
+    Rectangle {
+        id: imageViewer
+        anchors.fill: parent
+        z: 90
+        color: Qt.rgba(0, 0, 0, 0.92)
+        visible: false
+        property string source: ""
+
+        Image {
+            anchors.fill: parent
+            anchors.margins: 24
+            source: imageViewer.source
+            fillMode: Image.PreserveAspectFit
+        }
+
+        ToolButton {
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.margins: 12
+            text: "✕"
+            onClicked: imageViewer.visible = false
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: imageViewer.visible = false
+        }
+
+        Shortcut {
+            sequence: "Escape"
+            enabled: imageViewer.visible
+            onActivated: imageViewer.visible = false
+        }
+    }
+
+    // ── Reaction picker: nicer grid popup instead of a plain submenu. ──
+    Popup {
+        id: reactionPopup
+        property int msgIndex: -1
+        modal: true
+        focus: true
+        width: 260
+        padding: 12
+        background: Rectangle { color: root.theme.bg2; radius: 12; border.color: root.theme.border; border.width: 1 }
+
+        contentItem: GridLayout {
+            columns: 6
+            columnSpacing: 6
+            rowSpacing: 6
+
+            Repeater {
+                model: root.quickEmojis.concat(root.customEmojis)
+                delegate: Rectangle {
+                    Layout.preferredWidth: 36
+                    Layout.preferredHeight: 36
+                    radius: 8
+                    color: emojiMouse.containsMouse ? root.theme.btn_hover : "transparent"
+                    scale: emojiMouse.containsMouse ? 1.15 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 90 } }
+
+                    Loader {
+                        anchors.centerIn: parent
+                        sourceComponent: (typeof modelData === "string" && modelData.indexOf("img:") === 0)
+                            ? customEmojiImg : plainEmojiText
+                    }
+                    Component {
+                        id: plainEmojiText
+                        Text { text: modelData; font.pixelSize: 20 }
+                    }
+                    Component {
+                        id: customEmojiImg
+                        Image {
+                            width: 24; height: 24
+                            source: modelData.substring(4)
+                            fillMode: Image.PreserveAspectFit
+                        }
+                    }
+
+                    MouseArea {
+                        id: emojiMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            root.messagesModel.toggleReaction(reactionPopup.msgIndex, modelData, "me")
+                            reactionPopup.close()
+                        }
+                    }
+                }
+            }
+
+            // "+" adds a custom emoji from a local image (scaled to a
+            // 128x128 display box like a normal sticker/emoji).
+            Rectangle {
+                Layout.preferredWidth: 36
+                Layout.preferredHeight: 36
+                radius: 8
+                color: addEmojiMouse.containsMouse ? root.theme.btn_hover : root.theme.bg3
+                border.color: root.theme.border
+                border.width: 1
+                Text { anchors.centerIn: parent; text: "+"; color: root.theme.text_dim; font.pixelSize: 18 }
+                MouseArea {
+                    id: addEmojiMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: customEmojiDialog.open()
+                }
+            }
+        }
+    }
+
+    FileDialog {
+        id: customEmojiDialog
+        title: root.tr("chat.pick_custom_emoji")
+        nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif)"]
+        onAccepted: {
+            // Stored/rendered at a fixed 128x128 box everywhere it's used
+            // (picker + reaction badge), matching a normal emoji's visual
+            // footprint regardless of source image resolution.
+            root.customEmojis.push("img:" + selectedFile.toString())
+            root.customEmojis = root.customEmojis.slice()
+        }
+    }
+
+    function openReactionPicker(index) {
+        reactionPopup.msgIndex = index
+        reactionPopup.open()
+    }
+
+    // ── Per-message context menu ──
     Menu {
         id: messageMenu
         property int msgIndex: -1
         property string msgText: ""
 
         MenuItem {
-            text: Translations.t("msg_reply")
+            text: root.tr("msg_reply")
             onTriggered: {
                 root.replyToText = messageMenu.msgText
                 inputField.forceActiveFocus()
             }
         }
         MenuItem {
-            text: Translations.t("msg_copy")
+            text: root.tr("msg_copy")
             onTriggered: {
-                if (messageMenu.msgText.length > 0)
+                if (messageMenu.msgText.length > 0) {
                     clipboardHelper.copyText(messageMenu.msgText)
+                    toast.show(root.tr("copied_notice"))
+                }
             }
         }
         MenuItem {
-            text: Translations.t("msg_forward")
+            text: root.tr("msg_forward")
             onTriggered: root.forwardRequested(messageMenu.msgIndex)
         }
-        Menu {
-            title: Translations.t("msg_reactions")
-            Instantiator {
-                model: root.quickEmojis
-                delegate: MenuItem {
-                    text: modelData
-                    onTriggered: root.messagesModel.toggleReaction(messageMenu.msgIndex, modelData, "me")
-                }
-                onObjectAdded: (index, object) => parent.insertItem(index, object)
-                onObjectRemoved: (index, object) => parent.removeItem(object)
-            }
+        MenuItem {
+            text: root.tr("msg_reactions")
+            onTriggered: root.openReactionPicker(messageMenu.msgIndex)
         }
         MenuSeparator {}
         MenuItem {
-            text: Translations.t("msg_delete")
+            text: root.tr("msg_delete")
             onTriggered: root.deleteRequested(messageMenu.msgIndex)
         }
     }
@@ -152,12 +273,67 @@ Kirigami.Page {
         anchors.fill: parent
         spacing: 0
 
+        // ── Peer header: avatar + name + last-seen (favorites excluded) ──
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: 52
+            color: root.theme.header_bg
+            visible: root.peerInfo !== null
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: Kirigami.Units.largeSpacing
+                anchors.rightMargin: Kirigami.Units.largeSpacing
+                spacing: Kirigami.Units.smallSpacing
+
+                Rectangle {
+                    Layout.preferredWidth: 36
+                    Layout.preferredHeight: 36
+                    radius: 18
+                    color: root.theme.accent
+                    Label {
+                        anchors.centerIn: parent
+                        text: root.peerInfo ? root.peerInfo.avatarLetter : "?"
+                        color: "white"
+                        font.bold: true
+                    }
+                }
+
+                ColumnLayout {
+                    spacing: 0
+                    Layout.fillWidth: true
+                    Label {
+                        text: root.peerInfo ? root.peerInfo.username : root.peerIp
+                        color: root.theme.text
+                        font.bold: true
+                    }
+                    Label {
+                        visible: root.peerInfo && !root.peerInfo.isFavorites
+                        text: root.peerInfo && root.peerInfo.lastSeen > 0
+                            ? root.tr("chat.last_seen") + " " + new Date(root.peerInfo.lastSeen * 1000).toLocaleString()
+                            : root.tr("chat.online_now")
+                        color: root.theme.text_dim
+                        font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    }
+                }
+            }
+        }
+
         ListView {
             id: messagesList
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
             model: root.messagesModel
+
+            // Tuning Flickable's own kinetic parameters (rather than
+            // fighting it with a second WheelHandler) is what makes wheel
+            // and trackpad scrolling animate smoothly — Qt6 already routes
+            // wheel events through the same flick/deceleration pipeline as
+            // a mouse-drag release, it was just using very stiff defaults.
+            flickDeceleration: 4500
+            maximumFlickVelocity: 2500
+            boundsBehavior: Flickable.StopAtBounds
 
             onCountChanged: Qt.callLater(positionViewAtEnd)
             Component.onCompleted: positionViewAtEnd()
@@ -195,8 +371,13 @@ Kirigami.Page {
 
                     Rectangle {
                         id: bubble
-                        width: model.isFile === true
-                            ? Math.min(240, messagesList.width * 0.7)
+                        // Text/file bubbles keep the old 70%-width cap.
+                        // Image bubbles no longer force a fixed 0.7 aspect
+                        // box (that's what was cropping/letterboxing
+                        // photos) — imageLoader below sizes itself from
+                        // the actual picture's aspect ratio instead.
+                        width: (model.isFile === true && model.isImage === true)
+                            ? imageLoader.item ? imageLoader.item.width : 220
                             : Math.min(implicitWidth, messagesList.width * 0.7)
                         implicitWidth: bubbleColumn.implicitWidth + Kirigami.Units.largeSpacing * 2
                         height: bubbleColumn.implicitHeight + Kirigami.Units.smallSpacing * 2
@@ -230,33 +411,39 @@ Kirigami.Page {
                                 }
                             }
 
-                            // Image bubble — left click opens the full-screen
-                            // viewer, right click opens the same message
-                            // context menu as text bubbles.
                             Loader {
-                                Layout.fillWidth: true
+                                id: imageLoader
                                 active: model.isFile === true && model.isImage === true
-                                sourceComponent: Item {
-                                    width: Math.min(220, messagesList.width * 0.6)
-                                    height: width * 0.7
+                                sourceComponent: Component {
+                                    Item {
+                                        // Full-bleed: width is capped, height
+                                        // follows the image's real aspect
+                                        // ratio once it reports sourceSize,
+                                        // instead of an arbitrary *0.7 crop.
+                                        readonly property real maxW: Math.min(260, messagesList.width * 0.65)
+                                        width: maxW
+                                        height: bubbleImage.sourceSize.height > 0
+                                            ? maxW * (bubbleImage.sourceSize.height / bubbleImage.sourceSize.width)
+                                            : maxW * 0.7
 
-                                    Image {
-                                        anchors.fill: parent
-                                        source: "file://" + model.filePath
-                                        fillMode: Image.PreserveAspectFit
-                                    }
+                                        Image {
+                                            id: bubbleImage
+                                            anchors.fill: parent
+                                            source: "file://" + model.filePath
+                                            fillMode: Image.PreserveAspectFit
+                                        }
 
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: function(mouse) {
-                                            if (mouse.button === Qt.RightButton) {
-                                                root.openMessageMenu(index, model.text || "")
-                                            } else {
-                                                imageViewer.source = "file://" + model.filePath
-                                                imageViewer.show()
-                                                imageViewer.raise()
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            acceptedButtons: Qt.LeftButton | Qt.RightButton
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: function(mouse) {
+                                                if (mouse.button === Qt.RightButton) {
+                                                    root.openMessageMenu(index, model.text || "")
+                                                } else {
+                                                    imageViewer.source = "file://" + model.filePath
+                                                    imageViewer.visible = true
+                                                }
                                             }
                                         }
                                     }
@@ -312,7 +499,7 @@ Kirigami.Page {
 
                         Label {
                             visible: model.isEdited === true
-                            text: Translations.t("edited_label")
+                            text: root.tr("edited_label")
                             font.italic: true
                             font.pointSize: Kirigami.Theme.smallFont.pointSize
                             color: root.theme.text_dim
@@ -364,9 +551,6 @@ Kirigami.Page {
             color: root.theme.border
         }
 
-        // Input bar — themed background/border/placeholder (was left at
-        // the default Controls style, which is why it ignored theme
-        // switches before).
         Rectangle {
             Layout.fillWidth: true
             color: root.theme.bg2
@@ -382,10 +566,15 @@ Kirigami.Page {
                     onClicked: fileDialog.open()
                 }
 
+                ToolButton {
+                    icon.name: "face-smile"
+                    onClicked: emojiPicker.open()
+                }
+
                 TextField {
                     id: inputField
                     Layout.fillWidth: true
-                    placeholderText: Translations.t("chat.placeholder")
+                    placeholderText: root.tr("chat.placeholder")
                     color: root.theme.text
                     placeholderTextColor: root.theme.text_dim
                     selectionColor: root.theme.accent
@@ -403,7 +592,7 @@ Kirigami.Page {
 
                 Button {
                     id: sendButton
-                    text: Translations.t("chat.send")
+                    text: root.tr("chat.send")
                     enabled: inputField.text.length > 0
                     onClicked: {
                         root.sendRequested(inputField.text)
@@ -430,9 +619,77 @@ Kirigami.Page {
         }
     }
 
+    // ── Rich emoji picker (categorised, not exhaustive but broad) ──
+    Popup {
+        id: emojiPicker
+        modal: true
+        focus: true
+        width: 340
+        height: 320
+        padding: 10
+        background: Rectangle { color: root.theme.bg2; radius: 12; border.color: root.theme.border; border.width: 1 }
+
+        readonly property var categories: ({
+            "😀": ["😀","😁","😂","🤣","😊","😍","😘","😜","🤔","😴","🙂","🙃","😇","😎","🥳","😢","😭","😡","😱","🤯"],
+            "👍": ["👍","👎","👏","🙌","🙏","👌","✌️","🤞","👋","💪","🤝","👊","🖐️","☝️","🤙","👀"],
+            "🐶": ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔"],
+            "🍎": ["🍎","🍌","🍇","🍉","🍕","🍔","🍟","🌭","🍿","🍩","🍪","🎂","🍫","🍦","☕","🍺"],
+            "❤️": ["❤️","🧡","💛","💚","💙","💜","🖤","🤍","💔","💕","💖","💯","✨","🔥","🎉","⭐"],
+        })
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 6
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Repeater {
+                    model: Object.keys(emojiPicker.categories)
+                    delegate: ToolButton {
+                        text: modelData
+                        onClicked: emojiGrid.model = emojiPicker.categories[modelData]
+                    }
+                }
+            }
+
+            GridView {
+                id: emojiGrid
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                cellWidth: 40
+                cellHeight: 40
+                model: emojiPicker.categories["😀"]
+                clip: true
+
+                delegate: Rectangle {
+                    width: 36
+                    height: 36
+                    radius: 8
+                    color: pickMouse.containsMouse ? root.theme.btn_hover : "transparent"
+                    Text {
+                        anchors.centerIn: parent
+                        text: modelData
+                        font.pixelSize: 20
+                    }
+                    MouseArea {
+                        id: pickMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: {
+                            inputField.text += modelData
+                            emojiPicker.close()
+                            inputField.forceActiveFocus()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     FileDialog {
         id: fileDialog
-        title: Translations.t("chat.attach_title")
+        title: root.tr("chat.attach_title")
         onAccepted: root.attachRequested(selectedFile.toString().replace("file://", ""))
     }
 }
