@@ -346,36 +346,29 @@ Kirigami.Page {
             // and trackpad scrolling animate smoothly — Qt6 already routes
             // wheel events through the same flick/deceleration pipeline as
             // a mouse-drag release, it was just using very stiff defaults.
-            flickDeceleration: 2800
-            maximumFlickVelocity: 3800
+            flickDeceleration: 1200
+            maximumFlickVelocity: 6000
             boundsBehavior: Flickable.StopAtBounds
-
-            WheelHandler {
-                target: messagesList
-                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                onWheel: (event) => {
-                    if (event.modifiers & Qt.ControlModifier) {
-                        // Ctrl + wheel = zoom messages
-                        const delta = event.angleDelta.y > 0 ? 0.1 : -0.1
-                        messagesList.messageScale = Math.max(0.6, Math.min(2.0, messagesList.messageScale + delta))
-                        event.accepted = true
-                    } else {
-                        messagesList.flick(0, -event.angleDelta.y * 3)
-                        event.accepted = true
-                    }
-                }
-            }
+            pixelAligned: false
 
             onCountChanged: Qt.callLater(positionViewAtEnd)
             Component.onCompleted: positionViewAtEnd()
 
             delegate: Item {
                 width: messagesList.width
+                readonly property bool isEmojiOnly: {
+                    const t = model.text
+                    if (!t || t.trim().length === 0 || t.length > 12 || model.isFile || model.isSystem) return false
+                    for (let i = 0; i < t.length; i++) {
+                        if (t.charCodeAt(i) < 256) return false
+                    }
+                    return true
+                }
                 height: model.isSystem ? sysLabel.implicitHeight + 12 : contentColumn.height + Kirigami.Units.smallSpacing
 
                 Label {
                     id: sysLabel
-                    visible: model.isSystem === true
+                    visible: model.isSystem
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: model.text
                     font.italic: true
@@ -407,15 +400,15 @@ Kirigami.Page {
                         // box (that's what was cropping/letterboxing
                         // photos) — imageLoader below sizes itself from
                         // the actual picture's aspect ratio instead.
-                        width: (model.isFile === true && model.isImage === true)
+                        width: (model.isFile && model.isImage)
                             ? imageLoader.item ? imageLoader.item.width : 220
                             : Math.min(implicitWidth, messagesList.width * 0.7)
                         implicitWidth: bubbleColumn.implicitWidth + Kirigami.Units.largeSpacing * 2
                         height: bubbleColumn.implicitHeight + Kirigami.Units.smallSpacing * 2
-                        radius: 10
-                        color: model.isOwn ? root.theme.msg_own : root.theme.msg_other
+                        radius: isEmojiOnly ? 0 : 10
+                        color: isEmojiOnly ? "transparent" : (model.isOwn ? root.theme.msg_own : root.theme.msg_other)
                         border.color: root.theme.border
-                        border.width: 1
+                        border.width: isEmojiOnly ? 0 : 1
 
                         ColumnLayout {
                             id: bubbleColumn
@@ -444,7 +437,7 @@ Kirigami.Page {
 
                             Loader {
                                 id: imageLoader
-                                active: model.isFile === true && model.isImage === true
+                                active: model.isFile && model.isImage
                                 sourceComponent: Component {
                                     Item {
                                         // Full-bleed: width is capped, height
@@ -482,15 +475,23 @@ Kirigami.Page {
 
                             Label {
                                 Layout.fillWidth: true
-                                visible: !(model.isFile === true && model.isImage === true)
-                                text: model.isFile === true ? (root.tr("chat.file_attachment") + " " + model.text) : model.text
+                                visible: !(model.isFile && model.isImage)
+                                text: model.isFile ? (root.tr("chat.file_attachment") + " " + model.text) : model.text
                                 wrapMode: Text.WordWrap
                                 color: root.theme.text
+                                font.pixelSize: isEmojiOnly ? 36 : Kirigami.Theme.defaultFont.pixelSize
 
                                 MouseArea {
                                     anchors.fill: parent
-                                    acceptedButtons: Qt.RightButton
-                                    onClicked: root.openMessageMenu(index, model.text || "")
+                                    acceptedButtons: model.isFile ? (Qt.LeftButton | Qt.RightButton) : Qt.RightButton
+                                    cursorShape: model.isFile ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                    onClicked: function(mouse) {
+                                        if (mouse.button === Qt.RightButton) {
+                                            root.openMessageMenu(index, model.text || "")
+                                        } else if (model.isFile) {
+                                            Qt.openUrlExternally("file://" + model.filePath)
+                                        }
+                                    }
                                 }
                             }
 
@@ -528,7 +529,7 @@ Kirigami.Page {
                         spacing: 3
 
                         Label {
-                            visible: model.isEdited === true
+                            visible: model.isEdited
                             text: root.tr("edited_label")
                             font.italic: true
                             font.pointSize: Kirigami.Theme.smallFont.pointSize
@@ -542,9 +543,9 @@ Kirigami.Page {
                         }
 
                         Text {
-                            visible: model.isOwn === true
-                            text: model.isRead === true ? "✓✓" : "✓"
-                            color: model.isRead === true ? root.theme.accent : root.theme.text_dim
+                            visible: model.isOwn
+                            text: model.isRead ? "✓✓" : "✓"
+                            color: model.isRead ? root.theme.accent : root.theme.text_dim
                             font.pointSize: Kirigami.Theme.smallFont.pointSize
                         }
                     }
@@ -582,6 +583,7 @@ Kirigami.Page {
         }
 
         Rectangle {
+            id: inputBar
             Layout.fillWidth: true
             color: root.theme.bg2
             implicitHeight: inputRow.implicitHeight + Kirigami.Units.smallSpacing * 2
@@ -652,14 +654,18 @@ Kirigami.Page {
     // ── Rich emoji picker (categorised, not exhaustive but broad) ──
     Popup {
         id: emojiPicker
+        parent: root
         modal: true
         focus: true
         width: 340
         height: 320
         padding: 10
+        anchors.bottom: inputBar.top
+        anchors.bottomMargin: 4
+        anchors.horizontalCenter: inputBar.horizontalCenter
         background: Rectangle { color: root.theme.bg2; radius: 12; border.color: root.theme.border; border.width: 1 }
 
-        readonly property var categories: ({
+        readonly property var emojiCategories: ({
             "😀": ["😀","😁","😂","🤣","😊","😍","😘","😜","🤔","😴","🙂","🙃","😇","😎","🥳","😢","😭","😡","😱","🤯"],
             "👍": ["👍","👎","👏","🙌","🙏","👌","✌️","🤞","👋","💪","🤝","👊","🖐️","☝️","🤙","👀"],
             "🐶": ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔"],
@@ -675,10 +681,10 @@ Kirigami.Page {
                 Layout.fillWidth: true
                 spacing: 4
                 Repeater {
-                    model: Object.keys(emojiPicker.emojiCategories())
+                    model: Object.keys(emojiPicker.emojiCategories)
                     delegate: ToolButton {
                         text: modelData
-                        onClicked: emojiGrid.model = emojiPicker.emojiCategories()[modelData]
+                        onClicked: emojiGrid.model = emojiPicker.emojiCategories[modelData]
                     }
                 }
             }
@@ -689,7 +695,7 @@ Kirigami.Page {
                 Layout.preferredHeight: 240
                 cellWidth: 40
                 cellHeight: 40
-                model: emojiPicker.emojiCategories()["😀"]
+                model: emojiPicker.emojiCategories["😀"]
                 clip: true
 
                 delegate: Rectangle {

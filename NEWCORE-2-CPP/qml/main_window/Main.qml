@@ -203,6 +203,11 @@ Kirigami.ApplicationWindow {
             ? Window.Windowed : Window.FullScreen
     }
 
+    Shortcut {
+        sequence: "Tab"
+        onActivated: root.sidebarOpen = !root.sidebarOpen
+    }
+
     // ── Generic "not wired up yet" info sheet ──
     function showStub(titleText, bodyText) {
         stubSheet.title = titleText
