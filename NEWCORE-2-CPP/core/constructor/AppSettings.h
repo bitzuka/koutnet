@@ -16,6 +16,7 @@ class AppSettings : public QObject {
     Q_PROPERTY(QString relayHost READ relayHost WRITE setRelayHost NOTIFY relayChanged)
     Q_PROPERTY(int relayPort READ relayPort WRITE setRelayPort NOTIFY relayChanged)
     Q_PROPERTY(QString groupPassphrase READ groupPassphrase WRITE setGroupPassphrase NOTIFY groupPassphraseChanged)
+    Q_PROPERTY(QString language READ language WRITE setLanguage NOTIFY languageChanged)
 
 public:
     explicit AppSettings(QObject *parent = nullptr);
@@ -41,11 +42,15 @@ public:
     QString groupPassphrase() const { return m_groupPassphrase; }
     void setGroupPassphrase(const QString &passphrase);
 
+    QString language() const { return m_language; }
+    void setLanguage(const QString &lang);
+
 signals:
     void usernameChanged();
     void vdsModeChanged();
     void relayChanged();
     void groupPassphraseChanged();
+    void languageChanged();
 
 private:
     void load();
@@ -55,6 +60,7 @@ private:
     QString m_relayHost;
     int m_relayPort = 0;
     QString m_groupPassphrase;
+    QString m_language;
 };
 
 } // namespace koutnet

@@ -277,7 +277,10 @@ Kirigami.ApplicationWindow {
                         text: root.languageLabel(modelData)
                         checkable: true
                         checked: Translations.current === modelData
-                        onTriggered: Translations.current = modelData
+                        onTriggered: {
+                        Translations.current = modelData
+                        appSettings.language = modelData
+                    }
                     }
                     onObjectAdded: (index, object) => langMenu.insertItem(index, object)
                     onObjectRemoved: (index, object) => langMenu.removeItem(object)

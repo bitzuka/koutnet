@@ -21,6 +21,7 @@ void AppSettings::load()
     m_relayHost = settings.value("app/relay_host", QString()).toString();
     m_relayPort = settings.value("app/relay_port", 0).toInt();
     m_groupPassphrase = settings.value("app/group_passphrase", QString()).toString();
+    m_language = settings.value("app/language", "ru").toString();
 }
 
 void AppSettings::setUsername(const QString &name)
@@ -66,6 +67,15 @@ void AppSettings::setGroupPassphrase(const QString &passphrase)
     m_groupPassphrase = passphrase;
     QSettings().setValue("app/group_passphrase", m_groupPassphrase);
     emit groupPassphraseChanged();
+}
+
+void AppSettings::setLanguage(const QString &lang)
+{
+    if (m_language == lang)
+        return;
+    m_language = lang;
+    QSettings().setValue("app/language", m_language);
+    emit languageChanged();
 }
 
 } // namespace koutnet
