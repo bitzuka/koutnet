@@ -103,8 +103,13 @@ Kirigami.Page {
         anchors.fill: parent
         z: 90
         color: Qt.rgba(0, 0, 0, 0.92)
-        visible: false
+        opacity: 0
+        scale: 0.92
+        visible: opacity > 0.01
         property string source: ""
+
+        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        Behavior on scale   { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
         Image {
             anchors.fill: parent
@@ -118,18 +123,28 @@ Kirigami.Page {
             anchors.right: parent.right
             anchors.margins: 12
             text: "✕"
-            onClicked: imageViewer.visible = false
+            onClicked: imageViewer.hide()
         }
 
         MouseArea {
             anchors.fill: parent
-            onClicked: imageViewer.visible = false
+            onClicked: imageViewer.hide()
         }
 
         Shortcut {
             sequence: "Escape"
             enabled: imageViewer.visible
-            onActivated: imageViewer.visible = false
+            onActivated: imageViewer.hide()
+        }
+
+        function show(src) {
+            imageViewer.source = src
+            imageViewer.opacity = 1
+            imageViewer.scale = 1
+        }
+        function hide() {
+            imageViewer.opacity = 0
+            imageViewer.scale = 0.92
         }
     }
 
@@ -334,7 +349,15 @@ Kirigami.Page {
             flickDeceleration: 4500
             maximumFlickVelocity: 2500
             boundsBehavior: Flickable.StopAtBounds
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+            WheelHandler {
+                target: messagesList
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                onWheel: (event) => {
+                    messagesList.flick(0, -event.angleDelta.y * 4)
+                    event.accepted = true
+                }
+            }
 
             onCountChanged: Qt.callLater(positionViewAtEnd)
             Component.onCompleted: positionViewAtEnd()
@@ -442,8 +465,7 @@ Kirigami.Page {
                                                 if (mouse.button === Qt.RightButton) {
                                                     root.openMessageMenu(index, model.text || "")
                                                 } else {
-                                                    imageViewer.source = "file://" + model.filePath
-                                                    imageViewer.visible = true
+                                                    imageViewer.show("file://" + model.filePath)
                                                 }
                                             }
                                         }

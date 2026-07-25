@@ -438,200 +438,205 @@ Kirigami.ApplicationWindow {
         padding: 0
         background: Rectangle { color: root.theme.bg }
 
-        // ── Content: always full width, never resized by the sidebar. ──
-        ColumnLayout {
+        RowLayout {
             anchors.fill: parent
             spacing: 0
 
-            // Custom-painted tab strip (not QQC2 TabBar) — see prior fix,
-            // the active QQC2 style painted its own opaque background
-            // underneath our custom one. A reserved-width spacer at the
-            // start keeps every tab clear of the always-on-top hamburger
-            // button regardless of sidebar open/closed state (fixes the
-            // "Чат" tab being covered by the toggle button).
-            Rectangle {
-                id: tabStrip
-                Layout.fillWidth: true
-                implicitHeight: 32
-                color: root.theme.header_bg
+            // ── Sidebar (pushing) ──
+            ColumnLayout {
+                Layout.preferredWidth: root.sidebarOpen ? 280 : 0
+                Layout.minimumWidth: 0
+                Layout.maximumWidth: 320
+                Layout.fillHeight: true
+                clip: true
+                spacing: 0
 
-                property int currentIndex: 0
-                readonly property var tabLabels: [
-                    root.tr("tab_main_chat"),
-                    root.tr("tab_main_notes"),
-                    root.tr("tab_main_calls"),
-                    root.tr("tab_player_violla"),
-                    root.tr("tab_wns_keenly"),
-                ]
+                Behavior on Layout.preferredWidth {
+                    NumberAnimation { duration: 150; easing.type: Easing.InOutQuad }
+                }
 
-                RowLayout {
-                    anchors.fill: parent
-                    spacing: 0
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    color: root.theme.bg2
 
-                    Item { Layout.preferredWidth: 40; Layout.fillHeight: true }
+                    ColumnLayout {
+                        anchors.fill: parent
+                        spacing: 0
 
-                    Repeater {
-                        model: tabStrip.tabLabels
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Layout.margins: Kirigami.Units.smallSpacing
+                            Layout.leftMargin: Kirigami.Units.smallSpacing + 36
 
-                        delegate: Rectangle {
+                            Kirigami.Heading {
+                                text: root.tr("contacts_header")
+                                level: 1
+                                font.bold: true
+                                font.weight: Font.Black
+                                color: root.theme.text
+                            }
+                            Item { Layout.fillWidth: true }
+                        }
+
+                        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.theme.border }
+
+                        ContactDelegate {
+                            Layout.fillWidth: true
+                            peerIp: root.tr("sidebar.favorites")
+                            iconName: "bookmarks"
+                            showOnlineIndicator: false
+                            showSecurityLabel: false
+                            selected: root.currentPeerIp === root.kSelfChatId
+                            onClicked: root.currentPeerIp = root.kSelfChatId
+                        }
+
+                        TextField {
+                            id: searchField
+                            Layout.fillWidth: true
+                            Layout.margins: Kirigami.Units.smallSpacing
+                            placeholderText: root.tr("sidebar.search_placeholder")
+                            text: root.contactSearchText
+                            color: root.theme.text
+                            placeholderTextColor: root.theme.text_dim
+                            selectionColor: root.theme.accent
+                            leftPadding: 10
+                            rightPadding: 10
+                            onTextChanged: root.contactSearchText = text
+
+                            background: Rectangle {
+                                radius: 6
+                                color: root.theme.bg3
+                                border.width: 1
+                                border.color: searchField.activeFocus ? root.theme.accent : root.theme.border
+                            }
+                        }
+
+                        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.theme.border }
+
+                        ListView {
+                            id: peersList
+                            Layout.fillWidth: true
                             Layout.fillHeight: true
-                            Layout.preferredWidth: tabLabel.implicitWidth + 24
-                            color: tabStrip.currentIndex === index
-                                ? root.theme.bg
-                                : (tabMouse.containsMouse ? root.theme.btn_hover : root.theme.header_bg)
+                            model: peersModel
+                            clip: true
 
-                            Text {
-                                id: tabLabel
+                            Kirigami.PlaceholderMessage {
                                 anchors.centerIn: parent
-                                text: modelData
-                                color: tabStrip.currentIndex === index ? root.theme.accent : root.theme.text_dim
-                                font.bold: tabStrip.currentIndex === index
+                                width: parent.width - Kirigami.Units.largeSpacing * 2
+                                visible: peersList.count === 0
+                                text: root.tr("no_contacts_title")
+                                explanation: root.tr("no_contacts_explanation")
                             }
 
-                            Rectangle {
-                                visible: tabStrip.currentIndex === index
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                height: 2
-                                color: root.theme.accent
-                            }
-
-                            MouseArea {
-                                id: tabMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                onClicked: tabStrip.currentIndex = index
+                            delegate: ContactDelegate {
+                                width: peersList.width
+                                visible: root.contactSearchText.length === 0
+                                         || model.ip.toLowerCase().indexOf(root.contactSearchText.toLowerCase()) !== -1
+                                height: visible ? 60 : 0
+                                peerIp: model.ip
+                                peerOs: model.os || ""
+                                e2e: model.e2e === true
+                                selected: model.ip === root.currentPeerIp
+                                onClicked: root.currentPeerIp = model.ip
                             }
                         }
                     }
-
-                    Item { Layout.fillWidth: true }
                 }
-            }
-
-            StackLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                currentIndex: tabStrip.currentIndex
-
-                Loader {
-                    visible: !root.compactMode || root.currentPeerIp.length > 0
-                    sourceComponent: root.currentPeerIp.length > 0 ? chatComponent : placeholderComponent
-                }
-                NotesTab {}
-                CallsTab {}
-                PlayerTab {}
-                WnsTab {}
-            }
-        }
-
-        // ── Overlay sidebar — floats on top of content, never resizes it. ──
-        Rectangle {
-            id: sidebar
-            width: 280
-            height: parent.height
-            x: root.sidebarOpen ? 0 : -width
-            z: 20
-            color: root.theme.bg2
-
-            Behavior on x {
-                NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
             }
 
             Rectangle {
-                anchors.right: parent.right
-                width: 1
-                height: parent.height
+                Layout.fillHeight: true
+                implicitWidth: 1
                 color: root.theme.border
+                visible: root.sidebarOpen
             }
 
+            // ── Right: content + tabs ──
             ColumnLayout {
-                anchors.fill: parent
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 spacing: 0
 
-                RowLayout {
+                Rectangle {
+                    id: tabStrip
                     Layout.fillWidth: true
-                    Layout.margins: Kirigami.Units.smallSpacing
-                    Layout.leftMargin: Kirigami.Units.smallSpacing + 36
+                    implicitHeight: 32
+                    color: root.theme.header_bg
 
-                    Kirigami.Heading {
-                        text: root.tr("contacts_header")
-                        level: 1
-                        font.bold: true
-                        font.weight: Font.Black
-                        color: root.theme.text
+                    property int currentIndex: 0
+                    readonly property var tabLabels: [
+                        root.tr("tab_main_chat"),
+                        root.tr("tab_main_notes"),
+                        root.tr("tab_main_calls"),
+                        root.tr("tab_player_violla"),
+                        root.tr("tab_wns_keenly"),
+                    ]
+
+                    RowLayout {
+                        anchors.fill: parent
+                        spacing: 0
+
+                        Item { Layout.preferredWidth: 40; Layout.fillHeight: true }
+
+                        Repeater {
+                            model: tabStrip.tabLabels
+
+                            delegate: Rectangle {
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: tabLabel.implicitWidth + 24
+                                color: tabStrip.currentIndex === index
+                                    ? root.theme.bg
+                                    : (tabMouse.containsMouse ? root.theme.btn_hover : root.theme.header_bg)
+
+                                Text {
+                                    id: tabLabel
+                                    anchors.centerIn: parent
+                                    text: modelData
+                                    color: tabStrip.currentIndex === index ? root.theme.accent : root.theme.text_dim
+                                    font.bold: tabStrip.currentIndex === index
+                                }
+
+                                Rectangle {
+                                    visible: tabStrip.currentIndex === index
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    height: 2
+                                    color: root.theme.accent
+                                }
+
+                                MouseArea {
+                                    id: tabMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: tabStrip.currentIndex = index
+                                }
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true }
                     }
-                    Item { Layout.fillWidth: true }
                 }
 
-                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.theme.border }
-
-                ContactDelegate {
-                    Layout.fillWidth: true
-                    peerIp: root.tr("sidebar.favorites")
-                    iconName: "bookmarks"
-                    showOnlineIndicator: false
-                    showSecurityLabel: false
-                    selected: root.currentPeerIp === root.kSelfChatId
-                    onClicked: root.currentPeerIp = root.kSelfChatId
-                }
-
-                TextField {
-                    id: searchField
-                    Layout.fillWidth: true
-                    Layout.margins: Kirigami.Units.smallSpacing
-                    placeholderText: root.tr("sidebar.search_placeholder")
-                    text: root.contactSearchText
-                    color: root.theme.text
-                    placeholderTextColor: root.theme.text_dim
-                    selectionColor: root.theme.accent
-                    leftPadding: 10
-                    rightPadding: 10
-                    onTextChanged: root.contactSearchText = text
-
-                    background: Rectangle {
-                        radius: 6
-                        color: root.theme.bg3
-                        border.width: 1
-                        border.color: searchField.activeFocus ? root.theme.accent : root.theme.border
-                    }
-                }
-
-                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.theme.border }
-
-                ListView {
-                    id: peersList
+                StackLayout {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    model: peersModel
-                    clip: true
+                    currentIndex: tabStrip.currentIndex
 
-                    Kirigami.PlaceholderMessage {
-                        anchors.centerIn: parent
-                        width: parent.width - Kirigami.Units.largeSpacing * 2
-                        visible: peersList.count === 0
-                        text: root.tr("no_contacts_title")
-                        explanation: root.tr("no_contacts_explanation")
+                    Loader {
+                        visible: !root.compactMode || root.currentPeerIp.length > 0
+                        sourceComponent: root.currentPeerIp.length > 0 ? chatComponent : placeholderComponent
                     }
-
-                    delegate: ContactDelegate {
-                        width: peersList.width
-                        visible: root.contactSearchText.length === 0
-                                 || model.ip.toLowerCase().indexOf(root.contactSearchText.toLowerCase()) !== -1
-                        height: visible ? 60 : 0
-                        peerIp: model.ip
-                        peerOs: model.os || ""
-                        e2e: model.e2e === true
-                        selected: model.ip === root.currentPeerIp
-                        onClicked: root.currentPeerIp = model.ip
-                    }
+                    NotesTab {}
+                    CallsTab {}
+                    PlayerTab {}
+                    WnsTab {}
                 }
             }
         }
 
-        // Hamburger toggle — always top-left, above the sidebar (z:30 > 20),
-        // so it's never covered and never covers a tab (spacer above).
+        // Hamburger toggle — top-left, above content
         Rectangle {
             id: collapseButton
             width: 32
