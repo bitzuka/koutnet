@@ -39,6 +39,10 @@ int main(int argc, char *argv[])
     auto *fileTransfer = new koutnet::FileTransferHandler(&app);
     auto *translations = new koutnet::Translations(&app);
     translations->setCurrent(appSettings->language());
+    QObject::connect(appSettings, &koutnet::AppSettings::languageChanged,
+                     translations, [translations, appSettings]() {
+                         translations->setCurrent(appSettings->language());
+                     });
 
     QObject::connect(network, &koutnet::NetworkManager::fileMeta,
                      fileTransfer, &koutnet::FileTransferHandler::onMeta);
