@@ -239,7 +239,7 @@ Kirigami.Page {
                 color: addEmojiMouse.containsMouse ? root.theme.btn_hover : root.theme.bg3
                 border.color: root.theme.border
                 border.width: 1
-                Text { anchors.centerIn: parent; icon.name: "list-add"; color: root.theme.text_dim; font.pixelSize: 18 }
+                Kirigami.Icon { anchors.centerIn: parent; source: "list-add"; width: 18; height: 18; color: root.theme.text_dim }
                 MouseArea {
                     id: addEmojiMouse
                     anchors.fill: parent
@@ -377,13 +377,6 @@ Kirigami.Page {
             maximumFlickVelocity: 6000
                         boundsBehavior: Flickable.StopAtBounds
             pixelAligned: false
-
-            WheelHandler {
-                onWheel: (event) => {
-                    messagesList.flick(0, -event.angleDelta.y * 20)
-                    event.accepted = true
-                }
-            }
 
             onCountChanged: Qt.callLater(positionViewAtEnd)
             Component.onCompleted: positionViewAtEnd()
