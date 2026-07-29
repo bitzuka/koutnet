@@ -22,6 +22,10 @@ Window {
 
     signal cancelled()
 
+    function tr(key) {
+        return (Translations.current, Translations.t(key))
+    }
+
     Component.onCompleted: {
         x = Screen.width / 2 - width / 2
         y = Screen.height / 2 - height / 2
@@ -144,7 +148,7 @@ Window {
                     repeat: true
                     onTriggered: {
                         statusLabel.dotCount = (statusLabel.dotCount + 1) % 4
-                        statusLabel.text = "Звоним" + ".".repeat(statusLabel.dotCount)
+                        statusLabel.text = root.tr("call.calling") + ".".repeat(statusLabel.dotCount)
                         root.elapsedSeconds += 1
                     }
                 }
@@ -205,6 +209,6 @@ Window {
     }
 
     function callAccepted() {
-        statusLabel.text = "Соединяем…"
+        statusLabel.text = root.tr("call.connecting")
     }
 }

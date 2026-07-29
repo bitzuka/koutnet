@@ -373,10 +373,16 @@ Kirigami.Page {
             // and trackpad scrolling animate smoothly — Qt6 already routes
             // wheel events through the same flick/deceleration pipeline as
             // a mouse-drag release, it was just using very stiff defaults.
-            flickDeceleration: 1200
-            maximumFlickVelocity: 6000
-                        boundsBehavior: Flickable.StopAtBounds
+            flickDeceleration: 600
+            maximumFlickVelocity: 8000
+            boundsBehavior: Flickable.StopAtBounds
             pixelAligned: false
+            WheelHandler {
+                target: null
+                onWheel: (event) => {
+                    messagesList.flick(0, event.angleDelta.y * 12)
+                }
+            }
 
             onCountChanged: Qt.callLater(positionViewAtEnd)
             Component.onCompleted: positionViewAtEnd()

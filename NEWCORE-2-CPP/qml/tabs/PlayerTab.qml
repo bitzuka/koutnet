@@ -11,12 +11,16 @@ Item {
     id: root
     readonly property var theme: ThemeManager.colors
 
+    function tr(key) {
+        return (Translations.current, Translations.t(key))
+    }
+
     Rectangle { anchors.fill: parent; color: theme.bg }
 
     Kirigami.PlaceholderMessage {
         anchors.centerIn: parent
         text: root.tr("player.title")
-        explanation: "Движок на FFmpeg — следующим этапом"
+        explanation: root.tr("player.explanation")
         icon.name: "media-playback-start"
     }
 }

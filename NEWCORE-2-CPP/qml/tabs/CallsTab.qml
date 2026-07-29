@@ -34,7 +34,7 @@ Item {
             Kirigami.PlaceholderMessage {
                 anchors.centerIn: parent
                 visible: callList.count === 0
-                text: Translations.t("no_calls") || "Нет звонков"
+                text: Translations.t("no_calls")
                 icon.name: "call-start"
             }
 

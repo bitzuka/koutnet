@@ -219,7 +219,7 @@ Kirigami.ApplicationWindow {
         id: stubSheet
         Label {
             id: stubBody
-            width: parent.width
+            width: Kirigami.Units.gridUnit * 20
             wrapMode: Text.WordWrap
             color: root.theme.text
         }
@@ -248,7 +248,7 @@ Kirigami.ApplicationWindow {
                 Repeater {
                     model: ThemeManager.availableThemes
                     MenuItem {
-                        text: ThemeManager.themeLabel(modelData)
+                        text: root.tr("theme." + modelData)
                         onTriggered: ThemeManager.currentTheme = modelData
                     }
                 }
@@ -283,6 +283,7 @@ Kirigami.ApplicationWindow {
                         onTriggered: {
                         Translations.current = modelData
                         appSettings.language = modelData
+                        root.showStub(root.tr("lang_choose"), root.tr("lang_restart_notice"))
                     }
                     }
                     onObjectAdded: (index, object) => langMenu.insertItem(index, object)
@@ -677,7 +678,7 @@ Kirigami.ApplicationWindow {
         title: root.tr("sidebar.settings")
 
         ColumnLayout {
-            width: parent.width
+            width: Kirigami.Units.gridUnit * 20
 
             Label { text: root.tr("settings.username"); color: root.theme.text }
             TextField {
@@ -691,11 +692,11 @@ Kirigami.ApplicationWindow {
                 id: themeCombo
                 Layout.fillWidth: true
                 model: ThemeManager.availableThemes
-                displayText: ThemeManager.themeLabel(ThemeManager.currentTheme)
+                displayText: root.tr("theme." + ThemeManager.currentTheme)
                 currentIndex: model.indexOf(ThemeManager.currentTheme)
                 delegate: ItemDelegate {
                     width: themeCombo.width
-                    text: ThemeManager.themeLabel(modelData)
+                    text: root.tr("theme." + modelData)
                 }
                 onActivated: ThemeManager.currentTheme = model[currentIndex]
             }
@@ -706,7 +707,7 @@ Kirigami.ApplicationWindow {
         id: aboutSheet
         title: root.tr("menu.about")
         Label {
-            width: parent.width
+            width: Kirigami.Units.gridUnit * 20
             wrapMode: Text.WordWrap
             text: root.tr("about.description")
             color: root.theme.text

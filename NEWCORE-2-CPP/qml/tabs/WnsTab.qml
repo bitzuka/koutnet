@@ -12,12 +12,16 @@ Item {
     id: root
     readonly property var theme: ThemeManager.colors
 
+    function tr(key) {
+        return (Translations.current, Translations.t(key))
+    }
+
     Rectangle { anchors.fill: parent; color: theme.bg }
 
     Kirigami.PlaceholderMessage {
         anchors.centerIn: parent
         text: root.tr("wns.title")
-        explanation: "Свой рендер-движок — следующим этапом"
+        explanation: root.tr("wns.explanation")
         icon.name: "internet-web-browser"
     }
 }
