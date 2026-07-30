@@ -145,5 +145,16 @@
   "theme.neon": "ネオン",
   "theme.sakura": "サクラ",
   "lang_restart_notice": "インターフェースの一部が完全に更新されていない場合があります。言語変更を完全に反映するには、アプリを再起動してください。",
-  "call.connecting": "接続中…"
+  "call.connecting": "接続中…",
+  "tab_main_zapret": "Zapret",
+  "zapret.title": "Zapret制御",
+  "zapret.not_deployed": "zapret-linuxがアプリの近くに見つかりません。",
+  "zapret.strategy": "戦略",
+  "zapret.interface": "インターフェース",
+  "zapret.start": "開始",
+  "zapret.stop": "停止",
+  "zapret.status_running": "実行中",
+  "zapret.status_stopped": "停止中",
+  "zapret.console": "コンソール",
+  "zapret.clear_log": "クリア"
 }

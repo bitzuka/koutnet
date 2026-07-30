@@ -145,5 +145,16 @@
   "theme.neon": "Neon",
   "theme.sakura": "Sakura",
   "lang_restart_notice": "Arayüzün bazı bölümleri tam olarak güncellenmemiş olabilir. Dil değişikliğinin tam olarak uygulanması için lütfen uygulamayı yeniden başlatın.",
-  "call.connecting": "Bağlanıyor…"
+  "call.connecting": "Bağlanıyor…",
+  "tab_main_zapret": "Zapret",
+  "zapret.title": "Zapret Kontrolü",
+  "zapret.not_deployed": "zapret-linux uygulamanın yanında bulunamadı.",
+  "zapret.strategy": "Strateji",
+  "zapret.interface": "Arayüz",
+  "zapret.start": "Başlat",
+  "zapret.stop": "Durdur",
+  "zapret.status_running": "Çalışıyor",
+  "zapret.status_stopped": "Durduruldu",
+  "zapret.console": "Konsol",
+  "zapret.clear_log": "Temizle"
 }

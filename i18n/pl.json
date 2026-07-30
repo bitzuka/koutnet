@@ -145,5 +145,16 @@
   "theme.neon": "Neon",
   "theme.sakura": "Sakura",
   "lang_restart_notice": "Niektóre elementy interfejsu mogły nie zostać w pełni zaktualizowane. Uruchom aplikację ponownie, aby w pełni zastosować zmianę języka.",
-  "call.connecting": "Łączenie…"
+  "call.connecting": "Łączenie…",
+  "tab_main_zapret": "Zapret",
+  "zapret.title": "Sterowanie Zapret",
+  "zapret.not_deployed": "Nie znaleziono zapret-linux obok aplikacji.",
+  "zapret.strategy": "Strategia",
+  "zapret.interface": "Interfejs",
+  "zapret.start": "Uruchom",
+  "zapret.stop": "Zatrzymaj",
+  "zapret.status_running": "Aktywny",
+  "zapret.status_stopped": "Zatrzymany",
+  "zapret.console": "Konsola",
+  "zapret.clear_log": "Wyczyść"
 }

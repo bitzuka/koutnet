@@ -145,5 +145,16 @@
   "theme.neon": "Неон",
   "theme.sakura": "Сакура",
   "lang_restart_notice": "Часть интерфейса могла не обновиться полностью. Для полного применения языка рекомендуется перезапустить приложение.",
-  "call.connecting": "Соединяем…"
+  "call.connecting": "Соединяем…",
+  "tab_main_zapret": "Zapret",
+  "zapret.title": "Управление Zapret",
+  "zapret.not_deployed": "zapret-linux не найден рядом с приложением.",
+  "zapret.strategy": "Стратегия",
+  "zapret.interface": "Интерфейс",
+  "zapret.start": "Запустить",
+  "zapret.stop": "Остановить",
+  "zapret.status_running": "Активен",
+  "zapret.status_stopped": "Остановлен",
+  "zapret.console": "Консоль",
+  "zapret.clear_log": "Очистить"
 }

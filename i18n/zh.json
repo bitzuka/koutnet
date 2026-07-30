@@ -145,5 +145,16 @@
   "theme.neon": "霓虹",
   "theme.sakura": "樱花",
   "lang_restart_notice": "界面部分内容可能未完全更新。为了完全应用语言更改,请重启应用。",
-  "call.connecting": "连接中…"
+  "call.connecting": "连接中…",
+  "tab_main_zapret": "Zapret",
+  "zapret.title": "Zapret 控制",
+  "zapret.not_deployed": "未在应用程序附近找到 zapret-linux。",
+  "zapret.strategy": "策略",
+  "zapret.interface": "接口",
+  "zapret.start": "启动",
+  "zapret.stop": "停止",
+  "zapret.status_running": "运行中",
+  "zapret.status_stopped": "已停止",
+  "zapret.console": "控制台",
+  "zapret.clear_log": "清除"
 }

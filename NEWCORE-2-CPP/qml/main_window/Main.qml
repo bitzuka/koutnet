@@ -577,6 +577,7 @@ Kirigami.ApplicationWindow {
                         root.tr("tab_main_calls"),
                         root.tr("tab_player_violla"),
                         root.tr("tab_wns_keenly"),
+                        root.tr("tab_main_zapret"),
                     ]
 
                     RowLayout {
@@ -638,6 +639,7 @@ Kirigami.ApplicationWindow {
                     CallsTab {}
                     PlayerTab {}
                     WnsTab {}
+                    ZapretTab {}
                 }
             }
         }

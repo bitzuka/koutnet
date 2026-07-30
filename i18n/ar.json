@@ -145,5 +145,16 @@
   "theme.neon": "نيون",
   "theme.sakura": "ساكورا",
   "lang_restart_notice": "قد لا تكون بعض أجزاء الواجهة قد تحدّثت بالكامل. لتطبيق تغيير اللغة بالكامل، يرجى إعادة تشغيل التطبيق.",
-  "call.connecting": "جارٍ الاتصال…"
+  "call.connecting": "جارٍ الاتصال…",
+  "tab_main_zapret": "Zapret",
+  "zapret.title": "التحكم في Zapret",
+  "zapret.not_deployed": "لم يتم العثور على zapret-linux بجانب التطبيق.",
+  "zapret.strategy": "الاستراتيجية",
+  "zapret.interface": "الواجهة",
+  "zapret.start": "تشغيل",
+  "zapret.stop": "إيقاف",
+  "zapret.status_running": "نشط",
+  "zapret.status_stopped": "متوقف",
+  "zapret.console": "وحدة التحكم",
+  "zapret.clear_log": "مسح"
 }

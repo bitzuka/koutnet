@@ -43,6 +43,8 @@ qt_add_executable(KOutNet
     network/VoiceCallManager.h
     network/FileTransferHandler.cpp
     network/FileTransferHandler.h
+    network/zapret/ZapretManager.cpp
+    network/zapret/ZapretManager.h
 )
 
 qt_add_qml_module(KOutNet
@@ -56,6 +58,7 @@ qt_add_qml_module(KOutNet
         qml/tabs/CallsTab.qml
         qml/tabs/PlayerTab.qml
         qml/tabs/WnsTab.qml
+        qml/tabs/ZapretTab.qml
         qml/call/OutgoingCallWindow.qml
         qml/call/IncomingCallDialog.qml
         qml/call/ActiveCallWindow.qml
@@ -81,4 +84,5 @@ set_target_properties(KOutNet PROPERTIES
 target_include_directories(KOutNet PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/core/theme
     ${CMAKE_CURRENT_SOURCE_DIR}/core/chat
+    ${CMAKE_CURRENT_SOURCE_DIR}/network/zapret
 )

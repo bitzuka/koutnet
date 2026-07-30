@@ -145,5 +145,16 @@
   "theme.neon": "Неон",
   "theme.sakura": "Сакура",
   "lang_restart_notice": "Деякі частини інтерфейсу могли оновитися не повністю. Для повного застосування мови перезапустіть застосунок.",
-  "call.connecting": "З'єднання…"
+  "call.connecting": "З'єднання…",
+  "tab_main_zapret": "Zapret",
+  "zapret.title": "Керування Zapret",
+  "zapret.not_deployed": "zapret-linux не знайдено поруч із застосунком.",
+  "zapret.strategy": "Стратегія",
+  "zapret.interface": "Інтерфейс",
+  "zapret.start": "Запустити",
+  "zapret.stop": "Зупинити",
+  "zapret.status_running": "Активний",
+  "zapret.status_stopped": "Зупинено",
+  "zapret.console": "Консоль",
+  "zapret.clear_log": "Очистити"
 }
