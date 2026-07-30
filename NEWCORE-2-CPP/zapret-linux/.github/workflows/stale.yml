@@ -1,0 +1,37 @@
+name: Close stale issues
+
+on:
+  schedule:
+    # Runs daily at midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  issues: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v10.1.1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+          # Mark issues as stale after 90 days of inactivity
+          days-before-stale: 90
+          # Close stale issues after 7 days
+          days-before-close: 7
+          stale-issue-message: '⏳ Issue помечена как неактивная. Она будет автоматически закрыта через 7 дней, если не появится новых комментариев.'
+          close-issue-message: '❌ Issue автоматически закрыта из-за отсутствия активности более месяца. При необходимости можете открыть её снова.'
+
+          # Disable stale and close for pull requests
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+
+          # Don't mark issues with these labels as stale
+          exempt-issue-labels: 'pinned,security,важное'
+          # Remove stale label when there's new activity
+          remove-stale-when-updated: true
+          # Maximum number of operations per run
+          operations-per-run: 4500

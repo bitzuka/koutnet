@@ -145,5 +145,16 @@
   "theme.neon": "नियॉन",
   "theme.sakura": "साकुरा",
   "lang_restart_notice": "इंटरफ़ेस के कुछ हिस्से पूरी तरह अपडेट नहीं हुए हो सकते। भाषा पूरी तरह लागू करने के लिए ऐप को पुनः आरंभ करें।",
-  "call.connecting": "कनेक्ट हो रहा है…"
+  "call.connecting": "कनेक्ट हो रहा है…",
+  "tab_main_zapret": "Zapret",
+  "zapret.title": "Zapret नियंत्रण",
+  "zapret.not_deployed": "zapret-linux एप्लिकेशन के पास नहीं मिला।",
+  "zapret.strategy": "रणनीति",
+  "zapret.interface": "इंटरफ़ेस",
+  "zapret.start": "शुरू करें",
+  "zapret.stop": "रोकें",
+  "zapret.status_running": "चालू",
+  "zapret.status_stopped": "रुका हुआ",
+  "zapret.console": "कंसोल",
+  "zapret.clear_log": "साफ़ करें"
 }

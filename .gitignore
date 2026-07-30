@@ -8,3 +8,8 @@ CMakeFiles/
 *.autogen/
 .qt/
 *.zip
+
+# Zapret — downloaded binaries and cloned strategy repos, not source we own
+NEWCORE-2-CPP/zapret-linux/nfqws
+NEWCORE-2-CPP/zapret-linux/zapret-latest/
+NEWCORE-2-CPP/zapret-windows/zapret-discord-youtube-main/bin/

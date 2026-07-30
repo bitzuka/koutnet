@@ -368,19 +368,28 @@ Kirigami.Page {
             clip: true
             model: root.messagesModel
 
-            // Tuning Flickable's own kinetic parameters (rather than
-            // fighting it with a second WheelHandler) is what makes wheel
-            // and trackpad scrolling animate smoothly — Qt6 already routes
-            // wheel events through the same flick/deceleration pipeline as
-            // a mouse-drag release, it was just using very stiff defaults.
-            flickDeceleration: 600
-            maximumFlickVelocity: 8000
+            // On Wayland, libinput reports mouse wheel notches with a
+            // non-null pixelDelta ("smooth scroll"), and QQuickFlickable's
+            // *built-in* wheel handling treats any event with pixelDelta
+            // as trackpad-style direct-pixel movement — no flick(), no
+            // deceleration, by design (that's the "hard, no glide" feel).
+            // A WheelHandler placed here runs before Flickable's own
+            // wheelEvent() only if it actually accepts the event; without
+            // that, both fired and fought over the same position each
+            // notch. Accepting it here and always driving flick()
+            // ourselves — ignoring pixelDelta — makes wheel scrolling use
+            // the same inertial path as a mouse-drag release regardless
+            // of what the compositor reports.
+            flickDeceleration: 400
+            maximumFlickVelocity: 10000
             boundsBehavior: Flickable.StopAtBounds
             pixelAligned: false
+
             WheelHandler {
-                target: null
+                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                 onWheel: (event) => {
-                    messagesList.flick(0, event.angleDelta.y * 12)
+                    messagesList.flick(0, event.angleDelta.y * 20)
+                    event.accepted = true
                 }
             }
 
@@ -556,9 +565,15 @@ Kirigami.Page {
                             Flow {
                                 Layout.fillWidth: true
                                 spacing: 4
-                                visible: !!(model && model.reactions && model.reactions.length > 0)
+                                // Captured here, not inline in the Repeater below: Repeater
+                                // itself declares a "model" property, so an unqualified
+                                // "model" reference written as *its* model: binding resolves
+                                // to itself first (self-reference => binding loop) instead of
+                                // the outer ListView delegate's context "model" role.
+                                readonly property var reactionsList: (model && model.reactions) ? model.reactions : []
+                                visible: reactionsList.length > 0
                                 Repeater {
-                                    model: (model && model.reactions) ? model.reactions : []
+                                    model: parent.reactionsList
                                     delegate: Rectangle {
                                         radius: 10
                                         color: Qt.rgba(0, 0, 0, 0.25)
