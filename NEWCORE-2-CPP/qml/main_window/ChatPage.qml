@@ -22,6 +22,9 @@ Kirigami.Page {
 
     property string replyToText: ""
     readonly property var theme: ThemeManager.colors
+    // Ctrl+wheel zoom target — multiplies message text font size.
+    property real chatFontScale: 1.0
+    // Ctrl+wheel zoom target — multiplies message text font size.
 
     function tr(key) {
         return (Translations.current, Translations.t(key))
@@ -333,8 +336,23 @@ Kirigami.Page {
                     Layout.preferredHeight: 36
                     radius: 18
                     color: root.theme.accent
+
+                    // Favorites used a "★" text glyph here while the
+                    // sidebar row for the same chat used the Kirigami
+                    // "bookmarks" icon — two different assets for one
+                    // chat. Using the same icon in both places now.
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        width: 22
+                        height: 22
+                        visible: root.peerInfo && root.peerInfo.isFavorites
+                        source: "bookmarks"
+                        color: "white"
+                        isMask: true
+                    }
                     Label {
                         anchors.centerIn: parent
+                        visible: !(root.peerInfo && root.peerInfo.isFavorites)
                         text: root.peerInfo ? root.peerInfo.avatarLetter : "?"
                         color: "white"
                         font.bold: true
@@ -387,8 +405,52 @@ Kirigami.Page {
 
             WheelHandler {
                 acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                // Tracks how recently the wheel last fired, and how many
+                // notches have arrived in that streak, so a burst of
+                // rapid notches (actively spinning the wheel) builds up
+                // more speed than a single isolated click — without this,
+                // every notch produced identical velocity regardless of
+                // how fast you were actually turning the wheel.
+                property real lastWheelTime: 0
+                property int streakCount: 0
+
                 onWheel: (event) => {
-                    messagesList.flick(0, event.angleDelta.y * 20)
+                    const now = Date.now()
+                    if (now - lastWheelTime > 250)
+                        streakCount = 0
+                    streakCount = Math.min(streakCount + 1, 8)
+                    lastWheelTime = now
+
+                    // Ctrl+wheel: zoom the chat text size instead of
+                    // scrolling — mirrors the familiar browser/editor
+                    // convention.
+                    if (event.modifiers & Qt.ControlModifier) {
+                        root.chatFontScale = Math.max(0.7, Math.min(2.0,
+                            root.chatFontScale + (event.angleDelta.y > 0 ? 0.05 : -0.05)))
+                        event.accepted = true
+                        return
+                    }
+
+                    // Shift+wheel: fast scroll, several messages per notch.
+                    const shiftBoost = (event.modifiers & Qt.ShiftModifier) ? 3 : 1
+                    const streakBoost = 1 + streakCount * 0.15
+
+                    if (event.pixelDelta.y !== 0) {
+                        // Trackpad two-finger scroll on Wayland reports
+                        // pixelDelta with angleDelta staying at zero (no
+                        // physical notches) — panning 1:1 by pixelDelta
+                        // already feels natural without added inertia;
+                        // shift/streak boosts still apply on top of it.
+                        const maxY = Math.max(0, messagesList.contentHeight - messagesList.height)
+                        const delta = event.pixelDelta.y * shiftBoost * streakBoost
+                        messagesList.contentY = Math.max(0, Math.min(maxY, messagesList.contentY - delta))
+                    } else {
+                        // Toned down from the original tuning — the
+                        // previous multiplier made every single notch
+                        // glide too far past where the wheel actually
+                        // stopped.
+                        messagesList.flick(0, event.angleDelta.y * 5 * shiftBoost * streakBoost)
+                    }
                     event.accepted = true
                 }
             }
@@ -439,7 +501,9 @@ Kirigami.Page {
                             ? imageLoader.item ? imageLoader.item.width : 220
                             : Math.min(implicitWidth, messagesList.width * 0.7)
                         implicitWidth: bubbleColumn.implicitWidth + Kirigami.Units.largeSpacing * 2
-                        height: bubbleColumn.implicitHeight + Kirigami.Units.smallSpacing * 2
+                        height: (model.isFile && model.isImage && !(model.replyToText && model.replyToText.length > 0))
+                            ? bubbleColumn.implicitHeight
+                            : bubbleColumn.implicitHeight + Kirigami.Units.smallSpacing * 2
                         radius: isEmojiOnly ? 0 : 10
                         color: isEmojiOnly ? "transparent" : (model.isOwn ? root.theme.msg_own : root.theme.msg_other)
                         border.color: root.theme.border
@@ -448,7 +512,20 @@ Kirigami.Page {
                         ColumnLayout {
                             id: bubbleColumn
                             anchors.fill: parent
-                            anchors.margins: Kirigami.Units.smallSpacing
+                            // Image bubbles want to be genuinely
+                            // full-bleed (comment above imageLoader) —
+                            // but this shared margin was applied
+                            // unconditionally to every bubble type,
+                            // while the image Item inside sized itself
+                            // to the FULL bubble width (maxW) with no
+                            // margin awareness. That mismatch is exactly
+                            // what pushed the picture past the bubble's
+                            // right edge: it was drawn wider than the
+                            // margin-inset space actually available to
+                            // it. Zero margin for image bubbles fixes
+                            // the overflow and gives images the minimal
+                            // border/padding requested.
+                            anchors.margins: (model.isFile && model.isImage) ? 0 : Kirigami.Units.smallSpacing
                             spacing: 4
 
                             Rectangle {
@@ -545,7 +622,7 @@ Kirigami.Page {
                                     text: model.text
                                     wrapMode: Text.WordWrap
                                     color: root.theme.text
-                                    font.pixelSize: isEmojiOnly ? 36 : Kirigami.Theme.defaultFont.pixelSize
+                                    font.pixelSize: (isEmojiOnly ? 36 : Kirigami.Theme.defaultFont.pixelSize) * root.chatFontScale
                                 }
 
                                 MouseArea {
