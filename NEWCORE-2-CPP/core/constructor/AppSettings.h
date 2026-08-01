@@ -25,6 +25,10 @@ class AppSettings : public QObject {
     Q_PROPERTY(QString displayName READ displayName WRITE setDisplayName NOTIFY displayNameChanged)
     Q_PROPERTY(QString avatarPath READ avatarPath WRITE setAvatarPath NOTIFY avatarPathChanged)
     Q_PROPERTY(QString bannerPath READ bannerPath WRITE setBannerPath NOTIFY bannerPathChanged)
+    // Full-bleed backdrop behind the whole profile page, separate from the
+    // banner strip up top — same relationship Twitter/X has between a
+    // header banner and a themed background.
+    Q_PROPERTY(QString profileBackgroundPath READ profileBackgroundPath WRITE setProfileBackgroundPath NOTIFY profileBackgroundPathChanged)
     // Small custom image shown next to the display name, same idea as a
     // Telegram custom emoji status.
     Q_PROPERTY(QString nameBadgePath READ nameBadgePath WRITE setNameBadgePath NOTIFY nameBadgePathChanged)
@@ -34,9 +38,11 @@ class AppSettings : public QObject {
     // (synced identity across K-Server/relay) — a UI-level toggle for now;
     // the actual sync behavior depends on the K-Server integration.
     Q_PROPERTY(bool globalAccount READ globalAccount WRITE setGlobalAccount NOTIFY globalAccountChanged)
-    // Purely decorative animated rainbow ring around the profile avatar.
-    // Off by default — it's a fun opt-in, not something sprung on people.
-    Q_PROPERTY(bool profileGradientEnabled READ profileGradientEnabled WRITE setProfileGradientEnabled NOTIFY profileGradientEnabledChanged)
+    // Whether the selected Global identity has actually completed
+    // registration against a K-Server. Local is always implicitly
+    // "registered" (it's just this device), so this flag only matters
+    // while globalAccount is true.
+    Q_PROPERTY(bool globalAccountRegistered READ globalAccountRegistered WRITE setGlobalAccountRegistered NOTIFY globalAccountRegisteredChanged)
 
 public:
     explicit AppSettings(QObject *parent = nullptr);
@@ -74,6 +80,9 @@ public:
     QString bannerPath() const { return m_bannerPath; }
     void setBannerPath(const QString &path);
 
+    QString profileBackgroundPath() const { return m_profileBackgroundPath; }
+    void setProfileBackgroundPath(const QString &path);
+
     QString nameBadgePath() const { return m_nameBadgePath; }
     void setNameBadgePath(const QString &path);
 
@@ -83,8 +92,8 @@ public:
     bool globalAccount() const { return m_globalAccount; }
     void setGlobalAccount(bool enabled);
 
-    bool profileGradientEnabled() const { return m_profileGradientEnabled; }
-    void setProfileGradientEnabled(bool enabled);
+    bool globalAccountRegistered() const { return m_globalAccountRegistered; }
+    void setGlobalAccountRegistered(bool registered);
 
 signals:
     void usernameChanged();
@@ -95,10 +104,11 @@ signals:
     void displayNameChanged();
     void avatarPathChanged();
     void bannerPathChanged();
+    void profileBackgroundPathChanged();
     void nameBadgePathChanged();
     void bioChanged();
     void globalAccountChanged();
-    void profileGradientEnabledChanged();
+    void globalAccountRegisteredChanged();
 
 private:
     void load();
@@ -112,10 +122,11 @@ private:
     QString m_displayName;
     QString m_avatarPath;
     QString m_bannerPath;
+    QString m_profileBackgroundPath;
     QString m_nameBadgePath;
     QString m_bio;
     bool m_globalAccount = false;
-    bool m_profileGradientEnabled = false;
+    bool m_globalAccountRegistered = false;
 };
 
 } // namespace koutnet

@@ -25,10 +25,11 @@ void AppSettings::load()
     m_displayName = settings.value("app/display_name", m_username).toString();
     m_avatarPath = settings.value("app/avatar_path", QString()).toString();
     m_bannerPath = settings.value("app/banner_path", QString()).toString();
+    m_profileBackgroundPath = settings.value("app/profile_background_path", QString()).toString();
     m_nameBadgePath = settings.value("app/name_badge_path", QString()).toString();
     m_bio = settings.value("app/bio", QString()).toString();
     m_globalAccount = settings.value("app/global_account", false).toBool();
-    m_profileGradientEnabled = settings.value("app/profile_gradient_enabled", false).toBool();
+    m_globalAccountRegistered = settings.value("app/global_account_registered", false).toBool();
 }
 
 void AppSettings::setUsername(const QString &name)
@@ -112,6 +113,15 @@ void AppSettings::setBannerPath(const QString &path)
     emit bannerPathChanged();
 }
 
+void AppSettings::setProfileBackgroundPath(const QString &path)
+{
+    if (m_profileBackgroundPath == path)
+        return;
+    m_profileBackgroundPath = path;
+    QSettings().setValue("app/profile_background_path", m_profileBackgroundPath);
+    emit profileBackgroundPathChanged();
+}
+
 void AppSettings::setNameBadgePath(const QString &path)
 {
     if (m_nameBadgePath == path)
@@ -139,13 +149,13 @@ void AppSettings::setGlobalAccount(bool enabled)
     emit globalAccountChanged();
 }
 
-void AppSettings::setProfileGradientEnabled(bool enabled)
+void AppSettings::setGlobalAccountRegistered(bool registered)
 {
-    if (m_profileGradientEnabled == enabled)
+    if (m_globalAccountRegistered == registered)
         return;
-    m_profileGradientEnabled = enabled;
-    QSettings().setValue("app/profile_gradient_enabled", m_profileGradientEnabled);
-    emit profileGradientEnabledChanged();
+    m_globalAccountRegistered = registered;
+    QSettings().setValue("app/global_account_registered", m_globalAccountRegistered);
+    emit globalAccountRegisteredChanged();
 }
 
 } // namespace koutnet
