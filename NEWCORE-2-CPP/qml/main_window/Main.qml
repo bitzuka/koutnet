@@ -233,7 +233,7 @@ Kirigami.ApplicationWindow {
             title: root.tr("menu.file")
             MenuItem {
                 text: root.tr("menu.my_profile")
-                onTriggered: root.showStub(root.tr("menu.my_profile"), root.tr("profile_not_ported"))
+                onTriggered: yourProfileSheet.open()
             }
             MenuItem { text: root.tr("menu.settings"); onTriggered: settingsSheet.open() }
             MenuSeparator {}
@@ -673,6 +673,13 @@ Kirigami.ApplicationWindow {
                 onClicked: root.sidebarOpen = !root.sidebarOpen
             }
         }
+    }
+
+    Kirigami.OverlaySheet {
+        id: yourProfileSheet
+        title: root.tr("menu.my_profile")
+
+        YourProfile {}
     }
 
     Kirigami.OverlaySheet {

@@ -57,8 +57,8 @@ ItemDelegate {
 
             Kirigami.Icon {
                 anchors.centerIn: parent
-                width: 20
-                height: 20
+                width: 26
+                height: 26
                 visible: root.iconName.length > 0
                 source: root.iconName
                 color: "white"
