@@ -32,6 +32,9 @@ Item {
     implicitWidth: Kirigami.Units.gridUnit * 46
     implicitHeight: Kirigami.Units.gridUnit * 34
 
+    // Main owns the stub sheet, this page only asks for it.
+    signal stubRequested(string title, string body)
+
     function tr(key) {
         return (Translations.current, Translations.t(key))
     }
@@ -97,36 +100,16 @@ Item {
             source: appSettings.profileBackgroundPath ? appSettings.profileBackgroundPath : ""
             fillMode: Image.PreserveAspectCrop
             visible: appSettings.profileBackgroundPath.length > 0
-            playing: true
+            // AnimatedImage turns playing off by itself whenever it loads a
+            // source with no frames to play, and the empty startup path is
+            // one. A literal playing: true never recovers from that, which
+            // left every gif frozen on frame one. Re-arm it after loading.
+            onStatusChanged: if (status === AnimatedImage.Ready) playing = true
         }
         Rectangle {
             anchors.fill: parent
             color: root.theme.bg
             opacity: appSettings.profileBackgroundPath.length > 0 ? 0.55 : 1
-        }
-        Rectangle {
-            width: Kirigami.Units.gridUnit * 1.8
-            height: width
-            radius: width / 2
-            color: Qt.rgba(0, 0, 0, 0.55)
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.margins: Kirigami.Units.smallSpacing
-
-            Kirigami.Icon {
-                anchors.centerIn: parent
-                width: parent.width * 0.55
-                height: width
-                source: "insert-image-symbolic"
-                color: "white"
-            }
-            MouseArea {
-                anchors.fill: parent
-                onClicked: backgroundDialog.open()
-                ToolTip.visible: containsMouse
-                ToolTip.text: root.tr("profile.change_background")
-                hoverEnabled: true
-            }
         }
     }
 
@@ -157,7 +140,8 @@ Item {
                         source: appSettings.bannerPath ? appSettings.bannerPath : ""
                         fillMode: Image.PreserveAspectCrop
                         visible: appSettings.bannerPath.length > 0
-                        playing: true
+                        // Same re-arm as the page backdrop above.
+                        onStatusChanged: if (status === AnimatedImage.Ready) playing = true
                     }
                 }
 
@@ -224,7 +208,8 @@ Item {
                             source: appSettings.avatarPath ? appSettings.avatarPath : ""
                             fillMode: Image.PreserveAspectCrop
                             opacity: 0
-                            playing: true
+                            // Same re-arm as the page backdrop above.
+                            onStatusChanged: if (status === AnimatedImage.Ready) playing = true
                         }
                         // clip: true on a rounded Rectangle only clips to the
                         // bounding box, not the rounded shape (a Qt Quick
@@ -363,12 +348,25 @@ Item {
                     onClicked: root.toggleEditMode()
                 }
                 ToolButton {
+                    icon.name: "insert-image-symbolic"
+                    onClicked: backgroundDialog.open()
+                    ToolTip.visible: hovered
+                    ToolTip.text: root.tr("profile.change_background")
+                }
+                ToolButton {
+                    visible: appSettings.profileBackgroundPath.length > 0
+                    icon.name: "edit-clear-symbolic"
+                    onClicked: appSettings.profileBackgroundPath = ""
+                    ToolTip.visible: hovered
+                    ToolTip.text: root.tr("profile.clear_background")
+                }
+                ToolButton {
                     icon.name: "document-share"
-                    onClicked: root.showStub(root.tr("profile.edit"), root.tr("profile.tab_content_placeholder"))
+                    onClicked: root.stubRequested(root.tr("profile.edit"), root.tr("profile.tab_content_placeholder"))
                 }
                 ToolButton {
                     icon.name: "overflow-menu"
-                    onClicked: root.showStub(root.tr("profile.edit"), root.tr("profile.tab_content_placeholder"))
+                    onClicked: root.stubRequested(root.tr("profile.edit"), root.tr("profile.tab_content_placeholder"))
                 }
             }
         }
@@ -620,7 +618,7 @@ Item {
             helpfulAction: Kirigami.Action {
                 text: root.tr("profile.register_now")
                 icon.name: "list-add-user"
-                onTriggered: root.showStub(root.tr("profile.register_now"), root.tr("profile.tab_content_placeholder"))
+                onTriggered: root.stubRequested(root.tr("profile.register_now"), root.tr("profile.tab_content_placeholder"))
             }
         }
     }
