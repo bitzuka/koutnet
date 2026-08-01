@@ -679,7 +679,9 @@ Kirigami.ApplicationWindow {
         id: yourProfileSheet
         title: root.tr("menu.my_profile")
 
-        YourProfile {}
+        YourProfile {
+            onStubRequested: (title, body) => root.showStub(title, body)
+        }
     }
 
     Kirigami.OverlaySheet {
