@@ -37,6 +37,11 @@
   "settings.test_speakers": "测试扬声器",
   "settings.volume": "音量",
   "settings.username": "用户名",
+  "settings.display_name": "显示名称",
+  "settings.vad": "语音活动检测",
+  "settings.device_default": "系统默认",
+  "settings.group_passphrase": "群聊密码",
+  "settings.group_passphrase_note": "尚未接入：密码会被保存，但不会用于加密群聊。",
   "settings.network_mode": "网络模式",
   "settings.mode_lan": "本地网络(LAN)",
   "settings.mode_vds": "互联网(通过VDS中继)",
@@ -188,5 +193,14 @@
   "profile.local_tab_empty": "暂时空空如也——从设备上传文件吧",
   "profile.edit_done": "完成",
   "profile.gradient_toggle": "动态渐变",
-  "profile.change_badge": "选择昵称徽章"
+  "profile.change_badge": "选择昵称徽章",
+  "welcome.title": "欢迎使用 KOutNet",
+  "welcome.check_updates": "启动时检查更新",
+  "welcome.in_development": "开发中",
+  "welcome.community": "社区",
+  "welcome.community_body": "在我们的社区里结识志同道合的 KOutNet 用户：",
+  "welcome.contribute": "参与项目",
+  "welcome.contribute_body": "想帮助我们把 KOutNet 做得更好吗？欢迎访问我们的 <a href=\"github\">GitHub 页面</a>。报告缺陷或贡献代码，任何人都可以参与。",
+  "welcome.dont_show": "不再显示",
+  "welcome.continue": "继续"
 }

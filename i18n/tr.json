@@ -37,6 +37,11 @@
   "settings.test_speakers": "Hoparlörleri test et",
   "settings.volume": "Ses düzeyi",
   "settings.username": "Kullanıcı adı",
+  "settings.display_name": "Görünen ad",
+  "settings.vad": "Ses etkinliği algılama",
+  "settings.device_default": "Sistem varsayılanı",
+  "settings.group_passphrase": "Grup sohbeti parolası",
+  "settings.group_passphrase_note": "Henüz bağlanmadı: parola kaydediliyor ancak grup sohbetini şifrelemiyor.",
   "settings.network_mode": "Ağ modu",
   "settings.mode_lan": "Yerel ağ (LAN)",
   "settings.mode_vds": "İnternet (VDS röle üzerinden)",
@@ -188,5 +193,14 @@
   "profile.local_tab_empty": "Henüz bir şey yok — cihazından dosya yükle",
   "profile.edit_done": "Tamam",
   "profile.gradient_toggle": "Animasyonlu gradyan",
-  "profile.change_badge": "İsim rozeti seç"
+  "profile.change_badge": "İsim rozeti seç",
+  "welcome.title": "KOutNet'e hoş geldiniz",
+  "welcome.check_updates": "Başlangıçta güncellemeleri denetle",
+  "welcome.in_development": "Geliştirme aşamasında",
+  "welcome.community": "Topluluk",
+  "welcome.community_body": "KOutNet ile ilgilenenlere topluluğumuzda katılın:",
+  "welcome.contribute": "Katkıda bulun",
+  "welcome.contribute_body": "KOutNet'i daha iyi yapmamıza yardım etmek ister misiniz? <a href=\"github\">GitHub sayfamızı</a> ziyaret edin. Hata bildirin ya da kod katkısı yapın, bunu herkes yapabilir.",
+  "welcome.dont_show": "Bir daha gösterme",
+  "welcome.continue": "Devam"
 }

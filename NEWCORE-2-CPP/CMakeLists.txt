@@ -16,6 +16,8 @@ qt_add_executable(KOutNet
     core/audio/AudioEngine.h
     core/audio/AudioMixer.cpp
     core/audio/AudioMixer.h
+    core/audio/AudioDevices.cpp
+    core/audio/AudioDevices.h
     core/security/CryptoManager.cpp
     core/security/CryptoManager.h
     core/i18n/Translations.cpp
@@ -63,7 +65,9 @@ qt_add_qml_module(KOutNet
         qml/call/OutgoingCallWindow.qml
         qml/call/IncomingCallDialog.qml
         qml/call/ActiveCallWindow.qml
-        qml/components/SplashScreen.qml
+        qml/welcome/WelcomeScreen.qml
+    RESOURCES
+        assets/koutnet_logo.png
 )
 
 target_link_libraries(KOutNet PRIVATE

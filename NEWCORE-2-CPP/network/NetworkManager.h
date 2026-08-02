@@ -67,7 +67,7 @@ public:
 
     // Custom/self-hosted relay server. voicePort defaults to tunnelPort + 1
     // if not given. TODO: persist across restarts once AppSettings lands.
-    void setRelayServer(const QString &host, quint16 tunnelPort, quint16 voicePort = 0);
+    Q_INVOKABLE void setRelayServer(const QString &host, quint16 tunnelPort, quint16 voicePort = 0);
 
     // ── outgoing messages ───────────────────────────────────────────
     void sendUdp(QJsonObject payload, const QString &targetIp = QString());

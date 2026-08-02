@@ -71,13 +71,30 @@ AudioEngine::~AudioEngine()
     cleanup();
 }
 
+static QAudioDevice pickDevice(const QList<QAudioDevice> &devices,
+                               const QString &id, const QAudioDevice &fallback)
+{
+    if (id.isEmpty())
+        return fallback;
+    const QByteArray wanted = id.toUtf8();
+    for (const QAudioDevice &device : devices) {
+        if (device.id() == wanted)
+            return device;
+    }
+    // Saved device is gone (unplugged headset), fall back rather than
+    // failing the call outright.
+    return fallback;
+}
+
 bool AudioEngine::startCapture()
 {
     stopAll();
 
     const QAudioFormat fmt = format();
-    const QAudioDevice inDev = QMediaDevices::defaultAudioInput();
-    const QAudioDevice outDev = QMediaDevices::defaultAudioOutput();
+    const QAudioDevice inDev = pickDevice(QMediaDevices::audioInputs(), m_inputId,
+                                          QMediaDevices::defaultAudioInput());
+    const QAudioDevice outDev = pickDevice(QMediaDevices::audioOutputs(), m_outputId,
+                                           QMediaDevices::defaultAudioOutput());
     if (inDev.isNull() || outDev.isNull())
         return false; // no mic/speaker — voice calls disabled, same as legacy PYAUDIO_AVAILABLE=false path
 

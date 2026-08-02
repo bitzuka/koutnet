@@ -37,6 +37,11 @@
   "settings.test_speakers": "Probar altavoces",
   "settings.volume": "Volumen",
   "settings.username": "Nombre de usuario",
+  "settings.display_name": "Nombre visible",
+  "settings.vad": "Detección de actividad de voz",
+  "settings.device_default": "Predeterminado del sistema",
+  "settings.group_passphrase": "Contraseña del chat grupal",
+  "settings.group_passphrase_note": "Aún no conectado: la contraseña se guarda, pero no cifra el chat grupal.",
   "settings.network_mode": "Modo de red",
   "settings.mode_lan": "Red local (LAN)",
   "settings.mode_vds": "Internet (mediante relé VDS)",
@@ -188,5 +193,14 @@
   "profile.local_tab_empty": "Aún no hay nada — sube archivos desde tu dispositivo",
   "profile.edit_done": "Listo",
   "profile.gradient_toggle": "Degradado animado",
-  "profile.change_badge": "Elegir insignia de nombre"
+  "profile.change_badge": "Elegir insignia de nombre",
+  "welcome.title": "Bienvenido a KOutNet",
+  "welcome.check_updates": "Buscar actualizaciones al iniciar",
+  "welcome.in_development": "En desarrollo",
+  "welcome.community": "Comunidad",
+  "welcome.community_body": "Únete a la gente de KOutNet en nuestra comunidad:",
+  "welcome.contribute": "Contribuir",
+  "welcome.contribute_body": "¿Quieres ayudar a mejorar KOutNet? Visita nuestra <a href=\"github\">página de GitHub</a>. Informa de errores o aporta código, cualquiera puede hacerlo.",
+  "welcome.dont_show": "No mostrar de nuevo",
+  "welcome.continue": "Continuar"
 }

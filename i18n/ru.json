@@ -37,6 +37,11 @@
   "settings.test_speakers": "Тест динамиков",
   "settings.volume": "Громкость",
   "settings.username": "Имя пользователя",
+  "settings.display_name": "Отображаемое имя",
+  "settings.vad": "Определение голосовой активности",
+  "settings.device_default": "Системное по умолчанию",
+  "settings.group_passphrase": "Пароль группового чата",
+  "settings.group_passphrase_note": "Пока не подключено: пароль сохраняется, но групповой чат им не шифруется.",
   "settings.network_mode": "Режим сети",
   "settings.mode_lan": "Локальная сеть (LAN)",
   "settings.mode_vds": "Интернет (через VDS-релей)",
@@ -188,5 +193,14 @@
   "profile.local_tab_empty": "Пока ничего нет — загрузите файлы со своего устройства",
   "profile.edit_done": "Готово",
   "profile.gradient_toggle": "Анимированный градиент",
-  "profile.change_badge": "Выбрать значок ника"
+  "profile.change_badge": "Выбрать значок ника",
+  "welcome.title": "Добро пожаловать в KOutNet",
+  "welcome.check_updates": "Проверять обновления при старте",
+  "welcome.in_development": "В разработке",
+  "welcome.community": "Сообщество",
+  "welcome.community_body": "Присоединиться к единомышленникам KOutNet в нашем сообществе:",
+  "welcome.contribute": "Помощь проекту",
+  "welcome.contribute_body": "Хотите помочь нам сделать KOutNet лучше? Посетите нашу <a href=\"github\">страницу GitHub</a>. Сообщайте об ошибках или вносите свой код, который может написать любой из вас.",
+  "welcome.dont_show": "Больше не показывать",
+  "welcome.continue": "Продолжить"
 }
