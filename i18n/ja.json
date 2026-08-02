@@ -133,7 +133,7 @@
   "status.ip_label": "IP: ",
   "about.description": "KOutNet — P2P暗号化メッセンジャー",
   "toast.copied": "コピーしました！",
-  "player.explanation": "FFmpegベースのエンジン — 次のステップ",
+  "player.explanation": "ファイルを開くと再生を開始します",
   "wns.explanation": "独自レンダリングエンジン — 次のステップ",
   "settings.theme": "テーマ",
   "theme.dark": "ダーク",
@@ -201,5 +201,12 @@
   "welcome.contribute": "プロジェクトへの貢献",
   "welcome.contribute_body": "KOutNet をもっと良くする手伝いをしませんか。<a href=\"github\">GitHub ページ</a>をご覧ください。バグの報告でもコードの提供でも、誰でも参加できます。",
   "welcome.dont_show": "次回から表示しない",
-  "welcome.continue": "続ける"
+  "welcome.continue": "続ける",
+  "player.open": "ファイルを開く",
+  "player.playlist": "プレイリスト",
+  "player.playlist_empty": "まだ何も入っていません",
+  "player.clear": "プレイリストを消去",
+  "player.fullscreen": "全画面",
+  "player.unknown_artist": "アーティスト不明",
+  "player.unknown_album": "アルバム不明"
 }

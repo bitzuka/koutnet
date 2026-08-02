@@ -81,6 +81,16 @@ target_link_libraries(KOutNet PRIVATE
     OpenSSL::Crypto
 )
 
+include(GNUInstallDirs)
+
+install(TARGETS KOutNet RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/koutnet.desktop
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+# Icon name has to match Icon= in the desktop file, not the file in assets/.
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/assets/koutnet_logo.png
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps
+        RENAME koutnet.png)
+
 set_target_properties(KOutNet PROPERTIES
     WIN32_EXECUTABLE TRUE
     MACOSX_BUNDLE TRUE

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=KOutNet
+GenericName=Messenger
+Comment=P2P encrypted messenger for LAN, VPN and relay
+Exec=KOutNet
+Icon=koutnet
+Terminal=false
+Categories=Network;InstantMessaging;
+StartupWMClass=KOutNet

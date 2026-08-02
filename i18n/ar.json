@@ -133,7 +133,7 @@
   "status.ip_label": "IP: ",
   "about.description": "KOutNet — مراسل P2P مشفر",
   "toast.copied": "تم النسخ!",
-  "player.explanation": "محرك مبني على FFmpeg — قريبًا",
+  "player.explanation": "افتح ملفا لبدء التشغيل",
   "wns.explanation": "محرك عرض خاص — قريبًا",
   "settings.theme": "السمة",
   "theme.dark": "داكن",
@@ -201,5 +201,12 @@
   "welcome.contribute": "المساهمة",
   "welcome.contribute_body": "هل تريد مساعدتنا في تحسين KOutNet؟ تفضل بزيارة <a href=\"github\">صفحتنا على GitHub</a>. أبلغ عن الأخطاء أو ساهم بالشيفرة، يمكن لأي شخص فعل ذلك.",
   "welcome.dont_show": "عدم العرض مرة أخرى",
-  "welcome.continue": "متابعة"
+  "welcome.continue": "متابعة",
+  "player.open": "فتح ملفات",
+  "player.playlist": "قائمة التشغيل",
+  "player.playlist_empty": "لا شيء في القائمة بعد",
+  "player.clear": "إفراغ القائمة",
+  "player.fullscreen": "ملء الشاشة",
+  "player.unknown_artist": "فنان غير معروف",
+  "player.unknown_album": "ألبوم غير معروف"
 }

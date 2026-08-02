@@ -133,7 +133,7 @@
   "status.ip_label": "IP: ",
   "about.description": "KOutNet — P2P एन्क्रिप्टेड मैसेंजर",
   "toast.copied": "कॉपी किया गया!",
-  "player.explanation": "FFmpeg-आधारित इंजन — जल्द आ रहा है",
+  "player.explanation": "चलाना शुरू करने के लिए फ़ाइल खोलें",
   "wns.explanation": "स्वयं का रेंडरिंग इंजन — जल्द आ रहा है",
   "settings.theme": "थीम",
   "theme.dark": "डार्क",
@@ -201,5 +201,12 @@
   "welcome.contribute": "योगदान करें",
   "welcome.contribute_body": "KOutNet को बेहतर बनाने में मदद करना चाहते हैं? हमारा <a href=\"github\">GitHub पेज</a> देखें। बग बताएँ या कोड दें, यह कोई भी कर सकता है।",
   "welcome.dont_show": "दोबारा न दिखाएँ",
-  "welcome.continue": "जारी रखें"
+  "welcome.continue": "जारी रखें",
+  "player.open": "फ़ाइलें खोलें",
+  "player.playlist": "प्लेलिस्ट",
+  "player.playlist_empty": "अभी कुछ भी कतार में नहीं",
+  "player.clear": "प्लेलिस्ट साफ़ करें",
+  "player.fullscreen": "पूर्ण स्क्रीन",
+  "player.unknown_artist": "अज्ञात कलाकार",
+  "player.unknown_album": "अज्ञात एल्बम"
 }

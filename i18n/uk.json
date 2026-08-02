@@ -133,7 +133,7 @@
   "status.ip_label": "IP: ",
   "about.description": "KOutNet — P2P зашифрований месенджер",
   "toast.copied": "Скопійовано!",
-  "player.explanation": "Рушій на FFmpeg — наступним етапом",
+  "player.explanation": "Відкрийте файл, щоб почати відтворення",
   "wns.explanation": "Власний рушій рендерингу — наступним етапом",
   "settings.theme": "Тема",
   "theme.dark": "Темна",
@@ -201,5 +201,12 @@
   "welcome.contribute": "Допомога проєкту",
   "welcome.contribute_body": "Хочете допомогти зробити KOutNet кращим? Завітайте на нашу <a href=\"github\">сторінку GitHub</a>. Повідомляйте про помилки або додавайте свій код, це може зробити будь-хто.",
   "welcome.dont_show": "Більше не показувати",
-  "welcome.continue": "Продовжити"
+  "welcome.continue": "Продовжити",
+  "player.open": "Відкрити файли",
+  "player.playlist": "Плейлист",
+  "player.playlist_empty": "Поки нічого не додано",
+  "player.clear": "Очистити плейлист",
+  "player.fullscreen": "Повноекранний режим",
+  "player.unknown_artist": "Невідомий виконавець",
+  "player.unknown_album": "Невідомий альбом"
 }

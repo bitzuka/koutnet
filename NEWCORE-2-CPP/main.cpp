@@ -1,5 +1,6 @@
 // KOutNet - application entry point
 #include <QGuiApplication>
+#include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QDebug>
@@ -17,6 +18,15 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
     app.setApplicationName("KOutNet");
     app.setOrganizationName("KOutNet");
+
+    // Wayland reads the taskbar icon off the .desktop file it matches to the
+    // window's app_id, which Qt takes from here. X11 ignores that and uses
+    // the window icon hint below, so both get set.
+    QGuiApplication::setDesktopFileName(QStringLiteral("koutnet"));
+    const QIcon appIcon(QStringLiteral(":/qt/qml/koutnet/app/assets/koutnet_logo.png"));
+    if (appIcon.isNull())
+        qWarning("KOutNet: application icon missing from the QML module resources");
+    app.setWindowIcon(appIcon);
 
     // Single shared CryptoManager instance - injected into every module that
     // needs it (NetworkManager, VoiceCallManager). Never create a second

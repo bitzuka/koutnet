@@ -133,7 +133,7 @@
   "status.ip_label": "IP: ",
   "about.description": "KOutNet — P2P-verschlüsselter Messenger",
   "toast.copied": "Kopiert!",
-  "player.explanation": "FFmpeg-basierte Engine — folgt als Nächstes",
+  "player.explanation": "Datei öffnen, um die Wiedergabe zu starten",
   "wns.explanation": "Eigene Rendering-Engine — folgt als Nächstes",
   "settings.theme": "Design",
   "theme.dark": "Dunkel",
@@ -201,5 +201,12 @@
   "welcome.contribute": "Mithelfen",
   "welcome.contribute_body": "Willst du KOutNet besser machen? Besuche unsere <a href=\"github\">GitHub-Seite</a>. Melde Fehler oder steuere Code bei, das kann jeder.",
   "welcome.dont_show": "Nicht mehr anzeigen",
-  "welcome.continue": "Weiter"
+  "welcome.continue": "Weiter",
+  "player.open": "Dateien öffnen",
+  "player.playlist": "Wiedergabeliste",
+  "player.playlist_empty": "Noch nichts in der Warteschlange",
+  "player.clear": "Wiedergabeliste leeren",
+  "player.fullscreen": "Vollbild",
+  "player.unknown_artist": "Unbekannter Interpret",
+  "player.unknown_album": "Unbekanntes Album"
 }

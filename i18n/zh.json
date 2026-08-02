@@ -133,7 +133,7 @@
   "status.ip_label": "IP: ",
   "about.description": "KOutNet — P2P加密通讯",
   "toast.copied": "已复制！",
-  "player.explanation": "基于 FFmpeg 的引擎 — 即将推出",
+  "player.explanation": "打开文件即可开始播放",
   "wns.explanation": "自研渲染引擎 — 即将推出",
   "settings.theme": "主题",
   "theme.dark": "深色",
@@ -201,5 +201,12 @@
   "welcome.contribute": "参与项目",
   "welcome.contribute_body": "想帮助我们把 KOutNet 做得更好吗？欢迎访问我们的 <a href=\"github\">GitHub 页面</a>。报告缺陷或贡献代码，任何人都可以参与。",
   "welcome.dont_show": "不再显示",
-  "welcome.continue": "继续"
+  "welcome.continue": "继续",
+  "player.open": "打开文件",
+  "player.playlist": "播放列表",
+  "player.playlist_empty": "队列中还没有内容",
+  "player.clear": "清空播放列表",
+  "player.fullscreen": "全屏",
+  "player.unknown_artist": "未知艺术家",
+  "player.unknown_album": "未知专辑"
 }

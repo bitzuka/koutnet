@@ -133,7 +133,7 @@
   "status.ip_label": "IP: ",
   "about.description": "KOutNet — P2P şifreli mesajlaşma",
   "toast.copied": "Kopyalandı!",
-  "player.explanation": "FFmpeg tabanlı motor — yakında",
+  "player.explanation": "Oynatmayı başlatmak için bir dosya açın",
   "wns.explanation": "Kendi render motoru — yakında",
   "settings.theme": "Tema",
   "theme.dark": "Koyu",
@@ -201,5 +201,12 @@
   "welcome.contribute": "Katkıda bulun",
   "welcome.contribute_body": "KOutNet'i daha iyi yapmamıza yardım etmek ister misiniz? <a href=\"github\">GitHub sayfamızı</a> ziyaret edin. Hata bildirin ya da kod katkısı yapın, bunu herkes yapabilir.",
   "welcome.dont_show": "Bir daha gösterme",
-  "welcome.continue": "Devam"
+  "welcome.continue": "Devam",
+  "player.open": "Dosya aç",
+  "player.playlist": "Çalma listesi",
+  "player.playlist_empty": "Sırada henüz bir şey yok",
+  "player.clear": "Çalma listesini temizle",
+  "player.fullscreen": "Tam ekran",
+  "player.unknown_artist": "Bilinmeyen sanatçı",
+  "player.unknown_album": "Bilinmeyen albüm"
 }

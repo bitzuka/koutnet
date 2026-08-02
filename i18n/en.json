@@ -133,7 +133,7 @@
   "status.ip_label": "IP: ",
   "about.description": "KOutNet — P2P encrypted messenger",
   "toast.copied": "Copied!",
-  "player.explanation": "An FFmpeg-backed engine is the next step",
+  "player.explanation": "Open a file to start playback",
   "wns.explanation": "A custom rendering engine is the next step",
   "settings.theme": "Theme",
   "theme.dark": "Dark",
@@ -201,5 +201,12 @@
   "welcome.contribute": "Contribute",
   "welcome.contribute_body": "Want to help make KOutNet better? Visit our <a href=\"github\">GitHub page</a>. Report bugs or contribute code, anyone can do it.",
   "welcome.dont_show": "Do not show this again",
-  "welcome.continue": "Continue"
+  "welcome.continue": "Continue",
+  "player.open": "Open files",
+  "player.playlist": "Playlist",
+  "player.playlist_empty": "Nothing queued yet",
+  "player.clear": "Clear playlist",
+  "player.fullscreen": "Fullscreen",
+  "player.unknown_artist": "Unknown artist",
+  "player.unknown_album": "Unknown album"
 }
