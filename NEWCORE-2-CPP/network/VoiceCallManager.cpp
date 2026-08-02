@@ -87,6 +87,21 @@ void VoiceCallManager::setVad(bool enabled)
     m_audio->setVadEnabled(enabled);
 }
 
+void VoiceCallManager::setAudioInputDevice(const QString &id)
+{
+    m_audio->setInputDeviceId(id);
+}
+
+void VoiceCallManager::setAudioOutputDevice(const QString &id)
+{
+    m_audio->setOutputDeviceId(id);
+}
+
+void VoiceCallManager::setAudioVolume(qreal volume)
+{
+    m_audio->setVolume(qBound(0.0, volume, 1.0));
+}
+
 void VoiceCallManager::subscribeSpeaking(const SpeakingCallback &cb)
 {
     m_speakingCallbacks.append(cb);

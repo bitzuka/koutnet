@@ -22,6 +22,13 @@ void AppSettings::load()
     m_relayPort = settings.value("app/relay_port", 0).toInt();
     m_groupPassphrase = settings.value("app/group_passphrase", QString()).toString();
     m_language = settings.value("app/language", "ru").toString();
+    m_audioInputId = settings.value("app/audio_input_id", QString()).toString();
+    m_audioOutputId = settings.value("app/audio_output_id", QString()).toString();
+    m_audioVolume = settings.value("app/audio_volume", 100).toInt();
+    m_micMuted = settings.value("app/mic_muted", false).toBool();
+    m_vadEnabled = settings.value("app/vad_enabled", true).toBool();
+    m_showWelcome = settings.value("app/show_welcome", true).toBool();
+    m_checkUpdatesOnStart = settings.value("app/check_updates_on_start", false).toBool();
     m_displayName = settings.value("app/display_name", m_username).toString();
     m_avatarPath = settings.value("app/avatar_path", QString()).toString();
     m_bannerPath = settings.value("app/banner_path", QString()).toString();
@@ -84,6 +91,70 @@ void AppSettings::setLanguage(const QString &lang)
     m_language = lang;
     QSettings().setValue("app/language", m_language);
     emit languageChanged();
+}
+
+void AppSettings::setAudioInputId(const QString &id)
+{
+    if (m_audioInputId == id)
+        return;
+    m_audioInputId = id;
+    QSettings().setValue("app/audio_input_id", m_audioInputId);
+    emit audioInputIdChanged();
+}
+
+void AppSettings::setAudioOutputId(const QString &id)
+{
+    if (m_audioOutputId == id)
+        return;
+    m_audioOutputId = id;
+    QSettings().setValue("app/audio_output_id", m_audioOutputId);
+    emit audioOutputIdChanged();
+}
+
+void AppSettings::setAudioVolume(int percent)
+{
+    const int clamped = qBound(0, percent, 100);
+    if (m_audioVolume == clamped)
+        return;
+    m_audioVolume = clamped;
+    QSettings().setValue("app/audio_volume", m_audioVolume);
+    emit audioVolumeChanged();
+}
+
+void AppSettings::setMicMuted(bool muted)
+{
+    if (m_micMuted == muted)
+        return;
+    m_micMuted = muted;
+    QSettings().setValue("app/mic_muted", m_micMuted);
+    emit micMutedChanged();
+}
+
+void AppSettings::setVadEnabled(bool enabled)
+{
+    if (m_vadEnabled == enabled)
+        return;
+    m_vadEnabled = enabled;
+    QSettings().setValue("app/vad_enabled", m_vadEnabled);
+    emit vadEnabledChanged();
+}
+
+void AppSettings::setShowWelcome(bool show)
+{
+    if (m_showWelcome == show)
+        return;
+    m_showWelcome = show;
+    QSettings().setValue("app/show_welcome", m_showWelcome);
+    emit showWelcomeChanged();
+}
+
+void AppSettings::setCheckUpdatesOnStart(bool check)
+{
+    if (m_checkUpdatesOnStart == check)
+        return;
+    m_checkUpdatesOnStart = check;
+    QSettings().setValue("app/check_updates_on_start", m_checkUpdatesOnStart);
+    emit checkUpdatesOnStartChanged();
 }
 
 void AppSettings::setDisplayName(const QString &name)

@@ -37,6 +37,11 @@
   "settings.test_speakers": "स्पीकर जाँचें",
   "settings.volume": "वॉल्यूम",
   "settings.username": "उपयोगकर्ता नाम",
+  "settings.display_name": "प्रदर्शित नाम",
+  "settings.vad": "आवाज़ गतिविधि पहचान",
+  "settings.device_default": "सिस्टम डिफ़ॉल्ट",
+  "settings.group_passphrase": "समूह चैट पासफ़्रेज़",
+  "settings.group_passphrase_note": "अभी जुड़ा नहीं है: पासफ़्रेज़ सहेजा जाता है लेकिन समूह चैट को एन्क्रिप्ट नहीं करता।",
   "settings.network_mode": "नेटवर्क मोड",
   "settings.mode_lan": "लोकल नेटवर्क (LAN)",
   "settings.mode_vds": "इंटरनेट (VDS रिले के माध्यम से)",
@@ -188,5 +193,14 @@
   "profile.local_tab_empty": "अभी तक कुछ नहीं है — अपने डिवाइस से फ़ाइलें अपलोड करें",
   "profile.edit_done": "हो गया",
   "profile.gradient_toggle": "एनिमेटेड ग्रेडिएंट",
-  "profile.change_badge": "नाम बैज चुनें"
+  "profile.change_badge": "नाम बैज चुनें",
+  "welcome.title": "KOutNet में आपका स्वागत है",
+  "welcome.check_updates": "शुरू होने पर अपडेट जाँचें",
+  "welcome.in_development": "विकासाधीन",
+  "welcome.community": "समुदाय",
+  "welcome.community_body": "हमारे समुदाय में KOutNet के समान विचार वाले लोगों से जुड़ें:",
+  "welcome.contribute": "योगदान करें",
+  "welcome.contribute_body": "KOutNet को बेहतर बनाने में मदद करना चाहते हैं? हमारा <a href=\"github\">GitHub पेज</a> देखें। बग बताएँ या कोड दें, यह कोई भी कर सकता है।",
+  "welcome.dont_show": "दोबारा न दिखाएँ",
+  "welcome.continue": "जारी रखें"
 }

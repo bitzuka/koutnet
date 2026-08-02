@@ -18,6 +18,24 @@ class AppSettings : public QObject {
     Q_PROPERTY(QString groupPassphrase READ groupPassphrase WRITE setGroupPassphrase NOTIFY groupPassphraseChanged)
     Q_PROPERTY(QString language READ language WRITE setLanguage NOTIFY languageChanged)
 
+    // Audio device ids as reported by QAudioDevice::id(). Empty means
+    // "follow the system default", which is also what we fall back to
+    // when a saved device is no longer plugged in.
+    Q_PROPERTY(QString audioInputId READ audioInputId WRITE setAudioInputId NOTIFY audioInputIdChanged)
+    Q_PROPERTY(QString audioOutputId READ audioOutputId WRITE setAudioOutputId NOTIFY audioOutputIdChanged)
+    // Playback volume as a percentage, so the settings slider and the
+    // stored value read the same way.
+    Q_PROPERTY(int audioVolume READ audioVolume WRITE setAudioVolume NOTIFY audioVolumeChanged)
+    Q_PROPERTY(bool micMuted READ micMuted WRITE setMicMuted NOTIFY micMutedChanged)
+    Q_PROPERTY(bool vadEnabled READ vadEnabled WRITE setVadEnabled NOTIFY vadEnabledChanged)
+
+    // Welcome screen at startup. Ticking "do not show again" clears
+    // this, and the main window then comes up directly.
+    Q_PROPERTY(bool showWelcome READ showWelcome WRITE setShowWelcome NOTIFY showWelcomeChanged)
+    // Stored only. There is no updater yet, and the welcome screen says
+    // as much next to the checkbox.
+    Q_PROPERTY(bool checkUpdatesOnStart READ checkUpdatesOnStart WRITE setCheckUpdatesOnStart NOTIFY checkUpdatesOnStartChanged)
+
     // Profile fields. "username" above doubles as the @handle (network
     // identity, unique-ish); displayName is the free-form nickname shown
     // big in the profile header, same split Discord/Telegram use between
@@ -71,6 +89,27 @@ public:
     QString language() const { return m_language; }
     void setLanguage(const QString &lang);
 
+    QString audioInputId() const { return m_audioInputId; }
+    void setAudioInputId(const QString &id);
+
+    QString audioOutputId() const { return m_audioOutputId; }
+    void setAudioOutputId(const QString &id);
+
+    int audioVolume() const { return m_audioVolume; }
+    void setAudioVolume(int percent);
+
+    bool micMuted() const { return m_micMuted; }
+    void setMicMuted(bool muted);
+
+    bool vadEnabled() const { return m_vadEnabled; }
+    void setVadEnabled(bool enabled);
+
+    bool showWelcome() const { return m_showWelcome; }
+    void setShowWelcome(bool show);
+
+    bool checkUpdatesOnStart() const { return m_checkUpdatesOnStart; }
+    void setCheckUpdatesOnStart(bool check);
+
     QString displayName() const { return m_displayName; }
     void setDisplayName(const QString &name);
 
@@ -101,6 +140,13 @@ signals:
     void relayChanged();
     void groupPassphraseChanged();
     void languageChanged();
+    void audioInputIdChanged();
+    void audioOutputIdChanged();
+    void audioVolumeChanged();
+    void micMutedChanged();
+    void vadEnabledChanged();
+    void showWelcomeChanged();
+    void checkUpdatesOnStartChanged();
     void displayNameChanged();
     void avatarPathChanged();
     void bannerPathChanged();
@@ -119,6 +165,13 @@ private:
     int m_relayPort = 0;
     QString m_groupPassphrase;
     QString m_language;
+    QString m_audioInputId;
+    QString m_audioOutputId;
+    int m_audioVolume = 100;
+    bool m_micMuted = false;
+    bool m_vadEnabled = true;
+    bool m_showWelcome = true;
+    bool m_checkUpdatesOnStart = false;
     QString m_displayName;
     QString m_avatarPath;
     QString m_bannerPath;

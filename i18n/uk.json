@@ -37,6 +37,11 @@
   "settings.test_speakers": "Перевірити динаміки",
   "settings.volume": "Гучність",
   "settings.username": "Ім'я користувача",
+  "settings.display_name": "Відображуване ім'я",
+  "settings.vad": "Виявлення голосової активності",
+  "settings.device_default": "Системний за замовчуванням",
+  "settings.group_passphrase": "Пароль групового чату",
+  "settings.group_passphrase_note": "Ще не підключено: пароль зберігається, але груповий чат ним не шифрується.",
   "settings.network_mode": "Режим мережі",
   "settings.mode_lan": "Локальна мережа (LAN)",
   "settings.mode_vds": "Інтернет (через реле VDS)",
@@ -188,5 +193,14 @@
   "profile.local_tab_empty": "Поки нічого немає — завантажте файли зі свого пристрою",
   "profile.edit_done": "Готово",
   "profile.gradient_toggle": "Анімований градієнт",
-  "profile.change_badge": "Вибрати значок імені"
+  "profile.change_badge": "Вибрати значок імені",
+  "welcome.title": "Ласкаво просимо до KOutNet",
+  "welcome.check_updates": "Перевіряти оновлення під час запуску",
+  "welcome.in_development": "У розробці",
+  "welcome.community": "Спільнота",
+  "welcome.community_body": "Приєднуйтесь до однодумців KOutNet у нашій спільноті:",
+  "welcome.contribute": "Допомога проєкту",
+  "welcome.contribute_body": "Хочете допомогти зробити KOutNet кращим? Завітайте на нашу <a href=\"github\">сторінку GitHub</a>. Повідомляйте про помилки або додавайте свій код, це може зробити будь-хто.",
+  "welcome.dont_show": "Більше не показувати",
+  "welcome.continue": "Продовжити"
 }
