@@ -36,12 +36,11 @@ You can use our VDS server (all data remains with you, minimal server load), or 
 - Streaming capture/playback via QAudio
 - Mixer (AudioMixer)
 - Jitter buffer (in VoiceCallManager)
-- Opus encoding (TODO: not connected)
 
 **QML UI**:
 - Contact list (ContactDelegate)
 - Chat (ChatPage) — send text/files
-- Splash (SplashScreen) — 2.2 seconds
+- Welcome screen
 - Adaptive (compactMode at 480px)
 
 **Protocol.h** — all message types
