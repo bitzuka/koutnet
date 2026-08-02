@@ -17,7 +17,14 @@ void AppSettings::load()
     // fresh install has a usable (if generic) name on the network instead
     // of showing up to peers as an empty string.
     m_username = settings.value("app/username", QHostInfo::localHostName()).toString();
-    m_vdsMode = settings.value("app/vds_mode", false).toBool();
+    // Used to be a bool. Anyone whose old key said true was on the relay,
+    // which is mode 3 in the five-mode enum.
+    if (settings.contains("app/vds_mode") && !settings.contains("app/connection_mode")) {
+        m_connectionMode = settings.value("app/vds_mode").toBool() ? 3 : 0;
+        settings.setValue("app/connection_mode", m_connectionMode);
+    } else {
+        m_connectionMode = settings.value("app/connection_mode", 0).toInt();
+    }
     m_relayHost = settings.value("app/relay_host", QString()).toString();
     m_relayPort = settings.value("app/relay_port", 0).toInt();
     m_groupPassphrase = settings.value("app/group_passphrase", QString()).toString();
@@ -48,13 +55,13 @@ void AppSettings::setUsername(const QString &name)
     emit usernameChanged();
 }
 
-void AppSettings::setVdsMode(bool enabled)
+void AppSettings::setConnectionMode(int mode)
 {
-    if (m_vdsMode == enabled)
+    if (m_connectionMode == mode)
         return;
-    m_vdsMode = enabled;
-    QSettings().setValue("app/vds_mode", m_vdsMode);
-    emit vdsModeChanged();
+    m_connectionMode = mode;
+    QSettings().setValue("app/connection_mode", m_connectionMode);
+    emit connectionModeChanged();
 }
 
 void AppSettings::setRelayHost(const QString &host)

@@ -44,7 +44,7 @@
   "settings.group_passphrase_note": "未接続です。パスフレーズは保存されますが、グループチャットの暗号化には使われません。",
   "settings.network_mode": "ネットワークモード",
   "settings.mode_lan": "ローカルネットワーク（LAN）",
-  "settings.mode_vds": "インターネット（VDS経由）",
+  "settings.mode_vds": "メンテナの VDS",
   "settings.vds_host": "リレーサーバーアドレス",
   "settings.vds_port": "リレーサーバーポート",
   "settings.save": "保存",
@@ -208,5 +208,12 @@
   "player.clear": "プレイリストを消去",
   "player.fullscreen": "全画面",
   "player.unknown_artist": "アーティスト不明",
-  "player.unknown_album": "アルバム不明"
+  "player.unknown_album": "アルバム不明",
+  "profile.open": "プロフィール",
+  "profile.no_bio": "説明なし",
+  "profile.no_session": "セッションなし",
+  "settings.mode_kserver_self": "K-Server (自前)",
+  "settings.mode_kserver_client": "K-Server (他者のサーバー)",
+  "settings.mode_relay": "リレー (K-Server ではない)",
+  "settings.mode_unavailable": "未対応"
 }

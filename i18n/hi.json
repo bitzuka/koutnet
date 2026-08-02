@@ -44,7 +44,7 @@
   "settings.group_passphrase_note": "अभी जुड़ा नहीं है: पासफ़्रेज़ सहेजा जाता है लेकिन समूह चैट को एन्क्रिप्ट नहीं करता।",
   "settings.network_mode": "नेटवर्क मोड",
   "settings.mode_lan": "लोकल नेटवर्क (LAN)",
-  "settings.mode_vds": "इंटरनेट (VDS रिले के माध्यम से)",
+  "settings.mode_vds": "मेंटेनर का VDS",
   "settings.vds_host": "रिले सर्वर पता",
   "settings.vds_port": "रिले सर्वर पोर्ट",
   "settings.save": "सहेजें",
@@ -208,5 +208,12 @@
   "player.clear": "प्लेलिस्ट साफ़ करें",
   "player.fullscreen": "पूर्ण स्क्रीन",
   "player.unknown_artist": "अज्ञात कलाकार",
-  "player.unknown_album": "अज्ञात एल्बम"
+  "player.unknown_album": "अज्ञात एल्बम",
+  "profile.open": "प्रोफ़ाइल",
+  "profile.no_bio": "कोई विवरण नहीं",
+  "profile.no_session": "कोई सत्र नहीं",
+  "settings.mode_kserver_self": "K-Server (स्वयं होस्ट)",
+  "settings.mode_kserver_client": "K-Server (किसी और से जुड़ें)",
+  "settings.mode_relay": "रिले (K-Server नहीं)",
+  "settings.mode_unavailable": "अभी उपलब्ध नहीं"
 }

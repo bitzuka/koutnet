@@ -115,7 +115,10 @@ Kirigami.ApplicationWindow {
             const p = peersModel.get(i)
             if (p.ip === ip) {
                 return {
+                    ip: ip,
                     username: p.username || ip,
+                    displayName: p.display_name || "",
+                    bio: p.bio || "",
                     os: p.os || "",
                     e2e: p.e2e === true,
                     avatarLetter: (p.username || ip).charAt(0).toUpperCase(),
@@ -677,14 +680,21 @@ Kirigami.ApplicationWindow {
     }
 
     Kirigami.OverlaySheet {
+        id: otherProfileSheet
+        property var peer: null
+        title: otherProfileSheet.peer ? otherProfileSheet.peer.username : ""
+
+        OtherProfile { peer: otherProfileSheet.peer }
+    }
+
+    Kirigami.OverlaySheet {
         id: settingsSheet
         title: root.tr("settings.title")
 
-        // NetworkManager::ConnectionMode is a scoped enum on a context
-        // property, so QML cannot name its values. These mirror the
-        // declaration order in network/NetworkManager.h.
-        readonly property int modeLan: 0
-        readonly property int modeVds: 1
+        // Relay and maintainer VDS are the two that route through a relay,
+        // so they are the two that need a host and port.
+        readonly property bool usesRelay: appSettings.connectionMode === 3
+                                       || appSettings.connectionMode === 4
 
         // Leaving the mic open after the dialog closes would hold the device
         // against the next call.
@@ -837,16 +847,37 @@ Kirigami.ApplicationWindow {
 
                     Label { text: root.tr("settings.network_mode"); color: root.theme.text }
                     ComboBox {
+                        id: modeCombo
                         Layout.fillWidth: true
-                        model: [root.tr("settings.mode_lan"), root.tr("settings.mode_vds")]
-                        currentIndex: appSettings.vdsMode ? 1 : 0
-                        onActivated: appSettings.vdsMode = (currentIndex === 1)
+                        model: [
+                            root.tr("settings.mode_lan"),
+                            root.tr("settings.mode_kserver_self"),
+                            root.tr("settings.mode_kserver_client"),
+                            root.tr("settings.mode_relay"),
+                            root.tr("settings.mode_vds"),
+                        ]
+                        currentIndex: appSettings.connectionMode
+                        // The unbuilt modes stay on the list so the shape of
+                        // the plan is visible, but they cannot be selected.
+                        delegate: ItemDelegate {
+                            width: modeCombo.width
+                            enabled: networkManager.modeAvailable(index)
+                            text: enabled
+                                ? modelData
+                                : modelData + "  (" + root.tr("settings.mode_unavailable") + ")"
+                        }
+                        onActivated: {
+                            if (networkManager.modeAvailable(currentIndex))
+                                appSettings.connectionMode = currentIndex
+                            else
+                                currentIndex = appSettings.connectionMode
+                        }
                     }
 
                     Label { text: root.tr("settings.vds_host"); color: root.theme.text }
                     TextField {
                         Layout.fillWidth: true
-                        enabled: appSettings.vdsMode
+                        enabled: settingsSheet.usesRelay
                         text: appSettings.relayHost
                         onEditingFinished: appSettings.relayHost = text
                     }
@@ -854,7 +885,7 @@ Kirigami.ApplicationWindow {
                     Label { text: root.tr("settings.vds_port"); color: root.theme.text }
                     TextField {
                         Layout.fillWidth: true
-                        enabled: appSettings.vdsMode
+                        enabled: settingsSheet.usesRelay
                         text: appSettings.relayPort > 0 ? String(appSettings.relayPort) : ""
                         validator: IntValidator { bottom: 0; top: 65535 }
                         onEditingFinished: appSettings.relayPort = parseInt(text.length > 0 ? text : "0")
@@ -867,8 +898,7 @@ Kirigami.ApplicationWindow {
                         text: root.tr("settings.save")
                         onClicked: {
                             networkManager.setRelayServer(appSettings.relayHost, appSettings.relayPort, 0)
-                            networkManager.setConnectionMode(appSettings.vdsMode ? settingsSheet.modeVds
-                                                                                 : settingsSheet.modeLan)
+                            networkManager.setConnectionMode(appSettings.connectionMode)
                             root.showStub(root.tr("settings.title"), root.tr("settings.saved"))
                         }
                     }
@@ -933,6 +963,10 @@ Kirigami.ApplicationWindow {
                 if (!isSelfChat)
                     networkManager.sendFile(peerIp, localFilePath)
                 messagesModel.sendFile(localFilePath, isImage)
+            }
+            onProfileRequested: {
+                otherProfileSheet.peer = root.peerInfoFor(peerIp)
+                otherProfileSheet.open()
             }
             onForwardRequested: root.showStub(root.tr("msg_forward"), root.tr("forward_not_ported"))
             onDeleteRequested: root.showStub(root.tr("msg_delete"), root.tr("delete_not_ported"))

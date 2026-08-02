@@ -44,7 +44,7 @@
   "settings.group_passphrase_note": "尚未接入：密码会被保存，但不会用于加密群聊。",
   "settings.network_mode": "网络模式",
   "settings.mode_lan": "本地网络(LAN)",
-  "settings.mode_vds": "互联网(通过VDS中继)",
+  "settings.mode_vds": "维护者的 VDS",
   "settings.vds_host": "中继服务器地址",
   "settings.vds_port": "中继服务器端口",
   "settings.save": "保存",
@@ -208,5 +208,12 @@
   "player.clear": "清空播放列表",
   "player.fullscreen": "全屏",
   "player.unknown_artist": "未知艺术家",
-  "player.unknown_album": "未知专辑"
+  "player.unknown_album": "未知专辑",
+  "profile.open": "资料",
+  "profile.no_bio": "暂无简介",
+  "profile.no_session": "无会话",
+  "settings.mode_kserver_self": "K-Server（自建）",
+  "settings.mode_kserver_client": "K-Server（加入他人）",
+  "settings.mode_relay": "中继（非 K-Server）",
+  "settings.mode_unavailable": "尚未可用"
 }

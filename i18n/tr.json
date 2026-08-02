@@ -44,7 +44,7 @@
   "settings.group_passphrase_note": "Henüz bağlanmadı: parola kaydediliyor ancak grup sohbetini şifrelemiyor.",
   "settings.network_mode": "Ağ modu",
   "settings.mode_lan": "Yerel ağ (LAN)",
-  "settings.mode_vds": "İnternet (VDS röle üzerinden)",
+  "settings.mode_vds": "Gelistiricinin VDS'i",
   "settings.vds_host": "Röle sunucu adresi",
   "settings.vds_port": "Röle sunucu portu",
   "settings.save": "Kaydet",
@@ -208,5 +208,12 @@
   "player.clear": "Çalma listesini temizle",
   "player.fullscreen": "Tam ekran",
   "player.unknown_artist": "Bilinmeyen sanatçı",
-  "player.unknown_album": "Bilinmeyen albüm"
+  "player.unknown_album": "Bilinmeyen albüm",
+  "profile.open": "Profil",
+  "profile.no_bio": "Açıklama yok",
+  "profile.no_session": "Oturum yok",
+  "settings.mode_kserver_self": "K-Server (kendi sunucun)",
+  "settings.mode_kserver_client": "K-Server (başkasına bağlan)",
+  "settings.mode_relay": "Relay (K-Server degil)",
+  "settings.mode_unavailable": "henuz kullanilamiyor"
 }

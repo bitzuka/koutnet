@@ -34,8 +34,8 @@ inline constexpr quint16 kUdpPortDefault = 42000;
 inline constexpr quint16 kTcpPortDefault = 42001;
 
 // VDS / relay mode
-// Used only when NetworkManager::ConnectionMode::Vds is selected - relay
-// server handles discovery + NAT traversal beyond LAN.
+// Used by the Relay and MaintainerVds modes, where a relay server
+// handles discovery and NAT traversal beyond the LAN.
 struct RelayServer {
     const char *name;
     const char *host;

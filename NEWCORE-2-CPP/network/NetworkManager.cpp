@@ -86,14 +86,46 @@ void NetworkManager::setRelayServer(const QString &host, quint16 tunnelPort, qui
     m_relayVoicePortOverride = voicePort ? voicePort : quint16(tunnelPort + 1);
 }
 
+void NetworkManager::setProfile(const QString &handle, const QString &displayName,
+                                const QString &bio, const QString &revision)
+{
+    // Presence goes out on a short timer, so anything in here is paid
+    // for repeatedly. A long bio gets cut rather than pushing the
+    // packet towards fragmentation.
+    constexpr int kMaxBioChars = 280;
+
+    const QString trimmedBio = bio.left(kMaxBioChars);
+    if (m_profileHandle == handle && m_profileDisplayName == displayName
+        && m_profileBio == trimmedBio && m_profileRevision == revision) {
+        return;
+    }
+
+    m_profileHandle = handle;
+    m_profileDisplayName = displayName;
+    m_profileBio = trimmedBio;
+    m_profileRevision = revision;
+
+    // Announce straight away instead of waiting out the timer, so an
+    // edit shows up on other screens while the user still has the
+    // profile page open.
+    if (m_running)
+        onBroadcastTimer();
+}
+
 void NetworkManager::setConnectionMode(ConnectionMode mode)
 {
-    const bool wantVds = (mode == ConnectionMode::Vds);
-    if (wantVds == m_internetMode)
-        return;
+    // Only the relay-backed modes raise the tunnel. K-Server will have its
+    // own transport and does not exist yet.
+    const bool wantRelay = (mode == ConnectionMode::Relay
+                            || mode == ConnectionMode::MaintainerVds);
+    // Relay and maintainer VDS ride the same tunnel, so moving between those
+    // two changes the mode without disturbing the socket.
+    const bool relayChanged = (wantRelay != m_internetMode);
 
-    m_internetMode = wantVds;
-    if (!m_running)
+    m_mode = mode;
+    m_internetMode = wantRelay;
+
+    if (!relayChanged || !m_running)
         return; // applied on next start()
 
     if (m_internetMode) {
@@ -106,6 +138,25 @@ void NetworkManager::setConnectionMode(ConnectionMode mode)
         m_relaySocket = nullptr;
         m_relayConnected = false;
     }
+}
+
+bool NetworkManager::modeAvailable(int mode) const
+{
+    switch (static_cast<ConnectionMode>(mode)) {
+    case ConnectionMode::LanOrVpn:
+        return true;
+    case ConnectionMode::Relay:
+        // Usable the moment someone fills in a relay address.
+        return true;
+    case ConnectionMode::KServerSelfHosted:
+    case ConnectionMode::KServerClient:
+        // No K-Server exists in any form yet.
+        return false;
+    case ConnectionMode::MaintainerVds:
+        // Waiting on a deployed relay; the built-in list is still empty.
+        return !protocol::builtinRelays().isEmpty();
+    }
+    return false;
 }
 
 bool NetworkManager::vdsConfigured() const
@@ -262,8 +313,10 @@ QJsonObject NetworkManager::presencePayload() const
             payload[it.key()] = it.value();
     }
 
-    // TODO: username, avatar, bio, status, premium - pull from AppSettings
-    // once that module is ported.
+    payload["username"] = m_profileHandle;
+    payload["display_name"] = m_profileDisplayName;
+    payload["bio"] = m_profileBio;
+    payload["profile_rev"] = m_profileRevision;
     return payload;
 }
 

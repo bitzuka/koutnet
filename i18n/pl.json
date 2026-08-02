@@ -44,7 +44,7 @@
   "settings.group_passphrase_note": "Jeszcze niepodłączone: hasło jest zapisywane, ale nie szyfruje czatu grupowego.",
   "settings.network_mode": "Tryb sieci",
   "settings.mode_lan": "Sieć lokalna (LAN)",
-  "settings.mode_vds": "Internet (przez przekaźnik VDS)",
+  "settings.mode_vds": "VDS opiekuna",
   "settings.vds_host": "Adres serwera przekaźnika",
   "settings.vds_port": "Port serwera przekaźnika",
   "settings.save": "Zapisz",
@@ -208,5 +208,12 @@
   "player.clear": "Wyczyść playlistę",
   "player.fullscreen": "Pełny ekran",
   "player.unknown_artist": "Nieznany wykonawca",
-  "player.unknown_album": "Nieznany album"
+  "player.unknown_album": "Nieznany album",
+  "profile.open": "Profil",
+  "profile.no_bio": "Brak opisu",
+  "profile.no_session": "Brak sesji",
+  "settings.mode_kserver_self": "K-Server (własny)",
+  "settings.mode_kserver_client": "K-Server (dołącz do cudzego)",
+  "settings.mode_relay": "Relay (nie K-Server)",
+  "settings.mode_unavailable": "jeszcze niedostępne"
 }

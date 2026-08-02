@@ -62,6 +62,7 @@ qt_add_qml_module(KOutNet
         qml/tabs/WnsTab.qml
         qml/tabs/ZapretTab.qml
         qml/profile/your_prof/YourProfile.qml
+        qml/profile/not_your_prof/OtherProfile.qml
         qml/call/OutgoingCallWindow.qml
         qml/call/IncomingCallDialog.qml
         qml/call/ActiveCallWindow.qml

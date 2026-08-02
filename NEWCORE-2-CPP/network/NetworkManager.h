@@ -28,7 +28,16 @@ public:
     // including VPN adapters, no server. Vds: discovery and NAT traversal
     // through a relay, which setRelayServer() has to supply until an
     // official one ships.
-    enum class ConnectionMode { LanOrVpn, Vds };
+    // Numbered explicitly: the values are persisted in QSettings and read
+    // back as ints by the settings page, so reordering them would silently
+    // move everyone to a different mode.
+    enum class ConnectionMode {
+        LanOrVpn = 0,
+        KServerSelfHosted = 1,
+        KServerClient = 2,
+        Relay = 3,
+        MaintainerVds = 4,
+    };
     Q_ENUM(ConnectionMode)
     // CryptoManager is owned by the application (one instance shared across
     // NetworkManager / VoiceCallManager / UI) and injected here, never
@@ -50,18 +59,28 @@ public:
     Q_INVOKABLE QString hostIp() const { return m_hostIp; }
     const QMap<QString, QJsonObject> &peers() const { return m_peers; }
 
-    // Switch between LAN/VPN discovery and VDS/relay mode. Safe to call
-    // before start() (applied on next start()) or while running (tears
-    // down/starts the relay tunnel immediately).
+    // Safe to call before start(), where it applies on the next one, or
+    // while running, where it raises or drops the relay tunnel on the spot.
     Q_INVOKABLE void setConnectionMode(ConnectionMode mode);
-    Q_INVOKABLE ConnectionMode connectionMode() const {
-        return m_internetMode ? ConnectionMode::Vds : ConnectionMode::LanOrVpn;
-    }
+    Q_INVOKABLE ConnectionMode connectionMode() const { return m_mode; }
     // True once a relay is actually usable - either a custom one was set via
     // setRelayServer(), or the built-in list (network/Protocol.h) is
     // non-empty. False means Vds mode can be selected but won't connect to
     // anything yet - surface this in the UI before letting the user pick it.
     Q_INVOKABLE bool vdsConfigured() const;
+
+    // Whether a mode has anything behind it. The settings page asks rather
+    // than hardcoding the answer, so landing a K-Server means changing this
+    // function and nothing in QML.
+    Q_INVOKABLE bool modeAvailable(int mode) const;
+
+    // Profile fields advertised in presence. main() feeds these from
+    // AppSettings so the network layer stays unaware of that module.
+    // revision is a short digest of everything in the profile,
+    // including the images that are too big to broadcast, so a peer
+    // can tell it needs to re-fetch without being sent the files.
+    void setProfile(const QString &handle, const QString &displayName,
+                    const QString &bio, const QString &revision);
 
     // Custom/self-hosted relay server. voicePort defaults to tunnelPort + 1
     // if not given. TODO: persist across restarts once AppSettings lands.
@@ -155,6 +174,11 @@ private:
     QTcpSocket *m_relaySocket = nullptr;
     bool m_relayConnected = false;
     QByteArray m_relayBuffer;
+    ConnectionMode m_mode = ConnectionMode::LanOrVpn;
+    QString m_profileHandle;
+    QString m_profileDisplayName;
+    QString m_profileBio;
+    QString m_profileRevision;
     QString m_relayHostOverride;   // set via setRelayServer()
     quint16 m_relayPortOverride = 0;
     quint16 m_relayVoicePortOverride = 0;

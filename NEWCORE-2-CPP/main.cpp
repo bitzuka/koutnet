@@ -1,5 +1,6 @@
 // KOutNet - application entry point
 #include <QGuiApplication>
+#include <QCryptographicHash>
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -23,7 +24,10 @@ int main(int argc, char *argv[])
     // window's app_id, which Qt takes from here. X11 ignores that and uses
     // the window icon hint below, so both get set.
     QGuiApplication::setDesktopFileName(QStringLiteral("koutnet"));
-    const QIcon appIcon(QStringLiteral(":/qt/qml/koutnet/app/assets/koutnet_logo.png"));
+    // The QML module resources sit under the URI path directly rather than
+    // below /qt/qml, since this build has not opted into the newer CMake
+    // resource prefix policy. The isNull check is what caught the wrong path.
+    const QIcon appIcon(QStringLiteral(":/koutnet/app/assets/koutnet_logo.png"));
     if (appIcon.isNull())
         qWarning("KOutNet: application icon missing from the QML module resources");
     app.setWindowIcon(appIcon);
@@ -42,12 +46,38 @@ int main(int argc, char *argv[])
     auto *network = new koutnet::NetworkManager(crypto, &app);
 
     // Apply persisted connection settings before start() - see AppSettings.
-    if (appSettings->vdsMode()) {
-        network->setRelayServer(appSettings->relayHost(), quint16(appSettings->relayPort()));
-        network->setConnectionMode(koutnet::NetworkManager::ConnectionMode::Vds);
-    }
+    network->setRelayServer(appSettings->relayHost(), quint16(appSettings->relayPort()));
+    network->setConnectionMode(
+        static_cast<koutnet::NetworkManager::ConnectionMode>(appSettings->connectionMode()));
     auto *voice = new koutnet::VoiceCallManager(network, crypto, &app);
     auto *fileTransfer = new koutnet::FileTransferHandler(&app);
+    // One digest over the whole profile, images included. Peers compare
+    // it to decide whether anything changed; the files themselves are
+    // not in presence, only this.
+    const auto publishProfile = [network, appSettings]() {
+        const QString material = appSettings->displayName() + QChar(0x1f)
+            + appSettings->bio() + QChar(0x1f)
+            + appSettings->avatarPath() + QChar(0x1f)
+            + appSettings->bannerPath() + QChar(0x1f)
+            + appSettings->profileBackgroundPath() + QChar(0x1f)
+            + appSettings->nameBadgePath();
+        const QString revision = QString::fromLatin1(
+            QCryptographicHash::hash(material.toUtf8(),
+                                     QCryptographicHash::Sha256).toHex().left(12));
+        network->setProfile(appSettings->username(), appSettings->displayName(),
+                            appSettings->bio(), revision);
+    };
+    publishProfile();
+    for (auto signal : { &koutnet::AppSettings::usernameChanged,
+                         &koutnet::AppSettings::displayNameChanged,
+                         &koutnet::AppSettings::bioChanged,
+                         &koutnet::AppSettings::avatarPathChanged,
+                         &koutnet::AppSettings::bannerPathChanged,
+                         &koutnet::AppSettings::profileBackgroundPathChanged,
+                         &koutnet::AppSettings::nameBadgePathChanged }) {
+        QObject::connect(appSettings, signal, network, publishProfile);
+    }
+
     auto *audioDevices = new koutnet::AudioDevices(&app);
 
     // Push the persisted audio choices into the engine before any call

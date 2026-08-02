@@ -44,7 +44,7 @@
   "settings.group_passphrase_note": "Pas encore raccordé : le mot de passe est enregistré mais ne chiffre pas le chat de groupe.",
   "settings.network_mode": "Mode réseau",
   "settings.mode_lan": "Réseau local (LAN)",
-  "settings.mode_vds": "Internet (via relais VDS)",
+  "settings.mode_vds": "VDS du mainteneur",
   "settings.vds_host": "Adresse du serveur relais",
   "settings.vds_port": "Port du serveur relais",
   "settings.save": "Enregistrer",
@@ -208,5 +208,12 @@
   "player.clear": "Vider la liste",
   "player.fullscreen": "Plein écran",
   "player.unknown_artist": "Artiste inconnu",
-  "player.unknown_album": "Album inconnu"
+  "player.unknown_album": "Album inconnu",
+  "profile.open": "Profil",
+  "profile.no_bio": "Pas de description",
+  "profile.no_session": "Pas de session",
+  "settings.mode_kserver_self": "K-Server (auto-heberge)",
+  "settings.mode_kserver_client": "K-Server (rejoindre)",
+  "settings.mode_relay": "Relais (pas un K-Server)",
+  "settings.mode_unavailable": "pas encore disponible"
 }

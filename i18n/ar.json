@@ -44,7 +44,7 @@
   "settings.group_passphrase_note": "غير مفعّل بعد: يتم حفظ كلمة المرور لكنها لا تشفّر محادثة المجموعة.",
   "settings.network_mode": "وضع الشبكة",
   "settings.mode_lan": "شبكة محلية (LAN)",
-  "settings.mode_vds": "إنترنت (عبر تتابع VDS)",
+  "settings.mode_vds": "خادم المشرف",
   "settings.vds_host": "عنوان خادم التتابع",
   "settings.vds_port": "منفذ خادم التتابع",
   "settings.save": "حفظ",
@@ -208,5 +208,12 @@
   "player.clear": "إفراغ القائمة",
   "player.fullscreen": "ملء الشاشة",
   "player.unknown_artist": "فنان غير معروف",
-  "player.unknown_album": "ألبوم غير معروف"
+  "player.unknown_album": "ألبوم غير معروف",
+  "profile.open": "الملف الشخصي",
+  "profile.no_bio": "لا يوجد وصف",
+  "profile.no_session": "لا توجد جلسة",
+  "settings.mode_kserver_self": "K-Server (استضافة ذاتية)",
+  "settings.mode_kserver_client": "K-Server (الانضمام إلى خادم آخر)",
+  "settings.mode_relay": "مرحّل (ليس K-Server)",
+  "settings.mode_unavailable": "غير متاح بعد"
 }

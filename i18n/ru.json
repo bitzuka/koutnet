@@ -44,7 +44,7 @@
   "settings.group_passphrase_note": "Пока не подключено: пароль сохраняется, но групповой чат им не шифруется.",
   "settings.network_mode": "Режим сети",
   "settings.mode_lan": "Локальная сеть (LAN)",
-  "settings.mode_vds": "Интернет (через VDS-релей)",
+  "settings.mode_vds": "VDS мейнтейнера",
   "settings.vds_host": "Адрес релей-сервера",
   "settings.vds_port": "Порт релей-сервера",
   "settings.save": "Сохранить",
@@ -208,5 +208,12 @@
   "player.clear": "Очистить плейлист",
   "player.fullscreen": "Полноэкранный режим",
   "player.unknown_artist": "Неизвестный исполнитель",
-  "player.unknown_album": "Неизвестный альбом"
+  "player.unknown_album": "Неизвестный альбом",
+  "profile.open": "Профиль",
+  "profile.no_bio": "Нет описания",
+  "profile.no_session": "Нет сессии",
+  "settings.mode_kserver_self": "K-Server (свой)",
+  "settings.mode_kserver_client": "K-Server (подключиться к чужому)",
+  "settings.mode_relay": "Релей (не K-Server)",
+  "settings.mode_unavailable": "пока недоступно"
 }

@@ -44,7 +44,7 @@
   "settings.group_passphrase_note": "Non ancora collegato: la password viene salvata ma non cifra la chat di gruppo.",
   "settings.network_mode": "Modalità di rete",
   "settings.mode_lan": "Rete locale (LAN)",
-  "settings.mode_vds": "Internet (tramite relay VDS)",
+  "settings.mode_vds": "VDS del maintainer",
   "settings.vds_host": "Indirizzo del server relay",
   "settings.vds_port": "Porta del server relay",
   "settings.save": "Salva",
@@ -208,5 +208,12 @@
   "player.clear": "Svuota la playlist",
   "player.fullscreen": "Schermo intero",
   "player.unknown_artist": "Artista sconosciuto",
-  "player.unknown_album": "Album sconosciuto"
+  "player.unknown_album": "Album sconosciuto",
+  "profile.open": "Profilo",
+  "profile.no_bio": "Nessuna descrizione",
+  "profile.no_session": "Nessuna sessione",
+  "settings.mode_kserver_self": "K-Server (self-hosted)",
+  "settings.mode_kserver_client": "K-Server (unisciti a un altro)",
+  "settings.mode_relay": "Relay (non K-Server)",
+  "settings.mode_unavailable": "non ancora disponibile"
 }

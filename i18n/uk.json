@@ -44,7 +44,7 @@
   "settings.group_passphrase_note": "Ще не підключено: пароль зберігається, але груповий чат ним не шифрується.",
   "settings.network_mode": "Режим мережі",
   "settings.mode_lan": "Локальна мережа (LAN)",
-  "settings.mode_vds": "Інтернет (через реле VDS)",
+  "settings.mode_vds": "VDS мейнтейнера",
   "settings.vds_host": "Адреса сервера реле",
   "settings.vds_port": "Порт сервера реле",
   "settings.save": "Зберегти",
@@ -208,5 +208,12 @@
   "player.clear": "Очистити плейлист",
   "player.fullscreen": "Повноекранний режим",
   "player.unknown_artist": "Невідомий виконавець",
-  "player.unknown_album": "Невідомий альбом"
+  "player.unknown_album": "Невідомий альбом",
+  "profile.open": "Профіль",
+  "profile.no_bio": "Немає опису",
+  "profile.no_session": "Немає сесії",
+  "settings.mode_kserver_self": "K-Server (власний)",
+  "settings.mode_kserver_client": "K-Server (приєднатися до чужого)",
+  "settings.mode_relay": "Релей (не K-Server)",
+  "settings.mode_unavailable": "поки недоступно"
 }

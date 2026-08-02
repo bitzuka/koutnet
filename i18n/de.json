@@ -44,7 +44,7 @@
   "settings.group_passphrase_note": "Noch nicht angebunden: Das Passwort wird gespeichert, verschlüsselt den Gruppenchat aber nicht.",
   "settings.network_mode": "Netzwerkmodus",
   "settings.mode_lan": "Lokales Netzwerk (LAN)",
-  "settings.mode_vds": "Internet (über VDS-Relay)",
+  "settings.mode_vds": "VDS des Maintainers",
   "settings.vds_host": "Relay-Serveradresse",
   "settings.vds_port": "Relay-Serverport",
   "settings.save": "Speichern",
@@ -208,5 +208,12 @@
   "player.clear": "Wiedergabeliste leeren",
   "player.fullscreen": "Vollbild",
   "player.unknown_artist": "Unbekannter Interpret",
-  "player.unknown_album": "Unbekanntes Album"
+  "player.unknown_album": "Unbekanntes Album",
+  "profile.open": "Profil",
+  "profile.no_bio": "Keine Beschreibung",
+  "profile.no_session": "Keine Sitzung",
+  "settings.mode_kserver_self": "K-Server (selbst gehostet)",
+  "settings.mode_kserver_client": "K-Server (fremder Server)",
+  "settings.mode_relay": "Relay (kein K-Server)",
+  "settings.mode_unavailable": "noch nicht verfugbar"
 }

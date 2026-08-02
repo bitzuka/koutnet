@@ -17,6 +17,7 @@ Kirigami.Page {
     signal sendRequested(string text)
     signal attachRequested(string localFilePath)
     signal callRequested()
+    signal profileRequested()
     signal forwardRequested(int index)
     signal deleteRequested(int index)
 
@@ -73,6 +74,11 @@ Kirigami.Page {
             icon.name: "go-previous"
             visible: root.showBackButton
             onTriggered: root.returnToListRequested()
+        },
+        Kirigami.Action {
+            text: root.tr("profile.open")
+            icon.name: "user-identity"
+            onTriggered: root.profileRequested()
         },
         Kirigami.Action {
             text: root.tr("call.button")

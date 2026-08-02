@@ -12,7 +12,9 @@ namespace koutnet {
 class AppSettings : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString username READ username WRITE setUsername NOTIFY usernameChanged)
-    Q_PROPERTY(bool vdsMode READ vdsMode WRITE setVdsMode NOTIFY vdsModeChanged)
+    // NetworkManager::ConnectionMode as an int, so core/constructor does not
+    // have to include the network header.
+    Q_PROPERTY(int connectionMode READ connectionMode WRITE setConnectionMode NOTIFY connectionModeChanged)
     Q_PROPERTY(QString relayHost READ relayHost WRITE setRelayHost NOTIFY relayChanged)
     Q_PROPERTY(int relayPort READ relayPort WRITE setRelayPort NOTIFY relayChanged)
     Q_PROPERTY(QString groupPassphrase READ groupPassphrase WRITE setGroupPassphrase NOTIFY groupPassphraseChanged)
@@ -71,8 +73,8 @@ public:
     // false = LAN/VPN (default), true = VDS/relay - mirrors
     // NetworkManager::ConnectionMode without core/constructor needing to
     // depend on the network module's header.
-    bool vdsMode() const { return m_vdsMode; }
-    void setVdsMode(bool enabled);
+    int connectionMode() const { return m_connectionMode; }
+    void setConnectionMode(int mode);
 
     QString relayHost() const { return m_relayHost; }
     void setRelayHost(const QString &host);
@@ -136,7 +138,7 @@ public:
 
 signals:
     void usernameChanged();
-    void vdsModeChanged();
+    void connectionModeChanged();
     void relayChanged();
     void groupPassphraseChanged();
     void languageChanged();
@@ -160,7 +162,7 @@ private:
     void load();
 
     QString m_username;
-    bool m_vdsMode = false;
+    int m_connectionMode = 0;
     QString m_relayHost;
     int m_relayPort = 0;
     QString m_groupPassphrase;

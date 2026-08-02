@@ -44,7 +44,7 @@
   "settings.group_passphrase_note": "Aún no conectado: la contraseña se guarda, pero no cifra el chat grupal.",
   "settings.network_mode": "Modo de red",
   "settings.mode_lan": "Red local (LAN)",
-  "settings.mode_vds": "Internet (mediante relé VDS)",
+  "settings.mode_vds": "VDS del mantenedor",
   "settings.vds_host": "Dirección del servidor relé",
   "settings.vds_port": "Puerto del servidor relé",
   "settings.save": "Guardar",
@@ -208,5 +208,12 @@
   "player.clear": "Vaciar la lista",
   "player.fullscreen": "Pantalla completa",
   "player.unknown_artist": "Artista desconocido",
-  "player.unknown_album": "Álbum desconocido"
+  "player.unknown_album": "Álbum desconocido",
+  "profile.open": "Perfil",
+  "profile.no_bio": "Sin descripción",
+  "profile.no_session": "Sin sesión",
+  "settings.mode_kserver_self": "K-Server (propio)",
+  "settings.mode_kserver_client": "K-Server (unirse a otro)",
+  "settings.mode_relay": "Relay (no K-Server)",
+  "settings.mode_unavailable": "aun no disponible"
 }

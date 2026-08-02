@@ -44,7 +44,7 @@
   "settings.group_passphrase_note": "Not wired up yet: the passphrase is stored, but nothing encrypts group chat with it.",
   "settings.network_mode": "Network mode",
   "settings.mode_lan": "Local network (LAN)",
-  "settings.mode_vds": "Internet (via VDS relay)",
+  "settings.mode_vds": "Maintainer's VDS",
   "settings.vds_host": "Relay server address",
   "settings.vds_port": "Relay server port",
   "settings.save": "Save",
@@ -208,5 +208,12 @@
   "player.clear": "Clear playlist",
   "player.fullscreen": "Fullscreen",
   "player.unknown_artist": "Unknown artist",
-  "player.unknown_album": "Unknown album"
+  "player.unknown_album": "Unknown album",
+  "profile.open": "Profile",
+  "profile.no_bio": "No description",
+  "profile.no_session": "No session",
+  "settings.mode_kserver_self": "K-Server (self-hosted)",
+  "settings.mode_kserver_client": "K-Server (join someone else's)",
+  "settings.mode_relay": "Relay (not a K-Server)",
+  "settings.mode_unavailable": "not available yet"
 }
