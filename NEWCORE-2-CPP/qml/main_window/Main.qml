@@ -9,12 +9,12 @@ import koutnet.app
 Kirigami.ApplicationWindow {
     id: root
 
-    title: "KOutNet"
+    title: welcomeLoader.active ? root.tr("welcome.title") : "KOutNet"
     width: 1000
     height: 650
     minimumWidth: 480
     minimumHeight: 360
-    visible: false
+    visible: true
 
     readonly property var theme: ThemeManager.colors
 
@@ -36,6 +36,15 @@ Kirigami.ApplicationWindow {
     })
     function languageLabel(code) {
         return root.languageLabels[code] || code.toUpperCase()
+    }
+
+    // Prepends a "system default" row so an empty saved device id still
+    // selects something instead of leaving the combo blank.
+    function deviceList(devices) {
+        var out = [{ id: "", description: root.tr("settings.device_default") }]
+        for (var i = 0; i < devices.length; ++i)
+            out.push(devices[i])
+        return out
     }
 
     property string currentPeerIp: ""
@@ -368,29 +377,19 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    Window {
-        id: splash
-        width: 616
-        height: 338
-        visible: true
-        flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
-        color: "transparent"
-        title: "KOutNet"
+    // Covers the whole window until the user clicks Continue, then unloads
+    // itself. Parented to the window overlay so it sits above the menu bar and
+    // the page content without fighting ApplicationWindow's own layout.
+    Loader {
+        id: welcomeLoader
+        parent: root.overlay
+        anchors.fill: parent
+        z: 1000
+        active: appSettings.showWelcome
 
-        Component.onCompleted: {
-            x = Screen.width / 2 - width / 2
-            y = Screen.height / 2 - height / 2
-        }
-
-        SplashScreen { anchors.fill: parent }
-
-        Timer {
-            interval: 2200
-            running: true
-            onTriggered: {
-                splash.visible = false
-                root.visible = true
-            }
+        sourceComponent: WelcomeScreen {
+            languageLabels: root.languageLabels
+            onContinueRequested: welcomeLoader.active = false
         }
     }
 
@@ -686,30 +685,218 @@ Kirigami.ApplicationWindow {
 
     Kirigami.OverlaySheet {
         id: settingsSheet
-        title: root.tr("sidebar.settings")
+        title: root.tr("settings.title")
+
+        // NetworkManager::ConnectionMode is a scoped enum on a context
+        // property, so QML cannot name its values. These mirror the
+        // declaration order in network/NetworkManager.h.
+        readonly property int modeLan: 0
+        readonly property int modeVds: 1
+
+        // Leaving the mic open after the dialog closes would hold the device
+        // against the next call.
+        onClosed: audioDevices.stopMicTest()
 
         ColumnLayout {
-            width: Kirigami.Units.gridUnit * 20
+            width: Kirigami.Units.gridUnit * 26
+            spacing: Kirigami.Units.smallSpacing
 
-            Label { text: root.tr("settings.username"); color: root.theme.text }
-            TextField {
+            TabBar {
+                id: settingsTabs
                 Layout.fillWidth: true
-                text: appSettings.username
-                onEditingFinished: appSettings.username = text
+                TabButton { text: root.tr("settings.tab_general") }
+                TabButton { text: root.tr("settings.tab_audio") }
+                TabButton { text: root.tr("settings.tab_network") }
             }
 
-            Label { text: root.tr("settings.theme"); color: root.theme.text }
-            ComboBox {
-                id: themeCombo
+            StackLayout {
                 Layout.fillWidth: true
-                model: ThemeManager.availableThemes
-                displayText: root.tr("theme." + ThemeManager.currentTheme)
-                currentIndex: model.indexOf(ThemeManager.currentTheme)
-                delegate: ItemDelegate {
-                    width: themeCombo.width
-                    text: root.tr("theme." + modelData)
+                currentIndex: settingsTabs.currentIndex
+
+                ColumnLayout {
+                    spacing: Kirigami.Units.smallSpacing
+
+                    Label { text: root.tr("settings.username"); color: root.theme.text }
+                    TextField {
+                        Layout.fillWidth: true
+                        text: appSettings.username
+                        onEditingFinished: appSettings.username = text
+                    }
+
+                    Label { text: root.tr("settings.display_name"); color: root.theme.text }
+                    TextField {
+                        Layout.fillWidth: true
+                        text: appSettings.displayName
+                        onEditingFinished: appSettings.displayName = text
+                    }
+
+                    Label { text: root.tr("lang_choose"); color: root.theme.text }
+                    ComboBox {
+                        id: langCombo
+                        Layout.fillWidth: true
+                        model: Translations.availableLanguages
+                        displayText: root.languageLabel(Translations.current)
+                        currentIndex: model.indexOf(Translations.current)
+                        delegate: ItemDelegate {
+                            width: langCombo.width
+                            text: root.languageLabel(modelData)
+                        }
+                        onActivated: {
+                            Translations.current = model[currentIndex]
+                            appSettings.language = model[currentIndex]
+                        }
+                    }
+
+                    Label { text: root.tr("settings.theme"); color: root.theme.text }
+                    ComboBox {
+                        id: themeCombo
+                        Layout.fillWidth: true
+                        model: ThemeManager.availableThemes
+                        displayText: root.tr("theme." + ThemeManager.currentTheme)
+                        currentIndex: model.indexOf(ThemeManager.currentTheme)
+                        delegate: ItemDelegate {
+                            width: themeCombo.width
+                            text: root.tr("theme." + modelData)
+                        }
+                        onActivated: ThemeManager.currentTheme = model[currentIndex]
+                    }
                 }
-                onActivated: ThemeManager.currentTheme = model[currentIndex]
+
+                ColumnLayout {
+                    spacing: Kirigami.Units.smallSpacing
+
+                    Label { text: root.tr("settings.microphone"); color: root.theme.text }
+                    ComboBox {
+                        id: micCombo
+                        Layout.fillWidth: true
+                        textRole: "description"
+                        valueRole: "id"
+                        model: root.deviceList(audioDevices.inputs)
+                        currentIndex: indexOfValue(appSettings.audioInputId)
+                        onActivated: appSettings.audioInputId = currentValue
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Kirigami.Units.smallSpacing
+                        Button {
+                            text: audioDevices.micTestRunning ? root.tr("settings.stop_test")
+                                                              : root.tr("settings.test_mic")
+                            onClicked: {
+                                if (audioDevices.micTestRunning)
+                                    audioDevices.stopMicTest()
+                                else
+                                    audioDevices.startMicTest(appSettings.audioInputId)
+                            }
+                        }
+                        ProgressBar {
+                            Layout.fillWidth: true
+                            from: 0
+                            to: 1
+                            value: audioDevices.micLevel
+                        }
+                    }
+
+                    Label { text: root.tr("settings.speakers"); color: root.theme.text }
+                    ComboBox {
+                        id: spkCombo
+                        Layout.fillWidth: true
+                        textRole: "description"
+                        valueRole: "id"
+                        model: root.deviceList(audioDevices.outputs)
+                        currentIndex: indexOfValue(appSettings.audioOutputId)
+                        onActivated: appSettings.audioOutputId = currentValue
+                    }
+
+                    Button {
+                        text: root.tr("settings.test_speakers")
+                        enabled: !audioDevices.tonePlaying
+                        onClicked: audioDevices.playTestTone(appSettings.audioOutputId)
+                    }
+
+                    Label {
+                        text: root.tr("settings.volume") + ": " + appSettings.audioVolume + "%"
+                        color: root.theme.text
+                    }
+                    Slider {
+                        Layout.fillWidth: true
+                        from: 0
+                        to: 100
+                        stepSize: 1
+                        value: appSettings.audioVolume
+                        onMoved: appSettings.audioVolume = Math.round(value)
+                    }
+
+                    CheckBox {
+                        text: root.tr("menu.mute_toggle")
+                        checked: appSettings.micMuted
+                        onToggled: appSettings.micMuted = checked
+                    }
+                    CheckBox {
+                        text: root.tr("settings.vad")
+                        checked: appSettings.vadEnabled
+                        onToggled: appSettings.vadEnabled = checked
+                    }
+                }
+
+                ColumnLayout {
+                    spacing: Kirigami.Units.smallSpacing
+
+                    Label { text: root.tr("settings.network_mode"); color: root.theme.text }
+                    ComboBox {
+                        Layout.fillWidth: true
+                        model: [root.tr("settings.mode_lan"), root.tr("settings.mode_vds")]
+                        currentIndex: appSettings.vdsMode ? 1 : 0
+                        onActivated: appSettings.vdsMode = (currentIndex === 1)
+                    }
+
+                    Label { text: root.tr("settings.vds_host"); color: root.theme.text }
+                    TextField {
+                        Layout.fillWidth: true
+                        enabled: appSettings.vdsMode
+                        text: appSettings.relayHost
+                        onEditingFinished: appSettings.relayHost = text
+                    }
+
+                    Label { text: root.tr("settings.vds_port"); color: root.theme.text }
+                    TextField {
+                        Layout.fillWidth: true
+                        enabled: appSettings.vdsMode
+                        text: appSettings.relayPort > 0 ? String(appSettings.relayPort) : ""
+                        validator: IntValidator { bottom: 0; top: 65535 }
+                        onEditingFinished: appSettings.relayPort = parseInt(text.length > 0 ? text : "0")
+                    }
+
+                    // AppSettings only persists; the running NetworkManager has
+                    // to be told separately, and switching mode tears the relay
+                    // tunnel up or down, so it waits for an explicit click.
+                    Button {
+                        text: root.tr("settings.save")
+                        onClicked: {
+                            networkManager.setRelayServer(appSettings.relayHost, appSettings.relayPort, 0)
+                            networkManager.setConnectionMode(appSettings.vdsMode ? settingsSheet.modeVds
+                                                                                 : settingsSheet.modeLan)
+                            root.showStub(root.tr("settings.title"), root.tr("settings.saved"))
+                        }
+                    }
+
+                    Kirigami.Separator { Layout.fillWidth: true }
+
+                    Label { text: root.tr("settings.group_passphrase"); color: root.theme.text_dim }
+                    TextField {
+                        Layout.fillWidth: true
+                        enabled: false
+                        echoMode: TextInput.Password
+                        text: appSettings.groupPassphrase
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        font.pixelSize: 12
+                        color: root.theme.text_dim
+                        text: root.tr("settings.group_passphrase_note")
+                    }
+                }
             }
         }
     }

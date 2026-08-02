@@ -37,6 +37,11 @@
   "settings.test_speakers": "スピーカーをテスト",
   "settings.volume": "音量",
   "settings.username": "ユーザー名",
+  "settings.display_name": "表示名",
+  "settings.vad": "音声アクティビティ検出",
+  "settings.device_default": "システムの既定",
+  "settings.group_passphrase": "グループチャットのパスフレーズ",
+  "settings.group_passphrase_note": "未接続です。パスフレーズは保存されますが、グループチャットの暗号化には使われません。",
   "settings.network_mode": "ネットワークモード",
   "settings.mode_lan": "ローカルネットワーク（LAN）",
   "settings.mode_vds": "インターネット（VDS経由）",
@@ -188,5 +193,14 @@
   "profile.local_tab_empty": "まだ何もありません — デバイスからファイルをアップロード",
   "profile.edit_done": "完了",
   "profile.gradient_toggle": "アニメーショングラデーション",
-  "profile.change_badge": "ネームバッジを選択"
+  "profile.change_badge": "ネームバッジを選択",
+  "welcome.title": "KOutNet へようこそ",
+  "welcome.check_updates": "起動時に更新を確認する",
+  "welcome.in_development": "開発中",
+  "welcome.community": "コミュニティ",
+  "welcome.community_body": "KOutNet に関心のある仲間とコミュニティで交流しましょう:",
+  "welcome.contribute": "プロジェクトへの貢献",
+  "welcome.contribute_body": "KOutNet をもっと良くする手伝いをしませんか。<a href=\"github\">GitHub ページ</a>をご覧ください。バグの報告でもコードの提供でも、誰でも参加できます。",
+  "welcome.dont_show": "次回から表示しない",
+  "welcome.continue": "続ける"
 }

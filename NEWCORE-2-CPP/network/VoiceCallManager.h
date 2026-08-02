@@ -41,6 +41,12 @@ public:
 
     Q_INVOKABLE void setVad(bool enabled);
 
+    // Settings-dialog passthroughs. The engine itself stays private;
+    // QML has no business holding a pointer to the call audio path.
+    Q_INVOKABLE void setAudioInputDevice(const QString &id);
+    Q_INVOKABLE void setAudioOutputDevice(const QString &id);
+    Q_INVOKABLE void setAudioVolume(qreal volume);
+
     const QSet<QString> &activeCalls() const { return m_active; }
 
     // Speaking-state subscription (forwarded from AudioEngine VAD)

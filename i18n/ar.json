@@ -37,6 +37,11 @@
   "settings.test_speakers": "اختبار السماعات",
   "settings.volume": "مستوى الصوت",
   "settings.username": "اسم المستخدم",
+  "settings.display_name": "الاسم المعروض",
+  "settings.vad": "كشف النشاط الصوتي",
+  "settings.device_default": "الافتراضي للنظام",
+  "settings.group_passphrase": "كلمة مرور محادثة المجموعة",
+  "settings.group_passphrase_note": "غير مفعّل بعد: يتم حفظ كلمة المرور لكنها لا تشفّر محادثة المجموعة.",
   "settings.network_mode": "وضع الشبكة",
   "settings.mode_lan": "شبكة محلية (LAN)",
   "settings.mode_vds": "إنترنت (عبر تتابع VDS)",
@@ -188,5 +193,14 @@
   "profile.local_tab_empty": "لا يوجد شيء بعد — قم برفع ملفات من جهازك",
   "profile.edit_done": "تم",
   "profile.gradient_toggle": "تدرج متحرك",
-  "profile.change_badge": "اختر شارة الاسم"
+  "profile.change_badge": "اختر شارة الاسم",
+  "welcome.title": "مرحبا بك في KOutNet",
+  "welcome.check_updates": "التحقق من التحديثات عند بدء التشغيل",
+  "welcome.in_development": "قيد التطوير",
+  "welcome.community": "المجتمع",
+  "welcome.community_body": "انضم إلى المهتمين بـ KOutNet في مجتمعنا:",
+  "welcome.contribute": "المساهمة",
+  "welcome.contribute_body": "هل تريد مساعدتنا في تحسين KOutNet؟ تفضل بزيارة <a href=\"github\">صفحتنا على GitHub</a>. أبلغ عن الأخطاء أو ساهم بالشيفرة، يمكن لأي شخص فعل ذلك.",
+  "welcome.dont_show": "عدم العرض مرة أخرى",
+  "welcome.continue": "متابعة"
 }

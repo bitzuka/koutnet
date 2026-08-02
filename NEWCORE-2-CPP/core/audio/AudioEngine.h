@@ -10,6 +10,7 @@
 #include <QObject>
 #include <QAudioFormat>
 #include <QByteArray>
+#include <QString>
 #include <QIODevice>
 
 #include "AudioMixer.h"
@@ -43,6 +44,12 @@ public:
     void setVolume(qreal v) { m_volume = v; }
     qreal volume() const { return m_volume; }
 
+    // Empty id means "system default". Read at startCapture() time, so
+    // a change made during a call takes effect on the next one rather
+    // than tearing down a live stream mid-sentence.
+    void setInputDeviceId(const QString &id) { m_inputId = id; }
+    void setOutputDeviceId(const QString &id) { m_outputId = id; }
+
     void setVadEnabled(bool enabled) { m_vadEnabled = enabled; }
     bool vadEnabled() const { return m_vadEnabled; }
 
@@ -71,6 +78,8 @@ private:
     bool m_running = false;
     bool m_muted = false;
     bool m_vadEnabled = true;
+    QString m_inputId;
+    QString m_outputId;
     qreal m_volume = 1.0;
 
     QByteArray m_captureAccum; // accumulates partial reads up to kChunkBytes
