@@ -8,11 +8,9 @@
 #include <QStringList>
 #include <QTimer>
 
-// Emoji reactions per message. Key = chat_id + "|||" + ts (3 decimal places).
-// Value = { emoji: [usernames] }.
-// Saves are debounced via a real QTimer (fixes the legacy Python version,
-// which fired an un-cancellable singleShot(500) on every toggle instead of
-// resetting a single timer).
+// Emoji reactions per message. Key is chat_id + "|||" + ts to three decimal
+// places, value is { emoji: [usernames] }. Saves are debounced through one
+// QTimer that gets reset, not a fresh singleShot on every toggle.
 class ReactionStore : public QObject
 {
     Q_OBJECT

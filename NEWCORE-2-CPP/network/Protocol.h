@@ -1,5 +1,4 @@
-// KOutNet — Network Protocol Constants
-// Ported from gdf_network.py ( NT Server 1.8)
+// KOutNet - Network Protocol Constants
 #pragma once
 
 #include <QString>
@@ -7,7 +6,7 @@
 
 namespace koutnet::protocol {
 
-// ── Message types ───────────────────────────────────────────────────
+// Message types
 inline constexpr auto kMsgPresence  = "presence";
 inline constexpr auto kMsgChat      = "chat";
 inline constexpr auto kMsgPrivate   = "private";
@@ -27,16 +26,15 @@ inline constexpr auto kMsgDelete    = "delete";
 inline constexpr auto kMsgRead      = "read";
 inline constexpr auto kMsgSticker   = "sticker";
 
-// ── LAN / VPN mode (default) ────────────────────────────────────────
-// Broadcast + mDNS + ARP scan discovery, works standalone, no server
-// needed — see NetworkManager::onBroadcastTimer / scanArpTable. A VPN
-// adapter is just another local interface here, no special-casing needed
-// — see NetworkManager::refreshLocalIps. Primary supported path today.
+// LAN / VPN mode, the default and the path that actually works today.
+// Broadcast, mDNS and ARP discovery with no server, see
+// NetworkManager::onBroadcastTimer and scanArpTable. A VPN adapter is just
+// another local interface, see NetworkManager::refreshLocalIps.
 inline constexpr quint16 kUdpPortDefault = 42000;
 inline constexpr quint16 kTcpPortDefault = 42001;
 
-// ── VDS / relay mode ─────────────────────────────────────────────────
-// Used only when NetworkManager::ConnectionMode::Vds is selected — relay
+// VDS / relay mode
+// Used only when NetworkManager::ConnectionMode::Vds is selected - relay
 // server handles discovery + NAT traversal beyond LAN.
 struct RelayServer {
     const char *name;
@@ -52,12 +50,12 @@ struct RelayServer {
 inline const QVector<RelayServer> &builtinRelays()
 {
     static const QVector<RelayServer> relays = {
-        // (empty — no built-in relay ships yet)
+        // (empty - no built-in relay ships yet)
     };
     return relays;
 }
 
-// Reconnect backoff for the relay/tunnel connection — starts fast, doubles
+// Reconnect backoff for the relay/tunnel connection - starts fast, doubles
 // up to a ceiling, so an unreachable/unconfigured VDS doesn't hammer the
 // network or battery forever.
 inline constexpr int kRelayReconnectBaseMs = 3000;

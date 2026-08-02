@@ -1,5 +1,4 @@
-// KOutNet — Reassembles chunked file transfers received over UDP
-// Ported from gdf_network.py (NT Server 1.8) -> C++/Qt6
+// KOutNet - Reassembles chunked file transfers received over UDP
 #include "FileTransferHandler.h"
 
 #include <QDir>
@@ -42,7 +41,7 @@ void FileTransferHandler::onMeta(const QJsonObject &meta)
     const qint64 announcedSize = meta.value("size").toDouble(0.0);
     if (announcedSize < 0 || announcedSize > kMaxTransferBytes) {
         emit transferRejected(tid, QStringLiteral("announced size exceeds limit"));
-        return; // no entry created — onChunkMessage will drop its chunks
+        return; // no entry created - onChunkMessage will drop its chunks
     }
 
     if (!m_pending.contains(tid) && m_pending.size() >= kMaxPendingTransfers) {
@@ -62,7 +61,7 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
 {
     const QString tid = msg.value("tid").toString();
     if (tid.isEmpty() || !m_pending.contains(tid))
-        return; // chunk for a transfer we never saw (or rejected) meta for — drop it
+        return; // chunk for a transfer we never saw (or rejected) meta for - drop it
 
     PendingTransfer &t = m_pending[tid];
 
@@ -72,7 +71,7 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
         return;
 
     // Reject a transfer that grows past the cap regardless of what the
-    // (attacker-controlled) meta claimed — protects against a peer sending
+    // (attacker-controlled) meta claimed - protects against a peer sending
     // meta.size=small but far more/larger chunks than announced.
     const qint64 maxChunks = (kMaxTransferBytes / 1024) + 1024; // generous upper bound
     if (total > maxChunks) {
@@ -97,12 +96,12 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
     if (t.chunks.size() < t.total)
         return; // still waiting on more chunks
 
-    // All chunks in — reassemble in order.
+    // All chunks in - reassemble in order.
     QByteArray full;
     full.reserve(int(qMin<qint64>(t.receivedBytes, kMaxTransferBytes)));
     for (int i = 0; i < t.total; ++i) {
         if (!t.chunks.contains(i)) {
-            // missing a chunk despite count matching (duplicate?) — bail out safely
+            // missing a chunk despite count matching (duplicate?) - bail out safely
             return;
         }
         full.append(t.chunks.value(i));
@@ -144,7 +143,7 @@ QString FileTransferHandler::saveToDisk(const QJsonObject &meta, const QByteArra
     if (!dir.mkpath(dirPath))
         return QString();
 
-    // Sanitized — never trust a peer-supplied filename directly in a disk
+    // Sanitized - never trust a peer-supplied filename directly in a disk
     // path (path traversal). See sanitizeFilename().
     const QString filename = sanitizeFilename(meta.value("filename").toString());
 

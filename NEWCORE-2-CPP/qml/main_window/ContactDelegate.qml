@@ -5,14 +5,11 @@ import org.kde.kirigami as Kirigami
 import koutnet.app
 
 // Single row in the peer list: avatar (letter or icon), name, and optional
-// online/security status. Built on ItemDelegate rather than a bare
-// MouseArea + Item, so click/hover/keyboard handling is proven Qt Quick
-// Controls behavior.
+// online and security status. ItemDelegate rather than MouseArea plus Item,
+// so click, hover and keyboard handling come from Qt Quick Controls.
 //
-// Previously this used Kirigami.Theme.* colors, which is a separate
-// palette from ThemeManager — so switching themes in Settings never
-// touched the avatar circle, the online dot, or the selection background
-// here. Everything below now reads from ThemeManager.colors instead.
+// Colours come from ThemeManager, not Kirigami.Theme. The two are separate
+// palettes and only the former follows the theme picker in Settings.
 ItemDelegate {
     id: root
 
@@ -22,9 +19,9 @@ ItemDelegate {
     property string peerOs: ""
     property bool e2e: false
     property bool selected: false
-    // Empty = show the first letter of peerIp as the avatar (default, used
-    // for real contacts). Non-empty = show this Kirigami icon name instead
-    // (used for special rows like "Избранное").
+    // Empty means the avatar is the first letter of peerIp, which is what
+    // real contacts get. Set it to a Kirigami icon name for special rows
+    // such as favorites.
     property string iconName: ""
     // Real network peers have a reachability/encryption status; special
     // local-only rows (the self-chat) have neither concept, so both can be

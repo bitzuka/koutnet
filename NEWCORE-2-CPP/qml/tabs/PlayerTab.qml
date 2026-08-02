@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
-// Media player tab (♫). Layout placeholder — legacy Player used
+// Media player tab. Layout placeholder - legacy Player used
 // QtMultimedia directly; the plan going forward is an FFmpeg-backed
 // engine instead, wired in separately once the pipeline is designed.
 Item {

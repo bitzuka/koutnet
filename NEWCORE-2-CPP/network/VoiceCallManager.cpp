@@ -1,5 +1,4 @@
-// KOutNet — Voice call manager (P2P calls, group calls via per-peer jitter buffers)
-// Ported from gdf_network.py (VoiceCallManager, NT Server 1.8) -> C++/Qt6
+// KOutNet - Voice call manager (P2P calls, group calls via per-peer jitter buffers)
 #include "VoiceCallManager.h"
 #include "NetworkManager.h"
 #include "../core/security/CryptoManager.h"
@@ -30,13 +29,13 @@ bool VoiceCallManager::call(const QString &ip)
 
     if (!m_audio->running()) {
         if (!m_audio->startCapture())
-            return false; // no mic/speaker available — matches legacy PYAUDIO_AVAILABLE=false path
+            return false; // no mic/speaker available - matches legacy PYAUDIO_AVAILABLE=false path
     }
 
     m_audio->mixer().addPeer(ip);
 
     if (!m_net->connectVoice(ip)) {
-        // Voice TCP connect failed — don't leave a half-open call.
+        // Voice TCP connect failed - don't leave a half-open call.
         m_audio->mixer().removePeer(ip);
         if (m_active.isEmpty())
             m_audio->stopAll();
@@ -65,7 +64,7 @@ void VoiceCallManager::hangup(const QString &ip)
 
 void VoiceCallManager::hangupAll()
 {
-    const auto ips = m_active; // copy — hangup() mutates m_active
+    const auto ips = m_active; // copy - hangup() mutates m_active
     for (const auto &ip : ips)
         hangup(ip);
 }
@@ -117,7 +116,7 @@ void VoiceCallManager::onCaptured(const QByteArray &data)
 {
     // Send mic audio to every active peer, encrypted per-peer with that
     // peer's ECDH session key if one exists (falls back to plaintext frames
-    // until the handshake completes — same fallback behaviour as text chat).
+    // until the handshake completes - same fallback behaviour as text chat).
     for (const auto &ip : std::as_const(m_active)) {
         const QByteArray toSend = m_crypto ? m_crypto->encryptBytes(ip, data) : data;
         m_net->sendVoice(ip, toSend);
@@ -134,7 +133,7 @@ void VoiceCallManager::onPeerAudio(const QString &ip, const QByteArray &data)
     QByteArray plain;
     if (m_crypto) {
         if (!m_crypto->decryptBytes(ip, data, &plain))
-            return; // bad tag / tampered frame — drop it, don't play garbage audio
+            return; // bad tag / tampered frame - drop it, don't play garbage audio
     } else {
         plain = data;
     }

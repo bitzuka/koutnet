@@ -1,6 +1,6 @@
-// KOutNet — i18n
+// KOutNet - i18n
 // Loads translation tables from an i18n/ directory found on disk next to
-// the built binary (koutnet/i18n/en.json, koutnet/i18n/ru.json) — editable
+// the built binary (koutnet/i18n/en.json, koutnet/i18n/ru.json) - editable
 // without a rebuild.
 #pragma once
 
@@ -30,14 +30,10 @@ signals:
 
 private:
     void loadLanguage(const QString &i18nDir, const QString &language);
-    // Compares every loaded language's key set against the others and
-    // qWarning()s about mismatches. With 14 hand-maintained JSON files, a
-    // key added to one and forgotten in another is an easy typo to make and
-    // a hard one to notice — it just silently shows the raw key string
-    // ("call.end") in the UI for whoever's using that language, with no
-    // crash and no error dialog. This runs once at startup so a missing
-    // translation shows up in the log immediately instead of in a bug report
-    // from a user of a language nobody on the team reads.
+    // Warns about keys present in one language file and missing from
+    // another. With 14 hand-maintained JSON files that is easy to do and
+    // hard to spot, since the UI just shows the raw key. Runs at startup so
+    // it lands in the log rather than in a bug report.
     void validateDictionary() const;
 
     QString m_current = QString();

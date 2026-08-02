@@ -1,10 +1,7 @@
-// KOutNet — Real-time voice engine (capture, mix, playback)
-// Ported from gdf_core.py (AudioEngine, NT Server 1.8) -> C++/Qt6
+// KOutNet - real-time voice engine: capture, mix, playback.
 //
-// Uses QAudioSource/QAudioSink in pull mode instead of a dedicated polling
-// thread (the legacy PyAudio version ran its own QThread loop) — this lets
-// the Qt Multimedia backend drive timing, which is lighter on low-RAM
-// machines than a busy-reading thread.
+// QAudioSource/QAudioSink in pull mode rather than a polling thread. Letting
+// the Qt Multimedia backend drive timing is cheaper on low-RAM machines.
 #pragma once
 
 #include <QObject>

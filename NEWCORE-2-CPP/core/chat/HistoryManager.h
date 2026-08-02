@@ -8,13 +8,11 @@
 #include <QHash>
 #include <QDir>
 
-// Persists chat history to disk as JSON, one file per chat_id, with an
-// in-memory cache. Exposed to QML as a singleton.
+// Chat history on disk as JSON, one file per chat_id, with an in-memory
+// cache. Exposed to QML as a singleton.
 //
-// NOTE: legacy Python gated saving behind S().save_history (AppSettings).
-// This class exposes its own historySavingEnabled property instead of
-// hard-depending on AppSettings' exact API — wire setHistorySavingEnabled()
-// up to the real AppSettings signal once that property name is confirmed.
+// TODO: historySavingEnabled is local to this class. Hook it up to
+// AppSettings now that the module exists.
 class HistoryManager : public QObject
 {
     Q_OBJECT

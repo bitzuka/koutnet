@@ -1,5 +1,4 @@
-// KOutNet — Voice call manager (P2P calls, group calls via per-peer jitter buffers)
-// Ported from gdf_network.py ( NT Server 1.8) → C++/Qt6
+// KOutNet - Voice call manager (P2P calls, group calls via per-peer jitter buffers)
 #pragma once
 
 #include <QObject>
@@ -18,19 +17,14 @@ class VoiceCallManager : public QObject {
     Q_OBJECT
 
 public:
-    // CryptoManager is the same shared instance used by NetworkManager — see
-    // its constructor comment. Voice frames are encrypted/decrypted here
-    // (raw AES-GCM bytes, no JSON/base64 overhead) rather than in
-    // NetworkManager, since only VoiceCallManager knows which IPs are
-    // actually active calls.
+    // Same CryptoManager instance NetworkManager holds. Voice frames are
+    // encrypted here rather than there, as raw AES-GCM with no JSON or
+    // base64 around them, because only this class knows which IPs are live.
     explicit VoiceCallManager(NetworkManager *net, CryptoManager *crypto,
                               QObject *parent = nullptr);
 
-    // NOTE: these need Q_INVOKABLE to be callable from QML at all — a plain
-    // "public:" method is invisible to Qt's meta-object system, so without
-    // this annotation voiceCallManager.call(ip) etc. silently fail as a
-    // QML runtime "is not a function" error even though the C++ method
-    // exists and works fine when called from other C++ code.
+    // Q_INVOKABLE is load-bearing here. Without it a QML call fails at
+    // runtime with "is not a function" while the same call from C++ works.
     Q_INVOKABLE bool call(const QString &ip);
     Q_INVOKABLE void hangup(const QString &ip);
     Q_INVOKABLE void hangupAll();

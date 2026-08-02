@@ -1,5 +1,4 @@
-// KOutNet — Real-time voice engine (capture, mix, playback)
-// Ported from gdf_core.py (AudioEngine, NT Server 1.8) -> C++/Qt6
+// KOutNet - Real-time voice engine (capture, mix, playback)
 #include "AudioEngine.h"
 
 #include <QAudioSource>
@@ -15,7 +14,7 @@ namespace koutnet {
 
 // Pull-mode playback device: QAudioSink calls readData() whenever it needs
 // more samples to keep the output buffer full. We hand it freshly mixed
-// frames from AudioMixer on demand — no separate playback thread needed.
+// frames from AudioMixer on demand - no separate playback thread needed.
 class AudioEngine::PlaybackDevice : public QIODevice {
 public:
     explicit PlaybackDevice(AudioEngine *engine) : m_engine(engine)
@@ -96,7 +95,7 @@ bool AudioEngine::startCapture()
     const QAudioDevice outDev = pickDevice(QMediaDevices::audioOutputs(), m_outputId,
                                            QMediaDevices::defaultAudioOutput());
     if (inDev.isNull() || outDev.isNull())
-        return false; // no mic/speaker — voice calls disabled, same as legacy PYAUDIO_AVAILABLE=false path
+        return false; // no mic/speaker - voice calls disabled, same as legacy PYAUDIO_AVAILABLE=false path
 
     m_source = new QAudioSource(inDev, fmt, this);
     m_captureDevice = m_source->start();
@@ -152,7 +151,7 @@ void AudioEngine::pushPeerAudio(const QString &ip, const QByteArray &data)
 bool AudioEngine::isSpeechAmplitude(const QByteArray &raw) const
 {
     // Amplitude-based VAD fallback (matches the legacy Python fallback path
-    // used when webrtcvad isn't available — RMS threshold ~800).
+    // used when webrtcvad isn't available - RMS threshold ~800).
     const auto *samples = reinterpret_cast<const qint16 *>(raw.constData());
     const int count = raw.size() / 2;
     if (count == 0)

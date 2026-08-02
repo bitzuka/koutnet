@@ -1,7 +1,7 @@
-// KOutNet — persisted app settings (username, connection mode, relay config)
+// KOutNet - persisted app settings (username, connection mode, relay config)
 // Backed by QSettings (INI/registry depending on platform). This is the
 // module every "I_Do_It_Latet.!" comment in NetworkManager/CryptoManager
-// was waiting on — wire those up as you touch each area.
+// was waiting on - wire those up as you touch each area.
 #pragma once
 
 #include <QObject>
@@ -44,7 +44,7 @@ class AppSettings : public QObject {
     Q_PROPERTY(QString avatarPath READ avatarPath WRITE setAvatarPath NOTIFY avatarPathChanged)
     Q_PROPERTY(QString bannerPath READ bannerPath WRITE setBannerPath NOTIFY bannerPathChanged)
     // Full-bleed backdrop behind the whole profile page, separate from the
-    // banner strip up top — same relationship Twitter/X has between a
+    // banner strip up top - same relationship Twitter/X has between a
     // header banner and a themed background.
     Q_PROPERTY(QString profileBackgroundPath READ profileBackgroundPath WRITE setProfileBackgroundPath NOTIFY profileBackgroundPathChanged)
     // Small custom image shown next to the display name, same idea as a
@@ -53,7 +53,7 @@ class AppSettings : public QObject {
     // Markdown-formatted "about me" text.
     Q_PROPERTY(QString bio READ bio WRITE setBio NOTIFY bioChanged)
     // false = Local account (this device only), true = Global account
-    // (synced identity across K-Server/relay) — a UI-level toggle for now;
+    // (synced identity across K-Server/relay) - a UI-level toggle for now;
     // the actual sync behavior depends on the K-Server integration.
     Q_PROPERTY(bool globalAccount READ globalAccount WRITE setGlobalAccount NOTIFY globalAccountChanged)
     // Whether the selected Global identity has actually completed
@@ -68,7 +68,7 @@ public:
     QString username() const { return m_username; }
     void setUsername(const QString &name);
 
-    // false = LAN/VPN (default), true = VDS/relay — mirrors
+    // false = LAN/VPN (default), true = VDS/relay - mirrors
     // NetworkManager::ConnectionMode without core/constructor needing to
     // depend on the network module's header.
     bool vdsMode() const { return m_vdsMode; }

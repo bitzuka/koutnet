@@ -4,11 +4,10 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
-// Zapret DPI-bypass control tab. Wraps ZapretManager (QProcess around
-// zapret-linux/service.sh). Top half is the point-and-click UI; bottom
-// half is a live console showing the same output service.sh would print
-// in a terminal, so anything that goes wrong is visible without needing
-// to drop to a shell.
+// Zapret DPI-bypass control tab, wrapping ZapretManager (a QProcess around
+// zapret-linux/service.sh). Point-and-click UI on top, live console below
+// carrying whatever service.sh would print in a terminal, so failures are
+// visible without dropping to a shell.
 Item {
     id: root
     readonly property var theme: ThemeManager.colors

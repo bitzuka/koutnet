@@ -1,5 +1,4 @@
-// KOutNet — Security Engine v2 (C++/Qt6 port)
-// Ported from gdf_core.py (CryptoEngine, NT Server 1.8)
+// KOutNet - Security Engine v2 (C++/Qt6 port)
 #include "CryptoManager.h"
 
 #include <QSettings>
@@ -59,8 +58,8 @@ QByteArray CryptoManager::randomBytes(int n)
     return buf;
 }
 
-// ── Key lifecycle ──────────────────────────────────────────────────────
-// TODO: route through AppSettings once core/constructor lands — QSettings
+// Key lifecycle
+// TODO: route through AppSettings once core/constructor lands - QSettings
 // is used directly for now so identity persists across restarts.
 bool CryptoManager::initKeypairs()
 {
@@ -123,7 +122,7 @@ bool CryptoManager::loadStoredKeys()
     const QByteArray idRaw = QByteArray::fromBase64(idB64);
     const QByteArray dhRaw = QByteArray::fromBase64(dhB64);
 
-    // Ed25519/X25519 private keys are always exactly 32 raw bytes — guard
+    // Ed25519/X25519 private keys are always exactly 32 raw bytes - guard
     // against a truncated/corrupted settings file producing a garbage key.
     if (idRaw.size() != 32 || dhRaw.size() != 32)
         return false;
@@ -185,18 +184,16 @@ bool CryptoManager::generateAndStoreKeys()
     settings.setValue("security/dh_priv_b64", dhRaw.toBase64());
     settings.sync();
 
-    // Best-effort hardening: restrict the settings file to owner read/write
-    // only, so other local accounts/processes on the same machine can't just
-    // read the identity keys off disk. This is NOT a substitute for real OS
-    // keychain storage (Windows DPAPI / macOS Keychain / libsecret) — that's
-    // the real fix and should land before a public release. Tracked as TODO.
+    // Owner read/write only, so other local accounts cannot read the
+    // identity keys off disk. Stopgap: OS keychain storage (DPAPI, Keychain,
+    // libsecret) is the real fix and should land before a public release.
     QFile::setPermissions(settings.fileName(),
                           QFileDevice::ReadOwner | QFileDevice::WriteOwner);
 
     return true;
 }
 
-// ── Handshake ────────────────────────────────────────────────────────
+// Handshake
 QJsonObject CryptoManager::handshakePayload() const
 {
     QJsonObject payload;
@@ -283,7 +280,7 @@ SecurityLevel CryptoManager::securityLevel(const QString &peerIp, bool encryptio
     return SecurityLevel::Plain;
 }
 
-// ── HKDF-SHA256 ───────────────────────────────────────────────────────
+// HKDF-SHA256
 QByteArray CryptoManager::hkdfSha256(const QByteArray &secret, const QByteArray &info, int outLen)
 {
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
@@ -302,7 +299,7 @@ QByteArray CryptoManager::hkdfSha256(const QByteArray &secret, const QByteArray 
     return out;
 }
 
-// ── AES-256-GCM ──────────────────────────────────────────────────────
+// AES-256-GCM
 QByteArray CryptoManager::gcmEncrypt(const QByteArray &key, const QByteArray &plaintext)
 {
     const QByteArray nonce = randomBytes(kNonceLen);
@@ -355,13 +352,13 @@ bool CryptoManager::gcmDecrypt(const QByteArray &key, const QByteArray &data, QB
     EVP_CIPHER_CTX_free(ctx);
 
     if (rc != 1)
-        return false; // tag mismatch — tampered or wrong key
+        return false; // tag mismatch - tampered or wrong key
 
     *outPlain = plaintext.left(outLen + finalLen);
     return true;
 }
 
-// ── PBKDF2 passphrase keys (cached) ───────────────────────────────────
+// PBKDF2 passphrase keys (cached)
 QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray &salt) const
 {
     const QString cacheKey = passphrase + '|' + QString::fromLatin1(salt.toHex());
@@ -375,7 +372,7 @@ QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray 
         kKdfIters, EVP_sha256(), kKeyLen, reinterpret_cast<unsigned char *>(key.data()));
 
     // Cheap unbounded-growth guard: each PBKDF2 derivation is expensive
-    // (480k iterations), which is why we cache it — but a long session
+    // (480k iterations), which is why we cache it - but a long session
     // cycling through many distinct passphrases must not grow this forever.
     if (m_passphraseKeyCache.size() >= kMaxPassphraseCacheSize)
         m_passphraseKeyCache.clear();
@@ -384,7 +381,7 @@ QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray 
     return key;
 }
 
-// ── Packet HMAC ──────────────────────────────────────────────────────
+// Packet HMAC
 QString CryptoManager::signPacket(const QString &peerIp, const QByteArray &payload) const
 {
     if (!m_sessionKeys.contains(peerIp))
@@ -404,7 +401,7 @@ bool CryptoManager::verifyPacket(const QString &peerIp, const QByteArray &payloa
                                  const QString &sigB64) const
 {
     if (!m_sessionKeys.contains(peerIp))
-        return true; // no session yet — accept unsigned packet, matches legacy behaviour
+        return true; // no session yet - accept unsigned packet, matches legacy behaviour
 
     const QByteArray key = m_sessionKeys.value(peerIp);
     unsigned char expected[32];
@@ -420,7 +417,7 @@ bool CryptoManager::verifyPacket(const QString &peerIp, const QByteArray &payloa
     return CRYPTO_memcmp(expected, given.constData(), expectedLen) == 0;
 }
 
-// ── Replay protection ──────────────────────────────────────────────────
+// Replay protection
 bool CryptoManager::checkReplay(const QString &peerIp, const QString &nonceHex, double ts)
 {
     const double now = nowEpoch();
@@ -442,7 +439,7 @@ bool CryptoManager::checkReplay(const QString &peerIp, const QString &nonceHex, 
     return true;
 }
 
-// ── Rate limiting ────────────────────────────────────────────────────
+// Rate limiting
 bool CryptoManager::checkRate(const QString &peerIp, int maxPerSec)
 {
     const double now = nowEpoch();
@@ -463,7 +460,7 @@ bool CryptoManager::checkRate(const QString &peerIp, int maxPerSec)
     return true;
 }
 
-// ── Public encrypt/decrypt ────────────────────────────────────────────
+// Public encrypt/decrypt
 // Wire format (base64 after the "KNC1:" tag):
 //   type[1] + payload
 //   0x01 = AES-GCM with ECDH session key  (payload = nonce+ciphertext+tag)
@@ -494,7 +491,7 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
                                const QString &peerIp) const
 {
     if (!ciphertext.startsWith(QStringLiteral("KNC1:")))
-        return ciphertext; // not encrypted by us — pass through
+        return ciphertext; // not encrypted by us - pass through
 
     const QByteArray wire = QByteArray::fromBase64(ciphertext.mid(5).toLatin1());
     if (wire.isEmpty())
@@ -523,11 +520,11 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
     return QString::fromUtf8(plain);
 }
 
-// ── Raw byte encryption (voice) ────────────────────────────────────────
+// Raw byte encryption (voice)
 QByteArray CryptoManager::encryptBytes(const QString &peerIp, const QByteArray &plaintext) const
 {
     if (!m_sessionKeys.contains(peerIp))
-        return plaintext; // no session yet — send unencrypted, same fallback as text path
+        return plaintext; // no session yet - send unencrypted, same fallback as text path
 
     return gcmEncrypt(m_sessionKeys.value(peerIp), plaintext); // nonce+ciphertext+tag
 }
@@ -535,7 +532,7 @@ QByteArray CryptoManager::encryptBytes(const QString &peerIp, const QByteArray &
 bool CryptoManager::decryptBytes(const QString &peerIp, const QByteArray &data, QByteArray *outPlain) const
 {
     if (!m_sessionKeys.contains(peerIp)) {
-        *outPlain = data; // no session — treat as plaintext passthrough
+        *outPlain = data; // no session - treat as plaintext passthrough
         return true;
     }
     return gcmDecrypt(m_sessionKeys.value(peerIp), data, outPlain);

@@ -1,4 +1,4 @@
-// KOutNet — application entry point
+// KOutNet - application entry point
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     app.setApplicationName("KOutNet");
     app.setOrganizationName("KOutNet");
 
-    // Single shared CryptoManager instance — injected into every module that
+    // Single shared CryptoManager instance - injected into every module that
     // needs it (NetworkManager, VoiceCallManager). Never create a second
     // instance elsewhere; identity keys and session state must stay
     // single-sourced. See core/security/CryptoManager.h.
@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     }
     auto *network = new koutnet::NetworkManager(crypto, &app);
 
-    // Apply persisted connection settings before start() — see AppSettings.
+    // Apply persisted connection settings before start() - see AppSettings.
     if (appSettings->vdsMode()) {
         network->setRelayServer(appSettings->relayHost(), quint16(appSettings->relayPort()));
         network->setConnectionMode(koutnet::NetworkManager::ConnectionMode::Vds);

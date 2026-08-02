@@ -8,22 +8,14 @@ import koutnet.app
 
 // Own-profile editor, VK-styled layout.
 //
-// Account-type distinction (Local vs Global) matters for what the media
-// tabs show: Local is purely device-side (no "registration" concept —
-// it's just this device's identity, always usable), so its tab
-// placeholder talks about uploading local files. Global depends on a
-// K-Server connection that doesn't exist yet, so an unregistered Global
-// identity hides the whole profile body and shows a registration prompt
-// instead — there's nothing real to display for it yet.
-// Avatar/banner/name/about are unaffected by account type — they're
-// local device data regardless of which identity mode is selected.
+// Local and Global differ only in the body. Local is this device's identity
+// and always usable; Global needs a K-Server that does not exist yet, so an
+// unregistered Global identity gets a registration prompt instead of a body.
+// Avatar, banner, name and about are device-local either way.
 //
-// The Local/Global-gated sections below are grouped into two small
-// ColumnLayouts (header+name, presence+body) each with a single visible
-// binding, rather than toggling visible on four separate ColumnLayout
-// children directly. Fewer independent visibility toggles sharing one
-// parent Layout means less surface for Qt Quick Layouts to get the
-// geometry stale on when flipping Local -> Global -> Local repeatedly.
+// The gated sections sit in two ColumnLayouts with one visible binding each.
+// Fewer independent toggles under a single parent Layout means less chance
+// of stale geometry when flipping between modes.
 Item {
     id: root
     readonly property var theme: ThemeManager.colors
@@ -57,10 +49,16 @@ Item {
         }
     }
 
-    // GIFs included — AnimatedImage (unlike plain Image) actually plays
-    // animated GIFs instead of freezing on the first frame; it renders
-    // static formats (png/jpg/webp) exactly the same as Image, so using
-    // it everywhere avoids needing two separate code paths.
+    // AnimatedImage plays animated GIFs where plain Image freezes on the
+    // first frame, and renders png/jpg/webp identically, so one type covers
+    // both. It also clears its own playing flag whenever it loads a source
+    // with no frames, and the empty path at startup is one of those, so
+    // playback gets re-armed on every load.
+    component LoopingImage: AnimatedImage {
+        fillMode: Image.PreserveAspectCrop
+        onStatusChanged: if (status === AnimatedImage.Ready) playing = true
+    }
+
     FileDialog {
         id: avatarDialog
         title: root.tr("profile.change_avatar")
@@ -86,25 +84,17 @@ Item {
         onAccepted: appSettings.nameBadgePath = selectedFile
     }
 
-    // ── Full-page backdrop ──
-    // Separate from the banner strip up top; sits behind everything else
-    // (declared first = painted first = bottom of the stack). A dimming
-    // Rectangle on top keeps text/controls legible regardless of what
-    // image or gif gets picked.
+    // Full-page backdrop, separate from the banner strip. Declared first so
+    // it paints at the bottom of the stack. The dimming Rectangle over it
+    // keeps text legible whatever image gets picked.
     Item {
         id: backgroundLayer
         anchors.fill: parent
 
-        AnimatedImage {
+        LoopingImage {
             anchors.fill: parent
-            source: appSettings.profileBackgroundPath ? appSettings.profileBackgroundPath : ""
-            fillMode: Image.PreserveAspectCrop
+            source: appSettings.profileBackgroundPath
             visible: appSettings.profileBackgroundPath.length > 0
-            // AnimatedImage turns playing off by itself whenever it loads a
-            // source with no frames to play, and the empty startup path is
-            // one. A literal playing: true never recovers from that, which
-            // left every gif frozen on frame one. Re-arm it after loading.
-            onStatusChanged: if (status === AnimatedImage.Ready) playing = true
         }
         Rectangle {
             anchors.fill: parent
@@ -117,14 +107,14 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        // ── Header group: banner + avatar + name row ──
+        // Header group: banner + avatar + name row
         ColumnLayout {
             id: headerGroup
             Layout.fillWidth: true
             spacing: 0
             visible: root.profileUsable
 
-            // ── Banner + avatar ──
+            // Banner + avatar
             Item {
                 Layout.fillWidth: true
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 9
@@ -135,13 +125,10 @@ Item {
                     color: root.theme.bg3
                     clip: true
 
-                    AnimatedImage {
+                    LoopingImage {
                         anchors.fill: parent
-                        source: appSettings.bannerPath ? appSettings.bannerPath : ""
-                        fillMode: Image.PreserveAspectCrop
+                        source: appSettings.bannerPath
                         visible: appSettings.bannerPath.length > 0
-                        // Same re-arm as the page backdrop above.
-                        onStatusChanged: if (status === AnimatedImage.Ready) playing = true
                     }
                 }
 
@@ -191,29 +178,21 @@ Item {
                             anchors.fill: parent
                             radius: width / 2
                             color: root.theme.item_sel
-                            // MultiEffect's maskSource must be either a
-                            // ShaderEffectSource, a native texture
-                            // provider (Image/AnimatedImage), or an item
-                            // with layer.enabled explicitly set — a plain
-                            // Rectangle is none of those on its own. This
-                            // was the actual reason the avatar rendered
-                            // blank: without layer.enabled, MultiEffect
-                            // had no texture to sample for the mask.
+                            // MultiEffect needs a texture provider for its
+                            // maskSource. A plain Rectangle only becomes one
+                            // once layer.enabled is set.
                             layer.enabled: true
                             opacity: 0
                         }
-                        AnimatedImage {
+                        LoopingImage {
                             id: avatarImg
                             anchors.fill: parent
-                            source: appSettings.avatarPath ? appSettings.avatarPath : ""
-                            fillMode: Image.PreserveAspectCrop
+                            source: appSettings.avatarPath
                             opacity: 0
-                            // Same re-arm as the page backdrop above.
-                            onStatusChanged: if (status === AnimatedImage.Ready) playing = true
                         }
                         // clip: true on a rounded Rectangle only clips to the
                         // bounding box, not the rounded shape (a Qt Quick
-                        // limitation) — MultiEffect with maskSource gives an
+                        // limitation) - MultiEffect with maskSource gives an
                         // actual per-pixel circular mask instead.
                         MultiEffect {
                             anchors.fill: parent
@@ -236,11 +215,8 @@ Item {
                             }
                         }
 
-                        // Hover-to-change overlay, centered on the avatar
-                        // itself — replaces the old corner "+" badge, which
-                        // looked exactly like a presence dot and was
-                        // confusing two unrelated things (edit affordance vs.
-                        // online status) in the same visual slot.
+                        // Hover overlay, centred on the avatar. A corner
+                        // badge here reads as a presence dot instead.
                         Rectangle {
                             anchors.fill: parent
                             radius: width / 2
@@ -265,11 +241,8 @@ Item {
                         }
                     }
 
-                    // Presence status dot — reuses the same online/offline
-                    // theme colors ChatPage's contact list already uses, so
-                    // it reads consistently as "presence" everywhere in the
-                    // app rather than being confused with the edit button
-                    // that used to live in this exact spot.
+                    // Presence dot, same online/offline colours the contact
+                    // list uses so it reads the same way everywhere.
                     Rectangle {
                         width: Kirigami.Units.gridUnit * 1.1
                         height: width
@@ -283,7 +256,7 @@ Item {
                 }
             }
 
-            // ── Name row ──
+            // Name row
             RowLayout {
                 Layout.fillWidth: true
                 Layout.margins: Kirigami.Units.largeSpacing
@@ -371,7 +344,7 @@ Item {
             }
         }
 
-        // ── Account toggle ──
+        // Account toggle
         // Always visible regardless of profileUsable, so an unregistered
         // Global identity can still be switched back to Local from here.
         ColumnLayout {
@@ -412,7 +385,7 @@ Item {
                     MouseArea { anchors.fill: parent; onClicked: appSettings.globalAccount = true }
                 }
             }
-            // Local is always a valid identity — it's just this device,
+            // Local is always a valid identity - it's just this device,
             // nothing to "register." Only Global depends on a K-Server
             // connection that doesn't exist yet, so only it gets the
             // caption.
@@ -424,7 +397,7 @@ Item {
             }
         }
 
-        // ── Body group: presence + about/tabs/friends ──
+        // Body group: presence + about/tabs/friends
         ColumnLayout {
             id: bodyGroup
             Layout.fillWidth: true
@@ -550,7 +523,7 @@ Item {
                         Rectangle { Layout.fillWidth: true; height: 1; color: root.theme.border }
                     }
 
-                    // Local vs Global placeholder — Local never depended on
+                    // Local vs Global placeholder - Local never depended on
                     // a server so it never shows a connectivity message;
                     // Global genuinely has nothing behind it yet.
                     Kirigami.PlaceholderMessage {
@@ -603,7 +576,7 @@ Item {
             }
         }
 
-        // ── Registration prompt (Global, not yet registered) ──
+        // Registration prompt (Global, not yet registered)
         // Nothing real exists behind an unregistered Global identity yet
         // (no K-Server), so the whole profile body stays hidden instead
         // of showing empty/misleading tabs and an empty avatar.

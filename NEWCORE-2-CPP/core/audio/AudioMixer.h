@@ -1,5 +1,4 @@
-// KOutNet — Per-peer jitter buffer + audio mixer
-// Ported from gdf_core.py (PeerBuffer / AudioMixer, NT Server 1.8) -> C++/Qt6
+// KOutNet - Per-peer jitter buffer + audio mixer
 #pragma once
 
 #include <QByteArray>
@@ -10,13 +9,9 @@
 
 namespace koutnet {
 
-// One peer's jitter buffer. Network packets don't arrive at a perfectly
-// steady rhythm — they clump up and stall depending on the path they took —
-// so we can't just play each frame the instant it shows up, or playback
-// would stutter constantly. Instead we let a small backlog build up first
-// (kTargetFrames), then drain it out at a steady pace. Think of it as a
-// tiny buffer tank absorbing the network's jitter before it reaches the
-// speakers.
+// One peer's jitter buffer. Packets clump and stall depending on the route
+// they took, so playing each frame the moment it lands stutters. Let a small
+// backlog build up to kTargetFrames first, then drain at a steady pace.
 class PeerBuffer {
 public:
     static constexpr int kFrameSamples = 512;              // samples per frame
@@ -37,24 +32,14 @@ private:
     mutable QMutex m_mutex;
 };
 
-// Combines every active peer's audio into a single stream to send to the
-// speakers. One PeerBuffer per peer; mix() takes one frame from each and
-// sums them together (with clipping, so three people talking at once
-// doesn't wrap around into noise).
+// Mixes every active peer into one stream for the speakers. mix() takes a
+// frame from each PeerBuffer and sums them with clipping, so three people
+// talking at once does not wrap around into noise.
 //
-// Threading note, important: mix() is called from Qt Multimedia's audio
-// callback, which runs on its own I/O thread — NOT the GUI thread. Meanwhile
-// push()/addPeer()/removePeer() are called from the GUI thread as network
-// packets arrive or calls start/end. So this class is genuinely shared
-// between two threads at once, and every PeerBuffer is stored as a
-// shared_ptr rather than a raw pointer for exactly one reason: if
-// removePeer() deletes a peer's buffer on the GUI thread at the same moment
-// the audio thread is mid-way through reading from it inside mix(), a raw
-// pointer would leave the audio thread holding a dangling pointer — a
-// crash that's nearly impossible to reproduce on demand. Handing out a
-// shared_ptr instead means whoever's using the buffer keeps it alive for as
-// long as they're using it, even if it's simultaneously been removed from
-// the peer list.
+// mix() runs on Qt Multimedia's audio thread. push(), addPeer() and
+// removePeer() run on the GUI thread. Buffers are shared_ptr because
+// removePeer() can free one while the audio thread is reading it, and that
+// race is close to impossible to reproduce on demand.
 class AudioMixer {
 public:
     ~AudioMixer();

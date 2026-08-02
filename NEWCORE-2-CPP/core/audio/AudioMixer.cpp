@@ -1,5 +1,4 @@
-// KOutNet — Per-peer jitter buffer + audio mixer
-// Ported from gdf_core.py (PeerBuffer / AudioMixer, NT Server 1.8) -> C++/Qt6
+// KOutNet - Per-peer jitter buffer + audio mixer
 #include "AudioMixer.h"
 
 #include <QMutexLocker>
@@ -33,13 +32,13 @@ QByteArray PeerBuffer::pull()
 {
     QMutexLocker lock(&m_mutex);
     if (!m_ready || m_buf.size() < kFrameBytes)
-        return {}; // not enough buffered yet — caller plays silence this frame
+        return {}; // not enough buffered yet - caller plays silence this frame
 
     const QByteArray frame = m_buf.left(kFrameBytes);
     m_buf.remove(0, kFrameBytes);
 
     // Once we drop below half the target pre-fill, stop playing until we've
-    // built back up to a full buffer again — better a brief pause than
+    // built back up to a full buffer again - better a brief pause than
     // stuttering frame-by-frame as the buffer runs dry.
     if (m_buf.size() / kFrameBytes < kTargetFrames / 2)
         m_ready = false;
@@ -72,11 +71,8 @@ PeerBuffer &AudioMixer::addPeer(const QString &ip)
 void AudioMixer::removePeer(const QString &ip)
 {
     QMutexLocker lock(&m_mutex);
-    // take() drops our reference and erases the hash entry. If the audio
-    // thread is holding its own shared_ptr copy right now (mid-mix()), the
-    // PeerBuffer stays alive until that copy goes out of scope too — no
-    // dangling pointer, no crash, just a buffer that quietly outlives the
-    // call by a few milliseconds.
+    // Drops our reference only. If the audio thread is mid-mix() holding a
+    // copy, the buffer outlives the call until that copy goes too.
     m_peers.take(ip);
 }
 
@@ -88,19 +84,16 @@ void AudioMixer::push(const QString &ip, const QByteArray &data)
         auto it = m_peers.find(ip);
         if (it == m_peers.end())
             it = m_peers.insert(ip, std::make_shared<PeerBuffer>());
-        buf = it.value(); // copy the shared_ptr — keeps it alive past unlock
+        buf = it.value(); // copy the shared_ptr - keeps it alive past unlock
     }
     buf->push(data);
 }
 
 QByteArray AudioMixer::mix()
 {
-    // Snapshot the current peers as shared_ptrs (cheap refcount bump) and
-    // release the lock immediately — we don't want to hold AudioMixer's
-    // mutex while doing the actual mixing work below, since that would
-    // block the GUI thread from adding/removing peers for however long
-    // mixing takes. Each peer buffer having its own internal mutex is what
-    // makes this safe.
+    // Snapshot the peers and drop the lock before mixing. Holding the mixer
+    // mutex through the mix would stall the GUI thread whenever it adds or
+    // removes a peer. Each buffer has its own mutex, so this is safe.
     QList<std::shared_ptr<PeerBuffer>> peers;
     {
         QMutexLocker lock(&m_mutex);
@@ -113,12 +106,12 @@ QByteArray AudioMixer::mix()
     for (const auto &buf : std::as_const(peers)) {
         const QByteArray frame = buf->pull();
         if (frame.isEmpty())
-            continue; // this peer has nothing ready — treat as silence, keep going
+            continue; // this peer has nothing ready - treat as silence, keep going
 
         const auto *src = reinterpret_cast<const qint16 *>(frame.constData());
         for (int i = 0; i < PeerBuffer::kFrameSamples; ++i) {
             // Plain addition can overflow int16 once a few people talk at
-            // once, so we add in a wider int and clamp back down — this is
+            // once, so we add in a wider int and clamp back down - this is
             // what stops loud group calls from wrapping around into
             // crackling noise instead of just getting louder.
             const int sum = int(outSamples[i]) + int(src[i]);

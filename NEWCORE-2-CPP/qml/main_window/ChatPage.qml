@@ -22,9 +22,8 @@ Kirigami.Page {
 
     property string replyToText: ""
     readonly property var theme: ThemeManager.colors
-    // Ctrl+wheel zoom target — multiplies message text font size.
+    // Ctrl+wheel zoom target, multiplies message text font size.
     property real chatFontScale: 1.0
-    // Ctrl+wheel zoom target — multiplies message text font size.
 
     function tr(key) {
         return (Translations.current, Translations.t(key))
@@ -58,7 +57,7 @@ Kirigami.Page {
     }
 
     readonly property var quickEmojis: ["👍", "❤️", "😂", "😮", "😢", "🔥"]
-    // Client-side only for now — not persisted, not synced to peers.
+    // Client-side only for now - not persisted, not synced to peers.
     // Making custom emoji durable/shared needs a backend store (e.g. a
     // ReactionStore/EmojiStore extension) which isn't wired up yet.
     property var customEmojis: []
@@ -82,7 +81,7 @@ Kirigami.Page {
         }
     ]
 
-    // ── Small transient toast ("Скопировано!") ──
+    // Small transient toast, shows the copied_notice string.
     Rectangle {
         id: toast
         z: 100
@@ -126,8 +125,8 @@ Kirigami.Page {
         }
     }
 
-    // ── Inline full-view image viewer — overlay inside this page instead
-    //    of a separate top-level Window. ──
+    // Inline image viewer. An overlay on this page rather than a separate
+    // top-level Window.
     Rectangle {
         id: imageViewer
         anchors.fill: parent
@@ -178,7 +177,7 @@ Kirigami.Page {
         }
     }
 
-    // ── Reaction picker: nicer grid popup instead of a plain submenu. ──
+    // Reaction picker: nicer grid popup instead of a plain submenu.
     Popup {
         id: reactionPopup
         property int msgIndex: -1
@@ -271,7 +270,7 @@ Kirigami.Page {
         reactionPopup.open()
     }
 
-    // ── Per-message context menu ──
+    // Per-message context menu
     Menu {
         id: messageMenu
         property int msgIndex: -1
@@ -318,7 +317,7 @@ Kirigami.Page {
         anchors.fill: parent
         spacing: 0
 
-        // ── Peer header: avatar + name + last-seen (favorites excluded) ──
+        // Peer header: avatar + name + last-seen (favorites excluded)
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 52
@@ -337,10 +336,8 @@ Kirigami.Page {
                     radius: 18
                     color: root.theme.accent
 
-                    // Favorites used a "★" text glyph here while the
-                    // sidebar row for the same chat used the Kirigami
-                    // "bookmarks" icon — two different assets for one
-                    // chat. Using the same icon in both places now.
+                    // Same bookmarks icon the sidebar row uses. These two
+                    // used to disagree, one glyph and one icon.
                     Kirigami.Icon {
                         anchors.centerIn: parent
                         width: 22
@@ -386,18 +383,11 @@ Kirigami.Page {
             clip: true
             model: root.messagesModel
 
-            // On Wayland, libinput reports mouse wheel notches with a
-            // non-null pixelDelta ("smooth scroll"), and QQuickFlickable's
-            // *built-in* wheel handling treats any event with pixelDelta
-            // as trackpad-style direct-pixel movement — no flick(), no
-            // deceleration, by design (that's the "hard, no glide" feel).
-            // A WheelHandler placed here runs before Flickable's own
-            // wheelEvent() only if it actually accepts the event; without
-            // that, both fired and fought over the same position each
-            // notch. Accepting it here and always driving flick()
-            // ourselves — ignoring pixelDelta — makes wheel scrolling use
-            // the same inertial path as a mouse-drag release regardless
-            // of what the compositor reports.
+            // On Wayland libinput reports wheel notches with a non-null
+            // pixelDelta, and Flickable's built-in handling reads that as
+            // trackpad-style direct movement: no flick, no deceleration.
+            // Accepting the event here and driving flick() ourselves keeps
+            // the wheel inertial whatever the compositor reports.
             flickDeceleration: 400
             maximumFlickVelocity: 10000
             boundsBehavior: Flickable.StopAtBounds
@@ -405,12 +395,9 @@ Kirigami.Page {
 
             WheelHandler {
                 acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                // Tracks how recently the wheel last fired, and how many
-                // notches have arrived in that streak, so a burst of
-                // rapid notches (actively spinning the wheel) builds up
-                // more speed than a single isolated click — without this,
-                // every notch produced identical velocity regardless of
-                // how fast you were actually turning the wheel.
+                // A burst of notches should build more speed than one
+                // isolated click, so track the gap since the last wheel
+                // event and how many have arrived in the streak.
                 property real lastWheelTime: 0
                 property int streakCount: 0
 
@@ -422,7 +409,7 @@ Kirigami.Page {
                     lastWheelTime = now
 
                     // Ctrl+wheel: zoom the chat text size instead of
-                    // scrolling — mirrors the familiar browser/editor
+                    // scrolling - mirrors the familiar browser/editor
                     // convention.
                     if (event.modifiers & Qt.ControlModifier) {
                         root.chatFontScale = Math.max(0.7, Math.min(2.0,
@@ -436,16 +423,14 @@ Kirigami.Page {
                     const streakBoost = 1 + streakCount * 0.15
 
                     if (event.pixelDelta.y !== 0) {
-                        // Trackpad two-finger scroll on Wayland reports
-                        // pixelDelta with angleDelta staying at zero (no
-                        // physical notches) — panning 1:1 by pixelDelta
-                        // already feels natural without added inertia;
-                        // shift/streak boosts still apply on top of it.
+                        // Trackpad panning on Wayland reports pixelDelta
+                        // with angleDelta at zero. Moving 1:1 feels right
+                        // without inertia; the streak boost still applies.
                         const maxY = Math.max(0, messagesList.contentHeight - messagesList.height)
                         const delta = event.pixelDelta.y * shiftBoost * streakBoost
                         messagesList.contentY = Math.max(0, Math.min(maxY, messagesList.contentY - delta))
                     } else {
-                        // Toned down from the original tuning — the
+                        // Toned down from the original tuning - the
                         // previous multiplier made every single notch
                         // glide too far past where the wheel actually
                         // stopped.
@@ -492,11 +477,9 @@ Kirigami.Page {
 
                     Rectangle {
                         id: bubble
-                        // Text/file bubbles keep the old 70%-width cap.
-                        // Image bubbles no longer force a fixed 0.7 aspect
-                        // box (that's what was cropping/letterboxing
-                        // photos) — imageLoader below sizes itself from
-                        // the actual picture's aspect ratio instead.
+                        // Text and file bubbles cap at 70% width. Image
+                        // bubbles take their size from the picture's own
+                        // aspect ratio, see imageLoader below.
                         width: (model.isFile && model.isImage)
                             ? imageLoader.item ? imageLoader.item.width : 220
                             : Math.min(implicitWidth, messagesList.width * 0.7)
@@ -512,19 +495,9 @@ Kirigami.Page {
                         ColumnLayout {
                             id: bubbleColumn
                             anchors.fill: parent
-                            // Image bubbles want to be genuinely
-                            // full-bleed (comment above imageLoader) —
-                            // but this shared margin was applied
-                            // unconditionally to every bubble type,
-                            // while the image Item inside sized itself
-                            // to the FULL bubble width (maxW) with no
-                            // margin awareness. That mismatch is exactly
-                            // what pushed the picture past the bubble's
-                            // right edge: it was drawn wider than the
-                            // margin-inset space actually available to
-                            // it. Zero margin for image bubbles fixes
-                            // the overflow and gives images the minimal
-                            // border/padding requested.
+                            // No margin on image bubbles. The image sizes
+                            // itself to the full bubble width, so an inset
+                            // here would push it past the edge.
                             anchors.margins: (model.isFile && model.isImage) ? 0 : Kirigami.Units.smallSpacing
                             spacing: 4
 
@@ -642,11 +615,9 @@ Kirigami.Page {
                             Flow {
                                 Layout.fillWidth: true
                                 spacing: 4
-                                // Captured here, not inline in the Repeater below: Repeater
-                                // itself declares a "model" property, so an unqualified
-                                // "model" reference written as *its* model: binding resolves
-                                // to itself first (self-reference => binding loop) instead of
-                                // the outer ListView delegate's context "model" role.
+                                // Captured here rather than inline below. Repeater declares
+                                // its own "model", so an unqualified reference inside its
+                                // model: binding resolves to itself and loops.
                                 readonly property var reactionsList: (model && model.reactions) ? model.reactions : []
                                 visible: reactionsList.length > 0
                                 Repeater {
@@ -801,7 +772,7 @@ Kirigami.Page {
         }
     }
 
-    // ── Rich emoji picker (categorised, not exhaustive but broad) ──
+    // Rich emoji picker (categorised, not exhaustive but broad)
     Popup {
         id: emojiPicker
         parent: root

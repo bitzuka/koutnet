@@ -1,9 +1,8 @@
-// KOutNet - audio device enumeration and the settings-dialog test helpers.
+// KOutNet - audio device enumeration and the settings dialog test helpers.
 //
-// Deliberately separate from AudioEngine. The engine owns the call audio path
-// and its lifetime follows call state, while these probes have to run with no
-// call in progress. Sharing one QAudioSource between the two would mean the
-// mic test could tear down a live call, so they stay apart.
+// Separate from AudioEngine on purpose: the engine's lifetime follows call
+// state, these probes have to run with no call up. One shared QAudioSource
+// would let a mic test kill a live call.
 #pragma once
 
 #include <QByteArray>

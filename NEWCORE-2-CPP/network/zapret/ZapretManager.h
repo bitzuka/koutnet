@@ -1,10 +1,9 @@
-// KOutNet — Zapret DPI-bypass integration.
-// Wraps zapret-linux/service.sh (Sergeydigl3/zapret-discord-youtube-linux
-// port) as a child QProcess: "run -s <strategy> -i <iface>" configures
-// nftables/iptables and starts nfqws, "kill" tears both down. The script
-// itself needs root for nft/iptables/nfqws — see zapret-linux/README.md's
-// setup-permissions step (adds narrowly-scoped NOPASSWD sudoers rules for
-// exactly those binaries, not blanket root).
+// KOutNet - Zapret DPI-bypass integration.
+//
+// Runs zapret-linux/service.sh as a child QProcess: "run -s <strategy> -i
+// <iface>" sets up nftables and starts nfqws, "kill" tears both down. The
+// script needs root, and zapret-linux/README.md has a setup step adding
+// NOPASSWD sudoers rules scoped to those binaries rather than blanket root.
 #pragma once
 
 #include <QObject>
@@ -37,7 +36,7 @@ public:
     QString logOutput() const { return m_logOutput; }
     QStringList availableStrategies() const;
     QStringList availableInterfaces() const;
-    // False if zapret-linux/ wasn't found near the binary — lets the QML
+    // False if zapret-linux/ wasn't found near the binary - lets the QML
     // tab show a "not installed" placeholder instead of a broken control.
     bool deployed() const { return !m_zapretDir.isEmpty(); }
 

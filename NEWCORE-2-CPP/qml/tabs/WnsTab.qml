@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
-// WNS (internal network browser) tab (🌐). Layout placeholder — legacy
+// WNS (internal network browser) tab. Layout placeholder - legacy
 // NetScape rendered custom markup by hand; the plan is a from-scratch
 // rendering engine (own layout/paint pipeline, not a Qt WebEngine
 // wrapper), wired in separately.

@@ -1,12 +1,9 @@
-// KOutNet — Security Engine v2 (C++/Qt6 port)
-// Ported from gdf_core.py (CryptoEngine, NT Server 1.8)
+// KOutNet security engine.
 //
-// Layer 1 — X25519 ECDH key exchange, Ed25519-signed identity
-// Layer 2 — AES-256-GCM message encryption
-// Layer 3 — PBKDF2-SHA256 passphrase overlay (groups)
-// Layer 4 — Packet HMAC-SHA256 (session-key signed control packets)
-// Layer 5 — Replay protection (nonce + timestamp window)
-// Layer 6 — Rate limiting (packets/sec per source IP)
+// X25519 ECDH exchange with an Ed25519-signed identity, AES-256-GCM on
+// messages, a PBKDF2-SHA256 passphrase overlay for groups, HMAC-SHA256 on
+// control packets, a replay window over nonce and timestamp, and per-IP
+// rate limiting.
 #pragma once
 
 #include <QObject>
@@ -37,7 +34,7 @@ public:
     static constexpr int kSaltLen = 32;
     static constexpr double kReplayWindowSec = 30.0;
     static constexpr double kNonceCacheTtlSec = 60.0;
-    // Cap on cached PBKDF2 passphrase keys — without this, cycling through
+    // Cap on cached PBKDF2 passphrase keys - without this, cycling through
     // many different group passphrases over a long session grows this hash
     // unboundedly.
     static constexpr int kMaxPassphraseCacheSize = 256;
@@ -45,15 +42,12 @@ public:
     explicit CryptoManager(QObject *parent = nullptr);
     ~CryptoManager() override;
 
-    // False if Ed25519/X25519 keypair generation or loading failed at
-    // startup (corrupted stored keys, OpenSSL failure, etc.). Callers must
-    // check this before relying on encryption — every crypto method below
-    // silently no-ops/passes through plaintext when keys are missing, by
-    // design, so a silent failure here would otherwise look like "it works"
-    // while sending everything unencrypted.
+    // False when keypair generation or loading failed at startup. Check it:
+    // every method below passes plaintext straight through when keys are
+    // missing, so the failure otherwise looks like everything working.
     bool isValid() const { return m_valid; }
 
-    // ── Handshake ────────────────────────────────────────────────────
+    // Handshake
     QJsonObject handshakePayload() const;
     bool processHandshake(const QString &peerIp, const QJsonObject &data);
     bool hasSession(const QString &peerIp) const;
@@ -63,22 +57,22 @@ public:
     SecurityLevel securityLevel(const QString &peerIp, bool encryptionEnabled,
                                 bool hasPassphrase) const;
 
-    // ── Packet HMAC ──────────────────────────────────────────────────
+    // Packet HMAC
     QString signPacket(const QString &peerIp, const QByteArray &payload) const;
     bool verifyPacket(const QString &peerIp, const QByteArray &payload,
                       const QString &sigB64) const;
 
-    // ── Replay / rate limiting ─────────────────────────────────────────
+    // Replay / rate limiting
     bool checkReplay(const QString &peerIp, const QString &nonceHex, double ts);
     bool checkRate(const QString &peerIp, int maxPerSec = 200);
 
-    // ── Message encryption (text, base64-wrapped wire format) ──────────
+    // Message encryption (text, base64-wrapped wire format)
     QString encrypt(const QString &plaintext, const QString &passphrase = QString(),
                     const QString &peerIp = QString()) const;
     QString decrypt(const QString &ciphertext, const QString &passphrase = QString(),
                     const QString &peerIp = QString()) const;
 
-    // ── Raw byte encryption (voice frames — no base64/JSON overhead) ───
+    // Raw byte encryption (voice frames - no base64/JSON overhead)
     // Falls back to passthrough (plaintext) if no session exists yet, same
     // as the text path falling back to unencrypted when nothing is set up.
     QByteArray encryptBytes(const QString &peerIp, const QByteArray &plaintext) const;

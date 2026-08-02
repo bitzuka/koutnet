@@ -7,16 +7,13 @@
 
 namespace {
 
-// Same upward-walk pattern as Translations::findI18nDir() — works whether
-// run from build/ during development or an installed layout later.
+// Same upward walk as Translations::findI18nDir(), so it works from build/
+// during development and from an installed layout later.
 //
-// The two platform variants aren't just a folder rename: zapret-linux/
-// drives nfqws through a bash orchestrator (service.sh) that sets up
-// nftables/iptables, while zapret-windows wraps winws.exe + WinDivert and
-// is launched differently entirely. Detecting the right one up front
-// means ZapretManager can fail loudly ("not deployed") on whichever
-// platform doesn't have its variant present, rather than silently trying
-// to run a Linux shell script on Windows or vice versa.
+// The two platform variants are not just a folder rename: zapret-linux
+// drives nfqws through service.sh and nftables, zapret-windows wraps
+// winws.exe with WinDivert. Picking the right one up front lets this fail
+// loudly instead of trying to run a bash script on Windows.
 QString findZapretDirImpl()
 {
 #if defined(Q_OS_WIN)
@@ -102,7 +99,7 @@ void ZapretManager::start(const QString &strategy, const QString &iface)
     }
 #if defined(Q_OS_WIN)
     // zapret-windows drives winws.exe/WinDivert directly, not through
-    // service.sh — that launch path isn't implemented yet. Fail loudly
+    // service.sh - that launch path isn't implemented yet. Fail loudly
     // here instead of trying to run a bash script that doesn't exist on
     // Windows.
     emit errorOccurred(QStringLiteral("Windows zapret integration not implemented yet"));
@@ -144,7 +141,7 @@ void ZapretManager::stop()
     }
 
     // The script's own run loop traps SIGINT/SIGTERM to call stop_zapret
-    // (stop_nfqws + firewall_clear) — ask nicely first, same as Ctrl+C in
+    // (stop_nfqws + firewall_clear) - ask nicely first, same as Ctrl+C in
     // a terminal, so it cleans up its own nftables/iptables rules rather
     // than leaving them behind.
     m_process->terminate();
@@ -177,7 +174,7 @@ void ZapretManager::onReadyReadStdout()
 {
     appendLog(QString::fromUtf8(m_process->readAllStandardOutput()));
     // The script prints its "started" banner only after nftables/nfqws
-    // setup succeeds — treat that as our running signal rather than just
+    // setup succeeds - treat that as our running signal rather than just
     // "process exists", since the process is alive during setup too.
     if (!m_running && m_logOutput.contains(QStringLiteral("Настройка успешно завершена")))
         setRunning(true);
@@ -208,7 +205,7 @@ void ZapretManager::appendLog(const QString &text)
     if (text.isEmpty())
         return;
     m_logOutput += text;
-    // Keep the in-memory log bounded — this is a debug console, not a
+    // Keep the in-memory log bounded - this is a debug console, not a
     // persistent log store, and unbounded growth would leak memory on a
     // long-running session.
     constexpr int kMaxLogChars = 200000;

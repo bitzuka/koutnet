@@ -56,7 +56,7 @@ void Translations::validateDictionary() const
     if (m_dictionary.isEmpty())
         return;
 
-    // Build the union of every key seen across all languages — this is our
+    // Build the union of every key seen across all languages - this is our
     // "should exist everywhere" reference set, rather than trusting any one
     // language file to be the complete/correct one.
     QSet<QString> allKeys;

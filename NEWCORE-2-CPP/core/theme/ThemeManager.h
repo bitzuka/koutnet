@@ -6,11 +6,9 @@
 #include <QVariantMap>
 #include <QStringList>
 
-// Ports the legacy Python THEMES palette system. Exposes the active theme's
-// colors as a QVariantMap to QML, and lets the user switch between named
-// palettes (persisted to disk).
+// Named colour palettes. Exposes the active one to QML as a QVariantMap and
+// persists the choice.
 //
-// QML usage:
 //   color: ThemeManager.colors.msg_own
 //   ThemeManager.setTheme("aurora")
 class ThemeManager : public QObject

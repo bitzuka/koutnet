@@ -1,5 +1,4 @@
-// KOutNet — Reassembles chunked file transfers received over UDP
-// Ported from gdf_network.py (NT Server 1.8) -> C++/Qt6
+// KOutNet - Reassembles chunked file transfers received over UDP
 #pragma once
 
 #include <QObject>
@@ -15,7 +14,7 @@ class FileTransferHandler : public QObject {
     Q_OBJECT
 
 public:
-    // Sane default cap on a single incoming transfer — meta announcing a
+    // Sane default cap on a single incoming transfer - meta announcing a
     // larger size is rejected outright (no entry created, chunks dropped).
     // TODO: make this user-configurable via AppSettings once that lands.
     static constexpr qint64 kMaxTransferBytes = 200LL * 1024 * 1024; // 200 MB
@@ -35,12 +34,12 @@ public:
     void onChunkMessage(const QJsonObject &msg);
 
 signals:
-    // Raw-bytes signal — kept for any consumer that wants the data directly
+    // Raw-bytes signal - kept for any consumer that wants the data directly
     // without touching disk.
     void fileReceived(QJsonObject meta, QByteArray data);
 
     // Fired once a completed transfer has been written to disk. QML listens
-    // to this one — a local file:// path is far cheaper to hand across the
+    // to this one - a local file:// path is far cheaper to hand across the
     // QML/C++ boundary than a raw byte blob.
     void fileSaved(QJsonObject meta, QString localPath);
 

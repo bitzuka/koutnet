@@ -1,5 +1,4 @@
-// KOutNet — Network & Audio core
-// Ported from gdf_network.py ( NT Server 1.8) → C++/Qt6
+// KOutNet - Network & Audio core
 #pragma once
 
 #include <QObject>
@@ -18,29 +17,28 @@
 namespace koutnet {
 
 class CryptoManager;
-// TODO: AppSettings (S() equivalent) — core/constructor not yet ported.
+// TODO: AppSettings (S() equivalent) - core/constructor not yet ported.
 class AppSettings;
 
 class NetworkManager : public QObject {
     Q_OBJECT
 
 public:
-    // LanOrVpn: broadcast/mDNS/ARP discovery over any local interface,
-    // including VPN adapters — no server involved (default, fully working).
-    // Vds: discovery + NAT traversal via a relay server (self-hosted, or in
-    // future an official KOutNet relay — see network/Protocol.h, empty for
-    // now, so Vds mode requires setRelayServer() until one ships).
+    // LanOrVpn: broadcast, mDNS and ARP discovery over any local interface
+    // including VPN adapters, no server. Vds: discovery and NAT traversal
+    // through a relay, which setRelayServer() has to supply until an
+    // official one ships.
     enum class ConnectionMode { LanOrVpn, Vds };
     Q_ENUM(ConnectionMode)
     // CryptoManager is owned by the application (one instance shared across
     // NetworkManager / VoiceCallManager / UI) and injected here, never
-    // created internally — identity keys and session state must stay
+    // created internally - identity keys and session state must stay
     // single-sourced. See core/security/CryptoManager.
     explicit NetworkManager(CryptoManager *crypto, QObject *parent = nullptr);
     ~NetworkManager() override;
 
     // Discovery broadcast cadence: aggressive while no peers are known yet,
-    // then backs off once the mesh is established — cuts background network
+    // then backs off once the mesh is established - cuts background network
     // noise (battery/CPU on laptops too) once discovery has already worked.
     static constexpr int kActiveBroadcastMs = 2000;
     static constexpr int kIdleBroadcastMs = 8000;
@@ -59,17 +57,17 @@ public:
     Q_INVOKABLE ConnectionMode connectionMode() const {
         return m_internetMode ? ConnectionMode::Vds : ConnectionMode::LanOrVpn;
     }
-    // True once a relay is actually usable — either a custom one was set via
+    // True once a relay is actually usable - either a custom one was set via
     // setRelayServer(), or the built-in list (network/Protocol.h) is
     // non-empty. False means Vds mode can be selected but won't connect to
-    // anything yet — surface this in the UI before letting the user pick it.
+    // anything yet - surface this in the UI before letting the user pick it.
     Q_INVOKABLE bool vdsConfigured() const;
 
     // Custom/self-hosted relay server. voicePort defaults to tunnelPort + 1
     // if not given. TODO: persist across restarts once AppSettings lands.
     Q_INVOKABLE void setRelayServer(const QString &host, quint16 tunnelPort, quint16 voicePort = 0);
 
-    // ── outgoing messages ───────────────────────────────────────────
+    // outgoing messages
     void sendUdp(QJsonObject payload, const QString &targetIp = QString());
     Q_INVOKABLE void sendChat(const QString &text);
     Q_INVOKABLE void sendPrivate(const QString &text, const QString &toIp);
@@ -89,11 +87,11 @@ public:
     void sendGroupInvite(const QString &gid, const QString &gname, const QString &toIp);
     void sendFileInternal(const QString &toIp, const QString &filePath,
                   const QByteArray &rawBytes = {}, const QString &filename = "file");
-    // QML-facing overload — QML can't supply the QByteArray/filename default
+    // QML-facing overload - QML can't supply the QByteArray/filename default
     // args cleanly, so this is the entry point for "attach file" in the UI.
     Q_INVOKABLE void sendFile(const QString &toIp, const QString &filePath);
 
-    // ── voice TCP ────────────────────────────────────────────────────
+    // voice TCP
     bool connectVoice(const QString &ip);
     bool sendVoice(const QString &ip, const QByteArray &data);
     void disconnectVoice(const QString &ip);
@@ -124,7 +122,7 @@ private slots:
     void scanArpTable();
 
 private:
-    // ── setup helpers ───────────────────────────────────────────────
+    // setup helpers
     QJsonObject presencePayload() const;
     void dispatch(const QString &host, QJsonObject msg);
     void handlePresence(const QString &host, QJsonObject msg);
@@ -153,7 +151,7 @@ private:
     QTimer m_broadcastTimer;
     QTimer m_ipRefreshTimer;
 
-    // Relay / tunnel (Vds mode) — TODO: move to network/vds module
+    // Relay / tunnel (Vds mode) - TODO: move to network/vds module
     QTcpSocket *m_relaySocket = nullptr;
     bool m_relayConnected = false;
     QByteArray m_relayBuffer;

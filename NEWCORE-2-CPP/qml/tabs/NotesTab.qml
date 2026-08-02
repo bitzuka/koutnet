@@ -4,7 +4,7 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
-// Personal scratchpad tab. In-memory only for now — multiple sheets and
+// Personal scratchpad tab. In-memory only for now - multiple sheets and
 // a Markdown preview are implemented client-side, but nothing here is
 // wired to HistoryManager yet (no confirmed API for it), so sheets are
 // lost on restart until that's connected.

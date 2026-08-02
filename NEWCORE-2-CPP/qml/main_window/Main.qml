@@ -1,4 +1,4 @@
-// KOutNet — Main application window
+// KOutNet - Main application window
 import QtQuick
 import QtQuick.Window
 import QtQuick.Layouts
@@ -18,12 +18,10 @@ Kirigami.ApplicationWindow {
 
     readonly property var theme: ThemeManager.colors
 
-    // Q_INVOKABLE calls (Translations.t) don't register as QML binding
-    // dependencies — only reading a NOTIFYable Q_PROPERTY does. Reading
-    // Translations.current here (via the comma operator) forces every
-    // binding that calls tr() to also depend on "current", so switching
-    // language actually re-evaluates the UI instead of silently doing
-    // nothing everywhere t() was called directly.
+    // Q_INVOKABLE calls do not register as binding dependencies, only
+    // NOTIFYable properties do. Reading Translations.current through the
+    // comma operator makes every tr() binding depend on it, so a language
+    // switch actually re-evaluates the UI.
     function tr(key) {
         return (Translations.current, Translations.t(key))
     }
@@ -51,12 +49,9 @@ Kirigami.ApplicationWindow {
     readonly property bool compactMode: width < 480
     readonly property string kSelfChatId: "__self__"
 
-    // Overlay sidebar (Telegram-style): fixed width, slides over content
-    // on the X axis instead of resizing a Layout column. The old
-    // push-layout approach animated Layout.preferredWidth, which forced
-    // the whole content column (and any text inside, e.g. the "no
-    // contacts" placeholder) to reflow every animation frame — that was
-    // the source of the jumping/shifting reported when picking a chat.
+    // Overlay sidebar: fixed width, slides over the content on X rather
+    // than resizing a Layout column. Animating Layout.preferredWidth
+    // instead reflows the whole content column every frame, text included.
     property bool sidebarOpen: true
     property string contactSearchText: ""
     property bool micMuted: false
@@ -99,12 +94,10 @@ Kirigami.ApplicationWindow {
 
     ListModel { id: peersModel }
 
-    // Returns a plain object describing the peer shown at the top of
-    // ChatPage: { username, os, e2e, avatarLetter, isFavorites, lastSeen }.
-    // peersModel.count is read here purely to register a dependency so
-    // this re-evaluates when peers come/go while a chat is open — the
-    // same trick as tr() above, applied to a ListModel instead of a
-    // Q_PROPERTY.
+    // Describes the peer at the top of ChatPage: username, os, e2e,
+    // avatarLetter, isFavorites, lastSeen. peersModel.count is read only to
+    // register a dependency, so this re-evaluates as peers come and go. Same
+    // trick as tr() above, on a ListModel instead of a Q_PROPERTY.
     function peerInfoFor(ip) {
         /* eslint-disable no-unused-expressions */
         peersModel.count
@@ -137,7 +130,7 @@ Kirigami.ApplicationWindow {
         return { username: ip, os: "", e2e: false, avatarLetter: "?", isFavorites: false, lastSeen: 0 }
     }
 
-    // ── Call windows (Outgoing / Incoming / Active) ──
+    // Call windows (Outgoing / Incoming / Active)
     property var outgoingCallWindow: null
     property var incomingCallDialog: null
     property var activeCallWindow: null
@@ -217,7 +210,7 @@ Kirigami.ApplicationWindow {
         onActivated: root.sidebarOpen = !root.sidebarOpen
     }
 
-    // ── Generic "not wired up yet" info sheet ──
+    // Generic "not wired up yet" info sheet
     function showStub(titleText, bodyText) {
         stubSheet.title = titleText
         stubBody.text = bodyText
@@ -234,7 +227,7 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // ── Menu bar ──
+    // Menu bar
     menuBar: MenuBar {
         background: Rectangle { color: root.theme.header_bg }
 
@@ -332,7 +325,7 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // ── Status bar ──
+    // Status bar
     footer: Rectangle {
         implicitHeight: 26
         color: root.theme.header_bg
@@ -447,7 +440,7 @@ Kirigami.ApplicationWindow {
             anchors.fill: parent
             spacing: 0
 
-            // ── Sidebar (pushing) ──
+            // Sidebar (pushing)
             ColumnLayout {
                 Layout.preferredWidth: root.sidebarOpen ? 280 : 0
                 Layout.minimumWidth: 0
@@ -557,7 +550,7 @@ Kirigami.ApplicationWindow {
                 visible: root.sidebarOpen
             }
 
-            // ── Right: content + tabs ──
+            // Right: content + tabs
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -643,7 +636,7 @@ Kirigami.ApplicationWindow {
             }
         }
 
-        // Hamburger toggle — top-left, inside sidebar when open, over content when closed
+        // Hamburger toggle - top-left, inside sidebar when open, over content when closed
         Rectangle {
             id: collapseButton
             width: 32
