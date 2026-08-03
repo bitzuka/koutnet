@@ -1,0 +1,20 @@
+# Commits that changed formatting only, and that git blame should look
+# through rather than at. Nothing here may contain a behaviour change.
+#
+# Use it with:
+#     git blame --ignore-revs-file .git-blame-ignore-revs
+# or once, for every command in this checkout:
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# One full 40-character SHA per line; abbreviated hashes are rejected and
+# git will refuse to use the file at all.
+#
+# TODO: append the SHA of "Run the tree through the .clang-format that was
+# already sitting here" below. It is not written in yet because these
+# commits arrived as a patch series, and applying a patch mints new SHAs -
+# whatever hash the commit had before it was exported is not the hash it
+# has in this repository. Find it with:
+#     git log --format='%H %s' | grep 'clang-format that was already'
+
+# Run the tree through the .clang-format that was already sitting here
+5d4fd9762eef84ff1aa4dda79b79d344bfe2f60a

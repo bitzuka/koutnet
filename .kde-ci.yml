@@ -21,8 +21,8 @@ Options:
   run-tests: True
   test-before-installing: True
   # Formatting is checked against the .clang-format at the root, the ECM one.
-  # The tree has not been run through it yet, so this will report until the
-  # reformat commit lands.
+  # The whole tree has been through it now, so this is expected to pass and a
+  # report means someone's patch skipped the pre-commit hook.
   clang-format-versions: [18]
   run-cppcheck: True
   require-cppcheck-clean: False

@@ -36,10 +36,11 @@ jobs:
   clang-format:
     name: clang-format
     runs-on: ubuntu-latest
-    # The .clang-format at the root is the KDE one from extra-cmake-modules,
-    # and the sources have never been run through it. Reformatting the tree is
-    # its own commit, so this only reports for now.
-    continue-on-error: true
+    # The .clang-format at the root is the KDE one from extra-cmake-modules.
+    # The tree has been run through it, so this gates instead of reporting.
+    # .kde-ci.yml pins clang-format 18; the runner's version is whatever
+    # ubuntu-latest ships, which is why a failure here is worth reading before
+    # believing.
     steps:
       - uses: actions/checkout@v4
       - name: Check formatting
