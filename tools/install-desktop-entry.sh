@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+# SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 # Registers KOutNet with the desktop for a build that runs out of build/.
 # A real "cmake --install" does this properly; this is the development

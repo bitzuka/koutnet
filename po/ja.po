@@ -1,0 +1,437 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: koutnet\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgctxt "theme name"
+msgid "Aurora"
+msgstr "オーロラ"
+
+msgctxt "theme name"
+msgid "Dark"
+msgstr "ダーク"
+
+msgctxt "theme name"
+msgid "Dark Blue"
+msgstr "ダークブルー"
+
+msgctxt "theme name"
+msgid "Dark Red"
+msgstr "ダークレッド"
+
+msgctxt "theme name"
+msgid "Forest"
+msgstr "フォレスト"
+
+msgctxt "theme name"
+msgid "Gray"
+msgstr "グレー"
+
+msgctxt "theme name"
+msgid "Light"
+msgstr "ライト"
+
+msgctxt "theme name"
+msgid "Midnight"
+msgstr "ミッドナイト"
+
+msgctxt "theme name"
+msgid "Neon"
+msgstr "ネオン"
+
+msgctxt "theme name"
+msgid "Ocean"
+msgstr "オーシャン"
+
+msgctxt "theme name"
+msgid "Sakura"
+msgstr "サクラ"
+
+msgctxt "theme name"
+msgid "Sunset"
+msgstr "サンセット"
+
+msgctxt "theme name"
+msgid "Windows 95"
+msgstr ""
+
+msgid "Mute"
+msgstr "ミュート"
+
+msgid "Speaker"
+msgstr "スピーカー"
+
+msgid "Screen"
+msgstr "画面"
+
+msgid "End"
+msgstr "終了"
+
+msgid "Incoming call"
+msgstr "着信"
+
+msgid "Calling"
+msgstr "発信中"
+
+msgid "Cancel"
+msgstr "キャンセル"
+
+msgid "Connecting…"
+msgstr "接続中…"
+
+msgid "Back"
+msgstr "戻る"
+
+msgid "Profile"
+msgstr "プロフィール"
+
+msgid "Call"
+msgstr "発信"
+
+msgid "Choose an image for the emoji"
+msgstr "カスタム絵文字用の画像を選択"
+
+msgid "Reply"
+msgstr "返信"
+
+msgid "Copy"
+msgstr "コピー"
+
+msgid "Copied!"
+msgstr "コピーしました!"
+
+msgid "Forward"
+msgstr "転送"
+
+msgid "React"
+msgstr "リアクション"
+
+msgid "Delete"
+msgstr "削除"
+
+msgid "last seen"
+msgstr "最終オンライン"
+
+msgid "online"
+msgstr "オンライン"
+
+msgid "edited"
+msgstr "編集済み"
+
+msgid "Message..."
+msgstr "メッセージ..."
+
+msgid "Send"
+msgstr "送信"
+
+msgid "Attach a file"
+msgstr "ファイルを添付"
+
+msgid "Welcome to KOutNet"
+msgstr "KOutNet へようこそ"
+
+msgid "System default"
+msgstr "システムの既定"
+
+msgid "Favorites"
+msgstr "お気に入り"
+
+msgid "File"
+msgstr "ファイル"
+
+msgid "My profile"
+msgstr "マイプロフィール"
+
+msgid "Settings"
+msgstr "設定"
+
+msgid "Quit"
+msgstr "終了"
+
+msgid "View"
+msgstr "表示"
+
+msgid "Themes"
+msgstr "テーマ"
+
+msgid "Fullscreen"
+msgstr "フルスクリーンモード"
+
+msgid "Calls"
+msgstr "通話"
+
+msgid "Mute microphone"
+msgstr "マイクをミュート"
+
+msgid "End all calls"
+msgstr "すべての通話を終了"
+
+msgid "Help"
+msgstr "ヘルプ"
+
+msgid "About"
+msgstr "このアプリについて"
+
+msgid "Tutorial"
+msgstr "チュートリアル"
+
+msgid "The interactive tutorial has not been ported yet."
+msgstr "インタラクティブチュートリアルはまだ移植されていません。"
+
+msgid "Searching for peers..."
+msgstr "ピアを検索中..."
+
+msgid "IP: "
+msgstr ""
+
+msgid "Microphone off"
+msgstr "マイクオフ"
+
+msgid "Microphone on"
+msgstr "マイクオン"
+
+msgid "No calls"
+msgstr "通話履歴なし"
+
+msgid "Contacts"
+msgstr "連絡先"
+
+msgid "Search"
+msgstr "検索"
+
+msgid "No one here yet"
+msgstr "まだ誰もいません"
+
+msgid "KOutNet is looking for other users, but it's quiet here for now..."
+msgstr "KOutNetは他のユーザーを探していますが、今のところ静かです…"
+
+msgid "Chat"
+msgstr "チャット"
+
+msgid "Notes"
+msgstr "メモ"
+
+msgid "General"
+msgstr "一般"
+
+msgid "Audio"
+msgstr "オーディオ"
+
+msgid "Network"
+msgstr "ネットワーク"
+
+msgid "Username"
+msgstr "ユーザー名"
+
+msgid "Display name"
+msgstr "表示名"
+
+msgid "Theme"
+msgstr "テーマ"
+
+msgid "Microphone"
+msgstr "マイク"
+
+msgid "Stop test"
+msgstr "テストを停止"
+
+msgid "Test microphone"
+msgstr "マイクをテスト"
+
+msgid "Speakers"
+msgstr "スピーカー"
+
+msgid "Test speakers"
+msgstr "スピーカーをテスト"
+
+msgid "Volume"
+msgstr "音量"
+
+msgid "Voice activity detection"
+msgstr "音声アクティビティ検出"
+
+msgid "Network mode"
+msgstr "ネットワークモード"
+
+msgid "Local network (LAN)"
+msgstr "ローカルネットワーク（LAN）"
+
+msgid "K-Server (self-hosted)"
+msgstr "K-Server (自前)"
+
+msgid "K-Server (join someone else's)"
+msgstr "K-Server (他者のサーバー)"
+
+msgid "Relay (not a K-Server)"
+msgstr "リレー (K-Server ではない)"
+
+msgid "Maintainer's VDS"
+msgstr "メンテナの VDS"
+
+msgid "not available yet"
+msgstr "未対応"
+
+msgid "Relay server address"
+msgstr "リレーサーバーアドレス"
+
+msgid "Relay server port"
+msgstr "リレーサーバーポート"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Settings saved"
+msgstr "設定を保存しました"
+
+msgid "KOutNet — P2P encrypted messenger"
+msgstr "KOutNet — P2P暗号化メッセンジャー"
+
+msgid "Forwarding messages is not implemented in ChatModel yet."
+msgstr "メッセージ転送はChatModelにまだ実装されていません。"
+
+msgid "Deleting messages is not implemented in ChatModel yet."
+msgstr "メッセージ削除はChatModelにまだ実装されていません。"
+
+msgid "Select a peer on the left to start a conversation."
+msgstr "左側から連絡先を選んで会話を始めてください。"
+
+msgid "No session"
+msgstr "セッションなし"
+
+msgid "No description"
+msgstr "説明なし"
+
+msgid "Will appear once connected to a K-Server"
+msgstr "K-Serverに接続すると表示されます"
+
+msgid "Friends"
+msgstr "友達"
+
+msgid "No one yet"
+msgstr "まだ誰もいません"
+
+msgid "Change avatar"
+msgstr "アバターを変更"
+
+msgid "Change banner"
+msgstr "バナーを変更"
+
+msgid "Change background"
+msgstr "背景を変更"
+
+msgid "Choose name badge"
+msgstr "ネームバッジを選択"
+
+msgid "Add information about yourself"
+msgstr "自己紹介情報を追加"
+
+msgid "Done"
+msgstr "完了"
+
+msgid "Edit profile"
+msgstr "プロフィールを編集"
+
+msgid "Remove background"
+msgstr "背景を削除"
+
+msgid "Local"
+msgstr "ローカル"
+
+msgid "Global"
+msgstr "グローバル"
+
+msgid "not registered"
+msgstr "未登録"
+
+msgid "Tell us about yourself..."
+msgstr "自己紹介を書いてください..."
+
+msgid "Music"
+msgstr "音楽"
+
+msgid "Photos"
+msgstr "写真"
+
+msgid "Videos"
+msgstr "動画"
+
+msgid "Albums"
+msgstr "アルバム"
+
+msgid "Clips"
+msgstr "クリップ"
+
+msgid "Articles"
+msgstr "記事"
+
+msgid "Nothing here yet — upload files from your device"
+msgstr "まだ何もありません — デバイスからファイルをアップロード"
+
+msgid "No internet connection"
+msgstr "インターネット接続がありません"
+
+msgid "Register this identity on a K-Server to use the global profile"
+msgstr "グローバルプロフィールを使うには、この識別情報を K-Server に登録してください"
+
+msgid "Register"
+msgstr "登録する"
+
+msgid "Sheet"
+msgstr "シート"
+
+msgid "Editor"
+msgstr "エディタ"
+
+msgid "Preview"
+msgstr "プレビュー"
+
+msgid "Write something"
+msgstr "何か書いてください"
+
+msgid "Open files"
+msgstr "ファイルを開く"
+
+msgid "Unknown artist"
+msgstr "アーティスト不明"
+
+msgid "Unknown album"
+msgstr "アルバム不明"
+
+msgid "Open a file to start playback"
+msgstr "ファイルを開くと再生を開始します"
+
+msgid "Playlist"
+msgstr "プレイリスト"
+
+msgid "Clear playlist"
+msgstr "プレイリストを消去"
+
+msgid "Nothing queued yet"
+msgstr "まだ何も入っていません"
+
+msgid "A custom rendering engine is the next step"
+msgstr "独自レンダリングエンジン — 次のステップ"
+
+msgid "Check for updates at startup"
+msgstr "起動時に更新を確認する"
+
+msgid "In development"
+msgstr "開発中"
+
+msgid "Community"
+msgstr "コミュニティ"
+
+msgid "Join like-minded KOutNet people in our community:"
+msgstr "KOutNet に関心のある仲間とコミュニティで交流しましょう:"
+
+msgid "Contribute"
+msgstr "プロジェクトへの貢献"
+
+msgid "Do not show this again"
+msgstr "次回から表示しない"
+
+msgid "Continue"
+msgstr "続ける"

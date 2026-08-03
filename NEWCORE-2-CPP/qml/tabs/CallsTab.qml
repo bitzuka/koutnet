@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Controls
@@ -21,7 +21,7 @@ Item {
 
         Kirigami.Heading {
             level: 3
-            text: Translations.t("tab_main_calls")
+            text: i18n("Calls")
             color: theme.text
             Layout.margins: Kirigami.Units.largeSpacing
         }
@@ -36,7 +36,7 @@ Item {
             Kirigami.PlaceholderMessage {
                 anchors.centerIn: parent
                 visible: callList.count === 0
-                text: Translations.t("no_calls")
+                text: i18n("No calls")
                 icon.name: "call-start"
             }
 

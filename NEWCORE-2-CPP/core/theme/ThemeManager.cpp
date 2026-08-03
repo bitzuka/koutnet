@@ -1,6 +1,8 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "ThemeManager.h"
+
+#include <KLocalizedString>
 
 #include <QStandardPaths>
 #include <QDir>
@@ -141,7 +143,38 @@ QStringList ThemeManager::availableThemes() const
 
 QString ThemeManager::themeLabel(const QString &name) const
 {
-    return m_palettes.value(name).value(QStringLiteral("label")).toString();
+    // Gettext uses the English text as the key, so a name assembled at
+    // runtime cannot be looked up and every theme has to be spelled out.
+    // The context matters too: "Dark" naming a theme and "Dark" anywhere
+    // else are one word in English and two in most other languages.
+    if (name == QLatin1StringView("aurora"))
+        return i18nc("theme name", "Aurora");
+    if (name == QLatin1StringView("dark"))
+        return i18nc("theme name", "Dark");
+    if (name == QLatin1StringView("dark_blue"))
+        return i18nc("theme name", "Dark Blue");
+    if (name == QLatin1StringView("dark_red"))
+        return i18nc("theme name", "Dark Red");
+    if (name == QLatin1StringView("forest"))
+        return i18nc("theme name", "Forest");
+    if (name == QLatin1StringView("gray"))
+        return i18nc("theme name", "Gray");
+    if (name == QLatin1StringView("light"))
+        return i18nc("theme name", "Light");
+    if (name == QLatin1StringView("midnight"))
+        return i18nc("theme name", "Midnight");
+    if (name == QLatin1StringView("neon"))
+        return i18nc("theme name", "Neon");
+    if (name == QLatin1StringView("ocean"))
+        return i18nc("theme name", "Ocean");
+    if (name == QLatin1StringView("sakura"))
+        return i18nc("theme name", "Sakura");
+    if (name == QLatin1StringView("sunset"))
+        return i18nc("theme name", "Sunset");
+    if (name == QLatin1StringView("win95"))
+        return i18nc("theme name", "Windows 95");
+
+    return name;
 }
 
 QString ThemeManager::settingsFilePath() const

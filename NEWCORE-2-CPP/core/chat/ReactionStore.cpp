@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "ReactionStore.h"
 
@@ -20,7 +20,7 @@ ReactionStore::ReactionStore(QObject *parent) : QObject(parent)
 
 QString ReactionStore::makeKey(const QString &chatId, double ts)
 {
-    return chatId + "|||" + QString::number(ts, 'f', 3);
+    return chatId + QStringLiteral("|||") + QString::number(ts, 'f', 3);
 }
 
 void ReactionStore::add(const QString &chatId, double ts, const QString &emoji, const QString &username)
@@ -111,7 +111,7 @@ void ReactionStore::save()
 
     const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(dataDir);
-    QFile f(dataDir + "/reactions.json");
+    QFile f(dataDir + QStringLiteral("/reactions.json"));
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
         f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
         f.close();
@@ -123,7 +123,7 @@ void ReactionStore::save()
 void ReactionStore::load()
 {
     const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QFile f(dataDir + "/reactions.json");
+    QFile f(dataDir + QStringLiteral("/reactions.json"));
     if (!f.exists() || !f.open(QIODevice::ReadOnly))
         return;
 

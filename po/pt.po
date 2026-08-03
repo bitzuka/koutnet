@@ -1,0 +1,437 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: koutnet\n"
+"Language: pt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgctxt "theme name"
+msgid "Aurora"
+msgstr ""
+
+msgctxt "theme name"
+msgid "Dark"
+msgstr "Escuro"
+
+msgctxt "theme name"
+msgid "Dark Blue"
+msgstr "Azul escuro"
+
+msgctxt "theme name"
+msgid "Dark Red"
+msgstr "Vermelho escuro"
+
+msgctxt "theme name"
+msgid "Forest"
+msgstr "Floresta"
+
+msgctxt "theme name"
+msgid "Gray"
+msgstr "Cinza"
+
+msgctxt "theme name"
+msgid "Light"
+msgstr "Claro"
+
+msgctxt "theme name"
+msgid "Midnight"
+msgstr "Meia-noite"
+
+msgctxt "theme name"
+msgid "Neon"
+msgstr "Néon"
+
+msgctxt "theme name"
+msgid "Ocean"
+msgstr "Oceano"
+
+msgctxt "theme name"
+msgid "Sakura"
+msgstr ""
+
+msgctxt "theme name"
+msgid "Sunset"
+msgstr "Pôr do sol"
+
+msgctxt "theme name"
+msgid "Windows 95"
+msgstr ""
+
+msgid "Mute"
+msgstr "Mudo"
+
+msgid "Speaker"
+msgstr "Alto-falante"
+
+msgid "Screen"
+msgstr "Tela"
+
+msgid "End"
+msgstr "Encerrar"
+
+msgid "Incoming call"
+msgstr "Chamada recebida"
+
+msgid "Calling"
+msgstr "Chamando"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Connecting…"
+msgstr "Conectando…"
+
+msgid "Back"
+msgstr "Voltar"
+
+msgid "Profile"
+msgstr "Perfil"
+
+msgid "Call"
+msgstr "Ligar"
+
+msgid "Choose an image for the emoji"
+msgstr "Escolher imagem para emoji personalizado"
+
+msgid "Reply"
+msgstr "Responder"
+
+msgid "Copy"
+msgstr "Copiar"
+
+msgid "Copied!"
+msgstr "Copiado!"
+
+msgid "Forward"
+msgstr "Encaminhar"
+
+msgid "React"
+msgstr "Reação"
+
+msgid "Delete"
+msgstr "Excluir"
+
+msgid "last seen"
+msgstr "visto por último"
+
+msgid "online"
+msgstr ""
+
+msgid "edited"
+msgstr "editado"
+
+msgid "Message..."
+msgstr "Mensagem..."
+
+msgid "Send"
+msgstr "Enviar"
+
+msgid "Attach a file"
+msgstr "Anexar arquivo"
+
+msgid "Welcome to KOutNet"
+msgstr "Bem-vindo ao KOutNet"
+
+msgid "System default"
+msgstr "Predefinição do sistema"
+
+msgid "Favorites"
+msgstr "Favoritos"
+
+msgid "File"
+msgstr "Arquivo"
+
+msgid "My profile"
+msgstr "Meu perfil"
+
+msgid "Settings"
+msgstr "Configurações"
+
+msgid "Quit"
+msgstr "Sair"
+
+msgid "View"
+msgstr "Exibir"
+
+msgid "Themes"
+msgstr "Temas"
+
+msgid "Fullscreen"
+msgstr "Modo de tela cheia"
+
+msgid "Calls"
+msgstr "Chamadas"
+
+msgid "Mute microphone"
+msgstr "Silenciar microfone"
+
+msgid "End all calls"
+msgstr "Encerrar todas as chamadas"
+
+msgid "Help"
+msgstr "Ajuda"
+
+msgid "About"
+msgstr "Sobre"
+
+msgid "Tutorial"
+msgstr ""
+
+msgid "The interactive tutorial has not been ported yet."
+msgstr "O tutorial interativo ainda não foi portado."
+
+msgid "Searching for peers..."
+msgstr "Procurando pares..."
+
+msgid "IP: "
+msgstr ""
+
+msgid "Microphone off"
+msgstr "Microfone desativado"
+
+msgid "Microphone on"
+msgstr "Microfone ativado"
+
+msgid "No calls"
+msgstr "Sem chamadas"
+
+msgid "Contacts"
+msgstr "Contatos"
+
+msgid "Search"
+msgstr "Pesquisar"
+
+msgid "No one here yet"
+msgstr "Ainda não há ninguém aqui"
+
+msgid "KOutNet is looking for other users, but it's quiet here for now..."
+msgstr "KOutNet está procurando outros usuários, mas por enquanto está tranquilo..."
+
+msgid "Chat"
+msgstr ""
+
+msgid "Notes"
+msgstr "Notas"
+
+msgid "General"
+msgstr "Geral"
+
+msgid "Audio"
+msgstr "Áudio"
+
+msgid "Network"
+msgstr "Rede"
+
+msgid "Username"
+msgstr "Nome de usuário"
+
+msgid "Display name"
+msgstr "Nome exibido"
+
+msgid "Theme"
+msgstr "Tema"
+
+msgid "Microphone"
+msgstr "Microfone"
+
+msgid "Stop test"
+msgstr "Parar teste"
+
+msgid "Test microphone"
+msgstr "Testar microfone"
+
+msgid "Speakers"
+msgstr "Alto-falantes"
+
+msgid "Test speakers"
+msgstr "Testar alto-falantes"
+
+msgid "Volume"
+msgstr ""
+
+msgid "Voice activity detection"
+msgstr "Deteção de atividade de voz"
+
+msgid "Network mode"
+msgstr "Modo de rede"
+
+msgid "Local network (LAN)"
+msgstr "Rede local (LAN)"
+
+msgid "K-Server (self-hosted)"
+msgstr "K-Server (proprio)"
+
+msgid "K-Server (join someone else's)"
+msgstr "K-Server (juntar-se a outro)"
+
+msgid "Relay (not a K-Server)"
+msgstr "Relay (nao K-Server)"
+
+msgid "Maintainer's VDS"
+msgstr "VDS do mantenedor"
+
+msgid "not available yet"
+msgstr "ainda indisponivel"
+
+msgid "Relay server address"
+msgstr "Endereço do servidor de relé"
+
+msgid "Relay server port"
+msgstr "Porta do servidor de relé"
+
+msgid "Save"
+msgstr "Salvar"
+
+msgid "Settings saved"
+msgstr "Configurações salvas"
+
+msgid "KOutNet — P2P encrypted messenger"
+msgstr "KOutNet — mensageiro P2P criptografado"
+
+msgid "Forwarding messages is not implemented in ChatModel yet."
+msgstr "O encaminhamento de mensagens ainda não foi implementado no ChatModel."
+
+msgid "Deleting messages is not implemented in ChatModel yet."
+msgstr "A exclusão de mensagens ainda não foi implementada no ChatModel."
+
+msgid "Select a peer on the left to start a conversation."
+msgstr "Selecione um contato à esquerda para iniciar uma conversa."
+
+msgid "No session"
+msgstr "Sem sessão"
+
+msgid "No description"
+msgstr "Sem descrição"
+
+msgid "Will appear once connected to a K-Server"
+msgstr "Aparecerá após conectar-se a um K-Server"
+
+msgid "Friends"
+msgstr "Amigos"
+
+msgid "No one yet"
+msgstr "Ainda ninguém"
+
+msgid "Change avatar"
+msgstr "Alterar avatar"
+
+msgid "Change banner"
+msgstr "Alterar banner"
+
+msgid "Change background"
+msgstr "Alterar plano de fundo"
+
+msgid "Choose name badge"
+msgstr "Escolher emblema de nome"
+
+msgid "Add information about yourself"
+msgstr "Adicione informações sobre você"
+
+msgid "Done"
+msgstr "Concluído"
+
+msgid "Edit profile"
+msgstr "Editar perfil"
+
+msgid "Remove background"
+msgstr "Remover plano de fundo"
+
+msgid "Local"
+msgstr ""
+
+msgid "Global"
+msgstr ""
+
+msgid "not registered"
+msgstr "não registrado"
+
+msgid "Tell us about yourself..."
+msgstr "Conte-nos sobre você..."
+
+msgid "Music"
+msgstr "Música"
+
+msgid "Photos"
+msgstr "Fotos"
+
+msgid "Videos"
+msgstr "Vídeos"
+
+msgid "Albums"
+msgstr "Álbuns"
+
+msgid "Clips"
+msgstr "Clipes"
+
+msgid "Articles"
+msgstr "Artigos"
+
+msgid "Nothing here yet — upload files from your device"
+msgstr "Ainda nada aqui — envie arquivos do seu dispositivo"
+
+msgid "No internet connection"
+msgstr "Sem conexão com a internet"
+
+msgid "Register this identity on a K-Server to use the global profile"
+msgstr "Registe esta identidade num K-Server para usar o perfil global"
+
+msgid "Register"
+msgstr "Registar"
+
+msgid "Sheet"
+msgstr "Folha"
+
+msgid "Editor"
+msgstr ""
+
+msgid "Preview"
+msgstr "Pré-visualização"
+
+msgid "Write something"
+msgstr "Escreva algo"
+
+msgid "Open files"
+msgstr "Abrir ficheiros"
+
+msgid "Unknown artist"
+msgstr "Artista desconhecido"
+
+msgid "Unknown album"
+msgstr "Álbum desconhecido"
+
+msgid "Open a file to start playback"
+msgstr "Abra um ficheiro para iniciar a reprodução"
+
+msgid "Playlist"
+msgstr "Lista de reprodução"
+
+msgid "Clear playlist"
+msgstr "Limpar a lista"
+
+msgid "Nothing queued yet"
+msgstr "Ainda não há nada na fila"
+
+msgid "A custom rendering engine is the next step"
+msgstr "Motor de renderização próprio — em breve"
+
+msgid "Check for updates at startup"
+msgstr "Procurar atualizações ao iniciar"
+
+msgid "In development"
+msgstr "Em desenvolvimento"
+
+msgid "Community"
+msgstr "Comunidade"
+
+msgid "Join like-minded KOutNet people in our community:"
+msgstr "Junte-se a quem partilha o interesse pelo KOutNet na nossa comunidade:"
+
+msgid "Contribute"
+msgstr "Contribuir"
+
+msgid "Do not show this again"
+msgstr "Não mostrar novamente"
+
+msgid "Continue"
+msgstr "Continuar"

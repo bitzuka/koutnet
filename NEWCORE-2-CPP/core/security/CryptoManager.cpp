@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Security Engine v2 (C++/Qt6 port)
 #include "CryptoManager.h"
@@ -363,7 +363,7 @@ bool CryptoManager::gcmDecrypt(const QByteArray &key, const QByteArray &data, QB
 // PBKDF2 passphrase keys (cached)
 QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray &salt) const
 {
-    const QString cacheKey = passphrase + '|' + QString::fromLatin1(salt.toHex());
+    const QString cacheKey = passphrase + QLatin1Char('|') + QString::fromLatin1(salt.toHex());
     if (m_passphraseKeyCache.contains(cacheKey))
         return m_passphraseKeyCache.value(cacheKey);
 

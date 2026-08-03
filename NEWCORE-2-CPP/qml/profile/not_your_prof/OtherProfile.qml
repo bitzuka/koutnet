@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Controls
@@ -24,9 +24,6 @@ Item {
     implicitWidth: Kirigami.Units.gridUnit * 46
     implicitHeight: Kirigami.Units.gridUnit * 30
 
-    function tr(key) {
-        return (Translations.current, Translations.t(key))
-    }
 
     readonly property string shownName: peer
         ? (peer.displayName && peer.displayName.length > 0 ? peer.displayName
@@ -122,7 +119,7 @@ Item {
                     color: root.peer && root.peer.e2e ? root.theme.online : root.theme.text_dim
                 }
                 Label {
-                    text: root.peer && root.peer.e2e ? "E2E" : root.tr("profile.no_session")
+                    text: root.peer && root.peer.e2e ? "E2E" : i18n("No session")
                     color: root.theme.text_dim
                 }
             }
@@ -131,7 +128,7 @@ Item {
         Label {
             Layout.leftMargin: Kirigami.Units.largeSpacing
             Layout.bottomMargin: Kirigami.Units.smallSpacing
-            text: root.tr("profile.status_online")
+            text: i18n("online")
                 + (root.peer && root.peer.os.length > 0 ? "  -  " + root.peer.os : "")
             color: root.theme.text_dim
             font.pixelSize: 13
@@ -166,14 +163,14 @@ Item {
                         color: root.peer && root.peer.bio && root.peer.bio.length > 0
                             ? root.theme.text : root.theme.text_dim
                         text: root.peer && root.peer.bio && root.peer.bio.length > 0
-                            ? root.peer.bio : root.tr("profile.no_bio")
+                            ? root.peer.bio : i18n("No description")
                     }
                 }
 
                 Kirigami.PlaceholderMessage {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    text: root.tr("profile.tab_content_placeholder")
+                    text: i18n("Will appear once connected to a K-Server")
                     icon.name: "folder-symbolic"
                 }
             }
@@ -198,11 +195,11 @@ Item {
                         spacing: 8
                         Kirigami.Heading {
                             level: 5
-                            text: root.tr("profile.friends")
+                            text: i18n("Friends")
                             color: root.theme.text
                         }
                         Label {
-                            text: root.tr("profile.no_friends_yet")
+                            text: i18n("No one yet")
                             color: root.theme.text_dim
                         }
                     }

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Layouts
@@ -27,10 +27,6 @@ Kirigami.Page {
     readonly property var theme: ThemeManager.colors
     // Ctrl+wheel zoom target, multiplies message text font size.
     property real chatFontScale: 1.0
-
-    function tr(key) {
-        return (Translations.current, Translations.t(key))
-    }
 
     function isEmojiOnlyText(text) {
         if (!text || text.trim().length === 0 || text.length > 16 || text.indexOf(' ') >= 0 || text.indexOf('\n') >= 0) return false
@@ -72,18 +68,18 @@ Kirigami.Page {
 
     actions: [
         Kirigami.Action {
-            text: root.tr("chat.back")
+            text: i18n("Back")
             icon.name: "go-previous"
             visible: root.showBackButton
             onTriggered: root.returnToListRequested()
         },
         Kirigami.Action {
-            text: root.tr("profile.open")
+            text: i18n("Profile")
             icon.name: "user-identity"
             onTriggered: root.profileRequested()
         },
         Kirigami.Action {
-            text: root.tr("call.button")
+            text: i18n("Call")
             icon.name: "call-start"
             onTriggered: root.callRequested()
         }
@@ -262,7 +258,7 @@ Kirigami.Page {
 
     FileDialog {
         id: customEmojiDialog
-        title: root.tr("chat.pick_custom_emoji")
+        title: i18n("Choose an image for the emoji")
         nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif)"]
         onAccepted: {
             // Stored/rendered at a fixed 128x128 box everywhere it's used
@@ -285,32 +281,32 @@ Kirigami.Page {
         property string msgText: ""
 
         MenuItem {
-            text: root.tr("msg_reply")
+            text: i18n("Reply")
             onTriggered: {
                 root.replyToText = messageMenu.msgText
                 inputField.forceActiveFocus()
             }
         }
         MenuItem {
-            text: root.tr("msg_copy")
+            text: i18n("Copy")
             onTriggered: {
                 if (messageMenu.msgText.length > 0) {
                     clipboardHelper.copyText(messageMenu.msgText)
-                    toast.show(root.tr("copied_notice"))
+                    toast.show(i18n("Copied!"))
                 }
             }
         }
         MenuItem {
-            text: root.tr("msg_forward")
+            text: i18n("Forward")
             onTriggered: root.forwardRequested(messageMenu.msgIndex)
         }
         MenuItem {
-            text: root.tr("msg_reactions")
+            text: i18n("React")
             onTriggered: root.openReactionPicker(messageMenu.msgIndex)
         }
         MenuSeparator {}
         MenuItem {
-            text: root.tr("msg_delete")
+            text: i18n("Delete")
             onTriggered: root.deleteRequested(messageMenu.msgIndex)
         }
     }
@@ -375,8 +371,8 @@ Kirigami.Page {
                     Label {
                         visible: root.peerInfo && !root.peerInfo.isFavorites
                         text: root.peerInfo && root.peerInfo.lastSeen > 0
-                            ? root.tr("chat.last_seen") + " " + new Date(root.peerInfo.lastSeen * 1000).toLocaleString()
-                            : root.tr("chat.online_now")
+                            ? i18n("last seen") + " " + new Date(root.peerInfo.lastSeen * 1000).toLocaleString()
+                            : i18n("online")
                         color: root.theme.text_dim
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                     }
@@ -659,7 +655,7 @@ Kirigami.Page {
 
                         Label {
                             visible: model.isEdited
-                            text: root.tr("edited_label")
+                            text: i18n("edited")
                             font.italic: true
                             font.pointSize: Kirigami.Theme.smallFont.pointSize
                             color: root.theme.text_dim
@@ -735,7 +731,7 @@ Kirigami.Page {
                 TextField {
                     id: inputField
                     Layout.fillWidth: true
-                    placeholderText: root.tr("chat.placeholder")
+                    placeholderText: i18n("Message...")
                     color: root.theme.text
                     placeholderTextColor: root.theme.text_dim
                     selectionColor: root.theme.accent
@@ -753,7 +749,7 @@ Kirigami.Page {
 
                 Button {
                     id: sendButton
-                    text: root.tr("chat.send")
+                    text: i18n("Send")
                     enabled: inputField.text.length > 0
                     onClicked: {
                         root.sendRequested(inputField.text)
@@ -854,7 +850,7 @@ Kirigami.Page {
 
     FileDialog {
         id: fileDialog
-        title: root.tr("chat.attach_title")
+        title: i18n("Attach a file")
         onAccepted: {
             const path = selectedFile.toString().replace("file://", "")
             console.log("FileDialog selected:", path)

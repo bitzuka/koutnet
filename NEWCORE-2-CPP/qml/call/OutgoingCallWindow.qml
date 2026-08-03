@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Layouts
@@ -23,10 +23,6 @@ Window {
     readonly property var theme: ThemeManager.colors
 
     signal cancelled()
-
-    function tr(key) {
-        return (Translations.current, Translations.t(key))
-    }
 
     Component.onCompleted: {
         x = Screen.width / 2 - width / 2
@@ -139,7 +135,7 @@ Window {
             Label {
                 id: statusLabel
                 Layout.alignment: Qt.AlignHCenter
-                text: root.tr("call.calling")
+                text: i18n("Calling")
                 font.pixelSize: 14
                 color: root.theme.text_dim
 
@@ -150,7 +146,7 @@ Window {
                     repeat: true
                     onTriggered: {
                         statusLabel.dotCount = (statusLabel.dotCount + 1) % 4
-                        statusLabel.text = root.tr("call.calling") + ".".repeat(statusLabel.dotCount)
+                        statusLabel.text = i18n("Calling") + ".".repeat(statusLabel.dotCount)
                         root.elapsedSeconds += 1
                     }
                 }
@@ -202,7 +198,7 @@ Window {
 
                 Label {
                     Layout.alignment: Qt.AlignHCenter
-                    text: root.tr("call.cancel")
+                    text: i18n("Cancel")
                     font.pixelSize: 10
                     color: root.theme.text_dim
                 }
@@ -211,6 +207,6 @@ Window {
     }
 
     function callAccepted() {
-        statusLabel.text = root.tr("call.connecting")
+        statusLabel.text = i18n("Connecting…")
     }
 }

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Layouts
@@ -153,9 +153,9 @@ Window {
                 RowLayout {
                     Layout.alignment: Qt.AlignHCenter
                     spacing: 20
-                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: root.tr("call.mute"); font.pixelSize: 10; color: root.theme.text_dim }
-                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: root.tr("call.speaker"); font.pixelSize: 10; color: root.theme.text_dim }
-                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: root.tr("call.screen"); font.pixelSize: 10; color: root.theme.text_dim }
+                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: i18n("Mute"); font.pixelSize: 10; color: root.theme.text_dim }
+                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: i18n("Speaker"); font.pixelSize: 10; color: root.theme.text_dim }
+                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: i18n("Screen"); font.pixelSize: 10; color: root.theme.text_dim }
                 }
             }
 
@@ -183,7 +183,7 @@ Window {
 
                 Label {
                     Layout.alignment: Qt.AlignHCenter
-                    text: root.tr("call.end")
+                    text: i18n("End")
                     font.pixelSize: 10
                     color: root.theme.text_dim
                 }

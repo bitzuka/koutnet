@@ -1,0 +1,437 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: koutnet\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgctxt "theme name"
+msgid "Aurora"
+msgstr "أورورا"
+
+msgctxt "theme name"
+msgid "Dark"
+msgstr "داكن"
+
+msgctxt "theme name"
+msgid "Dark Blue"
+msgstr "أزرق داكن"
+
+msgctxt "theme name"
+msgid "Dark Red"
+msgstr "أحمر داكن"
+
+msgctxt "theme name"
+msgid "Forest"
+msgstr "غابة"
+
+msgctxt "theme name"
+msgid "Gray"
+msgstr "رمادي"
+
+msgctxt "theme name"
+msgid "Light"
+msgstr "فاتح"
+
+msgctxt "theme name"
+msgid "Midnight"
+msgstr "منتصف الليل"
+
+msgctxt "theme name"
+msgid "Neon"
+msgstr "نيون"
+
+msgctxt "theme name"
+msgid "Ocean"
+msgstr "المحيط"
+
+msgctxt "theme name"
+msgid "Sakura"
+msgstr "ساكورا"
+
+msgctxt "theme name"
+msgid "Sunset"
+msgstr "غروب الشمس"
+
+msgctxt "theme name"
+msgid "Windows 95"
+msgstr ""
+
+msgid "Mute"
+msgstr "كتم"
+
+msgid "Speaker"
+msgstr "مكبر الصوت"
+
+msgid "Screen"
+msgstr "الشاشة"
+
+msgid "End"
+msgstr "إنهاء"
+
+msgid "Incoming call"
+msgstr "مكالمة واردة"
+
+msgid "Calling"
+msgstr "جاري الاتصال"
+
+msgid "Cancel"
+msgstr "إلغاء"
+
+msgid "Connecting…"
+msgstr "جارٍ الاتصال…"
+
+msgid "Back"
+msgstr "رجوع"
+
+msgid "Profile"
+msgstr "الملف الشخصي"
+
+msgid "Call"
+msgstr "اتصال"
+
+msgid "Choose an image for the emoji"
+msgstr "اختر صورة للإيموجي المخصص"
+
+msgid "Reply"
+msgstr "رد"
+
+msgid "Copy"
+msgstr "نسخ"
+
+msgid "Copied!"
+msgstr "تم النسخ!"
+
+msgid "Forward"
+msgstr "إعادة توجيه"
+
+msgid "React"
+msgstr "تفاعل"
+
+msgid "Delete"
+msgstr "حذف"
+
+msgid "last seen"
+msgstr "آخر ظهور"
+
+msgid "online"
+msgstr "متصل الآن"
+
+msgid "edited"
+msgstr "تم التعديل"
+
+msgid "Message..."
+msgstr "رسالة..."
+
+msgid "Send"
+msgstr "إرسال"
+
+msgid "Attach a file"
+msgstr "إرفاق ملف"
+
+msgid "Welcome to KOutNet"
+msgstr "مرحبا بك في KOutNet"
+
+msgid "System default"
+msgstr "الافتراضي للنظام"
+
+msgid "Favorites"
+msgstr "المفضلة"
+
+msgid "File"
+msgstr "ملف"
+
+msgid "My profile"
+msgstr "ملفي الشخصي"
+
+msgid "Settings"
+msgstr "الإعدادات"
+
+msgid "Quit"
+msgstr "خروج"
+
+msgid "View"
+msgstr "عرض"
+
+msgid "Themes"
+msgstr "السمات"
+
+msgid "Fullscreen"
+msgstr "وضع ملء الشاشة"
+
+msgid "Calls"
+msgstr "المكالمات"
+
+msgid "Mute microphone"
+msgstr "كتم الميكروفون"
+
+msgid "End all calls"
+msgstr "إنهاء جميع المكالمات"
+
+msgid "Help"
+msgstr "مساعدة"
+
+msgid "About"
+msgstr "حول البرنامج"
+
+msgid "Tutorial"
+msgstr "الدليل التعليمي"
+
+msgid "The interactive tutorial has not been ported yet."
+msgstr "لم يتم بعد نقل الدليل التفاعلي."
+
+msgid "Searching for peers..."
+msgstr "جارٍ البحث عن الأقران..."
+
+msgid "IP: "
+msgstr ""
+
+msgid "Microphone off"
+msgstr "الميكروفون مكتوم"
+
+msgid "Microphone on"
+msgstr "الميكروفون مفعّل"
+
+msgid "No calls"
+msgstr "لا توجد مكالمات"
+
+msgid "Contacts"
+msgstr "جهات الاتصال"
+
+msgid "Search"
+msgstr "بحث"
+
+msgid "No one here yet"
+msgstr "لا يوجد أحد هنا بعد"
+
+msgid "KOutNet is looking for other users, but it's quiet here for now..."
+msgstr "يبحث KOutNet عن مستخدمين آخرين، لكن الأمر هادئ هنا الآن..."
+
+msgid "Chat"
+msgstr "الدردشة"
+
+msgid "Notes"
+msgstr "الملاحظات"
+
+msgid "General"
+msgstr "عام"
+
+msgid "Audio"
+msgstr "الصوت"
+
+msgid "Network"
+msgstr "الشبكة"
+
+msgid "Username"
+msgstr "اسم المستخدم"
+
+msgid "Display name"
+msgstr "الاسم المعروض"
+
+msgid "Theme"
+msgstr "السمة"
+
+msgid "Microphone"
+msgstr "الميكروفون"
+
+msgid "Stop test"
+msgstr "إيقاف الاختبار"
+
+msgid "Test microphone"
+msgstr "اختبار الميكروفون"
+
+msgid "Speakers"
+msgstr "السماعات"
+
+msgid "Test speakers"
+msgstr "اختبار السماعات"
+
+msgid "Volume"
+msgstr "مستوى الصوت"
+
+msgid "Voice activity detection"
+msgstr "كشف النشاط الصوتي"
+
+msgid "Network mode"
+msgstr "وضع الشبكة"
+
+msgid "Local network (LAN)"
+msgstr "شبكة محلية (LAN)"
+
+msgid "K-Server (self-hosted)"
+msgstr "K-Server (استضافة ذاتية)"
+
+msgid "K-Server (join someone else's)"
+msgstr "K-Server (الانضمام إلى خادم آخر)"
+
+msgid "Relay (not a K-Server)"
+msgstr "مرحّل (ليس K-Server)"
+
+msgid "Maintainer's VDS"
+msgstr "خادم المشرف"
+
+msgid "not available yet"
+msgstr "غير متاح بعد"
+
+msgid "Relay server address"
+msgstr "عنوان خادم التتابع"
+
+msgid "Relay server port"
+msgstr "منفذ خادم التتابع"
+
+msgid "Save"
+msgstr "حفظ"
+
+msgid "Settings saved"
+msgstr "تم حفظ الإعدادات"
+
+msgid "KOutNet — P2P encrypted messenger"
+msgstr "KOutNet — مراسل P2P مشفر"
+
+msgid "Forwarding messages is not implemented in ChatModel yet."
+msgstr "إعادة توجيه الرسائل غير مطبقة بعد في ChatModel."
+
+msgid "Deleting messages is not implemented in ChatModel yet."
+msgstr "حذف الرسائل غير مطبق بعد في ChatModel."
+
+msgid "Select a peer on the left to start a conversation."
+msgstr "اختر جهة اتصال من اليسار لبدء محادثة."
+
+msgid "No session"
+msgstr "لا توجد جلسة"
+
+msgid "No description"
+msgstr "لا يوجد وصف"
+
+msgid "Will appear once connected to a K-Server"
+msgstr "سيظهر بعد الاتصال بخادم K-Server"
+
+msgid "Friends"
+msgstr "الأصدقاء"
+
+msgid "No one yet"
+msgstr "لا أحد بعد"
+
+msgid "Change avatar"
+msgstr "تغيير الصورة الرمزية"
+
+msgid "Change banner"
+msgstr "تغيير الشعار"
+
+msgid "Change background"
+msgstr "تغيير الخلفية"
+
+msgid "Choose name badge"
+msgstr "اختر شارة الاسم"
+
+msgid "Add information about yourself"
+msgstr "أضف معلومات عن نفسك"
+
+msgid "Done"
+msgstr "تم"
+
+msgid "Edit profile"
+msgstr "تعديل الملف الشخصي"
+
+msgid "Remove background"
+msgstr "إزالة الخلفية"
+
+msgid "Local"
+msgstr "محلي"
+
+msgid "Global"
+msgstr "عالمي"
+
+msgid "not registered"
+msgstr "غير مسجل"
+
+msgid "Tell us about yourself..."
+msgstr "أخبرنا عن نفسك..."
+
+msgid "Music"
+msgstr "الموسيقى"
+
+msgid "Photos"
+msgstr "الصور"
+
+msgid "Videos"
+msgstr "الفيديوهات"
+
+msgid "Albums"
+msgstr "الألبومات"
+
+msgid "Clips"
+msgstr "المقاطع"
+
+msgid "Articles"
+msgstr "المقالات"
+
+msgid "Nothing here yet — upload files from your device"
+msgstr "لا يوجد شيء بعد — قم برفع ملفات من جهازك"
+
+msgid "No internet connection"
+msgstr "لا يوجد اتصال بالإنترنت"
+
+msgid "Register this identity on a K-Server to use the global profile"
+msgstr "سجّل هذه الهوية على K-Server لاستخدام الملف الشخصي العام"
+
+msgid "Register"
+msgstr "تسجيل"
+
+msgid "Sheet"
+msgstr "ورقة"
+
+msgid "Editor"
+msgstr "محرر"
+
+msgid "Preview"
+msgstr "معاينة"
+
+msgid "Write something"
+msgstr "اكتب شيئًا"
+
+msgid "Open files"
+msgstr "فتح ملفات"
+
+msgid "Unknown artist"
+msgstr "فنان غير معروف"
+
+msgid "Unknown album"
+msgstr "ألبوم غير معروف"
+
+msgid "Open a file to start playback"
+msgstr "افتح ملفا لبدء التشغيل"
+
+msgid "Playlist"
+msgstr "قائمة التشغيل"
+
+msgid "Clear playlist"
+msgstr "إفراغ القائمة"
+
+msgid "Nothing queued yet"
+msgstr "لا شيء في القائمة بعد"
+
+msgid "A custom rendering engine is the next step"
+msgstr "محرك عرض خاص — قريبًا"
+
+msgid "Check for updates at startup"
+msgstr "التحقق من التحديثات عند بدء التشغيل"
+
+msgid "In development"
+msgstr "قيد التطوير"
+
+msgid "Community"
+msgstr "المجتمع"
+
+msgid "Join like-minded KOutNet people in our community:"
+msgstr "انضم إلى المهتمين بـ KOutNet في مجتمعنا:"
+
+msgid "Contribute"
+msgstr "المساهمة"
+
+msgid "Do not show this again"
+msgstr "عدم العرض مرة أخرى"
+
+msgid "Continue"
+msgstr "متابعة"

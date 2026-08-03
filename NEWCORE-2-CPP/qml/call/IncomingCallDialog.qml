@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Layouts
@@ -102,7 +102,7 @@ Window {
                 spacing: 4
 
                 Label {
-                    text: root.tr("call.incoming")
+                    text: i18n("Incoming call")
                     font.pixelSize: 10
                     font.bold: true
                     color: root.theme.text_dim

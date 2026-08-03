@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Reassembles chunked file transfers received over UDP
 #include "FileTransferHandler.h"
@@ -150,15 +150,15 @@ QString FileTransferHandler::saveToDisk(const QJsonObject &meta, const QByteArra
     const QString filename = sanitizeFilename(meta.value(QStringLiteral("filename")).toString());
 
     // Avoid clobbering an existing file with the same name.
-    QString candidate = dirPath + "/" + filename;
+    QString candidate = dirPath + QLatin1Char('/') + filename;
     if (QFileInfo::exists(candidate)) {
         const QFileInfo fi(filename);
         const QString base = fi.completeBaseName();
         const QString ext = fi.suffix();
         int n = 1;
         do {
-            candidate = dirPath + "/" + base + QStringLiteral("(%1)").arg(n)
-                       + (ext.isEmpty() ? QString() : "." + ext);
+            candidate = dirPath + QLatin1Char('/') + base + QStringLiteral("(%1)").arg(n)
+                       + (ext.isEmpty() ? QString() : QString(QLatin1Char('.') + ext));
             ++n;
         } while (QFileInfo::exists(candidate));
     }
@@ -168,7 +168,7 @@ QString FileTransferHandler::saveToDisk(const QJsonObject &meta, const QByteArra
     // past sanitizeFilename().
     const QFileInfo candidateInfo(candidate);
     const QString canonicalDir = QFileInfo(dirPath).absoluteFilePath();
-    if (!candidateInfo.absoluteFilePath().startsWith(canonicalDir + "/"))
+    if (!candidateInfo.absoluteFilePath().startsWith(canonicalDir + QLatin1Char('/')))
         return QString();
 
     QFile out(candidate);

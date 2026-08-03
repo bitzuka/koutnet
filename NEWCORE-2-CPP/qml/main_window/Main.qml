@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Main application window
 import QtQuick
@@ -11,7 +11,7 @@ import koutnet.app
 Kirigami.ApplicationWindow {
     id: root
 
-    title: welcomeLoader.active ? root.tr("welcome.title") : "KOutNet"
+    title: welcomeLoader.active ? i18n("Welcome to KOutNet") : "KOutNet"
     width: 1000
     height: 650
     minimumWidth: 480
@@ -20,28 +20,10 @@ Kirigami.ApplicationWindow {
 
     readonly property var theme: ThemeManager.colors
 
-    // Q_INVOKABLE calls do not register as binding dependencies, only
-    // NOTIFYable properties do. Reading Translations.current through the
-    // comma operator makes every tr() binding depend on it, so a language
-    // switch actually re-evaluates the UI.
-    function tr(key) {
-        return (Translations.current, Translations.t(key))
-    }
-
-    readonly property var languageLabels: ({
-        ru: "Русский", en: "English", ja: "日本語", ar: "العربية",
-        de: "Deutsch", es: "Español", fr: "Français", hi: "हिन्दी",
-        it: "Italiano", pl: "Polski", pt: "Português", tr: "Türkçe",
-        uk: "Українська", zh: "中文"
-    })
-    function languageLabel(code) {
-        return root.languageLabels[code] || code.toUpperCase()
-    }
-
     // Prepends a "system default" row so an empty saved device id still
     // selects something instead of leaving the combo blank.
     function deviceList(devices) {
-        var out = [{ id: "", description: root.tr("settings.device_default") }]
+        var out = [{ id: "", description: i18n("System default") }]
         for (var i = 0; i < devices.length; ++i)
             out.push(devices[i])
         return out
@@ -99,13 +81,13 @@ Kirigami.ApplicationWindow {
     // Describes the peer at the top of ChatPage: username, os, e2e,
     // avatarLetter, isFavorites, lastSeen. peersModel.count is read only to
     // register a dependency, so this re-evaluates as peers come and go. Same
-    // trick as tr() above, on a ListModel instead of a Q_PROPERTY.
+    // same idea as above, on a ListModel instead of a Q_PROPERTY.
     function peerInfoFor(ip) {
         /* eslint-disable no-unused-expressions */
         peersModel.count
         if (ip === root.kSelfChatId) {
             return {
-                username: root.tr("sidebar.favorites"),
+                username: i18n("Favorites"),
                 os: "",
                 e2e: false,
                 avatarLetter: "★",
@@ -237,25 +219,25 @@ Kirigami.ApplicationWindow {
         background: Rectangle { color: root.theme.header_bg }
 
         Menu {
-            title: root.tr("menu.file")
+            title: i18n("File")
             MenuItem {
-                text: root.tr("menu.my_profile")
+                text: i18n("My profile")
                 onTriggered: yourProfileSheet.open()
             }
-            MenuItem { text: root.tr("menu.settings"); onTriggered: settingsSheet.open() }
+            MenuItem { text: i18n("Settings"); onTriggered: settingsSheet.open() }
             MenuSeparator {}
-            MenuItem { text: root.tr("menu.quit"); onTriggered: Qt.quit() }
+            MenuItem { text: i18n("Quit"); onTriggered: Qt.quit() }
         }
 
         Menu {
-            title: root.tr("menu.view")
+            title: i18n("View")
 
             Menu {
-                title: root.tr("menu.themes")
+                title: i18n("Themes")
                 Repeater {
                     model: ThemeManager.availableThemes
                     MenuItem {
-                        text: root.tr("theme." + modelData)
+                        text: ThemeManager.themeLabel(modelData)
                         onTriggered: ThemeManager.currentTheme = modelData
                     }
                 }
@@ -264,45 +246,26 @@ Kirigami.ApplicationWindow {
             MenuSeparator {}
 
             MenuItem {
-                text: root.tr("tab_player_violla")
+                text: "Violla"
                 onTriggered: tabStrip.currentIndex = 3
             }
 
             MenuSeparator {}
 
             MenuItem {
-                text: root.tr("menu.fullscreen") + "  (F11)"
+                text: i18n("Fullscreen") + "  (F11)"
                 onTriggered: root.visibility = (root.visibility === Window.FullScreen)
                     ? Window.Windowed : Window.FullScreen
             }
 
             MenuSeparator {}
 
-            Menu {
-                id: langMenu
-                title: root.tr("lang_choose")
-                Instantiator {
-                    model: Translations.availableLanguages
-                    delegate: MenuItem {
-                        text: root.languageLabel(modelData)
-                        checkable: true
-                        checked: Translations.current === modelData
-                        onTriggered: {
-                        Translations.current = modelData
-                        appSettings.language = modelData
-                        root.showStub(root.tr("lang_choose"), root.tr("lang_restart_notice"))
-                    }
-                    }
-                    onObjectAdded: (index, object) => langMenu.insertItem(index, object)
-                    onObjectRemoved: (index, object) => langMenu.removeItem(object)
-                }
-            }
         }
 
         Menu {
-            title: root.tr("menu.calls")
+            title: i18n("Calls")
             MenuItem {
-                text: root.tr("menu.mute_toggle")
+                text: i18n("Mute microphone")
                 checkable: true
                 checked: root.micMuted
                 onTriggered: {
@@ -311,7 +274,7 @@ Kirigami.ApplicationWindow {
                 }
             }
             MenuItem {
-                text: root.tr("menu.hangup_all")
+                text: i18n("End all calls")
                 onTriggered: {
                     voiceCallManager.hangupAll()
                     if (root.activeCallWindow) { root.activeCallWindow.close(); root.activeCallWindow = null }
@@ -321,11 +284,11 @@ Kirigami.ApplicationWindow {
         }
 
         Menu {
-            title: root.tr("menu.help")
-            MenuItem { text: root.tr("menu.about"); onTriggered: aboutSheet.open() }
+            title: i18n("Help")
+            MenuItem { text: i18n("About"); onTriggered: aboutSheet.open() }
             MenuItem {
-                text: root.tr("menu.tutorial")
-                onTriggered: root.showStub(root.tr("menu.tutorial"), root.tr("tutorial_not_ported"))
+                text: i18n("Tutorial")
+                onTriggered: root.showStub(i18n("Tutorial"), i18n("The interactive tutorial has not been ported yet."))
             }
         }
     }
@@ -342,20 +305,20 @@ Kirigami.ApplicationWindow {
             spacing: Kirigami.Units.largeSpacing
 
             Label {
-                text: root.tr("status.searching")
+                text: i18n("Searching for peers...")
                 color: root.theme.text_dim
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
                 Layout.fillWidth: true
             }
 
             Label {
-                text: root.tr("status.ip_label") + (networkManager.localIp || "—")
+                text: i18n("IP: ") + (networkManager.localIp || "—")
                 color: root.theme.text_dim
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
 
             Label {
-                text: root.micMuted ? root.tr("mic.off") : root.tr("mic.on")
+                text: root.micMuted ? i18n("Microphone off") : i18n("Microphone on")
                 color: root.micMuted ? "#FF8080" : "#80FF80"
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
                 MouseArea {
@@ -368,7 +331,7 @@ Kirigami.ApplicationWindow {
             }
 
             Label {
-                text: root.tr("status.no_calls")
+                text: i18n("No calls")
                 color: root.theme.text_dim
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
@@ -386,7 +349,6 @@ Kirigami.ApplicationWindow {
         active: appSettings.showWelcome
 
         sourceComponent: WelcomeScreen {
-            languageLabels: root.languageLabels
             onContinueRequested: welcomeLoader.active = false
         }
     }
@@ -473,7 +435,7 @@ Kirigami.ApplicationWindow {
                             Layout.leftMargin: Kirigami.Units.smallSpacing + 36
 
                             Kirigami.Heading {
-                                text: root.tr("contacts_header")
+                                text: i18n("Contacts")
                                 level: 1
                                 font.bold: true
                                 font.weight: Font.Black
@@ -486,7 +448,7 @@ Kirigami.ApplicationWindow {
 
                         ContactDelegate {
                             Layout.fillWidth: true
-                            peerIp: root.tr("sidebar.favorites")
+                            peerIp: i18n("Favorites")
                             iconName: "bookmarks"
                             showOnlineIndicator: false
                             showSecurityLabel: false
@@ -498,7 +460,7 @@ Kirigami.ApplicationWindow {
                             id: searchField
                             Layout.fillWidth: true
                             Layout.margins: Kirigami.Units.smallSpacing
-                            placeholderText: root.tr("sidebar.search_placeholder")
+                            placeholderText: i18n("Search")
                             text: root.contactSearchText
                             color: root.theme.text
                             placeholderTextColor: root.theme.text_dim
@@ -528,8 +490,8 @@ Kirigami.ApplicationWindow {
                                 anchors.centerIn: parent
                                 width: parent.width - Kirigami.Units.largeSpacing * 2
                                 visible: peersList.count === 0
-                                text: root.tr("no_contacts_title")
-                                explanation: root.tr("no_contacts_explanation")
+                                text: i18n("No one here yet")
+                                explanation: i18n("KOutNet is looking for other users, but it's quiet here for now...")
                             }
 
                             delegate: ContactDelegate {
@@ -569,11 +531,11 @@ Kirigami.ApplicationWindow {
 
                     property int currentIndex: 0
                     readonly property var tabLabels: [
-                        root.tr("tab_main_chat"),
-                        root.tr("tab_main_notes"),
-                        root.tr("tab_main_calls"),
-                        root.tr("tab_player_violla"),
-                        root.tr("tab_wns_keenly"),
+                        i18n("Chat"),
+                        i18n("Notes"),
+                        i18n("Calls"),
+                        "Violla",
+                        "Keenly",
                     ]
 
                     RowLayout {
@@ -672,7 +634,7 @@ Kirigami.ApplicationWindow {
 
     Kirigami.OverlaySheet {
         id: yourProfileSheet
-        title: root.tr("menu.my_profile")
+        title: i18n("My profile")
 
         YourProfile {
             onStubRequested: (title, body) => root.showStub(title, body)
@@ -689,7 +651,7 @@ Kirigami.ApplicationWindow {
 
     Kirigami.OverlaySheet {
         id: settingsSheet
-        title: root.tr("settings.title")
+        title: i18n("Settings")
 
         // Relay and maintainer VDS are the two that route through a relay,
         // so they are the two that need a host and port.
@@ -707,9 +669,9 @@ Kirigami.ApplicationWindow {
             TabBar {
                 id: settingsTabs
                 Layout.fillWidth: true
-                TabButton { text: root.tr("settings.tab_general") }
-                TabButton { text: root.tr("settings.tab_audio") }
-                TabButton { text: root.tr("settings.tab_network") }
+                TabButton { text: i18n("General") }
+                TabButton { text: i18n("Audio") }
+                TabButton { text: i18n("Network") }
             }
 
             StackLayout {
@@ -719,47 +681,30 @@ Kirigami.ApplicationWindow {
                 ColumnLayout {
                     spacing: Kirigami.Units.smallSpacing
 
-                    Label { text: root.tr("settings.username"); color: root.theme.text }
+                    Label { text: i18n("Username"); color: root.theme.text }
                     TextField {
                         Layout.fillWidth: true
                         text: appSettings.username
                         onEditingFinished: appSettings.username = text
                     }
 
-                    Label { text: root.tr("settings.display_name"); color: root.theme.text }
+                    Label { text: i18n("Display name"); color: root.theme.text }
                     TextField {
                         Layout.fillWidth: true
                         text: appSettings.displayName
                         onEditingFinished: appSettings.displayName = text
                     }
 
-                    Label { text: root.tr("lang_choose"); color: root.theme.text }
-                    ComboBox {
-                        id: langCombo
-                        Layout.fillWidth: true
-                        model: Translations.availableLanguages
-                        displayText: root.languageLabel(Translations.current)
-                        currentIndex: model.indexOf(Translations.current)
-                        delegate: ItemDelegate {
-                            width: langCombo.width
-                            text: root.languageLabel(modelData)
-                        }
-                        onActivated: {
-                            Translations.current = model[currentIndex]
-                            appSettings.language = model[currentIndex]
-                        }
-                    }
-
-                    Label { text: root.tr("settings.theme"); color: root.theme.text }
+                    Label { text: i18n("Theme"); color: root.theme.text }
                     ComboBox {
                         id: themeCombo
                         Layout.fillWidth: true
                         model: ThemeManager.availableThemes
-                        displayText: root.tr("theme." + ThemeManager.currentTheme)
+                        displayText: ThemeManager.themeLabel(ThemeManager.currentTheme)
                         currentIndex: model.indexOf(ThemeManager.currentTheme)
                         delegate: ItemDelegate {
                             width: themeCombo.width
-                            text: root.tr("theme." + modelData)
+                            text: ThemeManager.themeLabel(modelData)
                         }
                         onActivated: ThemeManager.currentTheme = model[currentIndex]
                     }
@@ -768,7 +713,7 @@ Kirigami.ApplicationWindow {
                 ColumnLayout {
                     spacing: Kirigami.Units.smallSpacing
 
-                    Label { text: root.tr("settings.microphone"); color: root.theme.text }
+                    Label { text: i18n("Microphone"); color: root.theme.text }
                     ComboBox {
                         id: micCombo
                         Layout.fillWidth: true
@@ -783,8 +728,8 @@ Kirigami.ApplicationWindow {
                         Layout.fillWidth: true
                         spacing: Kirigami.Units.smallSpacing
                         Button {
-                            text: audioDevices.micTestRunning ? root.tr("settings.stop_test")
-                                                              : root.tr("settings.test_mic")
+                            text: audioDevices.micTestRunning ? i18n("Stop test")
+                                                              : i18n("Test microphone")
                             onClicked: {
                                 if (audioDevices.micTestRunning)
                                     audioDevices.stopMicTest()
@@ -800,7 +745,7 @@ Kirigami.ApplicationWindow {
                         }
                     }
 
-                    Label { text: root.tr("settings.speakers"); color: root.theme.text }
+                    Label { text: i18n("Speakers"); color: root.theme.text }
                     ComboBox {
                         id: spkCombo
                         Layout.fillWidth: true
@@ -812,13 +757,13 @@ Kirigami.ApplicationWindow {
                     }
 
                     Button {
-                        text: root.tr("settings.test_speakers")
+                        text: i18n("Test speakers")
                         enabled: !audioDevices.tonePlaying
                         onClicked: audioDevices.playTestTone(appSettings.audioOutputId)
                     }
 
                     Label {
-                        text: root.tr("settings.volume") + ": " + appSettings.audioVolume + "%"
+                        text: i18n("Volume") + ": " + appSettings.audioVolume + "%"
                         color: root.theme.text
                     }
                     Slider {
@@ -831,12 +776,12 @@ Kirigami.ApplicationWindow {
                     }
 
                     CheckBox {
-                        text: root.tr("menu.mute_toggle")
+                        text: i18n("Mute microphone")
                         checked: appSettings.micMuted
                         onToggled: appSettings.micMuted = checked
                     }
                     CheckBox {
-                        text: root.tr("settings.vad")
+                        text: i18n("Voice activity detection")
                         checked: appSettings.vadEnabled
                         onToggled: appSettings.vadEnabled = checked
                     }
@@ -845,16 +790,16 @@ Kirigami.ApplicationWindow {
                 ColumnLayout {
                     spacing: Kirigami.Units.smallSpacing
 
-                    Label { text: root.tr("settings.network_mode"); color: root.theme.text }
+                    Label { text: i18n("Network mode"); color: root.theme.text }
                     ComboBox {
                         id: modeCombo
                         Layout.fillWidth: true
                         model: [
-                            root.tr("settings.mode_lan"),
-                            root.tr("settings.mode_kserver_self"),
-                            root.tr("settings.mode_kserver_client"),
-                            root.tr("settings.mode_relay"),
-                            root.tr("settings.mode_vds"),
+                            i18n("Local network (LAN)"),
+                            i18n("K-Server (self-hosted)"),
+                            i18n("K-Server (join someone else's)"),
+                            i18n("Relay (not a K-Server)"),
+                            i18n("Maintainer's VDS"),
                         ]
                         currentIndex: appSettings.connectionMode
                         // The unbuilt modes stay on the list so the shape of
@@ -864,7 +809,7 @@ Kirigami.ApplicationWindow {
                             enabled: networkManager.modeAvailable(index)
                             text: enabled
                                 ? modelData
-                                : modelData + "  (" + root.tr("settings.mode_unavailable") + ")"
+                                : modelData + "  (" + i18n("not available yet") + ")"
                         }
                         onActivated: {
                             if (networkManager.modeAvailable(currentIndex))
@@ -874,7 +819,7 @@ Kirigami.ApplicationWindow {
                         }
                     }
 
-                    Label { text: root.tr("settings.vds_host"); color: root.theme.text }
+                    Label { text: i18n("Relay server address"); color: root.theme.text }
                     TextField {
                         Layout.fillWidth: true
                         enabled: settingsSheet.usesRelay
@@ -882,7 +827,7 @@ Kirigami.ApplicationWindow {
                         onEditingFinished: appSettings.relayHost = text
                     }
 
-                    Label { text: root.tr("settings.vds_port"); color: root.theme.text }
+                    Label { text: i18n("Relay server port"); color: root.theme.text }
                     TextField {
                         Layout.fillWidth: true
                         enabled: settingsSheet.usesRelay
@@ -895,11 +840,11 @@ Kirigami.ApplicationWindow {
                     // to be told separately, and switching mode tears the relay
                     // tunnel up or down, so it waits for an explicit click.
                     Button {
-                        text: root.tr("settings.save")
+                        text: i18n("Save")
                         onClicked: {
                             networkManager.setRelayServer(appSettings.relayHost, appSettings.relayPort, 0)
                             networkManager.setConnectionMode(appSettings.connectionMode)
-                            root.showStub(root.tr("settings.title"), root.tr("settings.saved"))
+                            root.showStub(i18n("Settings"), i18n("Settings saved"))
                         }
                     }
                 }
@@ -909,11 +854,11 @@ Kirigami.ApplicationWindow {
 
     Kirigami.OverlaySheet {
         id: aboutSheet
-        title: root.tr("menu.about")
+        title: i18n("About")
         Label {
             width: Kirigami.Units.gridUnit * 20
             wrapMode: Text.WordWrap
-            text: root.tr("about.description")
+            text: i18n("KOutNet — P2P encrypted messenger")
             color: root.theme.text
         }
     }
@@ -951,8 +896,8 @@ Kirigami.ApplicationWindow {
                 otherProfileSheet.peer = root.peerInfoFor(peerIp)
                 otherProfileSheet.open()
             }
-            onForwardRequested: root.showStub(root.tr("msg_forward"), root.tr("forward_not_ported"))
-            onDeleteRequested: root.showStub(root.tr("msg_delete"), root.tr("delete_not_ported"))
+            onForwardRequested: root.showStub(i18n("Forward"), i18n("Forwarding messages is not implemented in ChatModel yet."))
+            onDeleteRequested: root.showStub(i18n("Delete"), i18n("Deleting messages is not implemented in ChatModel yet."))
         }
     }
 
@@ -960,7 +905,7 @@ Kirigami.ApplicationWindow {
         id: placeholderComponent
         Kirigami.PlaceholderMessage {
             anchors.centerIn: parent
-            text: root.tr("select_contact_placeholder")
+            text: i18n("Select a peer on the left to start a conversation.")
         }
     }
 }

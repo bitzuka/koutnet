@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "HistoryManager.h"
 
@@ -24,14 +24,14 @@ void HistoryManager::setHistorySavingEnabled(bool enabled)
 QDir HistoryManager::historyDir() const
 {
     const QString base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    return QDir(base + "/history");
+    return QDir(base + QStringLiteral("/history"));
 }
 
 QString HistoryManager::filePathFor(const QString &chatId) const
 {
     QString safe = chatId;
     safe.replace(QRegularExpression(QStringLiteral("[^\\w\\-]")), QStringLiteral("_"));
-    return historyDir().filePath(safe + ".json");
+    return historyDir().filePath(safe + QStringLiteral(".json"));
 }
 
 QVariantList HistoryManager::load(const QString &chatId)

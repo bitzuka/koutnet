@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Controls
@@ -14,16 +14,12 @@ Item {
     id: root
     readonly property var theme: ThemeManager.colors
 
-    function tr(key) {
-        return (Translations.current, Translations.t(key))
-    }
-
     ListModel {
         id: sheetsModel
         ListElement { title: ""; body: "" }
         Component.onCompleted: {
             if (count > 0 && get(0).title === "")
-                setProperty(0, "title", root.tr("notes.new_sheet") + " 1")
+                setProperty(0, "title", i18n("Sheet") + " 1")
         }
     }
     property int currentSheet: 0
@@ -37,9 +33,9 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Kirigami.Heading { level: 3; text: root.tr("tab_main_notes"); color: root.theme.text; Layout.fillWidth: true }
+            Kirigami.Heading { level: 3; text: i18n("Notes"); color: root.theme.text; Layout.fillWidth: true }
             ToolButton {
-                text: previewMode.checked ? root.tr("notes.edit_mode") : root.tr("notes.preview_mode")
+                text: previewMode.checked ? i18n("Editor") : i18n("Preview")
                 onClicked: previewMode.checked = !previewMode.checked
             }
             property bool dummy: false
@@ -73,7 +69,7 @@ Item {
             ToolButton {
                 icon.name: "list-add"
                 onClicked: {
-                    sheetsModel.append({ title: root.tr("notes.new_sheet") + " " + (sheetsModel.count + 1), body: "" })
+                    sheetsModel.append({ title: i18n("Sheet") + " " + (sheetsModel.count + 1), body: "" })
                     root.currentSheet = sheetsModel.count - 1
                 }
             }
@@ -94,7 +90,7 @@ Item {
 
             TextArea {
                 id: notesArea
-                placeholderText: root.tr("notes_writesmth")
+                placeholderText: i18n("Write something")
                 wrapMode: TextArea.Wrap
                 color: root.theme.text
                 background: Rectangle { color: root.theme.bg3; radius: 6; border.color: root.theme.border }

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Controls
@@ -20,17 +20,8 @@ Item {
 
     // Passed in by the host rather than duplicated here, so the endonym list
     // stays defined in exactly one place.
-    property var languageLabels: ({})
 
     signal continueRequested()
-
-    function tr(key) {
-        return (Translations.current, Translations.t(key))
-    }
-
-    function languageName(code) {
-        return root.languageLabels[code] || code.toUpperCase()
-    }
 
     // Translated strings carry <a href="github"> instead of a full URL, so a
     // translator editing the sentence cannot break where the link points.
@@ -82,7 +73,7 @@ Item {
 
         Button {
             Layout.fillWidth: true
-            text: root.tr("menu.about")
+            text: i18n("About")
             onClicked: aboutDialog.open()
         }
 
@@ -90,29 +81,13 @@ Item {
             id: themePick
             Layout.fillWidth: true
             model: ThemeManager.availableThemes
-            displayText: root.tr("theme." + ThemeManager.currentTheme)
+            displayText: ThemeManager.themeLabel(ThemeManager.currentTheme)
             currentIndex: model.indexOf(ThemeManager.currentTheme)
             delegate: ItemDelegate {
                 width: themePick.width
-                text: root.tr("theme." + modelData)
+                text: ThemeManager.themeLabel(modelData)
             }
             onActivated: ThemeManager.currentTheme = model[currentIndex]
-        }
-
-        ComboBox {
-            id: langPick
-            Layout.fillWidth: true
-            model: Translations.availableLanguages
-            displayText: root.languageName(Translations.current)
-            currentIndex: model.indexOf(Translations.current)
-            delegate: ItemDelegate {
-                width: langPick.width
-                text: root.languageName(modelData)
-            }
-            onActivated: {
-                Translations.current = model[currentIndex]
-                appSettings.language = model[currentIndex]
-            }
         }
 
         ColumnLayout {
@@ -120,7 +95,7 @@ Item {
             spacing: 0
 
             CheckBox {
-                text: root.tr("welcome.check_updates")
+                text: i18n("Check for updates at startup")
                 checked: appSettings.checkUpdatesOnStart
                 onToggled: appSettings.checkUpdatesOnStart = checked
             }
@@ -128,7 +103,7 @@ Item {
             // rather than implying the app will actually look for updates.
             Label {
                 Layout.leftMargin: Kirigami.Units.gridUnit * 2
-                text: root.tr("welcome.in_development")
+                text: i18n("In development")
                 font.pixelSize: 11
                 color: root.theme.text_dim
             }
@@ -151,13 +126,13 @@ Item {
 
             Kirigami.Heading {
                 level: 4
-                text: root.tr("welcome.community")
+                text: i18n("Community")
                 color: root.theme.text
             }
             Label {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: root.tr("welcome.community_body")
+                text: i18n("Join like-minded KOutNet people in our community:")
                 color: root.theme.text_dim
             }
             RowLayout {
@@ -188,14 +163,14 @@ Item {
 
             Kirigami.Heading {
                 level: 4
-                text: root.tr("welcome.contribute")
+                text: i18n("Contribute")
                 color: root.theme.text
             }
             Label {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 textFormat: Text.RichText
-                text: root.tr("welcome.contribute_body")
+                text: i18n("Want to help make KOutNet better? Visit our <a href=\"github\">GitHub page</a>. Report bugs or contribute code, anyone can do it.")
                 linkColor: root.theme.accent
                 color: root.theme.text_dim
                 onLinkActivated: (link) => root.openNamedLink(link)
@@ -216,7 +191,7 @@ Item {
         spacing: Kirigami.Units.largeSpacing
 
         CheckBox {
-            text: root.tr("welcome.dont_show")
+            text: i18n("Do not show this again")
             checked: !appSettings.showWelcome
             onToggled: appSettings.showWelcome = !checked
         }
@@ -224,7 +199,7 @@ Item {
         Item { Layout.fillWidth: true }
 
         Button {
-            text: root.tr("welcome.continue")
+            text: i18n("Continue")
             highlighted: true
             onClicked: root.continueRequested()
         }
@@ -234,13 +209,13 @@ Item {
         id: aboutDialog
         anchors.centerIn: parent
         modal: true
-        title: root.tr("menu.about")
+        title: i18n("About")
         standardButtons: Dialog.Close
 
         Label {
             width: Kirigami.Units.gridUnit * 18
             wrapMode: Text.Wrap
-            text: root.tr("about.description") + "\n\n" + root.buildLabel
+            text: i18n("KOutNet — P2P encrypted messenger") + "\n\n" + root.buildLabel
             color: root.theme.text
         }
     }

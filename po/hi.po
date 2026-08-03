@@ -1,0 +1,437 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: koutnet\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgctxt "theme name"
+msgid "Aurora"
+msgstr "ऑरोरा"
+
+msgctxt "theme name"
+msgid "Dark"
+msgstr "डार्क"
+
+msgctxt "theme name"
+msgid "Dark Blue"
+msgstr "गहरा नीला"
+
+msgctxt "theme name"
+msgid "Dark Red"
+msgstr "गहरा लाल"
+
+msgctxt "theme name"
+msgid "Forest"
+msgstr "फॉरेस्ट"
+
+msgctxt "theme name"
+msgid "Gray"
+msgstr "ग्रे"
+
+msgctxt "theme name"
+msgid "Light"
+msgstr "लाइट"
+
+msgctxt "theme name"
+msgid "Midnight"
+msgstr "मिडनाइट"
+
+msgctxt "theme name"
+msgid "Neon"
+msgstr "नियॉन"
+
+msgctxt "theme name"
+msgid "Ocean"
+msgstr "ओशन"
+
+msgctxt "theme name"
+msgid "Sakura"
+msgstr "साकुरा"
+
+msgctxt "theme name"
+msgid "Sunset"
+msgstr "सनसेट"
+
+msgctxt "theme name"
+msgid "Windows 95"
+msgstr ""
+
+msgid "Mute"
+msgstr "म्यूट"
+
+msgid "Speaker"
+msgstr "स्पीकर"
+
+msgid "Screen"
+msgstr "स्क्रीन"
+
+msgid "End"
+msgstr "समाप्त करें"
+
+msgid "Incoming call"
+msgstr "आने वाली कॉल"
+
+msgid "Calling"
+msgstr "कॉलिंग"
+
+msgid "Cancel"
+msgstr "रद्द करें"
+
+msgid "Connecting…"
+msgstr "कनेक्ट हो रहा है…"
+
+msgid "Back"
+msgstr "वापस"
+
+msgid "Profile"
+msgstr "प्रोफ़ाइल"
+
+msgid "Call"
+msgstr "कॉल करें"
+
+msgid "Choose an image for the emoji"
+msgstr "कस्टम इमोजी के लिए छवि चुनें"
+
+msgid "Reply"
+msgstr "उत्तर दें"
+
+msgid "Copy"
+msgstr "कॉपी करें"
+
+msgid "Copied!"
+msgstr "कॉपी हो गया!"
+
+msgid "Forward"
+msgstr "आगे भेजें"
+
+msgid "React"
+msgstr "प्रतिक्रिया"
+
+msgid "Delete"
+msgstr "हटाएं"
+
+msgid "last seen"
+msgstr "अंतिम बार देखा गया"
+
+msgid "online"
+msgstr "ऑनलाइन"
+
+msgid "edited"
+msgstr "संपादित"
+
+msgid "Message..."
+msgstr "संदेश..."
+
+msgid "Send"
+msgstr "भेजें"
+
+msgid "Attach a file"
+msgstr "फ़ाइल संलग्न करें"
+
+msgid "Welcome to KOutNet"
+msgstr "KOutNet में आपका स्वागत है"
+
+msgid "System default"
+msgstr "सिस्टम डिफ़ॉल्ट"
+
+msgid "Favorites"
+msgstr "पसंदीदा"
+
+msgid "File"
+msgstr "फ़ाइल"
+
+msgid "My profile"
+msgstr "मेरी प्रोफ़ाइल"
+
+msgid "Settings"
+msgstr "सेटिंग्स"
+
+msgid "Quit"
+msgstr "बाहर निकलें"
+
+msgid "View"
+msgstr "दृश्य"
+
+msgid "Themes"
+msgstr "थीम"
+
+msgid "Fullscreen"
+msgstr "पूर्णस्क्रीन मोड"
+
+msgid "Calls"
+msgstr "कॉल"
+
+msgid "Mute microphone"
+msgstr "माइक्रोफ़ोन म्यूट करें"
+
+msgid "End all calls"
+msgstr "सभी कॉल समाप्त करें"
+
+msgid "Help"
+msgstr "सहायता"
+
+msgid "About"
+msgstr "परिचय"
+
+msgid "Tutorial"
+msgstr "ट्यूटोरियल"
+
+msgid "The interactive tutorial has not been ported yet."
+msgstr "इंटरैक्टिव ट्यूटोरियल अभी पोर्ट नहीं किया गया है।"
+
+msgid "Searching for peers..."
+msgstr "पीयर खोजे जा रहे हैं..."
+
+msgid "IP: "
+msgstr ""
+
+msgid "Microphone off"
+msgstr "माइक्रोफ़ोन बंद"
+
+msgid "Microphone on"
+msgstr "माइक्रोफ़ोन चालू"
+
+msgid "No calls"
+msgstr "कोई कॉल नहीं"
+
+msgid "Contacts"
+msgstr "संपर्क"
+
+msgid "Search"
+msgstr "खोजें"
+
+msgid "No one here yet"
+msgstr "यहाँ अभी कोई नहीं है"
+
+msgid "KOutNet is looking for other users, but it's quiet here for now..."
+msgstr "KOutNet अन्य उपयोगकर्ताओं की तलाश कर रहा है, लेकिन अभी यहाँ शांति है..."
+
+msgid "Chat"
+msgstr "चैट"
+
+msgid "Notes"
+msgstr "नोट्स"
+
+msgid "General"
+msgstr "सामान्य"
+
+msgid "Audio"
+msgstr "ऑडियो"
+
+msgid "Network"
+msgstr "नेटवर्क"
+
+msgid "Username"
+msgstr "उपयोगकर्ता नाम"
+
+msgid "Display name"
+msgstr "प्रदर्शित नाम"
+
+msgid "Theme"
+msgstr "थीम"
+
+msgid "Microphone"
+msgstr "माइक्रोफ़ोन"
+
+msgid "Stop test"
+msgstr "जाँच रोकें"
+
+msgid "Test microphone"
+msgstr "माइक्रोफ़ोन जाँचें"
+
+msgid "Speakers"
+msgstr "स्पीकर"
+
+msgid "Test speakers"
+msgstr "स्पीकर जाँचें"
+
+msgid "Volume"
+msgstr "वॉल्यूम"
+
+msgid "Voice activity detection"
+msgstr "आवाज़ गतिविधि पहचान"
+
+msgid "Network mode"
+msgstr "नेटवर्क मोड"
+
+msgid "Local network (LAN)"
+msgstr "लोकल नेटवर्क (LAN)"
+
+msgid "K-Server (self-hosted)"
+msgstr "K-Server (स्वयं होस्ट)"
+
+msgid "K-Server (join someone else's)"
+msgstr "K-Server (किसी और से जुड़ें)"
+
+msgid "Relay (not a K-Server)"
+msgstr "रिले (K-Server नहीं)"
+
+msgid "Maintainer's VDS"
+msgstr "मेंटेनर का VDS"
+
+msgid "not available yet"
+msgstr "अभी उपलब्ध नहीं"
+
+msgid "Relay server address"
+msgstr "रिले सर्वर पता"
+
+msgid "Relay server port"
+msgstr "रिले सर्वर पोर्ट"
+
+msgid "Save"
+msgstr "सहेजें"
+
+msgid "Settings saved"
+msgstr "सेटिंग्स सहेजी गईं"
+
+msgid "KOutNet — P2P encrypted messenger"
+msgstr "KOutNet — P2P एन्क्रिप्टेड मैसेंजर"
+
+msgid "Forwarding messages is not implemented in ChatModel yet."
+msgstr "संदेश आगे भेजना अभी ChatModel में लागू नहीं है।"
+
+msgid "Deleting messages is not implemented in ChatModel yet."
+msgstr "संदेश हटाना अभी ChatModel में लागू नहीं है।"
+
+msgid "Select a peer on the left to start a conversation."
+msgstr "बातचीत शुरू करने के लिए बाईं ओर से एक संपर्क चुनें।"
+
+msgid "No session"
+msgstr "कोई सत्र नहीं"
+
+msgid "No description"
+msgstr "कोई विवरण नहीं"
+
+msgid "Will appear once connected to a K-Server"
+msgstr "K-Server से जुड़ने पर दिखाई देगा"
+
+msgid "Friends"
+msgstr "मित्र"
+
+msgid "No one yet"
+msgstr "अभी तक कोई नहीं"
+
+msgid "Change avatar"
+msgstr "अवतार बदलें"
+
+msgid "Change banner"
+msgstr "बैनर बदलें"
+
+msgid "Change background"
+msgstr "पृष्ठभूमि बदलें"
+
+msgid "Choose name badge"
+msgstr "नाम बैज चुनें"
+
+msgid "Add information about yourself"
+msgstr "अपने बारे में जानकारी जोड़ें"
+
+msgid "Done"
+msgstr "हो गया"
+
+msgid "Edit profile"
+msgstr "प्रोफ़ाइल संपादित करें"
+
+msgid "Remove background"
+msgstr "पृष्ठभूमि हटाएं"
+
+msgid "Local"
+msgstr "स्थानीय"
+
+msgid "Global"
+msgstr "वैश्विक"
+
+msgid "not registered"
+msgstr "पंजीकृत नहीं"
+
+msgid "Tell us about yourself..."
+msgstr "अपने बारे में बताएं..."
+
+msgid "Music"
+msgstr "संगीत"
+
+msgid "Photos"
+msgstr "तस्वीरें"
+
+msgid "Videos"
+msgstr "वीडियो"
+
+msgid "Albums"
+msgstr "एल्बम"
+
+msgid "Clips"
+msgstr "क्लिप्स"
+
+msgid "Articles"
+msgstr "लेख"
+
+msgid "Nothing here yet — upload files from your device"
+msgstr "अभी तक कुछ नहीं है — अपने डिवाइस से फ़ाइलें अपलोड करें"
+
+msgid "No internet connection"
+msgstr "इंटरनेट कनेक्शन नहीं है"
+
+msgid "Register this identity on a K-Server to use the global profile"
+msgstr "वैश्विक प्रोफ़ाइल उपयोग करने के लिए इस पहचान को K-Server पर पंजीकृत करें"
+
+msgid "Register"
+msgstr "पंजीकरण करें"
+
+msgid "Sheet"
+msgstr "शीट"
+
+msgid "Editor"
+msgstr "संपादक"
+
+msgid "Preview"
+msgstr "पूर्वावलोकन"
+
+msgid "Write something"
+msgstr "कुछ लिखें"
+
+msgid "Open files"
+msgstr "फ़ाइलें खोलें"
+
+msgid "Unknown artist"
+msgstr "अज्ञात कलाकार"
+
+msgid "Unknown album"
+msgstr "अज्ञात एल्बम"
+
+msgid "Open a file to start playback"
+msgstr "चलाना शुरू करने के लिए फ़ाइल खोलें"
+
+msgid "Playlist"
+msgstr "प्लेलिस्ट"
+
+msgid "Clear playlist"
+msgstr "प्लेलिस्ट साफ़ करें"
+
+msgid "Nothing queued yet"
+msgstr "अभी कुछ भी कतार में नहीं"
+
+msgid "A custom rendering engine is the next step"
+msgstr "स्वयं का रेंडरिंग इंजन — जल्द आ रहा है"
+
+msgid "Check for updates at startup"
+msgstr "शुरू होने पर अपडेट जाँचें"
+
+msgid "In development"
+msgstr "विकासाधीन"
+
+msgid "Community"
+msgstr "समुदाय"
+
+msgid "Join like-minded KOutNet people in our community:"
+msgstr "हमारे समुदाय में KOutNet के समान विचार वाले लोगों से जुड़ें:"
+
+msgid "Contribute"
+msgstr "योगदान करें"
+
+msgid "Do not show this again"
+msgstr "दोबारा न दिखाएँ"
+
+msgid "Continue"
+msgstr "जारी रखें"

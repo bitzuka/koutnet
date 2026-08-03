@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - application entry point
 #include <QGuiApplication>
@@ -12,7 +12,9 @@
 #include "network/NetworkManager.h"
 #include "network/VoiceCallManager.h"
 #include "network/FileTransferHandler.h"
-#include "core/i18n/Translations.h"
+#include <KLocalizedQmlContext>
+#include <KLocalizedString>
+
 #include "core/constructor/AppSettings.h"
 #include "core/audio/AudioDevices.h"
 
@@ -105,13 +107,6 @@ int main(int argc, char *argv[])
     QObject::connect(appSettings, &koutnet::AppSettings::vadEnabledChanged, voice,
                      [voice, appSettings]() { voice->setVad(appSettings->vadEnabled()); });
 
-    auto *translations = new koutnet::Translations(&app);
-    translations->setCurrent(appSettings->language());
-    QObject::connect(appSettings, &koutnet::AppSettings::languageChanged,
-                     translations, [translations, appSettings]() {
-                         translations->setCurrent(appSettings->language());
-                     });
-
     QObject::connect(network, &koutnet::NetworkManager::fileMeta,
                      fileTransfer, &koutnet::FileTransferHandler::onMeta);
     QObject::connect(network, &koutnet::NetworkManager::fileChunk,
@@ -120,7 +115,19 @@ int main(int argc, char *argv[])
     if (!network->start())
         qWarning("KOutNet: failed to start network layer");
 
+    // Names the catalog ki18n looks for, so translated strings end up in
+    // koutnet.mo rather than in whatever domain happens to be current.
+    KLocalizedString::setApplicationDomain(QByteArrayLiteral("koutnet"));
+
     QQmlApplicationEngine engine;
+
+    // Gives QML the i18n family of functions. Without this the calls simply
+    // are not there and every string in the interface fails to resolve.
+    KLocalization::setupLocalizedContext(&engine);
+
+    // The QML module sits under a resource prefix of its own rather than the
+    // default qrc:/qt/qml, which is the only root the engine adds by itself.
+    engine.addImportPath(QStringLiteral(":/"));
     QObject::connect(
         &engine, &QQmlApplicationEngine::objectCreationFailed,
         &app, []() { QCoreApplication::exit(-1); },
@@ -130,7 +137,6 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("networkManager"), network);
     engine.rootContext()->setContextProperty(QStringLiteral("voiceCallManager"), voice);
     engine.rootContext()->setContextProperty(QStringLiteral("fileTransferHandler"), fileTransfer);
-    engine.rootContext()->setContextProperty(QStringLiteral("Translations"), translations);
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), appSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("audioDevices"), audioDevices);
 

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "GroupManager.h"
 
@@ -21,7 +21,7 @@ QString GroupManager::filePath() const
 {
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(dir);
-    return dir + "/groups.json";
+    return dir + QStringLiteral("/groups.json");
 }
 
 QString GroupManager::createGroup(const QString &name, const QString &creatorIp)

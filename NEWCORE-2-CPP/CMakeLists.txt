@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+# SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 cmake_minimum_required(VERSION 3.21)
 project(KOutNet VERSION 2.0 LANGUAGES CXX)
@@ -21,6 +21,13 @@ set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Quick QuickControls2 QuickDialogs2 Multimedia Network)
 find_package(OpenSSL REQUIRED)
+find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS I18n)
+
+# The i18n() call in QML comes from the localized context object, which lives
+# in a target of its own rather than in KF6::I18n.
+if(NOT TARGET KF6::I18nQml)
+    message(FATAL_ERROR "KF6::I18nQml is missing; QML strings cannot be translated without it")
+endif()
 
 qt_standard_project_setup(REQUIRES 6.4)
 
@@ -34,8 +41,6 @@ qt_add_executable(KOutNet
     core/audio/AudioDevices.h
     core/security/CryptoManager.cpp
     core/security/CryptoManager.h
-    core/i18n/Translations.cpp
-    core/i18n/Translations.h
     core/constructor/AppSettings.cpp
     core/constructor/AppSettings.h
     core/chat/MessageEntry.cpp
@@ -91,9 +96,13 @@ target_link_libraries(KOutNet PRIVATE
     Qt6::Multimedia
     Qt6::Network
     OpenSSL::Crypto
+    KF6::I18n
+    KF6::I18nQml
 )
 
 install(TARGETS KOutNet RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+ki18n_install(${CMAKE_CURRENT_SOURCE_DIR}/../po)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/io.github.bitzuka.KOutNet.desktop
         DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/io.github.bitzuka.KOutNet.metainfo.xml

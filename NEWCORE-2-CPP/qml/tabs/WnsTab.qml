@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Controls
@@ -14,16 +14,12 @@ Item {
     id: root
     readonly property var theme: ThemeManager.colors
 
-    function tr(key) {
-        return (Translations.current, Translations.t(key))
-    }
-
     Rectangle { anchors.fill: parent; color: theme.bg }
 
     Kirigami.PlaceholderMessage {
         anchors.centerIn: parent
-        text: root.tr("wns.title")
-        explanation: root.tr("wns.explanation")
+        text: "Keenly"
+        explanation: i18n("A custom rendering engine is the next step")
         icon.name: "internet-web-browser"
     }
 }

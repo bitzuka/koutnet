@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Controls
@@ -30,10 +30,6 @@ Item {
     readonly property bool cinema: root.current >= 0 && playlist.get(root.current).video
     readonly property bool fullScreen: root.Window.window
         && root.Window.window.visibility === Window.FullScreen
-
-    function tr(key) {
-        return (Translations.current, Translations.t(key))
-    }
 
     // The extension answers immediately, which keeps the layout from flipping
     // a beat after the file opens. MediaPlayer.hasVideo is authoritative but
@@ -122,7 +118,7 @@ Item {
 
     FileDialog {
         id: openDialog
-        title: root.tr("player.open")
+        title: i18n("Open files")
         fileMode: FileDialog.OpenFiles
         nameFilters: [
             "Media (*.mp3 *.flac *.ogg *.opus *.wav *.m4a *.aac *.mp4 *.mkv *.webm *.avi *.mov)",
@@ -210,7 +206,7 @@ Item {
                             level: 2
                             color: root.theme.text
                             text: root.current < 0
-                                ? root.tr("player.title")
+                                ? "Violla"
                                 : root.metaText(MediaMetaData.Title,
                                                 root.nameOf(playlist.get(root.current).url))
                         }
@@ -222,10 +218,10 @@ Item {
                             color: root.theme.text_dim
                             visible: root.current >= 0
                             text: root.metaText(MediaMetaData.AlbumArtist,
-                                                root.tr("player.unknown_artist"))
+                                                i18n("Unknown artist"))
                                 + "  -  "
                                 + root.metaText(MediaMetaData.AlbumTitle,
-                                                root.tr("player.unknown_album"))
+                                                i18n("Unknown album"))
                         }
 
                         Label {
@@ -234,7 +230,7 @@ Item {
                             wrapMode: Text.Wrap
                             color: root.theme.text_dim
                             visible: root.current < 0
-                            text: root.tr("player.explanation")
+                            text: i18n("Open a file to start playback")
                         }
                     }
                 }
@@ -256,7 +252,7 @@ Item {
                         Kirigami.Heading {
                             Layout.fillWidth: true
                             level: 5
-                            text: root.tr("player.playlist")
+                            text: i18n("Playlist")
                             color: root.theme.text
                         }
                         ToolButton {
@@ -269,7 +265,7 @@ Item {
                                 root.current = -1
                             }
                             ToolTip.visible: hovered
-                            ToolTip.text: root.tr("player.clear")
+                            ToolTip.text: i18n("Clear playlist")
                         }
                     }
 
@@ -277,7 +273,7 @@ Item {
                         Layout.fillWidth: true
                         visible: playlist.count === 0
                         wrapMode: Text.Wrap
-                        text: root.tr("player.playlist_empty")
+                        text: i18n("Nothing queued yet")
                         color: root.theme.text_dim
                     }
 
@@ -382,7 +378,7 @@ Item {
                     icon.name: "document-open"
                     onClicked: openDialog.open()
                     ToolTip.visible: hovered
-                    ToolTip.text: root.tr("player.open")
+                    ToolTip.text: i18n("Open files")
                 }
                 ToolButton {
                     icon.name: "view-media-playlist"
@@ -390,14 +386,14 @@ Item {
                     checked: root.playlistOpen
                     onToggled: root.playlistOpen = checked
                     ToolTip.visible: hovered
-                    ToolTip.text: root.tr("player.playlist")
+                    ToolTip.text: i18n("Playlist")
                 }
                 ToolButton {
                     icon.name: root.fullScreen ? "view-restore" : "view-fullscreen"
                     visible: root.cinema
                     onClicked: root.toggleFullScreen()
                     ToolTip.visible: hovered
-                    ToolTip.text: root.tr("player.fullscreen")
+                    ToolTip.text: i18n("Fullscreen")
                 }
             }
         }

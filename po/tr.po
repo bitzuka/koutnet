@@ -1,0 +1,437 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: koutnet\n"
+"Language: tr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgctxt "theme name"
+msgid "Aurora"
+msgstr ""
+
+msgctxt "theme name"
+msgid "Dark"
+msgstr "Koyu"
+
+msgctxt "theme name"
+msgid "Dark Blue"
+msgstr "Koyu Mavi"
+
+msgctxt "theme name"
+msgid "Dark Red"
+msgstr "Koyu Kırmızı"
+
+msgctxt "theme name"
+msgid "Forest"
+msgstr "Orman"
+
+msgctxt "theme name"
+msgid "Gray"
+msgstr "Gri"
+
+msgctxt "theme name"
+msgid "Light"
+msgstr "Açık"
+
+msgctxt "theme name"
+msgid "Midnight"
+msgstr "Gece Yarısı"
+
+msgctxt "theme name"
+msgid "Neon"
+msgstr ""
+
+msgctxt "theme name"
+msgid "Ocean"
+msgstr "Okyanus"
+
+msgctxt "theme name"
+msgid "Sakura"
+msgstr ""
+
+msgctxt "theme name"
+msgid "Sunset"
+msgstr "Gün Batımı"
+
+msgctxt "theme name"
+msgid "Windows 95"
+msgstr ""
+
+msgid "Mute"
+msgstr "Sessiz"
+
+msgid "Speaker"
+msgstr "Hoparlör"
+
+msgid "Screen"
+msgstr "Ekran"
+
+msgid "End"
+msgstr "Sonlandır"
+
+msgid "Incoming call"
+msgstr "Gelen arama"
+
+msgid "Calling"
+msgstr "Aranıyor"
+
+msgid "Cancel"
+msgstr "İptal"
+
+msgid "Connecting…"
+msgstr "Bağlanıyor…"
+
+msgid "Back"
+msgstr "Geri"
+
+msgid "Profile"
+msgstr "Profil"
+
+msgid "Call"
+msgstr "Ara"
+
+msgid "Choose an image for the emoji"
+msgstr "Özel emoji için görsel seç"
+
+msgid "Reply"
+msgstr "Yanıtla"
+
+msgid "Copy"
+msgstr "Kopyala"
+
+msgid "Copied!"
+msgstr "Kopyalandı!"
+
+msgid "Forward"
+msgstr "İlet"
+
+msgid "React"
+msgstr "Tepki"
+
+msgid "Delete"
+msgstr "Sil"
+
+msgid "last seen"
+msgstr "son görülme"
+
+msgid "online"
+msgstr "çevrimiçi"
+
+msgid "edited"
+msgstr "düzenlendi"
+
+msgid "Message..."
+msgstr "Mesaj..."
+
+msgid "Send"
+msgstr "Gönder"
+
+msgid "Attach a file"
+msgstr "Dosya ekle"
+
+msgid "Welcome to KOutNet"
+msgstr "KOutNet'e hoş geldiniz"
+
+msgid "System default"
+msgstr "Sistem varsayılanı"
+
+msgid "Favorites"
+msgstr "Sık Kullanılanlar"
+
+msgid "File"
+msgstr "Dosya"
+
+msgid "My profile"
+msgstr "Profilim"
+
+msgid "Settings"
+msgstr "Ayarlar"
+
+msgid "Quit"
+msgstr "Çıkış"
+
+msgid "View"
+msgstr "Görünüm"
+
+msgid "Themes"
+msgstr "Temalar"
+
+msgid "Fullscreen"
+msgstr "Tam ekran modu"
+
+msgid "Calls"
+msgstr "Aramalar"
+
+msgid "Mute microphone"
+msgstr "Mikrofonu sustur"
+
+msgid "End all calls"
+msgstr "Tüm aramaları sonlandır"
+
+msgid "Help"
+msgstr "Yardım"
+
+msgid "About"
+msgstr "Hakkında"
+
+msgid "Tutorial"
+msgstr "Öğretici"
+
+msgid "The interactive tutorial has not been ported yet."
+msgstr "Etkileşimli öğretici henüz aktarılmadı."
+
+msgid "Searching for peers..."
+msgstr "Eşler aranıyor..."
+
+msgid "IP: "
+msgstr ""
+
+msgid "Microphone off"
+msgstr "Mikrofon kapalı"
+
+msgid "Microphone on"
+msgstr "Mikrofon açık"
+
+msgid "No calls"
+msgstr "Arama yok"
+
+msgid "Contacts"
+msgstr "Kişiler"
+
+msgid "Search"
+msgstr "Ara"
+
+msgid "No one here yet"
+msgstr "Henüz kimse yok"
+
+msgid "KOutNet is looking for other users, but it's quiet here for now..."
+msgstr "KOutNet diğer kullanıcıları arıyor, ancak şu an burada sessizlik var..."
+
+msgid "Chat"
+msgstr "Sohbet"
+
+msgid "Notes"
+msgstr "Notlar"
+
+msgid "General"
+msgstr "Genel"
+
+msgid "Audio"
+msgstr "Ses"
+
+msgid "Network"
+msgstr "Ağ"
+
+msgid "Username"
+msgstr "Kullanıcı adı"
+
+msgid "Display name"
+msgstr "Görünen ad"
+
+msgid "Theme"
+msgstr "Tema"
+
+msgid "Microphone"
+msgstr "Mikrofon"
+
+msgid "Stop test"
+msgstr "Testi durdur"
+
+msgid "Test microphone"
+msgstr "Mikrofonu test et"
+
+msgid "Speakers"
+msgstr "Hoparlörler"
+
+msgid "Test speakers"
+msgstr "Hoparlörleri test et"
+
+msgid "Volume"
+msgstr "Ses düzeyi"
+
+msgid "Voice activity detection"
+msgstr "Ses etkinliği algılama"
+
+msgid "Network mode"
+msgstr "Ağ modu"
+
+msgid "Local network (LAN)"
+msgstr "Yerel ağ (LAN)"
+
+msgid "K-Server (self-hosted)"
+msgstr "K-Server (kendi sunucun)"
+
+msgid "K-Server (join someone else's)"
+msgstr "K-Server (başkasına bağlan)"
+
+msgid "Relay (not a K-Server)"
+msgstr "Relay (K-Server degil)"
+
+msgid "Maintainer's VDS"
+msgstr "Gelistiricinin VDS'i"
+
+msgid "not available yet"
+msgstr "henuz kullanilamiyor"
+
+msgid "Relay server address"
+msgstr "Röle sunucu adresi"
+
+msgid "Relay server port"
+msgstr "Röle sunucu portu"
+
+msgid "Save"
+msgstr "Kaydet"
+
+msgid "Settings saved"
+msgstr "Ayarlar kaydedildi"
+
+msgid "KOutNet — P2P encrypted messenger"
+msgstr "KOutNet — P2P şifreli mesajlaşma"
+
+msgid "Forwarding messages is not implemented in ChatModel yet."
+msgstr "Mesaj iletme ChatModel'de henüz uygulanmadı."
+
+msgid "Deleting messages is not implemented in ChatModel yet."
+msgstr "Mesaj silme ChatModel'de henüz uygulanmadı."
+
+msgid "Select a peer on the left to start a conversation."
+msgstr "Konuşmaya başlamak için soldan bir kişi seçin."
+
+msgid "No session"
+msgstr "Oturum yok"
+
+msgid "No description"
+msgstr "Açıklama yok"
+
+msgid "Will appear once connected to a K-Server"
+msgstr "Bir K-Server'a bağlanınca görünecek"
+
+msgid "Friends"
+msgstr "Arkadaşlar"
+
+msgid "No one yet"
+msgstr "Henüz kimse yok"
+
+msgid "Change avatar"
+msgstr "Avatarı değiştir"
+
+msgid "Change banner"
+msgstr "Afişi değiştir"
+
+msgid "Change background"
+msgstr "Arka planı değiştir"
+
+msgid "Choose name badge"
+msgstr "İsim rozeti seç"
+
+msgid "Add information about yourself"
+msgstr "Kendin hakkında bilgi ekle"
+
+msgid "Done"
+msgstr "Tamam"
+
+msgid "Edit profile"
+msgstr "Profili düzenle"
+
+msgid "Remove background"
+msgstr "Arka planı kaldır"
+
+msgid "Local"
+msgstr "Yerel"
+
+msgid "Global"
+msgstr "Küresel"
+
+msgid "not registered"
+msgstr "kayıtlı değil"
+
+msgid "Tell us about yourself..."
+msgstr "Kendinden bahset..."
+
+msgid "Music"
+msgstr "Müzik"
+
+msgid "Photos"
+msgstr "Fotoğraflar"
+
+msgid "Videos"
+msgstr "Videolar"
+
+msgid "Albums"
+msgstr "Albümler"
+
+msgid "Clips"
+msgstr "Klipler"
+
+msgid "Articles"
+msgstr "Makaleler"
+
+msgid "Nothing here yet — upload files from your device"
+msgstr "Henüz bir şey yok — cihazından dosya yükle"
+
+msgid "No internet connection"
+msgstr "İnternet bağlantısı yok"
+
+msgid "Register this identity on a K-Server to use the global profile"
+msgstr "Genel profili kullanmak için bu kimliği bir K-Server'a kaydedin"
+
+msgid "Register"
+msgstr "Kaydol"
+
+msgid "Sheet"
+msgstr "Sayfa"
+
+msgid "Editor"
+msgstr "Düzenleyici"
+
+msgid "Preview"
+msgstr "Önizleme"
+
+msgid "Write something"
+msgstr "Bir şeyler yaz"
+
+msgid "Open files"
+msgstr "Dosya aç"
+
+msgid "Unknown artist"
+msgstr "Bilinmeyen sanatçı"
+
+msgid "Unknown album"
+msgstr "Bilinmeyen albüm"
+
+msgid "Open a file to start playback"
+msgstr "Oynatmayı başlatmak için bir dosya açın"
+
+msgid "Playlist"
+msgstr "Çalma listesi"
+
+msgid "Clear playlist"
+msgstr "Çalma listesini temizle"
+
+msgid "Nothing queued yet"
+msgstr "Sırada henüz bir şey yok"
+
+msgid "A custom rendering engine is the next step"
+msgstr "Kendi render motoru — yakında"
+
+msgid "Check for updates at startup"
+msgstr "Başlangıçta güncellemeleri denetle"
+
+msgid "In development"
+msgstr "Geliştirme aşamasında"
+
+msgid "Community"
+msgstr "Topluluk"
+
+msgid "Join like-minded KOutNet people in our community:"
+msgstr "KOutNet ile ilgilenenlere topluluğumuzda katılın:"
+
+msgid "Contribute"
+msgstr "Katkıda bulun"
+
+msgid "Do not show this again"
+msgstr "Bir daha gösterme"
+
+msgid "Continue"
+msgstr "Devam"

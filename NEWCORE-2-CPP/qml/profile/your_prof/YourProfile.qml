@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Controls
@@ -28,10 +28,6 @@ Item {
 
     // Main owns the stub sheet, this page only asks for it.
     signal stubRequested(string title, string body)
-
-    function tr(key) {
-        return (Translations.current, Translations.t(key))
-    }
 
     function commitBio() {
         if (aboutEdit.visible) {
@@ -63,25 +59,25 @@ Item {
 
     FileDialog {
         id: avatarDialog
-        title: root.tr("profile.change_avatar")
+        title: i18n("Change avatar")
         nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif)"]
         onAccepted: appSettings.avatarPath = selectedFile
     }
     FileDialog {
         id: bannerDialog
-        title: root.tr("profile.change_banner")
+        title: i18n("Change banner")
         nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif)"]
         onAccepted: appSettings.bannerPath = selectedFile
     }
     FileDialog {
         id: backgroundDialog
-        title: root.tr("profile.change_background")
+        title: i18n("Change background")
         nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif)"]
         onAccepted: appSettings.profileBackgroundPath = selectedFile
     }
     FileDialog {
         id: badgeDialog
-        title: root.tr("profile.change_badge")
+        title: i18n("Choose name badge")
         nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif)"]
         onAccepted: appSettings.nameBadgePath = selectedFile
     }
@@ -154,7 +150,7 @@ Item {
                         anchors.fill: parent
                         onClicked: bannerDialog.open()
                         ToolTip.visible: containsMouse
-                        ToolTip.text: root.tr("profile.change_banner")
+                        ToolTip.text: i18n("Change banner")
                         hoverEnabled: true
                     }
                 }
@@ -295,7 +291,7 @@ Item {
                         spacing: 4
                         TextField {
                             Layout.preferredWidth: Kirigami.Units.gridUnit * 14
-                            placeholderText: root.tr("profile.username_placeholder")
+                            placeholderText: i18n("Add information about yourself")
                             text: appSettings.displayName
                             onEditingFinished: appSettings.displayName = text
                         }
@@ -308,7 +304,7 @@ Item {
                                 onEditingFinished: appSettings.username = text
                             }
                             ToolButton {
-                                text: root.tr("profile.change_badge")
+                                text: i18n("Choose name badge")
                                 onClicked: badgeDialog.open()
                             }
                         }
@@ -318,7 +314,7 @@ Item {
                 Item { Layout.fillWidth: true }
 
                 Button {
-                    text: root.editMode ? root.tr("profile.edit_done") : root.tr("profile.edit")
+                    text: root.editMode ? i18n("Done") : i18n("Edit profile")
                     highlighted: root.editMode
                     onClicked: root.toggleEditMode()
                 }
@@ -326,22 +322,22 @@ Item {
                     icon.name: "insert-image-symbolic"
                     onClicked: backgroundDialog.open()
                     ToolTip.visible: hovered
-                    ToolTip.text: root.tr("profile.change_background")
+                    ToolTip.text: i18n("Change background")
                 }
                 ToolButton {
                     visible: appSettings.profileBackgroundPath.length > 0
                     icon.name: "edit-clear-symbolic"
                     onClicked: appSettings.profileBackgroundPath = ""
                     ToolTip.visible: hovered
-                    ToolTip.text: root.tr("profile.clear_background")
+                    ToolTip.text: i18n("Remove background")
                 }
                 ToolButton {
                     icon.name: "document-share"
-                    onClicked: root.stubRequested(root.tr("profile.edit"), root.tr("profile.tab_content_placeholder"))
+                    onClicked: root.stubRequested(i18n("Edit profile"), i18n("Will appear once connected to a K-Server"))
                 }
                 ToolButton {
                     icon.name: "overflow-menu"
-                    onClicked: root.stubRequested(root.tr("profile.edit"), root.tr("profile.tab_content_placeholder"))
+                    onClicked: root.stubRequested(i18n("Edit profile"), i18n("Will appear once connected to a K-Server"))
                 }
             }
         }
@@ -366,7 +362,7 @@ Item {
                     Label {
                         id: localLabel
                         anchors.centerIn: parent
-                        text: root.tr("profile.local_account")
+                        text: i18n("Local")
                         color: !appSettings.globalAccount ? root.theme.accent : root.theme.text_dim
                     }
                     MouseArea { anchors.fill: parent; onClicked: appSettings.globalAccount = false }
@@ -381,7 +377,7 @@ Item {
                     Label {
                         id: globalLabel
                         anchors.centerIn: parent
-                        text: root.tr("profile.global_account")
+                        text: i18n("Global")
                         color: appSettings.globalAccount ? root.theme.accent : root.theme.text_dim
                     }
                     MouseArea { anchors.fill: parent; onClicked: appSettings.globalAccount = true }
@@ -393,7 +389,7 @@ Item {
             // caption.
             Label {
                 visible: appSettings.globalAccount && !appSettings.globalAccountRegistered
-                text: root.tr("profile.not_registered")
+                text: i18n("not registered")
                 color: root.theme.text_dim
                 font.pixelSize: 13
             }
@@ -410,7 +406,7 @@ Item {
             Label {
                 Layout.leftMargin: Kirigami.Units.largeSpacing
                 Layout.bottomMargin: Kirigami.Units.smallSpacing
-                text: root.tr("profile.status_online")
+                text: i18n("online")
                 color: root.theme.text_dim
                 font.pixelSize: 13
             }
@@ -443,7 +439,7 @@ Item {
                             wrapMode: Text.Wrap
                             textFormat: Text.MarkdownText
                             color: root.theme.text
-                            text: appSettings.bio.length > 0 ? appSettings.bio : root.tr("profile.username_placeholder")
+                            text: appSettings.bio.length > 0 ? appSettings.bio : i18n("Add information about yourself")
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -456,7 +452,7 @@ Item {
                             anchors.margins: 12
                             visible: false
                             wrapMode: TextArea.Wrap
-                            placeholderText: root.tr("profile.about_placeholder")
+                            placeholderText: i18n("Tell us about yourself...")
                             color: root.theme.text
                             background: null
                             onActiveFocusChanged: {
@@ -476,7 +472,7 @@ Item {
                             implicitHeight: 36
                             color: "transparent"
 
-                            property var tabKeys: ["profile.tab_music", "profile.tab_photos", "profile.tab_videos", "profile.tab_albums", "profile.tab_clips", "profile.tab_articles"]
+                            property var tabLabels: [i18n("Music"), i18n("Photos"), i18n("Videos"), i18n("Albums"), i18n("Clips"), i18n("Articles")]
                             property var tabIcons: ["audio-x-generic-symbolic", "folder-pictures-symbolic", "folder-videos-symbolic", "view-list-details-symbolic", "video-symbolic", "text-x-generic-symbolic"]
                             property int currentIndex: 0
 
@@ -484,7 +480,7 @@ Item {
                                 anchors.fill: parent
                                 spacing: 0
                                 Repeater {
-                                    model: mediaTabsRoot.tabKeys
+                                    model: mediaTabsRoot.tabLabels
                                     delegate: Rectangle {
                                         Layout.preferredWidth: mediaTabRow.implicitWidth + 24
                                         Layout.fillHeight: true
@@ -500,7 +496,7 @@ Item {
                                                 color: mediaTabsRoot.currentIndex === index ? root.theme.accent : root.theme.text_dim
                                             }
                                             Label {
-                                                text: root.tr(modelData)
+                                                text: modelData
                                                 font.bold: mediaTabsRoot.currentIndex === index
                                                 color: mediaTabsRoot.currentIndex === index ? root.theme.accent : root.theme.text_dim
                                             }
@@ -532,14 +528,14 @@ Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         visible: !appSettings.globalAccount
-                        text: root.tr("profile.local_tab_empty")
+                        text: i18n("Nothing here yet — upload files from your device")
                         icon.name: "folder-symbolic"
                     }
                     Kirigami.PlaceholderMessage {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         visible: appSettings.globalAccount
-                        text: root.tr("profile.no_internet")
+                        text: i18n("No internet connection")
                         icon.name: "network-disconnect-symbolic"
                     }
                 }
@@ -564,11 +560,11 @@ Item {
                             spacing: 8
                             Kirigami.Heading {
                                 level: 5
-                                text: root.tr("profile.friends")
+                                text: i18n("Friends")
                                 color: root.theme.text
                             }
                             Label {
-                                text: root.tr("profile.no_friends_yet")
+                                text: i18n("No one yet")
                                 color: root.theme.text_dim
                             }
                         }
@@ -588,12 +584,12 @@ Item {
             Layout.margins: Kirigami.Units.largeSpacing
             visible: !root.profileUsable
             icon.name: "im-user-symbolic"
-            text: root.tr("profile.not_registered")
-            explanation: root.tr("profile.register_explanation")
+            text: i18n("not registered")
+            explanation: i18n("Register this identity on a K-Server to use the global profile")
             helpfulAction: Kirigami.Action {
-                text: root.tr("profile.register_now")
+                text: i18n("Register")
                 icon.name: "list-add-user"
-                onTriggered: root.stubRequested(root.tr("profile.register_now"), root.tr("profile.tab_content_placeholder"))
+                onTriggered: root.stubRequested(i18n("Register"), i18n("Will appear once connected to a K-Server"))
             }
         }
     }

@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Network & Audio core
 #include "NetworkManager.h"
@@ -376,7 +376,7 @@ void NetworkManager::onBroadcastTimer()
         m_lastScan = now;
         const auto parts = m_hostIp.split(QLatin1Char('.'));
         if (parts.size() == 4) {
-            const QString prefix = parts[0] + '.' + parts[1] + '.' + parts[2] + '.';
+            const QString prefix = parts[0] + QLatin1Char('.') + parts[1] + QLatin1Char('.') + parts[2] + QLatin1Char('.');
             for (int last = 1; last < 255; ++last) {
                 const QString target = prefix + QString::number(last);
                 if (target != m_hostIp)
