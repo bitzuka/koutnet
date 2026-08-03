@@ -63,6 +63,17 @@ inline const QVector<RelayServer> &builtinRelays()
 inline constexpr int kRelayReconnectBaseMs = 3000;
 inline constexpr int kRelayReconnectMaxMs = 60000;
 
+// Framing for the TCP streams. Both the voice sockets and the relay tunnel put
+// a 4-byte big-endian length in front of every message, because TCP hands back
+// a byte stream and an arbitrary slice of it is not a frame - an AES-GCM tag
+// that starts one byte off never verifies.
+inline constexpr int kFrameHeaderBytes = 4;
+// The declared length comes from an untrusted peer, so each stream refuses
+// anything larger than it could plausibly need and hangs up. A voice frame is
+// a fraction of a second of PCM; a relay frame is JSON, file chunks included.
+inline constexpr quint32 kMaxVoiceFrameBytes = 1u << 20; // 1 MiB
+inline constexpr quint32 kMaxRelayFrameBytes = 8u << 20; // 8 MiB
+
 inline constexpr QLatin1StringView kAppName ("KOutNet");
 inline constexpr int kProtocolVersion = 1;
 

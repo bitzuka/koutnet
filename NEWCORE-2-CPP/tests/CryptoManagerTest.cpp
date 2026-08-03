@@ -6,9 +6,12 @@
 
 #include <QTest>
 #include <QDateTime>
+#include <QFile>
+#include <QSettings>
 #include <QStandardPaths>
 
 #include "../core/security/CryptoManager.h"
+#include "../core/security/SecretStore.h"
 
 using koutnet::CryptoManager;
 
@@ -29,6 +32,42 @@ private Q_SLOTS:
                                    "trivially because the code falls through "
                                    "to plaintext");
         QVERIFY(!crypto.fingerprint().isEmpty());
+    }
+
+    // The bug this guards against: the migration filled the wallet, called
+    // remove() on the config file, and nobody checked that the removal reached
+    // the disk. The keys are seeded the way the pre-wallet build wrote them -
+    // setValue() of a QByteArray, so the file reads @ByteArray(...) - because
+    // that is the form the deletion has to cope with.
+    void plaintextKeysLeaveTheConfigFile()
+    {
+        const QStringList keys = { QStringLiteral("security/identity_priv_b64"),
+                                   QStringLiteral("security/dh_priv_b64") };
+        QString path;
+        {
+            QSettings settings;
+            path = settings.fileName();
+            settings.setValue(keys.at(0), QByteArrayLiteral("aWRlbnRpdHk="));
+            settings.setValue(keys.at(1), QByteArrayLiteral("ZGlmZmllaGVsbG1hbg=="));
+            settings.setValue(QStringLiteral("app/username"), QStringLiteral("tester"));
+            settings.sync();
+        }
+
+        QString detail;
+        QVERIFY2(koutnet::SecretStore::purgePlaintextConfigKeys(keys, &detail),
+                 qUtf8Printable(detail));
+
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QByteArray contents = file.readAll();
+        QVERIFY2(!contents.contains(QByteArrayLiteral("identity_priv_b64")), contents.constData());
+        QVERIFY2(!contents.contains(QByteArrayLiteral("dh_priv_b64")), contents.constData());
+        // everything else in the file has to survive the deletion
+        QVERIFY2(contents.contains(QByteArrayLiteral("tester")), contents.constData());
+
+        // Runs on every start, so an already clean file is a success, not a
+        // warning the user would learn to ignore.
+        QVERIFY(koutnet::SecretStore::purgePlaintextConfigKeys(keys, &detail));
     }
 
     void roundTrip_data()

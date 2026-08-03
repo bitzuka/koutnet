@@ -6,6 +6,22 @@ Dependencies:
     'frameworks/extra-cmake-modules': '@latest'
     'frameworks/kirigami': '@latest'
     'frameworks/ki18n': '@stable'
+    # The private keys and the group passphrase live in KWallet, so this is a
+    # hard build dependency and not an optional integration.
+    'frameworks/kwallet': '@stable'
 
 Options:
   require-passing-tests-on: ['Linux']
+  # No kwalletd in the CI session, which is exactly the path the crypto test
+  # is written for: keys in memory only, and nothing written in plain text.
+  run-tests: True
+  test-before-installing: True
+  # Formatting is checked against the .clang-format at the root, the ECM one.
+  # The tree has not been run through it yet, so this will report until the
+  # reformat commit lands.
+  clang-format-versions: [18]
+  run-cppcheck: True
+  require-cppcheck-clean: False
+  # Every user-visible string goes through ki18n and every QML file is part of
+  # the module, so both are worth failing on.
+  run-qmllint: True

@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
+# A smoke test, not the real CI. KDE's own builders (.kde-ci.yml) are what
+# gates this project once it moves to invent.kde.org; until then this catches
+# the obvious "does not configure on a stock distro" breakage on push.
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    name: build and ctest
+    runs-on: ubuntu-latest
+    # The distro packages lag behind what .kde-ci.yml asks for, so a failure
+    # here can mean "Ubuntu is too old" rather than "the code is broken".
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            qt6-base-dev \
+            qt6-declarative-dev \
+            qt6-multimedia-dev \
+            libkf6i18n-dev \
+            libkf6kirigami-dev \
+            libkf6wallet-dev \
+            extra-cmake-modules \
+            libssl-dev
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Debug
+      - name: Build
+        run: cmake --build build --parallel
+      # No kwalletd and no display here, so the crypto test runs the
+      # no-wallet path on purpose - see NEWCORE-2-CPP/tests.
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+        env:
+          QT_QPA_PLATFORM: offscreen

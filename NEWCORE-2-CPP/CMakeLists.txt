@@ -7,7 +7,9 @@ find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Quick QuickContr
 find_package(OpenSSL REQUIRED)
 # Kirigami is not optional: every QML file in qml/ imports it for the page
 # structure and the units, so a build without it fails at first window.
-find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS I18n Kirigami)
+# Wallet is required, not optional: the identity keys and the group passphrase
+# have nowhere else to go, and the app refuses to write them in plain text.
+find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS I18n Kirigami Wallet)
 
 # The i18n() call in QML comes from the localized context object, which lives
 # in a target of its own rather than in KF6::I18n.
@@ -27,6 +29,8 @@ qt_add_executable(KOutNet
     core/audio/AudioDevices.h
     core/security/CryptoManager.cpp
     core/security/CryptoManager.h
+    core/security/SecretStore.cpp
+    core/security/SecretStore.h
     core/constructor/AppSettings.cpp
     core/constructor/AppSettings.h
     core/chat/MessageEntry.cpp
@@ -85,6 +89,7 @@ target_link_libraries(KOutNet PRIVATE
     KF6::I18n
     KF6::I18nQml
     KF6::Kirigami
+    KF6::Wallet
 )
 
 install(TARGETS KOutNet RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

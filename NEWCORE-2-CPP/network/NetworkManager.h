@@ -12,6 +12,7 @@
 #include <QJsonObject>
 #include <QSet>
 #include <QMap>
+#include <QHash>
 #include <QVector>
 
 #include "Protocol.h"
@@ -162,8 +163,9 @@ private:
     void handlePresence(const QString &host, QJsonObject msg);
     void decryptMessageText(const QString &fromIp, QJsonObject &msg) const;
     void onVoiceData(QTcpSocket *sock, const QString &ip);
-    void onVoiceDisconnected(const QString &ip);
+    void onVoiceDisconnected(QTcpSocket *sock, const QString &ip);
     void startInternetTunnel();
+    void onRelayData();
     // Fires startInternetTunnel() again after the current backoff and doubles
     // it, capped at kRelayReconnectMaxMs.
     void scheduleRelayReconnect();
@@ -177,6 +179,10 @@ private:
     QTcpServer *m_tcpServer = nullptr;
     QMap<QString, QTcpSocket *> m_voiceConnections;   // ip -> voice socket
     QMap<QString, QTcpSocket *> m_pendingVoice;       // ip -> socket still connecting
+    // Partial frames per voice socket. Keyed on the socket rather than the IP
+    // because the inbound and outbound socket for one peer are different
+    // streams and must not share a buffer.
+    QHash<QTcpSocket *, QByteArray> m_voiceRxBuffers;
     QMap<QString, QJsonObject>  m_peers;              // ip -> peer info
 
     QString m_hostIp;
@@ -192,7 +198,7 @@ private:
     // Relay / tunnel (Vds mode) - TODO: move to network/vds module
     QTcpSocket *m_relaySocket = nullptr;
     bool m_relayConnected = false;
-    QByteArray m_relayBuffer;
+    QByteArray m_relayBuffer;      // partial frame from the tunnel, see onRelayData()
     ConnectionMode m_mode = ConnectionMode::LanOrVpn;
     QString m_groupPassphrase;
     QString m_profileHandle;

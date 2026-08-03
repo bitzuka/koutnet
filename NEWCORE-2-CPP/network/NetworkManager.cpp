@@ -74,6 +74,26 @@ bool allowedUnsigned(const QString &type)
     return type == protocol::kMsgPresence;
 }
 
+// The 4-byte big-endian length that goes in front of every framed message.
+// Written out by hand rather than through QDataStream so the wire format stays
+// obvious to anyone reimplementing the protocol.
+QByteArray lengthPrefix(quint32 len)
+{
+    QByteArray header(protocol::kFrameHeaderBytes, 0);
+    header[0] = char((len >> 24) & 0xFF);
+    header[1] = char((len >> 16) & 0xFF);
+    header[2] = char((len >> 8) & 0xFF);
+    header[3] = char(len & 0xFF);
+    return header;
+}
+
+// Callers check that at least kFrameHeaderBytes are buffered first.
+quint32 readLengthPrefix(const QByteArray &buf)
+{
+    return (quint32(quint8(buf.at(0))) << 24) | (quint32(quint8(buf.at(1))) << 16)
+        | (quint32(quint8(buf.at(2))) << 8) | quint32(quint8(buf.at(3)));
+}
+
 } // namespace
 
 NetworkManager::NetworkManager(CryptoManager *crypto, QObject *parent)
@@ -255,6 +275,7 @@ void NetworkManager::stop()
     for (auto *sock : std::as_const(m_voiceConnections))
         sock->disconnectFromHost();
     m_voiceConnections.clear();
+    m_voiceRxBuffers.clear();
 
     for (auto *sock : std::as_const(m_pendingVoice))
         sock->abort();
@@ -264,6 +285,7 @@ void NetworkManager::stop()
         m_relaySocket->close();
         m_relaySocket = nullptr;
     }
+    m_relayBuffer.clear();
     if (m_udp) {
         m_udp->close();
         m_udp->deleteLater();
@@ -578,26 +600,54 @@ void NetworkManager::onNewTcpConnection()
 
         m_voiceConnections[ip] = sock;
         connect(sock, &QTcpSocket::readyRead, this, [this, sock, ip] { onVoiceData(sock, ip); });
-        connect(sock, &QTcpSocket::disconnected, this, [this, ip] { onVoiceDisconnected(ip); });
+        connect(sock, &QTcpSocket::disconnected, this, [this, sock, ip] { onVoiceDisconnected(sock, ip); });
         Q_EMIT voiceConnected(ip);
     }
 }
 
 void NetworkManager::onVoiceData(QTcpSocket *sock, const QString &ip)
 {
-    while (sock->bytesAvailable() > 0) {
-        const QByteArray data = sock->read(2048);
-        if (!data.isEmpty()) {
-            Q_EMIT voiceData(data);          // legacy single-call path
-            Q_EMIT voiceDataFrom(ip, data);  // group-call mixer path - VoiceCallManager
-                                            // decrypts (CryptoManager::decryptBytes)
-                                            // before pushing into the jitter buffer.
+    // Reassemble whole frames before handing anything on. The old code read
+    // whatever had arrived and called it a frame, which is why encrypted voice
+    // never worked: the GCM tag was almost never at the end of the slice.
+    QByteArray buf = m_voiceRxBuffers.value(sock) + sock->readAll();
+    QVector<QByteArray> frames;
+
+    while (buf.size() >= protocol::kFrameHeaderBytes) {
+        const quint32 len = readLengthPrefix(buf);
+        if (len == 0 || len > protocol::kMaxVoiceFrameBytes) {
+            // the length is peer-supplied, so a silly one is either a broken
+            // sender or an attempt to make us allocate a gigabyte
+            m_voiceRxBuffers.remove(sock);
+            Q_EMIT errorOccurred(QStringLiteral("voice frame from %1 declared %2 bytes - dropping the connection")
+                                     .arg(ip).arg(len));
+            // abort() on a connected socket emits disconnected(), which is
+            // where the teardown lives - doing it here as well would tell the
+            // call layer twice.
+            sock->abort();
+            return;
         }
+        if (quint32(buf.size() - protocol::kFrameHeaderBytes) < len)
+            break; // the rest of this frame is still in flight
+        frames.append(buf.mid(protocol::kFrameHeaderBytes, int(len)));
+        buf.remove(0, protocol::kFrameHeaderBytes + int(len));
+    }
+
+    // Remainder goes back before anything is emitted: a listener may hang up
+    // the call, and that erases this socket's buffer underneath us.
+    m_voiceRxBuffers[sock] = buf;
+
+    for (const auto &frame : std::as_const(frames)) {
+        Q_EMIT voiceData(frame);          // legacy single-call path
+        Q_EMIT voiceDataFrom(ip, frame);  // group-call mixer path - VoiceCallManager
+                                          // decrypts (CryptoManager::decryptBytes)
+                                          // before pushing into the jitter buffer.
     }
 }
 
-void NetworkManager::onVoiceDisconnected(const QString &ip)
+void NetworkManager::onVoiceDisconnected(QTcpSocket *sock, const QString &ip)
 {
+    m_voiceRxBuffers.remove(sock);
     m_voiceConnections.remove(ip);
     Q_EMIT voiceDisconnected(ip);
     Q_EMIT callEnded(ip);
@@ -648,13 +698,20 @@ void NetworkManager::startInternetTunnel()
         if (m_relaySocket != sock)
             return; // a newer attempt already replaced this socket
         m_relayConnected = true;
+        m_relayBuffer.clear(); // a fresh stream never continues the old one
         m_relayReconnectMs = protocol::kRelayReconnectBaseMs; // reset backoff on success
         onBroadcastTimer();
+    });
+    connect(sock, &QTcpSocket::readyRead, this, [this, sock] {
+        if (m_relaySocket != sock)
+            return;
+        onRelayData();
     });
     connect(sock, &QTcpSocket::disconnected, this, [this, sock] {
         if (m_relaySocket != sock)
             return;
         m_relayConnected = false;
+        m_relayBuffer.clear();
         scheduleRelayReconnect();
     });
     // A connect that never lands (refused, unreachable, bad name) emits this
@@ -669,9 +726,54 @@ void NetworkManager::startInternetTunnel()
     // No waitForConnected: this runs on the GUI thread, so it froze the whole
     // window for three seconds on every attempt, retries included.
     sock->connectToHost(host, port);
+}
 
-    // TODO: length-prefixed frame reader (4-byte BE length + JSON payload)
-    // feeding into dispatch(), matching the Python _tunnel_recv_loop.
+// The relay counterpart of onVoiceData: same 4-byte big-endian framing, and the
+// payload is one compact JSON object per frame, which is what sendUdp() writes
+// on this socket.
+void NetworkManager::onRelayData()
+{
+    m_relayBuffer += m_relaySocket->readAll();
+
+    QVector<QByteArray> frames;
+    while (m_relayBuffer.size() >= protocol::kFrameHeaderBytes) {
+        const quint32 len = readLengthPrefix(m_relayBuffer);
+        if (len == 0 || len > protocol::kMaxRelayFrameBytes) {
+            // the relay is no more trusted than a peer, and a bogus length here
+            // would otherwise mean a multi-gigabyte allocation
+            Q_EMIT errorOccurred(QStringLiteral("relay frame declared %1 bytes - dropping the tunnel").arg(len));
+            m_relayBuffer.clear();
+            // the disconnected handler clears the flag and schedules the
+            // reconnect, so abort() is all that is needed here
+            m_relaySocket->abort();
+            return;
+        }
+        if (quint32(m_relayBuffer.size() - protocol::kFrameHeaderBytes) < len)
+            break; // wait for the rest
+        frames.append(m_relayBuffer.mid(protocol::kFrameHeaderBytes, int(len)));
+        m_relayBuffer.remove(0, protocol::kFrameHeaderBytes + int(len));
+    }
+
+    for (const auto &frame : std::as_const(frames)) {
+        QJsonParseError parseErr;
+        const auto doc = QJsonDocument::fromJson(frame, &parseErr);
+        if (parseErr.error != QJsonParseError::NoError || !doc.isObject()) {
+            Q_EMIT errorOccurred(QStringLiteral("relay parse error: %1").arg(parseErr.errorString()));
+            continue;
+        }
+        const QJsonObject msg = doc.object();
+        // The TCP peer is the relay, not the sender, so the source address has
+        // to come out of the payload - it is what the replay guard, the HMAC
+        // check and the peer table are all keyed on.
+        QString host = msg.value(QStringLiteral("from_ip")).toString();
+        if (host.isEmpty())
+            host = msg.value(QStringLiteral("ip")).toString();
+        if (host.isEmpty()) {
+            Q_EMIT errorOccurred(QStringLiteral("relay frame with no sender address - dropping"));
+            continue;
+        }
+        dispatch(host, msg);
+    }
 }
 
 void NetworkManager::scheduleRelayReconnect()
@@ -706,15 +808,8 @@ void NetworkManager::sendUdp(QJsonObject payload, const QString &targetIp)
     const QByteArray data = QJsonDocument(payload).toJson(QJsonDocument::Compact);
 
     if (m_internetMode) {
-        if (m_relaySocket && m_relayConnected) {
-            QByteArray header(4, 0);
-            const quint32 len = static_cast<quint32>(data.size());
-            header[0] = char((len >> 24) & 0xFF);
-            header[1] = char((len >> 16) & 0xFF);
-            header[2] = char((len >> 8) & 0xFF);
-            header[3] = char(len & 0xFF);
-            m_relaySocket->write(header + data);
-        }
+        if (m_relaySocket && m_relayConnected)
+            m_relaySocket->write(lengthPrefix(quint32(data.size())) + data);
     } else if (!targetIp.isEmpty()) {
         m_udp->writeDatagram(data, QHostAddress(targetIp), protocol::kUdpPortDefault);
     } else {
@@ -1015,7 +1110,7 @@ bool NetworkManager::connectVoice(const QString &ip)
         m_pendingVoice.remove(ip);
         m_voiceConnections[ip] = sock;
         connect(sock, &QTcpSocket::readyRead, this, [this, sock, ip] { onVoiceData(sock, ip); });
-        connect(sock, &QTcpSocket::disconnected, this, [this, ip] { onVoiceDisconnected(ip); });
+        connect(sock, &QTcpSocket::disconnected, this, [this, sock, ip] { onVoiceDisconnected(sock, ip); });
         Q_EMIT voiceConnected(ip);
     });
     connect(sock, &QTcpSocket::errorOccurred, this, [this, sock, ip](QAbstractSocket::SocketError) {
@@ -1042,11 +1137,15 @@ bool NetworkManager::connectVoice(const QString &ip)
 bool NetworkManager::sendVoice(const QString &ip, const QByteArray &data)
 {
     auto *sock = m_voiceConnections.value(ip, nullptr);
-    if (sock && sock->state() == QTcpSocket::ConnectedState) {
-        sock->write(data);
-        return true;
-    }
-    return false;
+    if (!sock || sock->state() != QTcpSocket::ConnectedState)
+        return false;
+    // Same cap the receiver enforces, so we never send a frame a correct peer
+    // would have to hang up on.
+    if (data.isEmpty() || quint32(data.size()) > protocol::kMaxVoiceFrameBytes)
+        return false;
+
+    sock->write(lengthPrefix(quint32(data.size())) + data);
+    return true;
 }
 
 void NetworkManager::disconnectVoice(const QString &ip)
@@ -1056,8 +1155,10 @@ void NetworkManager::disconnectVoice(const QString &ip)
         pending->abort();
         pending->deleteLater();
     }
-    if (auto *sock = m_voiceConnections.take(ip))
+    if (auto *sock = m_voiceConnections.take(ip)) {
+        m_voiceRxBuffers.remove(sock);
         sock->disconnectFromHost();
+    }
 }
 
 void NetworkManager::sendFile(const QString &toIp, const QString &filePath)

@@ -1,11 +1,31 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "AppSettings.h"
+#include "../security/SecretStore.h"
 
 #include <QSettings>
 #include <QHostInfo>
+#include <QTimer>
+#include <QDebug>
 
 namespace koutnet {
+
+namespace {
+
+// Wallet entry for the shared group-chat passphrase, formerly the QSettings
+// key "app/group_passphrase".
+QString passphraseWalletKey()
+{
+    return QStringLiteral("group_passphrase");
+}
+
+// Where older builds kept the same passphrase, in clear text.
+QStringList legacyConfigKeys()
+{
+    return { QStringLiteral("app/group_passphrase") };
+}
+
+} // namespace
 
 AppSettings::AppSettings(QObject *parent) : QObject(parent)
 {
@@ -29,7 +49,6 @@ void AppSettings::load()
     }
     m_relayHost = settings.value("app/relay_host", QString()).toString();
     m_relayPort = settings.value("app/relay_port", 0).toInt();
-    m_groupPassphrase = settings.value("app/group_passphrase", QString()).toString();
     m_language = settings.value(QStringLiteral("app/language"), QStringLiteral("ru")).toString();
     m_audioInputId = settings.value("app/audio_input_id", QString()).toString();
     m_audioOutputId = settings.value("app/audio_output_id", QString()).toString();
@@ -46,6 +65,64 @@ void AppSettings::load()
     m_bio = settings.value("app/bio", QString()).toString();
     m_globalAccount = settings.value("app/global_account", false).toBool();
     m_globalAccountRegistered = settings.value("app/global_account_registered", false).toBool();
+
+    loadGroupPassphrase(settings);
+}
+
+// Last thing load() does, because the deletion below rewrites the file the rest
+// of load() has been reading from. The instance passed in stays usable: every
+// QSettings on one file shares a single in-memory copy, so it sees the removal
+// too and cannot put the key back when it syncs.
+void AppSettings::loadGroupPassphrase(QSettings &settings)
+{
+    m_groupPassphrase.clear();
+
+    const QString walletKey = passphraseWalletKey();
+    if (SecretStore::read(walletKey, &m_groupPassphrase)) {
+        // Same reason as in CryptoManager: the wallet copy is the only one we
+        // use, and a previous run may have written it and then failed to
+        // rewrite the config file, which nothing would ever notice again.
+        dropLegacyPassphrase();
+        return;
+    }
+
+    // Older builds kept the passphrase next to the window geometry, in clear
+    // text. Move it, and only forget the old copy once the wallet has it.
+    const QString legacy = settings.value(legacyConfigKeys().at(0)).toString();
+    if (legacy.isEmpty())
+        return;
+
+    m_groupPassphrase = legacy;
+    if (!SecretStore::write(walletKey, legacy)) {
+        qCritical("AppSettings: the group passphrase is still in the config file in clear "
+                  "text because KWallet is unavailable (%s)",
+                  qUtf8Printable(SecretStore::lastError()));
+        reportSecretStoreProblem(SecretStore::lastError());
+        return;
+    }
+    dropLegacyPassphrase();
+}
+
+void AppSettings::dropLegacyPassphrase()
+{
+    QString detail;
+    if (SecretStore::purgePlaintextConfigKeys(legacyConfigKeys(), &detail))
+        return;
+
+    qCritical("AppSettings: KWallet holds the group passphrase, but the clear-text copy "
+              "could NOT be deleted from the config file: %s",
+              qUtf8Printable(detail));
+    reportSecretStoreProblem(detail);
+}
+
+void AppSettings::reportSecretStoreProblem(const QString &reason)
+{
+    // Queued because this runs from the constructor, before anything is
+    // connected. QML connects while the engine loads, which still happens
+    // before the event loop starts, so a zero timer is early enough.
+    QTimer::singleShot(0, this, [this, reason]() {
+        Q_EMIT secretStoreUnavailable(reason);
+    });
 }
 
 void AppSettings::setUsername(const QString &name)
@@ -89,7 +166,16 @@ void AppSettings::setGroupPassphrase(const QString &passphrase)
     if (m_groupPassphrase == passphrase)
         return;
     m_groupPassphrase = passphrase;
-    QSettings().setValue("app/group_passphrase", m_groupPassphrase);
+    // A passphrase that cannot go into the wallet still applies to this
+    // session, but it is not written anywhere - there is no acceptable
+    // second-best place for it.
+    const bool stored = passphrase.isEmpty() ? SecretStore::remove(passphraseWalletKey())
+                                             : SecretStore::write(passphraseWalletKey(), passphrase);
+    if (!stored) {
+        Q_EMIT secretStoreUnavailable(SecretStore::lastError());
+        qCritical("AppSettings: the group passphrase was not saved (%s)",
+                  qUtf8Printable(SecretStore::lastError()));
+    }
     Q_EMIT groupPassphraseChanged();
 }
 

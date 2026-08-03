@@ -9,6 +9,8 @@
 #include <QObject>
 #include <QString>
 
+class QSettings;
+
 namespace koutnet {
 
 class AppSettings : public QObject {
@@ -160,8 +162,18 @@ Q_SIGNALS:
     void globalAccountChanged();
     void globalAccountRegisteredChanged();
 
+    // The group passphrase lives in KWallet, so a session without a wallet
+    // cannot keep it at all. The UI has to say so rather than let the user
+    // believe it was saved.
+    void secretStoreUnavailable(const QString &reason);
+
 private:
     void load();
+    void loadGroupPassphrase(QSettings &settings);
+    // Deletes the clear-text passphrase and confirms it is gone. Safe to call on
+    // every start; it is a no-op once the config file is clean.
+    void dropLegacyPassphrase();
+    void reportSecretStoreProblem(const QString &reason);
 
     QString m_username;
     int m_connectionMode = 0;

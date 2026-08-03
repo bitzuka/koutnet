@@ -1,0 +1,48 @@
+# SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
+# The checks a KDE reviewer runs before reading any code: licensing, the
+# AppStream and desktop metadata, and the formatting. None of them need Qt,
+# so they stay fast and independent of the build job.
+name: lint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  reuse:
+    name: reuse lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: fsfe/reuse-action@v5
+
+  metadata:
+    name: appstream and desktop entry
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install validators
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y appstream desktop-file-utils
+      # Strict mode is what the Flathub and KDE checks use, so anything it
+      # complains about would have come back as a review comment anyway.
+      - name: Validate AppStream metadata
+        run: appstreamcli validate --strict packaging/*.metainfo.xml
+      - name: Validate desktop entry
+        run: desktop-file-validate packaging/*.desktop
+
+  clang-format:
+    name: clang-format
+    runs-on: ubuntu-latest
+    # The .clang-format at the root is the KDE one from extra-cmake-modules,
+    # and the sources have never been run through it. Reformatting the tree is
+    # its own commit, so this only reports for now.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check formatting
+        run: |
+          find NEWCORE-2-CPP -name '*.cpp' -o -name '*.h' \
+            | xargs clang-format --dry-run --Werror

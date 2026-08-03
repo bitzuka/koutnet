@@ -90,10 +90,27 @@ Q_SIGNALS:
     void peerIdentityChanged(const QString &peerIp, const QString &oldFingerprint,
                              const QString &newFingerprint);
 
+    // KWallet has the private keys, but the plaintext copy an older build left
+    // in the config file could not be deleted, so it is still readable on disk.
+    // The log is not enough for that: only the user can repair the file.
+    void plaintextKeysLeftInConfig(const QString &reason);
+
 private:
     bool initKeypairs();
     bool loadStoredKeys();
     bool generateAndStoreKeys();
+    // Lifts keys written by an older build out of plaintext QSettings and into
+    // the wallet. Returns the base64 it found either way, so an identity is
+    // never thrown away just because the wallet is unreachable.
+    bool migrateLegacyKeys(QString *outIdentityB64, QString *outDhB64);
+    // Deletes the plaintext copy and confirms it is gone. Safe to call on every
+    // start; it is a no-op once the config file is clean.
+    void dropLegacyPlaintextKeys();
+    // Moves a config-file key that is not the one in use into the wallet, so
+    // the deletion above cannot be the end of an identity. False means the
+    // plaintext has to stay for now.
+    bool stashSupersededPlaintextKeys();
+    void reportPlaintextKeysLeft(const QString &reason);
 
     static QByteArray gcmEncrypt(const QByteArray &key, const QByteArray &plaintext);
     static bool gcmDecrypt(const QByteArray &key, const QByteArray &data, QByteArray *outPlain);
