@@ -549,12 +549,14 @@ Kirigami.ApplicationWindow {
                     color: root.theme.header_bg
 
                     property int currentIndex: 0
+                    // Keenly (WnsTab.qml) is not in here on purpose - see the
+                    // comment at the top of that file. It stays out of the tab
+                    // strip until it renders something.
                     readonly property var tabLabels: [
                         i18nc("@title:tab", "Chat"),
                         i18nc("@title:tab", "Notes"),
                         i18nc("@title:tab call log", "Calls"),
                         "Violla",
-                        "Keenly",
                     ]
 
                     RowLayout {
@@ -615,7 +617,6 @@ Kirigami.ApplicationWindow {
                     NotesTab {}
                     CallsTab {}
                     PlayerTab {}
-                    WnsTab {}
                 }
             }
         }

@@ -26,7 +26,6 @@ void PeerBuffer::push(const QByteArray &data)
     if (m_buf.size() > cap) {
         const int excess = m_buf.size() - cap;
         m_buf.remove(0, excess);
-        ++m_drops;
     }
 }
 

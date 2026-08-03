@@ -15,9 +15,9 @@
 #include <QFile>
 #include <QFileInfo>
 
-// TODO: AppSettings exists now, so the I_Do_It_Latet.! markers below can be
-// wired to it: group passphrase, static peer list, connection mode and
-// relay credentials. CryptoManager is already injected via the constructor.
+// TODO: AppSettings exists now, so the unfinished paths below can be wired to
+// it: static peer list, connection mode, relay credentials. The group
+// passphrase and CryptoManager already arrive through the constructor.
 
 namespace koutnet {
 
@@ -450,8 +450,8 @@ void NetworkManager::onBroadcastTimer()
     }
 
     // 5. TODO: unicast to manually-added static peers (AppSettings::staticPeers())
-    // 6. I_Do_It_Latet.! - relay server unicast (needs default/custom relay,
-    //    see setRelayServer() and Protocol::kRelayHost).
+    // 6. TODO: relay server unicast, once there is a relay to send to - see
+    //    setRelayServer() and protocol::builtinRelays().
 
     pruneStalePeers();
 }
@@ -713,10 +713,9 @@ void NetworkManager::onVoiceData(QTcpSocket *sock, const QString &ip)
     m_voiceRxBuffers[sock] = buf;
 
     for (const auto &frame : std::as_const(frames)) {
-        Q_EMIT voiceData(frame);          // legacy single-call path
-        Q_EMIT voiceDataFrom(ip, frame);  // group-call mixer path - VoiceCallManager
-                                          // decrypts (CryptoManager::decryptBytes)
-                                          // before pushing into the jitter buffer.
+        // VoiceCallManager decrypts (CryptoManager::decryptBytes) before
+        // pushing into the jitter buffer, so the sender has to come with it.
+        Q_EMIT voiceDataFrom(ip, frame);
     }
 }
 
@@ -894,30 +893,6 @@ void NetworkManager::sendUdp(QJsonObject payload, const QString &targetIp)
     } else {
         m_udp->writeDatagram(data, QHostAddress::Broadcast, protocol::kUdpPortDefault);
     }
-}
-
-void NetworkManager::sendChat(const QString &text)
-{
-    // Nothing calls this yet. It is the broadcast path the group and public
-    // chats will be built on, kept because a shared passphrase is the right
-    // key for a room where no two members hold an ECDH session. The key will
-    // come from GroupManager per room rather than from one app-wide setting.
-    QString outText = text;
-    bool encrypted = false;
-    if (m_crypto && !m_groupPassphrase.isEmpty()) {
-        const QString cipherText = m_crypto->encrypt(text, m_groupPassphrase, QString());
-        if (cipherText != text) {
-            outText = cipherText;
-            encrypted = true;
-        }
-    }
-
-    QJsonObject payload;
-    payload[QStringLiteral("type")] = protocol::kMsgChat;
-    payload[QStringLiteral("text")] = outText;
-    payload[QStringLiteral("from_ip")] = m_hostIp;
-    payload[QStringLiteral("encrypted")] = encrypted;
-    sendUdp(payload);
 }
 
 void NetworkManager::sendPrivate(const QString &text, const QString &toIp)

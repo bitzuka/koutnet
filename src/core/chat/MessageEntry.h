@@ -14,13 +14,9 @@ struct MessageEntry
     double  ts        = 0.0;      // unix timestamp, seconds (fractional)
     bool    isOwn      = false;
     QString color      = QStringLiteral("#E0E0E0");
-    QString emoji;
     QString msgType    = QStringLiteral("public"); // "public" | "private" | "group"
-    QString imageData;            // base64 inline image, empty if none
     bool    isSystem   = false;
     bool    isEdited   = false;
-    bool    isForwarded = false;
-    QString forwardedFrom;
     QString replyToText;
     QString chatId;
     QString msgId;

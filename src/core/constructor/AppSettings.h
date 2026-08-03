@@ -26,9 +26,10 @@ public:
     explicit AppSettings(QObject *parent = nullptr);
     ~AppSettings() override;
 
-    // Shared passphrase for group/public-chat encryption (PSK layer, see
-    // CryptoManager). Empty = group chat stays unencrypted, matching current
-    // NetworkManager::sendChat() behaviour.
+    // Shared passphrase for group encryption (the PSK layer in CryptoManager).
+    // Empty is not "send in the clear": NetworkManager::sendGroupMessage()
+    // refuses to send at all, because a user who never set one has no reason
+    // to expect their group messages on the wire in plain text.
     QString groupPassphrase() const { return m_groupPassphrase; }
     void setGroupPassphrase(const QString &passphrase);
 

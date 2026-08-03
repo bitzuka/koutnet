@@ -107,7 +107,6 @@ public:
 
     // outgoing messages
     void sendUdp(QJsonObject payload, const QString &targetIp = QString());
-    Q_INVOKABLE void sendChat(const QString &text);
     Q_INVOKABLE void sendPrivate(const QString &text, const QString &toIp);
     Q_INVOKABLE void sendGroupMessage(const QString &gid, const QString &text,
                                       const QVector<QString> &members);
@@ -147,7 +146,6 @@ Q_SIGNALS:
     void callAccepted(QString username, QString ip);
     void callRejected(QString ip);
     void callEnded(QString ip);
-    void voiceData(QByteArray raw);              // legacy single-call
     void voiceDataFrom(QString ip, QByteArray raw);
     void fileMeta(QJsonObject meta);
     void fileChunk(QJsonObject chunk);            // file_data packets -> FileTransferHandler

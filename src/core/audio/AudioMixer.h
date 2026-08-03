@@ -25,12 +25,9 @@ public:
     QByteArray pull(); // returns empty QByteArray if not ready (caller treats as silence)
     void clear();
 
-    int dropCount() const { return m_drops; }
-
 private:
     QByteArray m_buf;
     bool m_ready = false;
-    int m_drops = 0;
     mutable QMutex m_mutex;
 };
 

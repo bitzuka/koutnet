@@ -10,13 +10,9 @@ MessageEntry MessageEntry::fromJson(const QJsonObject &o)
     e.ts            = o.value(QStringLiteral("ts")).toDouble();
     e.isOwn         = o.value(QStringLiteral("is_own")).toBool();
     e.color         = o.value(QStringLiteral("color")).toString(QStringLiteral("#E0E0E0"));
-    e.emoji         = o.value(QStringLiteral("emoji")).toString();
     e.msgType       = o.value(QStringLiteral("msg_type")).toString(QStringLiteral("public"));
-    e.imageData     = o.value(QStringLiteral("image_data")).toString();
     e.isSystem      = o.value(QStringLiteral("is_system")).toBool();
     e.isEdited      = o.value(QStringLiteral("is_edited")).toBool();
-    e.isForwarded   = o.value(QStringLiteral("is_forwarded")).toBool();
-    e.forwardedFrom = o.value(QStringLiteral("forwarded_from")).toString();
     e.replyToText   = o.value(QStringLiteral("reply_to_text")).toString();
     e.chatId        = o.value(QStringLiteral("chat_id")).toString();
     e.msgId         = o.value(QStringLiteral("msg_id")).toString();
@@ -36,13 +32,9 @@ QJsonObject MessageEntry::toJson() const
     o[QStringLiteral("ts")]             = ts;
     o[QStringLiteral("is_own")]         = isOwn;
     o[QStringLiteral("color")]          = color;
-    o[QStringLiteral("emoji")]          = emoji;
     o[QStringLiteral("msg_type")]       = msgType;
-    o[QStringLiteral("image_data")]     = imageData;
     o[QStringLiteral("is_system")]      = isSystem;
     o[QStringLiteral("is_edited")]      = isEdited;
-    o[QStringLiteral("is_forwarded")]   = isForwarded;
-    o[QStringLiteral("forwarded_from")] = forwardedFrom;
     o[QStringLiteral("reply_to_text")]  = replyToText;
     o[QStringLiteral("chat_id")]        = chatId;
     o[QStringLiteral("msg_id")]         = msgId;

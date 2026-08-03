@@ -1,54 +1,147 @@
 # KOutNet
 
-![C++](https://img.shields.io/badge/C++-20-blue?style=plastic&logo=c%2B%2B&logoColor=white)
-![Qt](https://img.shields.io/badge/Qt-6.4+-41CD52?style=plastic&logo=qt&logoColor=white)
-![Kirigami](https://img.shields.io/badge/UI-Kirigami-4A90E2?style=plastic&logo=kde&logoColor=white)
-![GPLv3](https://img.shields.io/badge/License-GPLv3-red?style=plastic&logo=gnu&logoColor=white)
-> P2P/VPN + VDS messenger under construction
+![License](https://img.shields.io/badge/License-GPL--3.0--only%20OR%20LicenseRef--KDE--Accepted--GPL-red?style=plastic&logo=gnu&logoColor=white)
 
-## What is this?
-**KOutNet** is a *non-commercial*, completely free messaging platform available for Windows (10+) and Linux (kernel 6.12.xx+). It is being developed with a strong focus on security, usability, and stability. Unlike traditional messengers, KOutNet offers a **2-in-1 architecture**, allowing users to switch between usage scenarios depending on their tasks, providing configuration flexibility.
+An encrypted messenger that does not need a service in the middle. On a local
+network or a VPN it finds its peers by itself over UDP and talks to them
+directly. Text, voice and files go peer to peer; nothing is uploaded anywhere
+first.
 
-1. **Autonomous mode without internet or VPN connection (LAN/VPN/P2P)**
-Operates exclusively within your local network or tunnel. All features are available locally — from messaging and calls to your KOutNet profile.
+Written in C++20 with Qt 6 and Kirigami. Version 0.1, a developer build, not
+released yet.
 
-2. **Dedicated server mode (LAN/VPS/Dedicated)**
-You can use our VDS server (all data remains with you, minimal server load), or you can deploy your own K-Server and configure it however you like.
+## Status
 
-## What's inside?
+Developed and tested on Linux. The CMake sets `WIN32_EXECUTABLE` and
+`MACOSX_BUNDLE`, and there is no Linux-only code outside the ARP scan, but
+neither Windows nor macOS is built or tested by anyone right now. Treat them
+as unsupported until somebody says otherwise.
 
-**NetworkManager** — networking core:
-- UDP broadcasts (224.0.0.251, LAN, /24 scanning)
-- Presence + ECDH handshake (CryptoManager)
-- HMAC packet signing (ECDH session)
-- TCP server for voice
-- Relay mode (TODO: not working, host not set)
-- File transfer chunked at 60KB
+## What works
 
-**CryptoManager** — cryptography:
-- ECDH (secp256k1) — handshake via presence
-- AES-256-GCM for messages
-- HMAC-SHA256 for packets
-- Replay attack protection (nonce + timestamp)
-- Rate limiting (custom, not Qt)
+- **Discovery.** UDP broadcast on port 42000, mDNS multicast on 224.0.0.251, a
+  /24 unicast sweep as a fallback where broadcast is filtered, and the Linux
+  ARP cache (`/proc/net/arp`). A VPN adapter is just another local interface,
+  so the same code covers LAN and tunnel.
+- **Encryption.** X25519 ECDH over the presence handshake, identities signed
+  with Ed25519, AES-256-GCM on messages and voice frames, PBKDF2-SHA256 for
+  the shared group passphrase, HMAC-SHA256 on control packets. A replay window
+  over nonce and timestamp, plus per-IP rate limiting, both with hard caps so
+  a flood cannot grow them without bound.
+- **Key storage.** Private keys and the group passphrase go into KWallet.
+  Without a wallet the app keeps them in memory for that session and refuses
+  to write them anywhere in plain text.
+- **Chat.** One-to-one and group messages, reactions, edit, delete, read
+  receipts, typing indicators, per-chat history and unread counts.
+- **Voice calls.** TCP with a four-byte length prefix per frame, a per-peer
+  jitter buffer, and a mixer that clamps rather than wraps, so several people
+  talking at once does not turn into noise.
+- **File transfer.** Chunked at 60000 bytes over UDP, reassembled with a size
+  cap, a concurrency cap and a TTL on incomplete transfers.
+- **The rest of the window.** A notes tab, a media player tab, themes, and a
+  layout that collapses below 480px. Every user-visible string goes through
+  ki18n; the catalogs are in `po/`.
 
-**AudioEngine** — audio:
-- Streaming capture/playback via QAudio
-- Mixer (AudioMixer)
-- Jitter buffer (in VoiceCallManager)
+## What does not work yet
 
-**QML UI**:
-- Contact list (ContactDelegate)
-- Chat (ChatPage) — send text/files
-- Welcome screen
-- Adaptive (compactMode at 480px)
+- **Relay / VDS mode.** The transport is written and the reconnect backoff
+  works, but no relay host ships with the app, so the mode needs a server you
+  supply yourself through `NetworkManager::setRelayServer()`. There is no
+  public KOutNet relay.
+- **File encryption.** File bytes are chunked and sent as they are. Messages
+  and voice are encrypted; files are not, yet.
+- **Per-group keys.** Every group currently shares the one app-wide
+  passphrase. Per-group keys, or an ECDH fan-out per member, are the plan.
+- **Keenly**, the internal-network browser. The file is still in the tree
+  (`src/qml/tabs/WnsTab.qml`) but the tab is not in the window, because there
+  is nothing behind it yet.
 
-**Protocol.h** — all message types
+## Dependencies
+
+- **Qt 6.4+**: Core, Gui, Quick, QuickControls2, QuickDialogs2, Multimedia,
+  Network. Test as well, if you build the test suite.
+- **KDE Frameworks 6.0+**: I18n, I18nQml, Kirigami, Wallet, CoreAddons,
+  Config.
+- **OpenSSL** (libcrypto).
+- **extra-cmake-modules** 6.0+ and CMake 3.21+.
+
+On Debian or Ubuntu, roughly:
+
+```
+qt6-base-dev qt6-declarative-dev qt6-multimedia-dev libkf6config-dev
+libkf6coreaddons-dev libkf6i18n-dev libkf6kirigami-dev libkf6wallet-dev
+extra-cmake-modules libssl-dev
+```
+
+Distro packages tend to lag behind what `.kde-ci.yml` asks for, so an older
+release may not carry new enough Frameworks.
 
 ## Build
 
+Configure from the repository root:
+
 ```bash
-mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build . -j$(nproc)
-./KOutNet
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+```
+
+KDECMakeSettings collects executables in the build tree rather than next to
+the objects, so it runs without installing:
+
+```bash
+./build/bin/KOutNet
+```
+
+To install instead:
+
+```bash
+cmake --install build
+```
+
+## Tests
+
+Three suites, built by default; pass `-DBUILD_TESTING=OFF` to skip them.
+
+- `koutnet-crypto-manager` - key handling, the AES-GCM and passphrase paths,
+  replay and rate limiting, and what happens to malformed input.
+- `koutnet-network-manager` - the packet path, driven by handing
+  `handleDatagram()` the bytes a datagram would have carried. No sockets are
+  bound, so it runs on a machine with no network at all.
+- `koutnet-file-transfer-handler` - chunk reassembly, the caps, and filename
+  handling.
+
+```bash
+ctest --test-dir build --output-on-failure
+```
+
+They need no display and no `kwalletd`. Running without a wallet is not a
+workaround, it is one of the paths under test: the keys have to stay in memory
+rather than quietly land in a config file.
+
+## Contributing
+
+Patches, bug reports and questions are welcome. Right now everything happens
+on GitHub: <https://github.com/bitzuka/koutnet>.
+
+KOutNet is heading for the KDE Incubator. Once that goes through, development
+moves to <https://invent.kde.org> and bugs to
+<https://bugs.kde.org/enter_bug.cgi?product=koutnet>, which is already the
+address DrKonqi offers after a crash. Until the move, the GitHub tracker is
+the one that gets read.
+
+A few things worth knowing before sending a patch:
+
+- The build enforces `QT_NO_KEYWORDS` and `QT_NO_CAST_FROM_ASCII`, so it is
+  `Q_SIGNALS`/`Q_SLOTS`/`Q_EMIT` and `QStringLiteral`, not the lowercase
+  keywords and bare string literals.
+- Formatting is the KDE `.clang-format` at the root.
+  `kde_configure_git_pre_commit_hook` installs a pre-commit hook in a git
+  checkout that checks it for you.
+- Every user-visible string needs `i18nc` with a real context. `Messages.sh`
+  regenerates the template.
+- Licensing follows REUSE. `reuse lint` runs in CI, and every new file needs
+  its SPDX header.
+
+## License
+
+GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL. Full texts are in `LICENSES/`.

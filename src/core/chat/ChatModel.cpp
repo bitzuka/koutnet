@@ -27,13 +27,9 @@ QVariant ChatModel::data(const QModelIndex &index, int role) const
     case TextRole:           return m.text;
     case IsOwnRole:          return m.isOwn;
     case ColorRole:          return m.color;
-    case EmojiRole:          return m.emoji;
     case MsgTypeRole:        return m.msgType;
-    case ImageDataRole:      return m.imageData;
     case IsSystemRole:       return m.isSystem;
     case IsEditedRole:       return m.isEdited;
-    case IsForwardedRole:    return m.isForwarded;
-    case ForwardedFromRole:  return m.forwardedFrom;
     case ReplyToTextRole:    return m.replyToText;
     case MsgIdRole:          return m.msgId;
     case IsReadRole:         return m.isRead;
@@ -55,10 +51,9 @@ QHash<int, QByteArray> ChatModel::roleNames() const
 {
     return {
         {SenderRole, "sender"}, {TextRole, "text"}, {IsOwnRole, "isOwn"},
-        {ColorRole, "color"}, {EmojiRole, "emoji"}, {MsgTypeRole, "msgType"},
-        {ImageDataRole, "imageData"}, {IsSystemRole, "isSystem"},
-        {IsEditedRole, "isEdited"}, {IsForwardedRole, "isForwarded"},
-        {ForwardedFromRole, "forwardedFrom"}, {ReplyToTextRole, "replyToText"},
+        {ColorRole, "color"}, {MsgTypeRole, "msgType"},
+        {IsSystemRole, "isSystem"}, {IsEditedRole, "isEdited"},
+        {ReplyToTextRole, "replyToText"},
         {MsgIdRole, "msgId"}, {IsReadRole, "isRead"}, {ReactionsRole, "reactions"},
         {TimeStringRole, "timeString"}, {IsFileRole, "isFile"},
         {FilePathRole, "filePath"}, {IsImageRole, "isImage"},
