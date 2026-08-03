@@ -16,3 +16,11 @@ path = ["NEWCORE-2-CPP/assets/**", "ABOUT/**", "README.md", ".gitignore"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 bitzuka <bitzuka.koutnet@gmail.com>"
 SPDX-License-Identifier = "GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL"
+
+# Translation catalogs. The template is generated from the sources by
+# Messages.sh, the rest were carried over from the JSON dictionaries.
+[[annotations]]
+path = ["po/**.po", "po/**.pot"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 bitzuka <bitzuka.koutnet@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL"
