@@ -21,6 +21,10 @@
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
+    // Names the catalog ki18n looks for. It has to happen before anything
+    // asks for a translated string, so nothing resolves against whatever
+    // domain happened to be current.
+    KLocalizedString::setApplicationDomain(QByteArrayLiteral("koutnet"));
     app.setApplicationName(QStringLiteral("KOutNet"));
     app.setOrganizationName(QStringLiteral("KOutNet"));
 
@@ -44,7 +48,7 @@ int main(int argc, char *argv[])
 
     auto *crypto = new koutnet::CryptoManager(&app);
     if (!crypto->isValid()) {
-        qCritical("KOutNet: cryptographic identity failed to initialize — aborting startup");
+        qCritical("KOutNet: cryptographic identity failed to initialize - aborting startup");
         return 1;
     }
     auto *network = new koutnet::NetworkManager(crypto, &app);
@@ -114,10 +118,6 @@ int main(int argc, char *argv[])
 
     if (!network->start())
         qWarning("KOutNet: failed to start network layer");
-
-    // Names the catalog ki18n looks for, so translated strings end up in
-    // koutnet.mo rather than in whatever domain happens to be current.
-    KLocalizedString::setApplicationDomain(QByteArrayLiteral("koutnet"));
 
     QQmlApplicationEngine engine;
 

@@ -123,7 +123,8 @@ Window {
                     Rectangle {
                         width: 56; height: 56; radius: 28
                         color: root.muted ? "#444444" : (muteMouse.containsMouse ? "#3A3A60" : "#2A2A46")
-                        Label { anchors.centerIn: parent; text: root.muted ? "🔇" : "🎤"; font.pixelSize: 24 }
+                        // Escaped rather than pasted in, so this file stays plain ASCII.
+                        Label { anchors.centerIn: parent; text: root.muted ? "\u{1F507}" : "\u{1F3A4}"; font.pixelSize: 24 }
                         MouseArea {
                             id: muteMouse
                             anchors.fill: parent
@@ -153,9 +154,9 @@ Window {
                 RowLayout {
                     Layout.alignment: Qt.AlignHCenter
                     spacing: 20
-                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: i18n("Mute"); font.pixelSize: 10; color: root.theme.text_dim }
-                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: i18n("Speaker"); font.pixelSize: 10; color: root.theme.text_dim }
-                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: i18n("Screen"); font.pixelSize: 10; color: root.theme.text_dim }
+                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: i18nc("@action:button silence your own microphone", "Mute"); font.pixelSize: 10; color: root.theme.text_dim }
+                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: i18nc("@action:button", "Speaker"); font.pixelSize: 10; color: root.theme.text_dim }
+                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: i18nc("@action:button share your screen", "Screen"); font.pixelSize: 10; color: root.theme.text_dim }
                 }
             }
 
@@ -183,7 +184,7 @@ Window {
 
                 Label {
                     Layout.alignment: Qt.AlignHCenter
-                    text: i18n("End")
+                    text: i18nc("@action:button hang up the call", "End")
                     font.pixelSize: 10
                     color: root.theme.text_dim
                 }

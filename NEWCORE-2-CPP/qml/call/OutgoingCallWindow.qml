@@ -24,6 +24,13 @@ Window {
 
     signal cancelled()
 
+    // The trailing dots are animated, so the label is one msgid with the run
+    // of dots as a placeholder instead of a concatenation.
+    function callingLabel(dots) {
+        return i18nc("@info:status waiting for the peer to pick up, %1 is a run of dots",
+                     "Calling%1", ".".repeat(dots))
+    }
+
     Component.onCompleted: {
         x = Screen.width / 2 - width / 2
         y = Screen.height / 2 - height / 2
@@ -135,7 +142,7 @@ Window {
             Label {
                 id: statusLabel
                 Layout.alignment: Qt.AlignHCenter
-                text: i18n("Calling")
+                text: root.callingLabel(0)
                 font.pixelSize: 14
                 color: root.theme.text_dim
 
@@ -146,7 +153,7 @@ Window {
                     repeat: true
                     onTriggered: {
                         statusLabel.dotCount = (statusLabel.dotCount + 1) % 4
-                        statusLabel.text = i18n("Calling") + ".".repeat(statusLabel.dotCount)
+                        statusLabel.text = root.callingLabel(statusLabel.dotCount)
                         root.elapsedSeconds += 1
                     }
                 }
@@ -198,7 +205,7 @@ Window {
 
                 Label {
                     Layout.alignment: Qt.AlignHCenter
-                    text: i18n("Cancel")
+                    text: i18nc("@action:button abandon the outgoing call", "Cancel")
                     font.pixelSize: 10
                     color: root.theme.text_dim
                 }
@@ -207,6 +214,6 @@ Window {
     }
 
     function callAccepted() {
-        statusLabel.text = i18n("Connecting…")
+        statusLabel.text = i18nc("@info:status", "Connecting...")
     }
 }

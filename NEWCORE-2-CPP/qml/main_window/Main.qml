@@ -11,7 +11,7 @@ import koutnet.app
 Kirigami.ApplicationWindow {
     id: root
 
-    title: welcomeLoader.active ? i18n("Welcome to KOutNet") : "KOutNet"
+    title: welcomeLoader.active ? i18nc("@title:window", "Welcome to KOutNet") : "KOutNet"
     width: 1000
     height: 650
     minimumWidth: 480
@@ -23,7 +23,7 @@ Kirigami.ApplicationWindow {
     // Prepends a "system default" row so an empty saved device id still
     // selects something instead of leaving the combo blank.
     function deviceList(devices) {
-        var out = [{ id: "", description: i18n("System default") }]
+        var out = [{ id: "", description: i18nc("@item:inlistbox audio device", "System default") }]
         for (var i = 0; i < devices.length; ++i)
             out.push(devices[i])
         return out
@@ -87,10 +87,10 @@ Kirigami.ApplicationWindow {
         peersModel.count
         if (ip === root.kSelfChatId) {
             return {
-                username: i18n("Favorites"),
+                username: i18nc("@item contact list, chat with yourself", "Favorites"),
                 os: "",
                 e2e: false,
-                avatarLetter: "★",
+                avatarLetter: "\u2605",
                 isFavorites: true,
                 lastSeen: 0
             }
@@ -219,21 +219,21 @@ Kirigami.ApplicationWindow {
         background: Rectangle { color: root.theme.header_bg }
 
         Menu {
-            title: i18n("File")
+            title: i18nc("@title:menu", "File")
             MenuItem {
-                text: i18n("My profile")
+                text: i18nc("@action:inmenu", "My profile")
                 onTriggered: yourProfileSheet.open()
             }
-            MenuItem { text: i18n("Settings"); onTriggered: settingsSheet.open() }
+            MenuItem { text: i18nc("@action:inmenu", "Settings"); onTriggered: settingsSheet.open() }
             MenuSeparator {}
-            MenuItem { text: i18n("Quit"); onTriggered: Qt.quit() }
+            MenuItem { text: i18nc("@action:inmenu", "Quit"); onTriggered: Qt.quit() }
         }
 
         Menu {
-            title: i18n("View")
+            title: i18nc("@title:menu", "View")
 
             Menu {
-                title: i18n("Themes")
+                title: i18nc("@title:menu", "Themes")
                 Repeater {
                     model: ThemeManager.availableThemes
                     MenuItem {
@@ -253,7 +253,8 @@ Kirigami.ApplicationWindow {
             MenuSeparator {}
 
             MenuItem {
-                text: i18n("Fullscreen") + "  (F11)"
+                text: i18nc("@action:inmenu toggle window fullscreen, %1 is the shortcut",
+                            "Fullscreen (%1)", "F11")
                 onTriggered: root.visibility = (root.visibility === Window.FullScreen)
                     ? Window.Windowed : Window.FullScreen
             }
@@ -263,9 +264,9 @@ Kirigami.ApplicationWindow {
         }
 
         Menu {
-            title: i18n("Calls")
+            title: i18nc("@title:menu", "Calls")
             MenuItem {
-                text: i18n("Mute microphone")
+                text: i18nc("@action:inmenu", "Mute microphone")
                 checkable: true
                 checked: root.micMuted
                 onTriggered: {
@@ -274,7 +275,7 @@ Kirigami.ApplicationWindow {
                 }
             }
             MenuItem {
-                text: i18n("End all calls")
+                text: i18nc("@action:inmenu", "End all calls")
                 onTriggered: {
                     voiceCallManager.hangupAll()
                     if (root.activeCallWindow) { root.activeCallWindow.close(); root.activeCallWindow = null }
@@ -284,11 +285,12 @@ Kirigami.ApplicationWindow {
         }
 
         Menu {
-            title: i18n("Help")
-            MenuItem { text: i18n("About"); onTriggered: aboutSheet.open() }
+            title: i18nc("@title:menu", "Help")
+            MenuItem { text: i18nc("@action:inmenu", "About"); onTriggered: aboutSheet.open() }
             MenuItem {
-                text: i18n("Tutorial")
-                onTriggered: root.showStub(i18n("Tutorial"), i18n("The interactive tutorial has not been ported yet."))
+                text: i18nc("@action:inmenu", "Tutorial")
+                onTriggered: root.showStub(i18nc("@title:window", "Tutorial"),
+                                           i18nc("@info", "The interactive tutorial has not been ported yet."))
             }
         }
     }
@@ -305,20 +307,22 @@ Kirigami.ApplicationWindow {
             spacing: Kirigami.Units.largeSpacing
 
             Label {
-                text: i18n("Searching for peers...")
+                text: i18nc("@info:status", "Searching for peers...")
                 color: root.theme.text_dim
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
                 Layout.fillWidth: true
             }
 
             Label {
-                text: i18n("IP: ") + (networkManager.hostIp || "?")
+                text: i18nc("@info:status %1 is this host's address", "IP: %1",
+                            networkManager.hostIp || "?")
                 color: root.theme.text_dim
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
 
             Label {
-                text: root.micMuted ? i18n("Microphone off") : i18n("Microphone on")
+                text: root.micMuted ? i18nc("@info:status", "Microphone off")
+                                    : i18nc("@info:status", "Microphone on")
                 color: root.micMuted ? "#FF8080" : "#80FF80"
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
                 MouseArea {
@@ -331,7 +335,7 @@ Kirigami.ApplicationWindow {
             }
 
             Label {
-                text: i18n("No calls")
+                text: i18nc("@info:status no call is in progress", "No calls")
                 color: root.theme.text_dim
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }
@@ -379,10 +383,25 @@ Kirigami.ApplicationWindow {
             if (root.activeCallWindow) { root.activeCallWindow.close(); root.activeCallWindow = null }
             voiceCallManager.hangup(ip)
         }
+        // These used to go nowhere, so a bind failure or a dropped tunnel
+        // looked exactly like an idle network.
+        function onErrorOccurred(message) {
+            root.showStub(i18nc("@title:window", "Network error"), message)
+        }
+    }
+
+    Connections {
+        target: audioDevices
+        function onError(message) {
+            root.showStub(i18nc("@title:window", "Audio error"), message)
+        }
     }
 
     Connections {
         target: fileTransferHandler
+        function onTransferRejected(tid, reason) {
+            root.showStub(i18nc("@title:window", "File transfer failed"), reason)
+        }
         function onFileSaved(meta, localPath) {
             const fromIp = meta.from_ip
             if (!fromIp) return
@@ -435,7 +454,7 @@ Kirigami.ApplicationWindow {
                             Layout.leftMargin: Kirigami.Units.smallSpacing + 36
 
                             Kirigami.Heading {
-                                text: i18n("Contacts")
+                                text: i18nc("@title sidebar section", "Contacts")
                                 level: 1
                                 font.bold: true
                                 font.weight: Font.Black
@@ -448,7 +467,7 @@ Kirigami.ApplicationWindow {
 
                         ContactDelegate {
                             Layout.fillWidth: true
-                            peerIp: i18n("Favorites")
+                            peerIp: i18nc("@item contact list, chat with yourself", "Favorites")
                             iconName: "bookmarks"
                             showOnlineIndicator: false
                             showSecurityLabel: false
@@ -460,7 +479,7 @@ Kirigami.ApplicationWindow {
                             id: searchField
                             Layout.fillWidth: true
                             Layout.margins: Kirigami.Units.smallSpacing
-                            placeholderText: i18n("Search")
+                            placeholderText: i18nc("@info:placeholder filter the contact list", "Search")
                             text: root.contactSearchText
                             color: root.theme.text
                             placeholderTextColor: root.theme.text_dim
@@ -490,8 +509,8 @@ Kirigami.ApplicationWindow {
                                 anchors.centerIn: parent
                                 width: parent.width - Kirigami.Units.largeSpacing * 2
                                 visible: peersList.count === 0
-                                text: i18n("No one here yet")
-                                explanation: i18n("KOutNet is looking for other users, but it's quiet here for now...")
+                                text: i18nc("@info", "No one here yet")
+                                explanation: i18nc("@info", "KOutNet is looking for other users, but it's quiet here for now...")
                             }
 
                             delegate: ContactDelegate {
@@ -531,9 +550,9 @@ Kirigami.ApplicationWindow {
 
                     property int currentIndex: 0
                     readonly property var tabLabels: [
-                        i18n("Chat"),
-                        i18n("Notes"),
-                        i18n("Calls"),
+                        i18nc("@title:tab", "Chat"),
+                        i18nc("@title:tab", "Notes"),
+                        i18nc("@title:tab call log", "Calls"),
                         "Violla",
                         "Keenly",
                     ]
@@ -634,7 +653,7 @@ Kirigami.ApplicationWindow {
 
     Kirigami.OverlaySheet {
         id: yourProfileSheet
-        title: i18n("My profile")
+        title: i18nc("@title:window", "My profile")
 
         YourProfile {
             onStubRequested: (title, body) => root.showStub(title, body)
@@ -651,7 +670,7 @@ Kirigami.ApplicationWindow {
 
     Kirigami.OverlaySheet {
         id: settingsSheet
-        title: i18n("Settings")
+        title: i18nc("@title:window", "Settings")
 
         // Relay and maintainer VDS are the two that route through a relay,
         // so they are the two that need a host and port.
@@ -669,9 +688,9 @@ Kirigami.ApplicationWindow {
             TabBar {
                 id: settingsTabs
                 Layout.fillWidth: true
-                TabButton { text: i18n("General") }
-                TabButton { text: i18n("Audio") }
-                TabButton { text: i18n("Network") }
+                TabButton { text: i18nc("@title:tab", "General") }
+                TabButton { text: i18nc("@title:tab", "Audio") }
+                TabButton { text: i18nc("@title:tab", "Network") }
             }
 
             StackLayout {
@@ -681,21 +700,21 @@ Kirigami.ApplicationWindow {
                 ColumnLayout {
                     spacing: Kirigami.Units.smallSpacing
 
-                    Label { text: i18n("Username"); color: root.theme.text }
+                    Label { text: i18nc("@label:textbox", "Username"); color: root.theme.text }
                     TextField {
                         Layout.fillWidth: true
                         text: appSettings.username
                         onEditingFinished: appSettings.username = text
                     }
 
-                    Label { text: i18n("Display name"); color: root.theme.text }
+                    Label { text: i18nc("@label:textbox", "Display name"); color: root.theme.text }
                     TextField {
                         Layout.fillWidth: true
                         text: appSettings.displayName
                         onEditingFinished: appSettings.displayName = text
                     }
 
-                    Label { text: i18n("Theme"); color: root.theme.text }
+                    Label { text: i18nc("@label:listbox", "Theme"); color: root.theme.text }
                     ComboBox {
                         id: themeCombo
                         Layout.fillWidth: true
@@ -713,7 +732,7 @@ Kirigami.ApplicationWindow {
                 ColumnLayout {
                     spacing: Kirigami.Units.smallSpacing
 
-                    Label { text: i18n("Microphone"); color: root.theme.text }
+                    Label { text: i18nc("@label:listbox", "Microphone"); color: root.theme.text }
                     ComboBox {
                         id: micCombo
                         Layout.fillWidth: true
@@ -728,8 +747,8 @@ Kirigami.ApplicationWindow {
                         Layout.fillWidth: true
                         spacing: Kirigami.Units.smallSpacing
                         Button {
-                            text: audioDevices.micTestRunning ? i18n("Stop test")
-                                                              : i18n("Test microphone")
+                            text: audioDevices.micTestRunning ? i18nc("@action:button", "Stop test")
+                                                              : i18nc("@action:button", "Test microphone")
                             onClicked: {
                                 if (audioDevices.micTestRunning)
                                     audioDevices.stopMicTest()
@@ -745,7 +764,7 @@ Kirigami.ApplicationWindow {
                         }
                     }
 
-                    Label { text: i18n("Speakers"); color: root.theme.text }
+                    Label { text: i18nc("@label:listbox", "Speakers"); color: root.theme.text }
                     ComboBox {
                         id: spkCombo
                         Layout.fillWidth: true
@@ -757,13 +776,14 @@ Kirigami.ApplicationWindow {
                     }
 
                     Button {
-                        text: i18n("Test speakers")
+                        text: i18nc("@action:button", "Test speakers")
                         enabled: !audioDevices.tonePlaying
                         onClicked: audioDevices.playTestTone(appSettings.audioOutputId)
                     }
 
                     Label {
-                        text: i18n("Volume") + ": " + appSettings.audioVolume + "%"
+                        text: i18ncp("@label:slider playback volume in percent",
+                                     "Volume: %1%", "Volume: %1%", appSettings.audioVolume)
                         color: root.theme.text
                     }
                     Slider {
@@ -776,12 +796,12 @@ Kirigami.ApplicationWindow {
                     }
 
                     CheckBox {
-                        text: i18n("Mute microphone")
+                        text: i18nc("@option:check", "Mute microphone")
                         checked: appSettings.micMuted
                         onToggled: appSettings.micMuted = checked
                     }
                     CheckBox {
-                        text: i18n("Voice activity detection")
+                        text: i18nc("@option:check", "Voice activity detection")
                         checked: appSettings.vadEnabled
                         onToggled: appSettings.vadEnabled = checked
                     }
@@ -790,16 +810,16 @@ Kirigami.ApplicationWindow {
                 ColumnLayout {
                     spacing: Kirigami.Units.smallSpacing
 
-                    Label { text: i18n("Network mode"); color: root.theme.text }
+                    Label { text: i18nc("@label:listbox", "Network mode"); color: root.theme.text }
                     ComboBox {
                         id: modeCombo
                         Layout.fillWidth: true
                         model: [
-                            i18n("Local network (LAN)"),
-                            i18n("K-Server (self-hosted)"),
-                            i18n("K-Server (join someone else's)"),
-                            i18n("Relay (not a K-Server)"),
-                            i18n("Maintainer's VDS"),
+                            i18nc("@item:inlistbox network mode", "Local network (LAN)"),
+                            i18nc("@item:inlistbox network mode", "K-Server (self-hosted)"),
+                            i18nc("@item:inlistbox network mode", "K-Server (join someone else's)"),
+                            i18nc("@item:inlistbox network mode", "Relay (not a K-Server)"),
+                            i18nc("@item:inlistbox network mode", "Maintainer's VDS"),
                         ]
                         currentIndex: appSettings.connectionMode
                         // The unbuilt modes stay on the list so the shape of
@@ -809,7 +829,8 @@ Kirigami.ApplicationWindow {
                             enabled: networkManager.modeAvailable(index)
                             text: enabled
                                 ? modelData
-                                : modelData + "  (" + i18n("not available yet") + ")"
+                                : i18nc("@item:inlistbox %1 is a network mode name",
+                                        "%1 (not available yet)", modelData)
                         }
                         onActivated: {
                             if (networkManager.modeAvailable(currentIndex))
@@ -819,7 +840,7 @@ Kirigami.ApplicationWindow {
                         }
                     }
 
-                    Label { text: i18n("Relay server address"); color: root.theme.text }
+                    Label { text: i18nc("@label:textbox", "Relay server address"); color: root.theme.text }
                     TextField {
                         Layout.fillWidth: true
                         enabled: settingsSheet.usesRelay
@@ -827,7 +848,7 @@ Kirigami.ApplicationWindow {
                         onEditingFinished: appSettings.relayHost = text
                     }
 
-                    Label { text: i18n("Relay server port"); color: root.theme.text }
+                    Label { text: i18nc("@label:textbox", "Relay server port"); color: root.theme.text }
                     TextField {
                         Layout.fillWidth: true
                         enabled: settingsSheet.usesRelay
@@ -840,11 +861,12 @@ Kirigami.ApplicationWindow {
                     // to be told separately, and switching mode tears the relay
                     // tunnel up or down, so it waits for an explicit click.
                     Button {
-                        text: i18n("Save")
+                        text: i18nc("@action:button", "Save")
                         onClicked: {
                             networkManager.setRelayServer(appSettings.relayHost, appSettings.relayPort, 0)
                             networkManager.setConnectionMode(appSettings.connectionMode)
-                            root.showStub(i18n("Settings"), i18n("Settings saved"))
+                            root.showStub(i18nc("@title:window confirmation that settings were applied", "Settings"),
+                                          i18nc("@info:status", "Settings saved"))
                         }
                     }
                 }
@@ -854,11 +876,11 @@ Kirigami.ApplicationWindow {
 
     Kirigami.OverlaySheet {
         id: aboutSheet
-        title: i18n("About")
+        title: i18nc("@title:window", "About")
         Label {
             width: Kirigami.Units.gridUnit * 20
             wrapMode: Text.WordWrap
-            text: i18n("KOutNet — P2P encrypted messenger")
+            text: i18nc("@info application tagline", "KOutNet - P2P encrypted messenger")
             color: root.theme.text
         }
     }
@@ -896,8 +918,10 @@ Kirigami.ApplicationWindow {
                 otherProfileSheet.peer = root.peerInfoFor(peerIp)
                 otherProfileSheet.open()
             }
-            onForwardRequested: root.showStub(i18n("Forward"), i18n("Forwarding messages is not implemented in ChatModel yet."))
-            onDeleteRequested: root.showStub(i18n("Delete"), i18n("Deleting messages is not implemented in ChatModel yet."))
+            onForwardRequested: root.showStub(i18nc("@title:window forwarding a message", "Forward"),
+                                              i18nc("@info", "Forwarding messages is not implemented in ChatModel yet."))
+            onDeleteRequested: root.showStub(i18nc("@title:window deleting a message", "Delete"),
+                                             i18nc("@info", "Deleting messages is not implemented in ChatModel yet."))
         }
     }
 
@@ -905,7 +929,7 @@ Kirigami.ApplicationWindow {
         id: placeholderComponent
         Kirigami.PlaceholderMessage {
             anchors.centerIn: parent
-            text: i18n("Select a peer on the left to start a conversation.")
+            text: i18nc("@info", "Select a peer on the left to start a conversation.")
         }
     }
 }

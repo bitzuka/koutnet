@@ -102,7 +102,7 @@ Window {
                 spacing: 4
 
                 Label {
-                    text: i18n("Incoming call")
+                    text: i18nc("@info:status", "Incoming call")
                     font.pixelSize: 10
                     font.bold: true
                     color: root.theme.text_dim

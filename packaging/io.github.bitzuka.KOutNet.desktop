@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 [Desktop Entry]
+# Version is the desktop entry spec revision, not the application version.
+Version=1.5
 Type=Application
 Name=KOutNet
 GenericName=Messenger
@@ -8,5 +10,7 @@ Comment=P2P encrypted messenger for LAN, VPN and relay
 Exec=KOutNet
 Icon=io.github.bitzuka.KOutNet
 Terminal=false
-Categories=Network;InstantMessaging;
+Categories=Network;InstantMessaging;Qt;KDE;
+Keywords=messenger;chat;P2P;encryption;voice call;LAN;VPN;
+StartupNotify=true
 StartupWMClass=KOutNet

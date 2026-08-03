@@ -4,6 +4,8 @@
 #include "CryptoManager.h"
 #include "SecretStore.h"
 
+#include <KLocalizedString>
+
 #include <QSettings>
 #include <QDateTime>
 #include <QCryptographicHash>
@@ -737,13 +739,15 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
 
     if (!ciphertext.startsWith(QStringLiteral("KNC1:"))) {
         if (expectSealed)
-            return QStringLiteral("[decrypt error: cleartext on a keyed channel]");
+            return i18nc("@info shown in place of a message body",
+                         "[decrypt error: cleartext on a keyed channel]");
         return ciphertext; // no key on this channel anyway - pass through
     }
 
     const QByteArray wire = QByteArray::fromBase64(ciphertext.mid(5).toLatin1());
     if (wire.isEmpty())
-        return QStringLiteral("[decrypt error: empty packet]");
+        return i18nc("@info shown in place of a message body",
+                     "[decrypt error: empty packet]");
 
     const quint8 type = static_cast<quint8>(wire.at(0));
     const QByteArray payload = wire.mid(1);
@@ -764,7 +768,8 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
     }
 
     if (!ok)
-        return QStringLiteral("[decrypt error: invalid key or tampered packet]");
+        return i18nc("@info shown in place of a message body",
+                     "[decrypt error: invalid key or tampered packet]");
 
     return QString::fromUtf8(plain);
 }

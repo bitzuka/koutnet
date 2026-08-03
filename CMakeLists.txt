@@ -5,7 +5,9 @@
 # declaration belongs here so that the repository root is what gets configured,
 # which is what packagers and the KDE CI both assume.
 cmake_minimum_required(VERSION 3.21)
-project(KOutNet VERSION 2.0 LANGUAGES CXX)
+# Kept in step with the metainfo release and the welcome screen build label.
+# The old 2.0 was inherited from the pre-port tree and matched nothing shipped.
+project(KOutNet VERSION 0.1 LANGUAGES CXX)
 
 set(QT_MIN_VERSION 6.4)
 set(KF_MIN_VERSION 6.0)

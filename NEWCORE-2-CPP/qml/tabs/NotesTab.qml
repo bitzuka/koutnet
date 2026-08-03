@@ -14,12 +14,18 @@ Item {
     id: root
     readonly property var theme: ThemeManager.colors
 
+    // The number is always there, so the label is one plural msgid rather
+    // than a word with a digit stuck on the end.
+    function sheetName(number) {
+        return i18ncp("@item note sheet name", "Sheet %1", "Sheet %1", number)
+    }
+
     ListModel {
         id: sheetsModel
         ListElement { title: ""; body: "" }
         Component.onCompleted: {
             if (count > 0 && get(0).title === "")
-                setProperty(0, "title", i18n("Sheet") + " 1")
+                setProperty(0, "title", root.sheetName(1))
         }
     }
     property int currentSheet: 0
@@ -33,9 +39,10 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            Kirigami.Heading { level: 3; text: i18n("Notes"); color: root.theme.text; Layout.fillWidth: true }
+            Kirigami.Heading { level: 3; text: i18nc("@title notes tab", "Notes"); color: root.theme.text; Layout.fillWidth: true }
             ToolButton {
-                text: previewMode.checked ? i18n("Editor") : i18n("Preview")
+                text: previewMode.checked ? i18nc("@action:button", "Editor")
+                                          : i18nc("@action:button", "Preview")
                 onClicked: previewMode.checked = !previewMode.checked
             }
             property bool dummy: false
@@ -69,7 +76,7 @@ Item {
             ToolButton {
                 icon.name: "list-add"
                 onClicked: {
-                    sheetsModel.append({ title: i18n("Sheet") + " " + (sheetsModel.count + 1), body: "" })
+                    sheetsModel.append({ title: root.sheetName(sheetsModel.count + 1), body: "" })
                     root.currentSheet = sheetsModel.count - 1
                 }
             }
@@ -90,7 +97,7 @@ Item {
 
             TextArea {
                 id: notesArea
-                placeholderText: i18n("Write something")
+                placeholderText: i18nc("@info:placeholder", "Write something")
                 wrapMode: TextArea.Wrap
                 color: root.theme.text
                 background: Rectangle { color: root.theme.bg3; radius: 6; border.color: root.theme.border }

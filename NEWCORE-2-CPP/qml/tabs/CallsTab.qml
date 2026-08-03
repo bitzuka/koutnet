@@ -21,7 +21,7 @@ Item {
 
         Kirigami.Heading {
             level: 3
-            text: i18n("Calls")
+            text: i18nc("@title call log", "Calls")
             color: theme.text
             Layout.margins: Kirigami.Units.largeSpacing
         }
@@ -36,7 +36,7 @@ Item {
             Kirigami.PlaceholderMessage {
                 anchors.centerIn: parent
                 visible: callList.count === 0
-                text: i18n("No calls")
+                text: i18nc("@info the call log is empty", "No calls")
                 icon.name: "call-start"
             }
 

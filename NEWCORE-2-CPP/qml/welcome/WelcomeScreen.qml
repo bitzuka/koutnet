@@ -13,8 +13,11 @@ Item {
     id: root
     readonly property var theme: ThemeManager.colors
 
-    // A build identifier is not prose, so it stays out of the translations.
-    readonly property string buildLabel: "Developer build 0.0.001"
+    // The version number itself is not prose, so only the words around it
+    // are translated.
+    readonly property string appVersion: "0.1"
+    readonly property string buildLabel: i18nc("@info:status %1 is the version number",
+                                               "Developer build %1", root.appVersion)
     readonly property string githubUrl: "https://github.com/bitzuka/koutnet"
     readonly property string telegramUrl: "https://t.me/KOutNet"
 
@@ -73,7 +76,7 @@ Item {
 
         Button {
             Layout.fillWidth: true
-            text: i18n("About")
+            text: i18nc("@action:button", "About")
             onClicked: aboutDialog.open()
         }
 
@@ -95,7 +98,7 @@ Item {
             spacing: 0
 
             CheckBox {
-                text: i18n("Check for updates at startup")
+                text: i18nc("@option:check", "Check for updates at startup")
                 checked: appSettings.checkUpdatesOnStart
                 onToggled: appSettings.checkUpdatesOnStart = checked
             }
@@ -103,7 +106,7 @@ Item {
             // rather than implying the app will actually look for updates.
             Label {
                 Layout.leftMargin: Kirigami.Units.gridUnit * 2
-                text: i18n("In development")
+                text: i18nc("@info:status this option does nothing yet", "In development")
                 font.pixelSize: 11
                 color: root.theme.text_dim
             }
@@ -126,19 +129,19 @@ Item {
 
             Kirigami.Heading {
                 level: 4
-                text: i18n("Community")
+                text: i18nc("@title", "Community")
                 color: root.theme.text
             }
             Label {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
-                text: i18n("Join like-minded KOutNet people in our community:")
+                text: i18nc("@info", "Join like-minded KOutNet people in our community:")
                 color: root.theme.text_dim
             }
             RowLayout {
                 spacing: Kirigami.Units.largeSpacing
                 Label {
-                    text: "Telegram:"
+                    text: i18nc("@label the Telegram chat platform", "Telegram:")
                     font.bold: true
                     color: root.theme.text
                 }
@@ -163,14 +166,14 @@ Item {
 
             Kirigami.Heading {
                 level: 4
-                text: i18n("Contribute")
+                text: i18nc("@title", "Contribute")
                 color: root.theme.text
             }
             Label {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 textFormat: Text.RichText
-                text: i18n("Want to help make KOutNet better? Visit our <a href=\"github\">GitHub page</a>. Report bugs or contribute code, anyone can do it.")
+                text: i18nc("@info", "Want to help make KOutNet better? Visit our <a href=\"github\">GitHub page</a>. Report bugs or contribute code, anyone can do it.")
                 linkColor: root.theme.accent
                 color: root.theme.text_dim
                 onLinkActivated: (link) => root.openNamedLink(link)
@@ -191,7 +194,7 @@ Item {
         spacing: Kirigami.Units.largeSpacing
 
         CheckBox {
-            text: i18n("Do not show this again")
+            text: i18nc("@option:check", "Do not show this again")
             checked: !appSettings.showWelcome
             onToggled: appSettings.showWelcome = !checked
         }
@@ -199,7 +202,7 @@ Item {
         Item { Layout.fillWidth: true }
 
         Button {
-            text: i18n("Continue")
+            text: i18nc("@action:button", "Continue")
             highlighted: true
             onClicked: root.continueRequested()
         }
@@ -209,13 +212,14 @@ Item {
         id: aboutDialog
         anchors.centerIn: parent
         modal: true
-        title: i18n("About")
+        title: i18nc("@title:window", "About")
         standardButtons: Dialog.Close
 
         Label {
             width: Kirigami.Units.gridUnit * 18
             wrapMode: Text.Wrap
-            text: i18n("KOutNet — P2P encrypted messenger") + "\n\n" + root.buildLabel
+            text: i18nc("@info application tagline", "KOutNet - P2P encrypted messenger")
+                  + "\n\n" + root.buildLabel
             color: root.theme.text
         }
     }

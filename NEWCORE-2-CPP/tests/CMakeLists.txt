@@ -15,5 +15,5 @@ ecm_add_test(
     ../core/security/SecretStore.cpp
     TEST_NAME crypto-manager
     NAME_PREFIX koutnet-
-    LINK_LIBRARIES Qt6::Test Qt6::Core OpenSSL::Crypto KF6::Wallet
+    LINK_LIBRARIES Qt6::Test Qt6::Core OpenSSL::Crypto KF6::Wallet KF6::I18n
 )

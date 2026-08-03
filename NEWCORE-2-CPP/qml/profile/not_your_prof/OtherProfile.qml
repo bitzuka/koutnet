@@ -119,7 +119,9 @@ Item {
                     color: root.peer && root.peer.e2e ? root.theme.online : root.theme.text_dim
                 }
                 Label {
-                    text: root.peer && root.peer.e2e ? "E2E" : i18n("No session")
+                    text: root.peer && root.peer.e2e
+                        ? i18nc("@info:status the session is end to end encrypted", "E2E")
+                        : i18nc("@info:status", "No session")
                     color: root.theme.text_dim
                 }
             }
@@ -128,8 +130,9 @@ Item {
         Label {
             Layout.leftMargin: Kirigami.Units.largeSpacing
             Layout.bottomMargin: Kirigami.Units.smallSpacing
-            text: i18n("online")
-                + (root.peer && root.peer.os.length > 0 ? "  -  " + root.peer.os : "")
+            text: root.peer && root.peer.os.length > 0
+                ? i18nc("@info:status %1 is the peer's operating system", "online - %1", root.peer.os)
+                : i18nc("@info:status the peer is online", "online")
             color: root.theme.text_dim
             font.pixelSize: 13
         }
@@ -163,14 +166,14 @@ Item {
                         color: root.peer && root.peer.bio && root.peer.bio.length > 0
                             ? root.theme.text : root.theme.text_dim
                         text: root.peer && root.peer.bio && root.peer.bio.length > 0
-                            ? root.peer.bio : i18n("No description")
+                            ? root.peer.bio : i18nc("@info", "No description")
                     }
                 }
 
                 Kirigami.PlaceholderMessage {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    text: i18n("Will appear once connected to a K-Server")
+                    text: i18nc("@info", "Will appear once connected to a K-Server")
                     icon.name: "folder-symbolic"
                 }
             }
@@ -195,11 +198,11 @@ Item {
                         spacing: 8
                         Kirigami.Heading {
                             level: 5
-                            text: i18n("Friends")
+                            text: i18nc("@title profile section", "Friends")
                             color: root.theme.text
                         }
                         Label {
-                            text: i18n("No one yet")
+                            text: i18nc("@info the friend list is empty", "No one yet")
                             color: root.theme.text_dim
                         }
                     }

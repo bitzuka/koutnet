@@ -19,7 +19,7 @@ Item {
     Kirigami.PlaceholderMessage {
         anchors.centerIn: parent
         text: "Keenly"
-        explanation: i18n("A custom rendering engine is the next step")
+        explanation: i18nc("@info", "A custom rendering engine is the next step")
         icon.name: "internet-web-browser"
     }
 }

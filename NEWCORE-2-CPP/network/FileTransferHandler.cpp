@@ -3,6 +3,8 @@
 // KOutNet - Reassembles chunked file transfers received over UDP
 #include "FileTransferHandler.h"
 
+#include <KLocalizedString>
+
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -42,12 +44,14 @@ void FileTransferHandler::onMeta(const QJsonObject &meta)
 
     const qint64 announcedSize = meta.value(QStringLiteral("size")).toDouble(0.0);
     if (announcedSize < 0 || announcedSize > kMaxTransferBytes) {
-        Q_EMIT transferRejected(tid, QStringLiteral("announced size exceeds limit"));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
+                                           "The announced size exceeds the limit."));
         return; // no entry created - onChunkMessage will drop its chunks
     }
 
     if (!m_pending.contains(tid) && m_pending.size() >= kMaxPendingTransfers) {
-        Q_EMIT transferRejected(tid, QStringLiteral("too many concurrent incoming transfers"));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
+                                           "Too many concurrent incoming transfers."));
         return;
     }
 
@@ -78,7 +82,8 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
     const qint64 maxChunks = (kMaxTransferBytes / 1024) + 1024; // generous upper bound
     if (total > maxChunks) {
         m_pending.remove(tid);
-        Q_EMIT transferRejected(tid, QStringLiteral("chunk count exceeds limit"));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
+                                           "The chunk count exceeds the limit."));
         return;
     }
 
@@ -90,7 +95,8 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
         // a peer resending an index with different bytes is either broken or
         // walking the whole range twice to hide the second pass from the cap
         m_pending.remove(tid);
-        Q_EMIT transferRejected(tid, QStringLiteral("chunk resent with different contents"));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
+                                           "A chunk was resent with different contents."));
         return;
     }
 
@@ -100,7 +106,8 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
     t.receivedBytes += chunk.size() - (held != t.chunks.constEnd() ? held->size() : 0);
     if (t.receivedBytes > kMaxTransferBytes) {
         m_pending.remove(tid);
-        Q_EMIT transferRejected(tid, QStringLiteral("transfer exceeded size limit"));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
+                                           "The transfer exceeded the size limit."));
         return;
     }
     t.chunks.insert(idx, chunk);
@@ -125,7 +132,8 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
     if (!localPath.isEmpty())
         Q_EMIT fileSaved(t.meta, localPath);
     else
-        Q_EMIT transferRejected(tid, QStringLiteral("failed to write file to disk"));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
+                                           "Failed to write the file to disk."));
 
     m_pending.remove(tid);
 }
@@ -140,7 +148,8 @@ void FileTransferHandler::pruneStaleTransfers()
     }
     for (const auto &tid : stale) {
         m_pending.remove(tid);
-        Q_EMIT transferRejected(tid, QStringLiteral("transfer timed out (incomplete)"));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
+                                           "The transfer timed out while incomplete."));
     }
 }
 

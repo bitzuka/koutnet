@@ -118,11 +118,12 @@ Item {
 
     FileDialog {
         id: openDialog
-        title: i18n("Open files")
+        title: i18nc("@title:window", "Open files")
         fileMode: FileDialog.OpenFiles
         nameFilters: [
-            "Media (*.mp3 *.flac *.ogg *.opus *.wav *.m4a *.aac *.mp4 *.mkv *.webm *.avi *.mov)",
-            "All files (*)"
+            i18nc("@item:inlistbox file dialog filter, keep the glob patterns",
+                  "Media (*.mp3 *.flac *.ogg *.opus *.wav *.m4a *.aac *.mp4 *.mkv *.webm *.avi *.mov)"),
+            i18nc("@item:inlistbox file dialog filter, keep the glob pattern", "All files (*)")
         ]
         onAccepted: {
             const startAt = playlist.count
@@ -217,11 +218,12 @@ Item {
                             elide: Text.ElideRight
                             color: root.theme.text_dim
                             visible: root.current >= 0
-                            text: root.metaText(MediaMetaData.AlbumArtist,
-                                                i18n("Unknown artist"))
-                                + "  -  "
-                                + root.metaText(MediaMetaData.AlbumTitle,
-                                                i18n("Unknown album"))
+                            text: i18nc("@info:status %1 is the album artist, %2 the album title",
+                                        "%1 - %2",
+                                        root.metaText(MediaMetaData.AlbumArtist,
+                                                      i18nc("@info:status", "Unknown artist")),
+                                        root.metaText(MediaMetaData.AlbumTitle,
+                                                      i18nc("@info:status", "Unknown album")))
                         }
 
                         Label {
@@ -230,7 +232,7 @@ Item {
                             wrapMode: Text.Wrap
                             color: root.theme.text_dim
                             visible: root.current < 0
-                            text: i18n("Open a file to start playback")
+                            text: i18nc("@info", "Open a file to start playback")
                         }
                     }
                 }
@@ -252,7 +254,7 @@ Item {
                         Kirigami.Heading {
                             Layout.fillWidth: true
                             level: 5
-                            text: i18n("Playlist")
+                            text: i18nc("@title playlist panel", "Playlist")
                             color: root.theme.text
                         }
                         ToolButton {
@@ -265,7 +267,7 @@ Item {
                                 root.current = -1
                             }
                             ToolTip.visible: hovered
-                            ToolTip.text: i18n("Clear playlist")
+                            ToolTip.text: i18nc("@info:tooltip", "Clear playlist")
                         }
                     }
 
@@ -273,7 +275,7 @@ Item {
                         Layout.fillWidth: true
                         visible: playlist.count === 0
                         wrapMode: Text.Wrap
-                        text: i18n("Nothing queued yet")
+                        text: i18nc("@info", "Nothing queued yet")
                         color: root.theme.text_dim
                     }
 
@@ -378,7 +380,7 @@ Item {
                     icon.name: "document-open"
                     onClicked: openDialog.open()
                     ToolTip.visible: hovered
-                    ToolTip.text: i18n("Open files")
+                    ToolTip.text: i18nc("@info:tooltip", "Open files")
                 }
                 ToolButton {
                     icon.name: "view-media-playlist"
@@ -386,14 +388,14 @@ Item {
                     checked: root.playlistOpen
                     onToggled: root.playlistOpen = checked
                     ToolTip.visible: hovered
-                    ToolTip.text: i18n("Playlist")
+                    ToolTip.text: i18nc("@info:tooltip show the playlist panel", "Playlist")
                 }
                 ToolButton {
                     icon.name: root.fullScreen ? "view-restore" : "view-fullscreen"
                     visible: root.cinema
                     onClicked: root.toggleFullScreen()
                     ToolTip.visible: hovered
-                    ToolTip.text: i18n("Fullscreen")
+                    ToolTip.text: i18nc("@info:tooltip video player", "Fullscreen")
                 }
             }
         }

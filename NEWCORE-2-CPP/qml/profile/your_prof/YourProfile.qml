@@ -59,26 +59,30 @@ Item {
 
     FileDialog {
         id: avatarDialog
-        title: i18n("Change avatar")
-        nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif)"]
+        title: i18nc("@title:window", "Change avatar")
+        nameFilters: [i18nc("@item:inlistbox file dialog filter, keep the glob patterns",
+                            "Images (*.png *.jpg *.jpeg *.webp *.gif)")]
         onAccepted: appSettings.avatarPath = selectedFile
     }
     FileDialog {
         id: bannerDialog
-        title: i18n("Change banner")
-        nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif)"]
+        title: i18nc("@title:window", "Change banner")
+        nameFilters: [i18nc("@item:inlistbox file dialog filter, keep the glob patterns",
+                            "Images (*.png *.jpg *.jpeg *.webp *.gif)")]
         onAccepted: appSettings.bannerPath = selectedFile
     }
     FileDialog {
         id: backgroundDialog
-        title: i18n("Change background")
-        nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif)"]
+        title: i18nc("@title:window", "Change background")
+        nameFilters: [i18nc("@item:inlistbox file dialog filter, keep the glob patterns",
+                            "Images (*.png *.jpg *.jpeg *.webp *.gif)")]
         onAccepted: appSettings.profileBackgroundPath = selectedFile
     }
     FileDialog {
         id: badgeDialog
-        title: i18n("Choose name badge")
-        nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif)"]
+        title: i18nc("@title:window", "Choose name badge")
+        nameFilters: [i18nc("@item:inlistbox file dialog filter, keep the glob patterns",
+                            "Images (*.png *.jpg *.jpeg *.webp *.gif)")]
         onAccepted: appSettings.nameBadgePath = selectedFile
     }
 
@@ -150,7 +154,7 @@ Item {
                         anchors.fill: parent
                         onClicked: bannerDialog.open()
                         ToolTip.visible: containsMouse
-                        ToolTip.text: i18n("Change banner")
+                        ToolTip.text: i18nc("@info:tooltip", "Change banner")
                         hoverEnabled: true
                     }
                 }
@@ -291,7 +295,7 @@ Item {
                         spacing: 4
                         TextField {
                             Layout.preferredWidth: Kirigami.Units.gridUnit * 14
-                            placeholderText: i18n("Add information about yourself")
+                            placeholderText: i18nc("@info:placeholder", "Add information about yourself")
                             text: appSettings.displayName
                             onEditingFinished: appSettings.displayName = text
                         }
@@ -304,7 +308,7 @@ Item {
                                 onEditingFinished: appSettings.username = text
                             }
                             ToolButton {
-                                text: i18n("Choose name badge")
+                                text: i18nc("@action:button", "Choose name badge")
                                 onClicked: badgeDialog.open()
                             }
                         }
@@ -314,7 +318,8 @@ Item {
                 Item { Layout.fillWidth: true }
 
                 Button {
-                    text: root.editMode ? i18n("Done") : i18n("Edit profile")
+                    text: root.editMode ? i18nc("@action:button", "Done")
+                                        : i18nc("@action:button", "Edit profile")
                     highlighted: root.editMode
                     onClicked: root.toggleEditMode()
                 }
@@ -322,22 +327,24 @@ Item {
                     icon.name: "insert-image-symbolic"
                     onClicked: backgroundDialog.open()
                     ToolTip.visible: hovered
-                    ToolTip.text: i18n("Change background")
+                    ToolTip.text: i18nc("@info:tooltip", "Change background")
                 }
                 ToolButton {
                     visible: appSettings.profileBackgroundPath.length > 0
                     icon.name: "edit-clear-symbolic"
                     onClicked: appSettings.profileBackgroundPath = ""
                     ToolTip.visible: hovered
-                    ToolTip.text: i18n("Remove background")
+                    ToolTip.text: i18nc("@info:tooltip", "Remove background")
                 }
                 ToolButton {
                     icon.name: "document-share"
-                    onClicked: root.stubRequested(i18n("Edit profile"), i18n("Will appear once connected to a K-Server"))
+                    onClicked: root.stubRequested(i18nc("@title:window", "Edit profile"),
+                                                  i18nc("@info", "Will appear once connected to a K-Server"))
                 }
                 ToolButton {
                     icon.name: "overflow-menu"
-                    onClicked: root.stubRequested(i18n("Edit profile"), i18n("Will appear once connected to a K-Server"))
+                    onClicked: root.stubRequested(i18nc("@title:window", "Edit profile"),
+                                                  i18nc("@info", "Will appear once connected to a K-Server"))
                 }
             }
         }
@@ -362,7 +369,7 @@ Item {
                     Label {
                         id: localLabel
                         anchors.centerIn: parent
-                        text: i18n("Local")
+                        text: i18nc("@option:radio account scope, this device only", "Local")
                         color: !appSettings.globalAccount ? root.theme.accent : root.theme.text_dim
                     }
                     MouseArea { anchors.fill: parent; onClicked: appSettings.globalAccount = false }
@@ -377,7 +384,7 @@ Item {
                     Label {
                         id: globalLabel
                         anchors.centerIn: parent
-                        text: i18n("Global")
+                        text: i18nc("@option:radio account scope, hosted on a K-Server", "Global")
                         color: appSettings.globalAccount ? root.theme.accent : root.theme.text_dim
                     }
                     MouseArea { anchors.fill: parent; onClicked: appSettings.globalAccount = true }
@@ -389,7 +396,7 @@ Item {
             // caption.
             Label {
                 visible: appSettings.globalAccount && !appSettings.globalAccountRegistered
-                text: i18n("not registered")
+                text: i18nc("@info:status this identity has no K-Server account", "not registered")
                 color: root.theme.text_dim
                 font.pixelSize: 13
             }
@@ -406,7 +413,7 @@ Item {
             Label {
                 Layout.leftMargin: Kirigami.Units.largeSpacing
                 Layout.bottomMargin: Kirigami.Units.smallSpacing
-                text: i18n("online")
+                text: i18nc("@info:status your own presence", "online")
                 color: root.theme.text_dim
                 font.pixelSize: 13
             }
@@ -439,7 +446,8 @@ Item {
                             wrapMode: Text.Wrap
                             textFormat: Text.MarkdownText
                             color: root.theme.text
-                            text: appSettings.bio.length > 0 ? appSettings.bio : i18n("Add information about yourself")
+                            text: appSettings.bio.length > 0 ? appSettings.bio
+                                                            : i18nc("@info:placeholder", "Add information about yourself")
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -452,7 +460,7 @@ Item {
                             anchors.margins: 12
                             visible: false
                             wrapMode: TextArea.Wrap
-                            placeholderText: i18n("Tell us about yourself...")
+                            placeholderText: i18nc("@info:placeholder", "Tell us about yourself...")
                             color: root.theme.text
                             background: null
                             onActiveFocusChanged: {
@@ -472,7 +480,12 @@ Item {
                             implicitHeight: 36
                             color: "transparent"
 
-                            property var tabLabels: [i18n("Music"), i18n("Photos"), i18n("Videos"), i18n("Albums"), i18n("Clips"), i18n("Articles")]
+                            property var tabLabels: [i18nc("@title:tab", "Music"),
+                                                     i18nc("@title:tab", "Photos"),
+                                                     i18nc("@title:tab", "Videos"),
+                                                     i18nc("@title:tab", "Albums"),
+                                                     i18nc("@title:tab", "Clips"),
+                                                     i18nc("@title:tab", "Articles")]
                             property var tabIcons: ["audio-x-generic-symbolic", "folder-pictures-symbolic", "folder-videos-symbolic", "view-list-details-symbolic", "video-symbolic", "text-x-generic-symbolic"]
                             property int currentIndex: 0
 
@@ -528,14 +541,14 @@ Item {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         visible: !appSettings.globalAccount
-                        text: i18n("Nothing here yet — upload files from your device")
+                        text: i18nc("@info", "Nothing here yet - upload files from your device")
                         icon.name: "folder-symbolic"
                     }
                     Kirigami.PlaceholderMessage {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         visible: appSettings.globalAccount
-                        text: i18n("No internet connection")
+                        text: i18nc("@info", "No internet connection")
                         icon.name: "network-disconnect-symbolic"
                     }
                 }
@@ -560,11 +573,11 @@ Item {
                             spacing: 8
                             Kirigami.Heading {
                                 level: 5
-                                text: i18n("Friends")
+                                text: i18nc("@title profile section", "Friends")
                                 color: root.theme.text
                             }
                             Label {
-                                text: i18n("No one yet")
+                                text: i18nc("@info the friend list is empty", "No one yet")
                                 color: root.theme.text_dim
                             }
                         }
@@ -584,12 +597,13 @@ Item {
             Layout.margins: Kirigami.Units.largeSpacing
             visible: !root.profileUsable
             icon.name: "im-user-symbolic"
-            text: i18n("not registered")
-            explanation: i18n("Register this identity on a K-Server to use the global profile")
+            text: i18nc("@info:status this identity has no K-Server account", "not registered")
+            explanation: i18nc("@info", "Register this identity on a K-Server to use the global profile")
             helpfulAction: Kirigami.Action {
-                text: i18n("Register")
+                text: i18nc("@action:button", "Register")
                 icon.name: "list-add-user"
-                onTriggered: root.stubRequested(i18n("Register"), i18n("Will appear once connected to a K-Server"))
+                onTriggered: root.stubRequested(i18nc("@title:window", "Register"),
+                                                i18nc("@info", "Will appear once connected to a K-Server"))
             }
         }
     }

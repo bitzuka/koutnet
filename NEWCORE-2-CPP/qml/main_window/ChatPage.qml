@@ -68,18 +68,18 @@ Kirigami.Page {
 
     actions: [
         Kirigami.Action {
-            text: i18n("Back")
+            text: i18nc("@action:button back to the contact list", "Back")
             icon.name: "go-previous"
             visible: root.showBackButton
             onTriggered: root.returnToListRequested()
         },
         Kirigami.Action {
-            text: i18n("Profile")
+            text: i18nc("@action:button open the peer's profile", "Profile")
             icon.name: "user-identity"
             onTriggered: root.profileRequested()
         },
         Kirigami.Action {
-            text: i18n("Call")
+            text: i18nc("@action:button start a voice call", "Call")
             icon.name: "call-start"
             onTriggered: root.callRequested()
         }
@@ -155,7 +155,7 @@ Kirigami.Page {
             anchors.top: parent.top
             anchors.right: parent.right
             anchors.margins: 12
-            text: "✕"
+            text: "\u2715"
             onClicked: imageViewer.hide()
         }
 
@@ -258,8 +258,9 @@ Kirigami.Page {
 
     FileDialog {
         id: customEmojiDialog
-        title: i18n("Choose an image for the emoji")
-        nameFilters: ["Images (*.png *.jpg *.jpeg *.webp *.gif)"]
+        title: i18nc("@title:window", "Choose an image for the emoji")
+        nameFilters: [i18nc("@item:inlistbox file dialog filter, keep the glob patterns",
+                            "Images (*.png *.jpg *.jpeg *.webp *.gif)")]
         onAccepted: {
             // Stored/rendered at a fixed 128x128 box everywhere it's used
             // (picker + reaction badge), matching a normal emoji's visual
@@ -281,32 +282,32 @@ Kirigami.Page {
         property string msgText: ""
 
         MenuItem {
-            text: i18n("Reply")
+            text: i18nc("@action:inmenu", "Reply")
             onTriggered: {
                 root.replyToText = messageMenu.msgText
                 inputField.forceActiveFocus()
             }
         }
         MenuItem {
-            text: i18n("Copy")
+            text: i18nc("@action:inmenu", "Copy")
             onTriggered: {
                 if (messageMenu.msgText.length > 0) {
                     clipboardHelper.copyText(messageMenu.msgText)
-                    toast.show(i18n("Copied!"))
+                    toast.show(i18nc("@info:status", "Copied!"))
                 }
             }
         }
         MenuItem {
-            text: i18n("Forward")
+            text: i18nc("@action:inmenu forward this message", "Forward")
             onTriggered: root.forwardRequested(messageMenu.msgIndex)
         }
         MenuItem {
-            text: i18n("React")
+            text: i18nc("@action:inmenu add a reaction", "React")
             onTriggered: root.openReactionPicker(messageMenu.msgIndex)
         }
         MenuSeparator {}
         MenuItem {
-            text: i18n("Delete")
+            text: i18nc("@action:inmenu delete this message", "Delete")
             onTriggered: root.deleteRequested(messageMenu.msgIndex)
         }
     }
@@ -371,8 +372,9 @@ Kirigami.Page {
                     Label {
                         visible: root.peerInfo && !root.peerInfo.isFavorites
                         text: root.peerInfo && root.peerInfo.lastSeen > 0
-                            ? i18n("last seen") + " " + new Date(root.peerInfo.lastSeen * 1000).toLocaleString()
-                            : i18n("online")
+                            ? i18nc("@info:status %1 is a date and time", "last seen %1",
+                                    new Date(root.peerInfo.lastSeen * 1000).toLocaleString())
+                            : i18nc("@info:status the peer is online", "online")
                         color: root.theme.text_dim
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                     }
@@ -634,7 +636,9 @@ Kirigami.Page {
                                         Label {
                                             id: reactLabel
                                             anchors.centerIn: parent
-                                            text: modelData.emoji + " " + modelData.count
+                                            text: i18ncp("@item reaction badge, %2 is the emoji",
+                                                         "%2 %1", "%2 %1",
+                                                         modelData.count, modelData.emoji)
                                             font.pointSize: Kirigami.Theme.smallFont.pointSize
                                             color: "white"
                                         }
@@ -655,7 +659,7 @@ Kirigami.Page {
 
                         Label {
                             visible: model.isEdited
-                            text: i18n("edited")
+                            text: i18nc("@info:status the message was edited", "edited")
                             font.italic: true
                             font.pointSize: Kirigami.Theme.smallFont.pointSize
                             color: root.theme.text_dim
@@ -669,7 +673,7 @@ Kirigami.Page {
 
                         Text {
                             visible: model.isOwn
-                            text: model.isRead ? "✓✓" : "✓"
+                            text: model.isRead ? "\u2713\u2713" : "\u2713"
                             color: model.isRead ? root.theme.accent : root.theme.text_dim
                             font.pointSize: Kirigami.Theme.smallFont.pointSize
                         }
@@ -689,7 +693,7 @@ Kirigami.Page {
                 anchors.margins: 4
                 Label {
                     Layout.fillWidth: true
-                    text: "↩ " + root.replyToText
+                    text: "\u21A9 " + root.replyToText
                     elide: Text.ElideRight
                     font.pointSize: Kirigami.Theme.smallFont.pointSize
                     color: root.theme.text
@@ -731,7 +735,7 @@ Kirigami.Page {
                 TextField {
                     id: inputField
                     Layout.fillWidth: true
-                    placeholderText: i18n("Message...")
+                    placeholderText: i18nc("@info:placeholder", "Message...")
                     color: root.theme.text
                     placeholderTextColor: root.theme.text_dim
                     selectionColor: root.theme.accent
@@ -749,7 +753,7 @@ Kirigami.Page {
 
                 Button {
                     id: sendButton
-                    text: i18n("Send")
+                    text: i18nc("@action:button", "Send")
                     enabled: inputField.text.length > 0
                     onClicked: {
                         root.sendRequested(inputField.text)
@@ -850,7 +854,7 @@ Kirigami.Page {
 
     FileDialog {
         id: fileDialog
-        title: i18n("Attach a file")
+        title: i18nc("@title:window", "Attach a file")
         onAccepted: {
             const path = selectedFile.toString().replace("file://", "")
             console.log("FileDialog selected:", path)

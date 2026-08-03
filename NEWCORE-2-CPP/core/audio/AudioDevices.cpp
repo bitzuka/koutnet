@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "AudioDevices.h"
 
+#include <KLocalizedString>
+
 #include <QAudioDevice>
 #include <QAudioFormat>
 #include <QAudioSink>
@@ -168,13 +170,13 @@ void AudioDevices::startMicTest(const QString &deviceId)
     const QAudioDevice device = pick(QMediaDevices::audioInputs(), deviceId,
                                      QMediaDevices::defaultAudioInput());
     if (device.isNull()) {
-        Q_EMIT error(QStringLiteral("no audio input device available"));
+        Q_EMIT error(i18nc("@info:status", "No audio input device available."));
         return;
     }
 
     const QAudioFormat fmt = probeFormat(device);
     if (!device.isFormatSupported(fmt)) {
-        Q_EMIT error(QStringLiteral("input device rejects every format we can read"));
+        Q_EMIT error(i18nc("@info:status", "The input device rejects every format we can read."));
         return;
     }
 
@@ -183,7 +185,7 @@ void AudioDevices::startMicTest(const QString &deviceId)
     if (!m_capture) {
         delete m_source;
         m_source = nullptr;
-        Q_EMIT error(QStringLiteral("could not open the input device"));
+        Q_EMIT error(i18nc("@info:status", "Could not open the input device."));
         return;
     }
 
@@ -225,7 +227,7 @@ void AudioDevices::playTestTone(const QString &deviceId)
     const QAudioDevice device = pick(QMediaDevices::audioOutputs(), deviceId,
                                      QMediaDevices::defaultAudioOutput());
     if (device.isNull()) {
-        Q_EMIT error(QStringLiteral("no audio output device available"));
+        Q_EMIT error(i18nc("@info:status", "No audio output device available."));
         return;
     }
 
@@ -238,7 +240,7 @@ void AudioDevices::playTestTone(const QString &deviceId)
     if (!m_toneBuffer->open(QIODevice::ReadOnly)) {
         delete m_toneBuffer;
         m_toneBuffer = nullptr;
-        Q_EMIT error(QStringLiteral("could not prepare the test tone"));
+        Q_EMIT error(i18nc("@info:status", "Could not prepare the test tone."));
         return;
     }
 

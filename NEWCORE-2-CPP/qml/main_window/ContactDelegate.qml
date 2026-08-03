@@ -99,9 +99,19 @@ ItemDelegate {
 
             Text {
                 visible: root.showSecurityLabel || root.peerOs.length > 0
-                text: (root.showSecurityLabel ? (root.e2e ? "E2E" : "Plain") : "")
-                      + (root.showSecurityLabel && root.peerOs.length > 0 ? " • " : "")
-                      + root.peerOs
+                // One whole sentence per case rather than three fragments
+                // glued together, so the order is the translator's to choose.
+                text: {
+                    if (!root.showSecurityLabel)
+                        return root.peerOs
+                    const sec = root.e2e
+                        ? i18nc("@info:status the session is end to end encrypted", "E2E")
+                        : i18nc("@info:status there is no encrypted session", "Plain")
+                    if (root.peerOs.length === 0)
+                        return sec
+                    return i18nc("@info:status %1 is the encryption state, %2 the peer's operating system",
+                                 "%1 - %2", sec, root.peerOs)
+                }
                 color: root.e2e ? root.theme.online : root.theme.text_dim
                 elide: Text.ElideRight
                 Layout.fillWidth: true
