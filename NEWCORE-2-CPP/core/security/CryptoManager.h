@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet security engine.
 //
 // X25519 ECDH exchange with an Ed25519-signed identity, AES-256-GCM on

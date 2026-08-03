@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Voice call manager (P2P calls, group calls via per-peer jitter buffers)
 #pragma once
 
@@ -49,11 +51,11 @@ public:
 
     void cleanup();
 
-signals:
+Q_SIGNALS:
     void callStarted(QString ip);
     void callEnded(QString ip);
 
-private slots:
+private Q_SLOTS:
     void onCaptured(const QByteArray &data);
     void onPeerAudio(const QString &ip, const QByteArray &data);
 

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #pragma once
 
 #include <QObject>
@@ -38,7 +40,7 @@ public:
     Q_INVOKABLE QVariantList loadCallLog();
     Q_INVOKABLE void addCall(const QVariantMap &entry);
 
-signals:
+Q_SIGNALS:
     void historySavingEnabledChanged();
     void historyAppended(const QString &chatId, const QVariantMap &entry);
 

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "AppSettings.h"
 
 #include <QSettings>
@@ -28,7 +30,7 @@ void AppSettings::load()
     m_relayHost = settings.value("app/relay_host", QString()).toString();
     m_relayPort = settings.value("app/relay_port", 0).toInt();
     m_groupPassphrase = settings.value("app/group_passphrase", QString()).toString();
-    m_language = settings.value("app/language", "ru").toString();
+    m_language = settings.value(QStringLiteral("app/language"), QStringLiteral("ru")).toString();
     m_audioInputId = settings.value("app/audio_input_id", QString()).toString();
     m_audioOutputId = settings.value("app/audio_output_id", QString()).toString();
     m_audioVolume = settings.value("app/audio_volume", 100).toInt();
@@ -52,7 +54,7 @@ void AppSettings::setUsername(const QString &name)
         return;
     m_username = name;
     QSettings().setValue("app/username", m_username);
-    emit usernameChanged();
+    Q_EMIT usernameChanged();
 }
 
 void AppSettings::setConnectionMode(int mode)
@@ -61,7 +63,7 @@ void AppSettings::setConnectionMode(int mode)
         return;
     m_connectionMode = mode;
     QSettings().setValue("app/connection_mode", m_connectionMode);
-    emit connectionModeChanged();
+    Q_EMIT connectionModeChanged();
 }
 
 void AppSettings::setRelayHost(const QString &host)
@@ -70,7 +72,7 @@ void AppSettings::setRelayHost(const QString &host)
         return;
     m_relayHost = host;
     QSettings().setValue("app/relay_host", m_relayHost);
-    emit relayChanged();
+    Q_EMIT relayChanged();
 }
 
 void AppSettings::setRelayPort(int port)
@@ -79,7 +81,7 @@ void AppSettings::setRelayPort(int port)
         return;
     m_relayPort = port;
     QSettings().setValue("app/relay_port", m_relayPort);
-    emit relayChanged();
+    Q_EMIT relayChanged();
 }
 
 void AppSettings::setGroupPassphrase(const QString &passphrase)
@@ -88,7 +90,7 @@ void AppSettings::setGroupPassphrase(const QString &passphrase)
         return;
     m_groupPassphrase = passphrase;
     QSettings().setValue("app/group_passphrase", m_groupPassphrase);
-    emit groupPassphraseChanged();
+    Q_EMIT groupPassphraseChanged();
 }
 
 void AppSettings::setLanguage(const QString &lang)
@@ -97,7 +99,7 @@ void AppSettings::setLanguage(const QString &lang)
         return;
     m_language = lang;
     QSettings().setValue("app/language", m_language);
-    emit languageChanged();
+    Q_EMIT languageChanged();
 }
 
 void AppSettings::setAudioInputId(const QString &id)
@@ -106,7 +108,7 @@ void AppSettings::setAudioInputId(const QString &id)
         return;
     m_audioInputId = id;
     QSettings().setValue("app/audio_input_id", m_audioInputId);
-    emit audioInputIdChanged();
+    Q_EMIT audioInputIdChanged();
 }
 
 void AppSettings::setAudioOutputId(const QString &id)
@@ -115,7 +117,7 @@ void AppSettings::setAudioOutputId(const QString &id)
         return;
     m_audioOutputId = id;
     QSettings().setValue("app/audio_output_id", m_audioOutputId);
-    emit audioOutputIdChanged();
+    Q_EMIT audioOutputIdChanged();
 }
 
 void AppSettings::setAudioVolume(int percent)
@@ -125,7 +127,7 @@ void AppSettings::setAudioVolume(int percent)
         return;
     m_audioVolume = clamped;
     QSettings().setValue("app/audio_volume", m_audioVolume);
-    emit audioVolumeChanged();
+    Q_EMIT audioVolumeChanged();
 }
 
 void AppSettings::setMicMuted(bool muted)
@@ -134,7 +136,7 @@ void AppSettings::setMicMuted(bool muted)
         return;
     m_micMuted = muted;
     QSettings().setValue("app/mic_muted", m_micMuted);
-    emit micMutedChanged();
+    Q_EMIT micMutedChanged();
 }
 
 void AppSettings::setVadEnabled(bool enabled)
@@ -143,7 +145,7 @@ void AppSettings::setVadEnabled(bool enabled)
         return;
     m_vadEnabled = enabled;
     QSettings().setValue("app/vad_enabled", m_vadEnabled);
-    emit vadEnabledChanged();
+    Q_EMIT vadEnabledChanged();
 }
 
 void AppSettings::setShowWelcome(bool show)
@@ -152,7 +154,7 @@ void AppSettings::setShowWelcome(bool show)
         return;
     m_showWelcome = show;
     QSettings().setValue("app/show_welcome", m_showWelcome);
-    emit showWelcomeChanged();
+    Q_EMIT showWelcomeChanged();
 }
 
 void AppSettings::setCheckUpdatesOnStart(bool check)
@@ -161,7 +163,7 @@ void AppSettings::setCheckUpdatesOnStart(bool check)
         return;
     m_checkUpdatesOnStart = check;
     QSettings().setValue("app/check_updates_on_start", m_checkUpdatesOnStart);
-    emit checkUpdatesOnStartChanged();
+    Q_EMIT checkUpdatesOnStartChanged();
 }
 
 void AppSettings::setDisplayName(const QString &name)
@@ -170,7 +172,7 @@ void AppSettings::setDisplayName(const QString &name)
         return;
     m_displayName = name;
     QSettings().setValue("app/display_name", m_displayName);
-    emit displayNameChanged();
+    Q_EMIT displayNameChanged();
 }
 
 void AppSettings::setAvatarPath(const QString &path)
@@ -179,7 +181,7 @@ void AppSettings::setAvatarPath(const QString &path)
         return;
     m_avatarPath = path;
     QSettings().setValue("app/avatar_path", m_avatarPath);
-    emit avatarPathChanged();
+    Q_EMIT avatarPathChanged();
 }
 
 void AppSettings::setBannerPath(const QString &path)
@@ -188,7 +190,7 @@ void AppSettings::setBannerPath(const QString &path)
         return;
     m_bannerPath = path;
     QSettings().setValue("app/banner_path", m_bannerPath);
-    emit bannerPathChanged();
+    Q_EMIT bannerPathChanged();
 }
 
 void AppSettings::setProfileBackgroundPath(const QString &path)
@@ -197,7 +199,7 @@ void AppSettings::setProfileBackgroundPath(const QString &path)
         return;
     m_profileBackgroundPath = path;
     QSettings().setValue("app/profile_background_path", m_profileBackgroundPath);
-    emit profileBackgroundPathChanged();
+    Q_EMIT profileBackgroundPathChanged();
 }
 
 void AppSettings::setNameBadgePath(const QString &path)
@@ -206,7 +208,7 @@ void AppSettings::setNameBadgePath(const QString &path)
         return;
     m_nameBadgePath = path;
     QSettings().setValue("app/name_badge_path", m_nameBadgePath);
-    emit nameBadgePathChanged();
+    Q_EMIT nameBadgePathChanged();
 }
 
 void AppSettings::setBio(const QString &text)
@@ -215,7 +217,7 @@ void AppSettings::setBio(const QString &text)
         return;
     m_bio = text;
     QSettings().setValue("app/bio", m_bio);
-    emit bioChanged();
+    Q_EMIT bioChanged();
 }
 
 void AppSettings::setGlobalAccount(bool enabled)
@@ -224,7 +226,7 @@ void AppSettings::setGlobalAccount(bool enabled)
         return;
     m_globalAccount = enabled;
     QSettings().setValue("app/global_account", m_globalAccount);
-    emit globalAccountChanged();
+    Q_EMIT globalAccountChanged();
 }
 
 void AppSettings::setGlobalAccountRegistered(bool registered)
@@ -233,7 +235,7 @@ void AppSettings::setGlobalAccountRegistered(bool registered)
         return;
     m_globalAccountRegistered = registered;
     QSettings().setValue("app/global_account_registered", m_globalAccountRegistered);
-    emit globalAccountRegisteredChanged();
+    Q_EMIT globalAccountRegisteredChanged();
 }
 
 } // namespace koutnet

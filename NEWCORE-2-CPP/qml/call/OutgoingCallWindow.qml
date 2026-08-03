@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Window

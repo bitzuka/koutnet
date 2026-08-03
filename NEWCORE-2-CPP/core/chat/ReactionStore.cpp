@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "ReactionStore.h"
 
 #include <QStandardPaths>
@@ -27,7 +29,7 @@ void ReactionStore::add(const QString &chatId, double ts, const QString &emoji, 
     QStringList &users = m_data[key][emoji];
     if (!users.contains(username))
         users.append(username);
-    emit reactionsChanged(chatId, ts);
+    Q_EMIT reactionsChanged(chatId, ts);
 }
 
 void ReactionStore::remove(const QString &chatId, double ts, const QString &emoji, const QString &username)
@@ -42,7 +44,7 @@ void ReactionStore::remove(const QString &chatId, double ts, const QString &emoj
     emojiIt->removeAll(username);
     if (emojiIt->isEmpty())
         chatIt->remove(emoji);
-    emit reactionsChanged(chatId, ts);
+    Q_EMIT reactionsChanged(chatId, ts);
 }
 
 bool ReactionStore::toggle(const QString &chatId, double ts, const QString &emoji, const QString &username)
@@ -90,8 +92,8 @@ QVariantList ReactionStore::summary(const QString &chatId, double ts) const
     QVariantList out;
     for (const auto &p : pairs) {
         QVariantMap m;
-        m["emoji"] = p.first;
-        m["count"] = p.second;
+        m[QStringLiteral("emoji")] = p.first;
+        m[QStringLiteral("count")] = p.second;
         out.append(m);
     }
     return out;

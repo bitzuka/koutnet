@@ -1,27 +1,29 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "MessageEntry.h"
 
 MessageEntry MessageEntry::fromJson(const QJsonObject &o)
 {
     MessageEntry e;
-    e.sender        = o.value("sender").toString();
-    e.text          = o.value("text").toString();
-    e.ts            = o.value("ts").toDouble();
-    e.isOwn         = o.value("is_own").toBool();
-    e.color         = o.value("color").toString(QStringLiteral("#E0E0E0"));
-    e.emoji         = o.value("emoji").toString();
-    e.msgType       = o.value("msg_type").toString(QStringLiteral("public"));
-    e.imageData     = o.value("image_data").toString();
-    e.isSystem      = o.value("is_system").toBool();
-    e.isEdited      = o.value("is_edited").toBool();
-    e.isForwarded   = o.value("is_forwarded").toBool();
-    e.forwardedFrom = o.value("forwarded_from").toString();
-    e.replyToText   = o.value("reply_to_text").toString();
-    e.chatId        = o.value("chat_id").toString();
-    e.msgId         = o.value("msg_id").toString();
-    e.isFile        = o.value("is_file").toBool();
-    e.filePath      = o.value("file_path").toString();
-    e.isImage       = o.value("is_image").toBool();
-    e.isRead        = o.value("is_read").toBool();
+    e.sender        = o.value(QStringLiteral("sender")).toString();
+    e.text          = o.value(QStringLiteral("text")).toString();
+    e.ts            = o.value(QStringLiteral("ts")).toDouble();
+    e.isOwn         = o.value(QStringLiteral("is_own")).toBool();
+    e.color         = o.value(QStringLiteral("color")).toString(QStringLiteral("#E0E0E0"));
+    e.emoji         = o.value(QStringLiteral("emoji")).toString();
+    e.msgType       = o.value(QStringLiteral("msg_type")).toString(QStringLiteral("public"));
+    e.imageData     = o.value(QStringLiteral("image_data")).toString();
+    e.isSystem      = o.value(QStringLiteral("is_system")).toBool();
+    e.isEdited      = o.value(QStringLiteral("is_edited")).toBool();
+    e.isForwarded   = o.value(QStringLiteral("is_forwarded")).toBool();
+    e.forwardedFrom = o.value(QStringLiteral("forwarded_from")).toString();
+    e.replyToText   = o.value(QStringLiteral("reply_to_text")).toString();
+    e.chatId        = o.value(QStringLiteral("chat_id")).toString();
+    e.msgId         = o.value(QStringLiteral("msg_id")).toString();
+    e.isFile        = o.value(QStringLiteral("is_file")).toBool();
+    e.filePath      = o.value(QStringLiteral("file_path")).toString();
+    e.isImage       = o.value(QStringLiteral("is_image")).toBool();
+    e.isRead        = o.value(QStringLiteral("is_read")).toBool();
     e.ensureMsgId();
     return e;
 }
@@ -29,25 +31,25 @@ MessageEntry MessageEntry::fromJson(const QJsonObject &o)
 QJsonObject MessageEntry::toJson() const
 {
     QJsonObject o;
-    o["sender"]         = sender;
-    o["text"]           = text;
-    o["ts"]             = ts;
-    o["is_own"]         = isOwn;
-    o["color"]          = color;
-    o["emoji"]          = emoji;
-    o["msg_type"]       = msgType;
-    o["image_data"]     = imageData;
-    o["is_system"]      = isSystem;
-    o["is_edited"]      = isEdited;
-    o["is_forwarded"]   = isForwarded;
-    o["forwarded_from"] = forwardedFrom;
-    o["reply_to_text"]  = replyToText;
-    o["chat_id"]        = chatId;
-    o["msg_id"]         = msgId;
-    o["is_file"]        = isFile;
-    o["file_path"]      = filePath;
-    o["is_image"]       = isImage;
-    o["is_read"]        = isRead;
+    o[QStringLiteral("sender")]         = sender;
+    o[QStringLiteral("text")]           = text;
+    o[QStringLiteral("ts")]             = ts;
+    o[QStringLiteral("is_own")]         = isOwn;
+    o[QStringLiteral("color")]          = color;
+    o[QStringLiteral("emoji")]          = emoji;
+    o[QStringLiteral("msg_type")]       = msgType;
+    o[QStringLiteral("image_data")]     = imageData;
+    o[QStringLiteral("is_system")]      = isSystem;
+    o[QStringLiteral("is_edited")]      = isEdited;
+    o[QStringLiteral("is_forwarded")]   = isForwarded;
+    o[QStringLiteral("forwarded_from")] = forwardedFrom;
+    o[QStringLiteral("reply_to_text")]  = replyToText;
+    o[QStringLiteral("chat_id")]        = chatId;
+    o[QStringLiteral("msg_id")]         = msgId;
+    o[QStringLiteral("is_file")]        = isFile;
+    o[QStringLiteral("file_path")]      = filePath;
+    o[QStringLiteral("is_image")]       = isImage;
+    o[QStringLiteral("is_read")]        = isRead;
     return o;
 }
 

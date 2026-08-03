@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Reassembles chunked file transfers received over UDP
 #pragma once
 
@@ -33,7 +35,7 @@ public:
     // Called when a file_data (chunk) packet arrives.
     void onChunkMessage(const QJsonObject &msg);
 
-signals:
+Q_SIGNALS:
     // Raw-bytes signal - kept for any consumer that wants the data directly
     // without touching disk.
     void fileReceived(QJsonObject meta, QByteArray data);

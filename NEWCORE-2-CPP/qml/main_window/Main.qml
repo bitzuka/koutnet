@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Main application window
 import QtQuick
 import QtQuick.Window
@@ -572,7 +574,6 @@ Kirigami.ApplicationWindow {
                         root.tr("tab_main_calls"),
                         root.tr("tab_player_violla"),
                         root.tr("tab_wns_keenly"),
-                        root.tr("tab_main_zapret"),
                     ]
 
                     RowLayout {
@@ -634,7 +635,6 @@ Kirigami.ApplicationWindow {
                     CallsTab {}
                     PlayerTab {}
                     WnsTab {}
-                    ZapretTab {}
                 }
             }
         }
@@ -901,23 +901,6 @@ Kirigami.ApplicationWindow {
                             networkManager.setConnectionMode(appSettings.connectionMode)
                             root.showStub(root.tr("settings.title"), root.tr("settings.saved"))
                         }
-                    }
-
-                    Kirigami.Separator { Layout.fillWidth: true }
-
-                    Label { text: root.tr("settings.group_passphrase"); color: root.theme.text_dim }
-                    TextField {
-                        Layout.fillWidth: true
-                        enabled: false
-                        echoMode: TextInput.Password
-                        text: appSettings.groupPassphrase
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        wrapMode: Text.Wrap
-                        font.pixelSize: 12
-                        color: root.theme.text_dim
-                        text: root.tr("settings.group_passphrase_note")
                     }
                 }
             }

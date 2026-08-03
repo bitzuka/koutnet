@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "AudioDevices.h"
 
 #include <QAudioDevice>
@@ -28,8 +30,8 @@ QVariantList describe(const QList<QAudioDevice> &devices)
     out.reserve(devices.size());
     for (const QAudioDevice &device : devices) {
         QVariantMap entry;
-        entry["id"] = QString::fromUtf8(device.id());
-        entry["description"] = device.description();
+        entry[QStringLiteral("id")] = QString::fromUtf8(device.id());
+        entry[QStringLiteral("description")] = device.description();
         out.append(entry);
     }
     return out;
@@ -155,7 +157,7 @@ void AudioDevices::setLevel(qreal level)
     if (qFuzzyCompare(m_level + 1.0, level + 1.0))
         return;
     m_level = level;
-    emit micLevelChanged();
+    Q_EMIT micLevelChanged();
 }
 
 void AudioDevices::startMicTest(const QString &deviceId)
@@ -166,13 +168,13 @@ void AudioDevices::startMicTest(const QString &deviceId)
     const QAudioDevice device = pick(QMediaDevices::audioInputs(), deviceId,
                                      QMediaDevices::defaultAudioInput());
     if (device.isNull()) {
-        emit error(QStringLiteral("no audio input device available"));
+        Q_EMIT error(QStringLiteral("no audio input device available"));
         return;
     }
 
     const QAudioFormat fmt = probeFormat(device);
     if (!device.isFormatSupported(fmt)) {
-        emit error(QStringLiteral("input device rejects every format we can read"));
+        Q_EMIT error(QStringLiteral("input device rejects every format we can read"));
         return;
     }
 
@@ -181,12 +183,12 @@ void AudioDevices::startMicTest(const QString &deviceId)
     if (!m_capture) {
         delete m_source;
         m_source = nullptr;
-        emit error(QStringLiteral("could not open the input device"));
+        Q_EMIT error(QStringLiteral("could not open the input device"));
         return;
     }
 
     connect(m_capture, &QIODevice::readyRead, this, &AudioDevices::readMicChunk);
-    emit micTestRunningChanged();
+    Q_EMIT micTestRunningChanged();
 }
 
 void AudioDevices::readMicChunk()
@@ -212,7 +214,7 @@ void AudioDevices::stopMicTest()
     m_source = nullptr;
     m_capture = nullptr; // owned by the source
     setLevel(0.0);
-    emit micTestRunningChanged();
+    Q_EMIT micTestRunningChanged();
 }
 
 void AudioDevices::playTestTone(const QString &deviceId)
@@ -223,7 +225,7 @@ void AudioDevices::playTestTone(const QString &deviceId)
     const QAudioDevice device = pick(QMediaDevices::audioOutputs(), deviceId,
                                      QMediaDevices::defaultAudioOutput());
     if (device.isNull()) {
-        emit error(QStringLiteral("no audio output device available"));
+        Q_EMIT error(QStringLiteral("no audio output device available"));
         return;
     }
 
@@ -236,7 +238,7 @@ void AudioDevices::playTestTone(const QString &deviceId)
     if (!m_toneBuffer->open(QIODevice::ReadOnly)) {
         delete m_toneBuffer;
         m_toneBuffer = nullptr;
-        emit error(QStringLiteral("could not prepare the test tone"));
+        Q_EMIT error(QStringLiteral("could not prepare the test tone"));
         return;
     }
 
@@ -248,7 +250,7 @@ void AudioDevices::playTestTone(const QString &deviceId)
             stopTestTone();
     });
     m_sink->start(m_toneBuffer);
-    emit tonePlayingChanged();
+    Q_EMIT tonePlayingChanged();
 }
 
 void AudioDevices::stopTestTone()
@@ -264,7 +266,7 @@ void AudioDevices::stopTestTone()
         m_toneBuffer->deleteLater();
         m_toneBuffer = nullptr;
     }
-    emit tonePlayingChanged();
+    Q_EMIT tonePlayingChanged();
 }
 
 } // namespace koutnet

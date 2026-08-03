@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #pragma once
 
 #include <QAbstractListModel>
@@ -75,7 +77,7 @@ public:
     Q_INVOKABLE void markOwnMessagesRead();
     Q_INVOKABLE void markAllRead();
 
-signals:
+Q_SIGNALS:
     void chatIdChanged();
     void historyManagerChanged();
     void reactionStoreChanged();

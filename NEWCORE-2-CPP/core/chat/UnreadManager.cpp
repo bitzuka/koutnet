@@ -1,18 +1,20 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "UnreadManager.h"
 
 void UnreadManager::increment(const QString &chatId)
 {
     m_counts[chatId] = m_counts.value(chatId, 0) + 1;
-    emit unreadChanged(chatId, m_counts[chatId]);
-    emit totalChanged();
+    Q_EMIT unreadChanged(chatId, m_counts[chatId]);
+    Q_EMIT totalChanged();
 }
 
 void UnreadManager::markRead(const QString &chatId)
 {
     if (m_counts.value(chatId, 0) > 0) {
         m_counts[chatId] = 0;
-        emit unreadChanged(chatId, 0);
-        emit totalChanged();
+        Q_EMIT unreadChanged(chatId, 0);
+        Q_EMIT totalChanged();
     }
 }
 

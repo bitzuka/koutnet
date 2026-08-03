@@ -1,6 +1,20 @@
+# SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 cmake_minimum_required(VERSION 3.21)
 project(KOutNet VERSION 2.0 LANGUAGES CXX)
 
+set(QT_MIN_VERSION 6.4)
+set(KF_MIN_VERSION 6.0)
+
+find_package(ECM ${KF_MIN_VERSION} REQUIRED NO_MODULE)
+set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
+
+include(KDEInstallDirs)
+include(KDECMakeSettings)
+include(KDECompilerSettings NO_POLICY_SCOPE)
+
+# After the KDE includes on purpose: KDECompilerSettings picks a standard of
+# its own, and this project wants 20.
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
@@ -45,8 +59,6 @@ qt_add_executable(KOutNet
     network/VoiceCallManager.h
     network/FileTransferHandler.cpp
     network/FileTransferHandler.h
-    network/zapret/ZapretManager.cpp
-    network/zapret/ZapretManager.h
 )
 
 qt_add_qml_module(KOutNet
@@ -60,7 +72,6 @@ qt_add_qml_module(KOutNet
         qml/tabs/CallsTab.qml
         qml/tabs/PlayerTab.qml
         qml/tabs/WnsTab.qml
-        qml/tabs/ZapretTab.qml
         qml/profile/your_prof/YourProfile.qml
         qml/profile/not_your_prof/OtherProfile.qml
         qml/call/OutgoingCallWindow.qml
@@ -82,15 +93,16 @@ target_link_libraries(KOutNet PRIVATE
     OpenSSL::Crypto
 )
 
-include(GNUInstallDirs)
-
 install(TARGETS KOutNet RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/koutnet.desktop
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/io.github.bitzuka.KOutNet.desktop
         DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-# Icon name has to match Icon= in the desktop file, not the file in assets/.
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/io.github.bitzuka.KOutNet.metainfo.xml
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
+# The installed icon is named after the desktop entry, not after the file in
+# assets/, because that is the name Icon= refers to.
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/assets/koutnet_logo.png
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps
-        RENAME koutnet.png)
+        RENAME io.github.bitzuka.KOutNet.png)
 
 set_target_properties(KOutNet PROPERTIES
     WIN32_EXECUTABLE TRUE
@@ -100,5 +112,4 @@ set_target_properties(KOutNet PROPERTIES
 target_include_directories(KOutNet PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/core/theme
     ${CMAKE_CURRENT_SOURCE_DIR}/core/chat
-    ${CMAKE_CURRENT_SOURCE_DIR}/network/zapret
 )

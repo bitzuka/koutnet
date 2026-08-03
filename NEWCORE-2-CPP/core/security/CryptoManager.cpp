@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Security Engine v2 (C++/Qt6 port)
 #include "CryptoManager.h"
 
@@ -27,7 +29,7 @@ QString bytesToFingerprint(const QByteArray &raw)
     const QByteArray h = QCryptographicHash::hash(raw, QCryptographicHash::Sha256).toHex();
     QString out;
     for (int i = 0; i < 24; i += 4) {
-        if (i) out += ' ';
+        if (i) out += QLatin1Char(' ');
         out += QString::fromLatin1(h.mid(i, 4)).toUpper();
     }
     return out;
@@ -197,17 +199,17 @@ bool CryptoManager::generateAndStoreKeys()
 QJsonObject CryptoManager::handshakePayload() const
 {
     QJsonObject payload;
-    payload["dh_pub"] = QString::fromLatin1(m_dhPubBytes.toBase64());
-    payload["id_pub"] = QString::fromLatin1(m_identityPubBytes.toBase64());
-    payload["dh_pub_sig"] = QString::fromLatin1(m_dhPubSig.toBase64());
+    payload[QStringLiteral("dh_pub")] = QString::fromLatin1(m_dhPubBytes.toBase64());
+    payload[QStringLiteral("id_pub")] = QString::fromLatin1(m_identityPubBytes.toBase64());
+    payload[QStringLiteral("dh_pub_sig")] = QString::fromLatin1(m_dhPubSig.toBase64());
     return payload;
 }
 
 bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &data)
 {
-    const QByteArray peerDhBytes = QByteArray::fromBase64(data.value("dh_pub").toString().toLatin1());
-    const QByteArray peerIdBytes = QByteArray::fromBase64(data.value("id_pub").toString().toLatin1());
-    const QByteArray peerDhSig = QByteArray::fromBase64(data.value("dh_pub_sig").toString().toLatin1());
+    const QByteArray peerDhBytes = QByteArray::fromBase64(data.value(QStringLiteral("dh_pub")).toString().toLatin1());
+    const QByteArray peerIdBytes = QByteArray::fromBase64(data.value(QStringLiteral("id_pub")).toString().toLatin1());
+    const QByteArray peerDhSig = QByteArray::fromBase64(data.value(QStringLiteral("dh_pub_sig")).toString().toLatin1());
     if (peerDhBytes.isEmpty() || peerIdBytes.isEmpty() || peerDhSig.isEmpty())
         return false;
 

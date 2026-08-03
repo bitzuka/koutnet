@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Network & Audio core
 #include "NetworkManager.h"
 #include "Protocol.h"
@@ -45,7 +47,7 @@ QString randomHex(int bytes)
     QByteArray buf(bytes, 0);
     for (int i = 0; i < bytes; ++i)
         buf[i] = static_cast<char>(QRandomGenerator::global()->bounded(256));
-    return buf.toHex();
+    return QString::fromLatin1(buf.toHex());
 }
 
 double nowEpoch()
@@ -57,7 +59,7 @@ double nowEpoch()
 // with "_sig" removed (or absent). Both sides must build this identically.
 QByteArray signableBytes(QJsonObject obj)
 {
-    obj.remove("_sig");
+    obj.remove(QStringLiteral("_sig"));
     return QJsonDocument(obj).toJson(QJsonDocument::Compact);
 }
 
@@ -110,6 +112,11 @@ void NetworkManager::setProfile(const QString &handle, const QString &displayNam
     // profile page open.
     if (m_running)
         onBroadcastTimer();
+}
+
+void NetworkManager::setGroupPassphrase(const QString &passphrase)
+{
+    m_groupPassphrase = passphrase;
 }
 
 void NetworkManager::setConnectionMode(ConnectionMode mode)
@@ -190,19 +197,19 @@ bool NetworkManager::start()
                             QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
     }
     if (!bound) {
-        emit errorOccurred(QStringLiteral("UDP bind failed on port %1").arg(udpPort));
+        Q_EMIT errorOccurred(QStringLiteral("UDP bind failed on port %1").arg(udpPort));
         return false;
     }
     connect(m_udp, &QUdpSocket::readyRead, this, &NetworkManager::onUdpReadyRead);
 
     // mDNS-like discovery multicast group (best-effort)
-    m_udp->joinMulticastGroup(QHostAddress("224.0.0.251"));
+    m_udp->joinMulticastGroup(QHostAddress(QStringLiteral("224.0.0.251")));
 
     // TCP server (voice)
     m_tcpServer = new QTcpServer(this);
     if (!m_tcpServer->listen(QHostAddress::AnyIPv4, tcpPort)) {
         if (!m_tcpServer->listen(QHostAddress::AnyIPv4, 0)) {
-            emit errorOccurred(QStringLiteral("TCP listen failed on port %1").arg(tcpPort));
+            Q_EMIT errorOccurred(QStringLiteral("TCP listen failed on port %1").arg(tcpPort));
             return false;
         }
     }
@@ -259,11 +266,11 @@ void NetworkManager::scanArpTable()
 
     QSet<QString> ips;
 #ifdef Q_OS_LINUX
-    QFile arpFile("/proc/net/arp");
+    QFile arpFile(QStringLiteral("/proc/net/arp"));
     if (arpFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        const auto lines = QString::fromUtf8(arpFile.readAll()).split('\n');
+        const auto lines = QString::fromUtf8(arpFile.readAll()).split(QLatin1Char('\n'));
         for (int i = 1; i < lines.size(); ++i) {
-            const auto parts = lines[i].split(' ', Qt::SkipEmptyParts);
+            const auto parts = lines[i].split(QLatin1Char(' '), Qt::SkipEmptyParts);
             if (parts.size() >= 4 && parts[2] != QLatin1String("0x0"))
                 ips.insert(parts[0]);
         }
@@ -293,17 +300,17 @@ void NetworkManager::scanArpTable()
 QJsonObject NetworkManager::presencePayload() const
 {
     QJsonObject payload;
-    payload["type"] = protocol::kMsgPresence;
-    payload["ip"] = m_hostIp;
+    payload[QStringLiteral("type")] = protocol::kMsgPresence;
+    payload[QStringLiteral("ip")] = m_hostIp;
     QJsonArray allIps;
     for (const auto &ip : m_localIps)
         allIps.append(ip);
-    payload["all_ips"] = allIps;
-    payload["os"] = QSysInfo::prettyProductName();
-    payload["version"] = QStringLiteral("2.0");
-    payload["protocol_version"] = protocol::kProtocolVersion;
-    payload["ts"] = nowEpoch();
-    payload["nonce"] = randomHex(8);
+    payload[QStringLiteral("all_ips")] = allIps;
+    payload[QStringLiteral("os")] = QSysInfo::prettyProductName();
+    payload[QStringLiteral("version")] = QStringLiteral("2.0");
+    payload[QStringLiteral("protocol_version")] = protocol::kProtocolVersion;
+    payload[QStringLiteral("ts")] = nowEpoch();
+    payload[QStringLiteral("nonce")] = randomHex(8);
 
     // ECDH handshake bundle - lets any peer that sees this presence packet
     // derive a session key with us (Layer 1, see CryptoManager).
@@ -313,10 +320,10 @@ QJsonObject NetworkManager::presencePayload() const
             payload[it.key()] = it.value();
     }
 
-    payload["username"] = m_profileHandle;
-    payload["display_name"] = m_profileDisplayName;
-    payload["bio"] = m_profileBio;
-    payload["profile_rev"] = m_profileRevision;
+    payload[QStringLiteral("username")] = m_profileHandle;
+    payload[QStringLiteral("display_name")] = m_profileDisplayName;
+    payload[QStringLiteral("bio")] = m_profileBio;
+    payload[QStringLiteral("profile_rev")] = m_profileRevision;
     return payload;
 }
 
@@ -360,14 +367,14 @@ void NetworkManager::onBroadcastTimer()
     }
 
     // 3. mDNS multicast
-    m_udp->writeDatagram(data, QHostAddress("224.0.0.251"), port);
+    m_udp->writeDatagram(data, QHostAddress(QStringLiteral("224.0.0.251")), port);
 
     // 4. Unicast /24 subnet scan every 30s (fallback if broadcast blocked)
     const double now = nowEpoch();
     const double scanIntervalSec = m_peers.isEmpty() ? 30.0 : 120.0;
     if (now - m_lastScan > scanIntervalSec) {
         m_lastScan = now;
-        const auto parts = m_hostIp.split('.');
+        const auto parts = m_hostIp.split(QLatin1Char('.'));
         if (parts.size() == 4) {
             const QString prefix = parts[0] + '.' + parts[1] + '.' + parts[2] + '.';
             for (int last = 1; last < 255; ++last) {
@@ -390,13 +397,13 @@ void NetworkManager::pruneStalePeers()
     const double now = nowEpoch();
     QVector<QString> stale;
     for (auto it = m_peers.constBegin(); it != m_peers.constEnd(); ++it) {
-        const double lastSeen = it.value()["last_seen"].toDouble();
+        const double lastSeen = it.value()[QStringLiteral("last_seen")].toDouble();
         if (now - lastSeen > 25)
             stale.append(it.key());
     }
     for (const auto &ip : stale) {
         m_peers.remove(ip);
-        emit userOffline(ip);
+        Q_EMIT userOffline(ip);
     }
 }
 
@@ -410,7 +417,7 @@ void NetworkManager::onUdpReadyRead()
 
         const auto doc = QJsonDocument::fromJson(dg.data());
         if (!doc.isObject()) {
-            emit errorOccurred(QStringLiteral("UDP parse error from %1").arg(host));
+            Q_EMIT errorOccurred(QStringLiteral("UDP parse error from %1").arg(host));
             continue;
         }
         dispatch(host, doc.object());
@@ -424,9 +431,9 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
         return; // dropped - over rate limit
     }
 
-    const QString msgFromIp = msg.value("from_ip").toString();
+    const QString msgFromIp = msg.value(QStringLiteral("from_ip")).toString();
     const QSet<QString> myIps = m_localIps.isEmpty() ? QSet<QString>{m_hostIp} : m_localIps;
-    const QString type = msg.value("type").toString();
+    const QString type = msg.value(QStringLiteral("type")).toString();
 
     if (type != protocol::kMsgPresence && !type.isEmpty()) {
         if (!msgFromIp.isEmpty() && myIps.contains(msgFromIp))
@@ -439,11 +446,11 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
     // verifyPacket() itself returns true if there's no session yet, so
     // unauthenticated peers can still complete their first handshake).
     if (m_crypto && type != protocol::kMsgPresence && !type.isEmpty()) {
-        const QString sig = msg.value("_sig").toString();
+        const QString sig = msg.value(QStringLiteral("_sig")).toString();
         if (!sig.isEmpty()) {
             const QByteArray payloadBytes = signableBytes(msg);
             if (!m_crypto->verifyPacket(host, payloadBytes, sig)) {
-                emit errorOccurred(QStringLiteral("HMAC verification failed from %1 — dropping").arg(host));
+                Q_EMIT errorOccurred(QStringLiteral("HMAC verification failed from %1 — dropping").arg(host));
                 return;
             }
         }
@@ -455,76 +462,75 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
                || type == protocol::kMsgReaction || type == protocol::kMsgEdit
                || type == protocol::kMsgDelete || type == protocol::kMsgRead) {
         decryptMessageText(host, msg);
-        emit message(msg);
+        Q_EMIT message(msg);
     } else if (type == protocol::kMsgPrivate) {
-        if (msg.value("to").toString() == m_hostIp) {
+        if (msg.value(QStringLiteral("to")).toString() == m_hostIp) {
             decryptMessageText(host, msg);
-            emit message(msg);
+            Q_EMIT message(msg);
         }
     } else if (type == protocol::kMsgCallReq) {
         // TODO: check VoiceCallManager::active() and reply call_busy if in a call
-        emit callRequest(msg.value("username").toString("?"), host);
+        Q_EMIT callRequest(msg.value(QStringLiteral("username")).toString(QStringLiteral("?")), host);
     } else if (type == protocol::kMsgCallAccept) {
-        emit callAccepted(msg.value("username").toString("?"), host);
+        Q_EMIT callAccepted(msg.value(QStringLiteral("username")).toString(QStringLiteral("?")), host);
     } else if (type == protocol::kMsgCallBusy || type == protocol::kMsgCallReject) {
-        emit callRejected(host);
+        Q_EMIT callRejected(host);
     } else if (type == protocol::kMsgCallEnd) {
-        emit callEnded(host);
+        Q_EMIT callEnded(host);
     } else if (type == protocol::kMsgFileMeta) {
-        emit fileMeta(msg);
+        Q_EMIT fileMeta(msg);
     } else if (type == protocol::kMsgFileData) {
-        emit fileChunk(msg);
+        Q_EMIT fileChunk(msg);
     } else if (type == protocol::kMsgGroupInv) {
-        emit groupInvite(msg.value("gid").toString(), msg.value("gname").toString(), host);
+        Q_EMIT groupInvite(msg.value(QStringLiteral("gid")).toString(), msg.value(QStringLiteral("gname")).toString(), host);
     } else if (type == protocol::kMsgTyping) {
-        emit typing(msg.value("username").toString(), msg.value("chat_id").toString("public"));
+        Q_EMIT typing(msg.value(QStringLiteral("username")).toString(), msg.value(QStringLiteral("chat_id")).toString(QStringLiteral("public")));
     }
 }
 
 void NetworkManager::decryptMessageText(const QString &fromIp, QJsonObject &msg) const
 {
-    if (!m_crypto || !msg.value("encrypted").toBool(false))
+    if (!m_crypto || !msg.value(QStringLiteral("encrypted")).toBool(false))
         return;
 
-    const QString cipherText = msg.value("text").toString();
-    // I_Do_It_Latet.! - group passphrase should come from AppSettings once
-    // ported; until then only ECDH session decryption (peer-to-peer) works,
-    // matching CryptoManager::decrypt()'s own plaintext-passthrough fallback.
-    const QString plain = m_crypto->decrypt(cipherText, QString(), fromIp);
-    msg["text"] = plain;
+    const QString cipherText = msg.value(QStringLiteral("text")).toString();
+    // decrypt() picks the path from the tag byte, so handing it both the
+    // passphrase and the peer covers session and group traffic alike.
+    const QString plain = m_crypto->decrypt(cipherText, m_groupPassphrase, fromIp);
+    msg[QStringLiteral("text")] = plain;
 }
 
 void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
 {
-    QString ip = msg.value("ip").toString(host);
+    QString ip = msg.value(QStringLiteral("ip")).toString(host);
     const QSet<QString> myIps = m_localIps.isEmpty() ? QSet<QString>{m_hostIp} : m_localIps;
     if (myIps.contains(ip) || myIps.contains(host))
         return;
 
     if (host != ip && !host.isEmpty() && host != QLatin1String("0.0.0.0"))
-        msg["source_ip"] = host;
+        msg[QStringLiteral("source_ip")] = host;
 
     // Layer 5 - replay guard on presence packets (nonce + timestamp window).
     if (m_crypto) {
-        const QString nonce = msg.value("nonce").toString();
-        const double ts = msg.value("ts").toDouble();
+        const QString nonce = msg.value(QStringLiteral("nonce")).toString();
+        const double ts = msg.value(QStringLiteral("ts")).toDouble();
         if (!nonce.isEmpty() && !m_crypto->checkReplay(ip, nonce, ts))
             return; // replayed presence packet
 
         // ECDH handshake - derives (or refreshes) the session key with this peer.
-        if (msg.contains("dh_pub"))
+        if (msg.contains(QStringLiteral("dh_pub")))
             m_crypto->processHandshake(ip, msg);
     }
 
     const bool isNew = !m_peers.contains(ip);
-    msg["last_seen"] = nowEpoch();
+    msg[QStringLiteral("last_seen")] = nowEpoch();
     // TODO: msg["conn_type"] = detectConnectionType(ip);
     if (m_crypto)
-        msg["e2e"] = m_crypto->hasSession(ip);
+        msg[QStringLiteral("e2e")] = m_crypto->hasSession(ip);
     m_peers[ip] = msg;
 
     if (isNew)
-        emit userOnline(msg);
+        Q_EMIT userOnline(msg);
 }
 
 void NetworkManager::onNewTcpConnection()
@@ -538,7 +544,7 @@ void NetworkManager::onNewTcpConnection()
         m_voiceConnections[ip] = sock;
         connect(sock, &QTcpSocket::readyRead, this, [this, sock, ip] { onVoiceData(sock, ip); });
         connect(sock, &QTcpSocket::disconnected, this, [this, ip] { onVoiceDisconnected(ip); });
-        emit voiceConnected(ip);
+        Q_EMIT voiceConnected(ip);
     }
 }
 
@@ -547,8 +553,8 @@ void NetworkManager::onVoiceData(QTcpSocket *sock, const QString &ip)
     while (sock->bytesAvailable() > 0) {
         const QByteArray data = sock->read(2048);
         if (!data.isEmpty()) {
-            emit voiceData(data);          // legacy single-call path
-            emit voiceDataFrom(ip, data);  // group-call mixer path - VoiceCallManager
+            Q_EMIT voiceData(data);          // legacy single-call path
+            Q_EMIT voiceDataFrom(ip, data);  // group-call mixer path - VoiceCallManager
                                             // decrypts (CryptoManager::decryptBytes)
                                             // before pushing into the jitter buffer.
         }
@@ -558,8 +564,8 @@ void NetworkManager::onVoiceData(QTcpSocket *sock, const QString &ip)
 void NetworkManager::onVoiceDisconnected(const QString &ip)
 {
     m_voiceConnections.remove(ip);
-    emit voiceDisconnected(ip);
-    emit callEnded(ip);
+    Q_EMIT voiceDisconnected(ip);
+    Q_EMIT callEnded(ip);
 }
 
 // internet relay tunnel (TODO: move to network/vds once that module lands)
@@ -581,7 +587,7 @@ void NetworkManager::startInternetTunnel()
         // via setRelayServer()). Don't spam-reconnect for something that
         // can't possibly succeed - just check back periodically in case the
         // user configures one, or an update ships a built-in relay.
-        emit errorOccurred(QStringLiteral(
+        Q_EMIT errorOccurred(QStringLiteral(
             "VDS mode is on but no relay server is configured — call setRelayServer(), "
             "or switch back to LAN/VPN mode."));
         QTimer::singleShot(protocol::kRelayReconnectMaxMs, this, [this] {
@@ -610,7 +616,7 @@ void NetworkManager::startInternetTunnel()
         m_relayReconnectMs = protocol::kRelayReconnectBaseMs;
         onBroadcastTimer();
     } else {
-        emit errorOccurred(QStringLiteral("Tunnel connect failed"));
+        Q_EMIT errorOccurred(QStringLiteral("Tunnel connect failed"));
         const int delay = m_relayReconnectMs;
         m_relayReconnectMs = qMin(m_relayReconnectMs * 2, protocol::kRelayReconnectMaxMs);
         QTimer::singleShot(delay, this, [this] {
@@ -628,16 +634,16 @@ void NetworkManager::sendUdp(QJsonObject payload, const QString &targetIp)
     if (!m_udp)
         return;
 
-    const QString msgType = payload.value("type").toString();
+    const QString msgType = payload.value(QStringLiteral("type")).toString();
     if (msgType != protocol::kMsgPresence) {
-        payload["nonce"] = randomHex(8);
-        payload["ts"] = nowEpoch();
+        payload[QStringLiteral("nonce")] = randomHex(8);
+        payload[QStringLiteral("ts")] = nowEpoch();
 
         // Layer 4 - HMAC-sign unicast packets once a session key exists with
         // the target (broadcasts have no single peer session to sign for).
         if (m_crypto && !targetIp.isEmpty() && m_crypto->hasSession(targetIp)) {
             const QByteArray payloadBytes = signableBytes(payload);
-            payload["_sig"] = m_crypto->signPacket(targetIp, payloadBytes);
+            payload[QStringLiteral("_sig")] = m_crypto->signPacket(targetIp, payloadBytes);
         }
     }
 
@@ -662,14 +668,25 @@ void NetworkManager::sendUdp(QJsonObject payload, const QString &targetIp)
 
 void NetworkManager::sendChat(const QString &text)
 {
-    // Public/broadcast chat has no single peer to hold an ECDH session with,
-    // so it can only be protected by a shared group passphrase.
-    // I_Do_It_Latet.! - passphrase should come from AppSettings once ported.
+    // Nothing calls this yet. It is the broadcast path the group and public
+    // chats will be built on, kept because a shared passphrase is the right
+    // key for a room where no two members hold an ECDH session. The key will
+    // come from GroupManager per room rather than from one app-wide setting.
+    QString outText = text;
+    bool encrypted = false;
+    if (m_crypto && !m_groupPassphrase.isEmpty()) {
+        const QString cipherText = m_crypto->encrypt(text, m_groupPassphrase, QString());
+        if (cipherText != text) {
+            outText = cipherText;
+            encrypted = true;
+        }
+    }
+
     QJsonObject payload;
-    payload["type"] = protocol::kMsgChat;
-    payload["text"] = text;
-    payload["from_ip"] = m_hostIp;
-    payload["encrypted"] = false;
+    payload[QStringLiteral("type")] = protocol::kMsgChat;
+    payload[QStringLiteral("text")] = outText;
+    payload[QStringLiteral("from_ip")] = m_hostIp;
+    payload[QStringLiteral("encrypted")] = encrypted;
     sendUdp(payload);
 }
 
@@ -679,9 +696,11 @@ void NetworkManager::sendPrivate(const QString &text, const QString &toIp)
     bool encrypted = false;
 
     if (m_crypto) {
-        // I_Do_It_Latet.! - passphrase fallback source (AppSettings) once ported;
-        // for now this only actually encrypts once an ECDH session exists.
-        const QString cipherText = m_crypto->encrypt(text, QString(), toIp);
+        // A session is the better key when there is one. Falling back to the
+        // group passphrase means a message still gets protection before the
+        // handshake with this peer has completed.
+        const QString passphrase = m_crypto->hasSession(toIp) ? QString() : m_groupPassphrase;
+        const QString cipherText = m_crypto->encrypt(text, passphrase, toIp);
         if (cipherText != text) {
             outText = cipherText;
             encrypted = true;
@@ -689,16 +708,16 @@ void NetworkManager::sendPrivate(const QString &text, const QString &toIp)
     }
 
     QJsonObject payload;
-    payload["type"] = protocol::kMsgPrivate;
-    payload["text"] = outText;
-    payload["to"] = toIp;
-    payload["from_ip"] = m_hostIp;
-    payload["encrypted"] = encrypted;
+    payload[QStringLiteral("type")] = protocol::kMsgPrivate;
+    payload[QStringLiteral("text")] = outText;
+    payload[QStringLiteral("to")] = toIp;
+    payload[QStringLiteral("from_ip")] = m_hostIp;
+    payload[QStringLiteral("encrypted")] = encrypted;
     sendUdp(payload, toIp);
 
     // Also send to alternate IPs the peer reported (VPN/LAN redundancy)
     const auto peerInfo = m_peers.value(toIp);
-    const auto altIps = peerInfo.value("all_ips").toArray();
+    const auto altIps = peerInfo.value(QStringLiteral("all_ips")).toArray();
     for (const auto &v : altIps) {
         const QString altIp = v.toString();
         if (altIp != toIp && !m_localIps.contains(altIp))
@@ -712,10 +731,10 @@ void NetworkManager::sendGroupMessage(const QString &gid, const QString &text,
     // I_Do_It_Latet.! - group E2E (per-group passphrase or per-member ECDH
     // fan-out) needs AppSettings for the passphrase; sent plaintext for now.
     QJsonObject payload;
-    payload["type"] = protocol::kMsgGroup;
-    payload["gid"] = gid;
-    payload["text"] = text;
-    payload["ts"] = nowEpoch();
+    payload[QStringLiteral("type")] = protocol::kMsgGroup;
+    payload[QStringLiteral("gid")] = gid;
+    payload[QStringLiteral("text")] = text;
+    payload[QStringLiteral("ts")] = nowEpoch();
     for (const auto &ip : members) {
         if (ip != m_hostIp)
             sendUdp(payload, ip);
@@ -725,22 +744,22 @@ void NetworkManager::sendGroupMessage(const QString &gid, const QString &text,
 void NetworkManager::sendTyping(const QString &chatId, const QString &targetIp)
 {
     QJsonObject payload;
-    payload["type"] = protocol::kMsgTyping;
-    payload["chat_id"] = chatId;
+    payload[QStringLiteral("type")] = protocol::kMsgTyping;
+    payload[QStringLiteral("chat_id")] = chatId;
     sendUdp(payload, targetIp);
 }
 
 void NetworkManager::sendCallRequest(const QString &toIp)
 {
     QJsonObject payload;
-    payload["type"] = protocol::kMsgCallReq;
+    payload[QStringLiteral("type")] = protocol::kMsgCallReq;
     sendUdp(payload, toIp);
 }
 
 void NetworkManager::sendCallAccept(const QString &toIp)
 {
     QJsonObject payload;
-    payload["type"] = protocol::kMsgCallAccept;
+    payload[QStringLiteral("type")] = protocol::kMsgCallAccept;
     sendUdp(payload, toIp);
     connectVoice(toIp);
 }
@@ -748,14 +767,14 @@ void NetworkManager::sendCallAccept(const QString &toIp)
 void NetworkManager::sendCallReject(const QString &toIp)
 {
     QJsonObject payload;
-    payload["type"] = protocol::kMsgCallReject;
+    payload[QStringLiteral("type")] = protocol::kMsgCallReject;
     sendUdp(payload, toIp);
 }
 
 void NetworkManager::sendCallEnd(const QString &toIp)
 {
     QJsonObject payload;
-    payload["type"] = protocol::kMsgCallEnd;
+    payload[QStringLiteral("type")] = protocol::kMsgCallEnd;
     sendUdp(payload, toIp);
 }
 
@@ -763,12 +782,12 @@ void NetworkManager::sendReaction(const QString &toIp, const QString &chatId,
                                   double ts, const QString &emoji, bool added)
 {
     QJsonObject payload;
-    payload["type"] = protocol::kMsgReaction;
-    payload["from_ip"] = m_hostIp;
-    payload["chat_id"] = chatId;
-    payload["msg_ts"] = ts;
-    payload["emoji"] = emoji;
-    payload["added"] = added;
+    payload[QStringLiteral("type")] = protocol::kMsgReaction;
+    payload[QStringLiteral("from_ip")] = m_hostIp;
+    payload[QStringLiteral("chat_id")] = chatId;
+    payload[QStringLiteral("msg_ts")] = ts;
+    payload[QStringLiteral("emoji")] = emoji;
+    payload[QStringLiteral("added")] = added;
     sendUdp(payload, toIp);
 }
 
@@ -776,39 +795,39 @@ void NetworkManager::sendMessageEdit(const QString &toIp, const QString &chatId,
                                      double ts, const QString &newText)
 {
     QJsonObject payload;
-    payload["type"] = protocol::kMsgEdit;
-    payload["from_ip"] = m_hostIp;
-    payload["chat_id"] = chatId;
-    payload["msg_ts"] = ts;
-    payload["new_text"] = newText;
+    payload[QStringLiteral("type")] = protocol::kMsgEdit;
+    payload[QStringLiteral("from_ip")] = m_hostIp;
+    payload[QStringLiteral("chat_id")] = chatId;
+    payload[QStringLiteral("msg_ts")] = ts;
+    payload[QStringLiteral("new_text")] = newText;
     sendUdp(payload, toIp);
 }
 
 void NetworkManager::sendMessageDelete(const QString &toIp, const QString &chatId, double ts)
 {
     QJsonObject payload;
-    payload["type"] = protocol::kMsgDelete;
-    payload["from_ip"] = m_hostIp;
-    payload["chat_id"] = chatId;
-    payload["msg_ts"] = ts;
+    payload[QStringLiteral("type")] = protocol::kMsgDelete;
+    payload[QStringLiteral("from_ip")] = m_hostIp;
+    payload[QStringLiteral("chat_id")] = chatId;
+    payload[QStringLiteral("msg_ts")] = ts;
     sendUdp(payload, toIp);
 }
 
 void NetworkManager::sendReadReceipt(const QString &toIp, const QString &chatId)
 {
     QJsonObject payload;
-    payload["type"] = protocol::kMsgRead;
-    payload["from_ip"] = m_hostIp;
-    payload["chat_id"] = chatId;
+    payload[QStringLiteral("type")] = protocol::kMsgRead;
+    payload[QStringLiteral("from_ip")] = m_hostIp;
+    payload[QStringLiteral("chat_id")] = chatId;
     sendUdp(payload, toIp);
 }
 
 void NetworkManager::sendGroupInvite(const QString &gid, const QString &gname, const QString &toIp)
 {
     QJsonObject payload;
-    payload["type"] = protocol::kMsgGroupInv;
-    payload["gid"] = gid;
-    payload["gname"] = gname;
+    payload[QStringLiteral("type")] = protocol::kMsgGroupInv;
+    payload[QStringLiteral("gid")] = gid;
+    payload[QStringLiteral("gname")] = gname;
     sendUdp(payload, toIp);
 }
 
@@ -828,7 +847,7 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
     } else {
         QFile file(filePath);
         if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
-            emit errorOccurred(QStringLiteral("File not found: %1").arg(filePath));
+            Q_EMIT errorOccurred(QStringLiteral("File not found: %1").arg(filePath));
             return;
         }
         data = file.readAll();
@@ -836,19 +855,19 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
         ext = QFileInfo(filePath).suffix().toLower();
     }
 
-    static const QSet<QString> kImageExts = {"png", "jpg", "jpeg", "gif", "bmp", "webp"};
+    static const QSet<QString> kImageExts = {QStringLiteral("png"), QStringLiteral("jpg"), QStringLiteral("jpeg"), QStringLiteral("gif"), QStringLiteral("bmp"), QStringLiteral("webp")};
     const bool isImage = kImageExts.contains(ext);
     const QString tid = randomHex(8);
 
     QJsonObject meta;
-    meta["type"] = protocol::kMsgFileMeta;
-    meta["tid"] = tid;
-    meta["filename"] = fname;
-    meta["size"] = data.size();
-    meta["is_image"] = isImage;
-    meta["from_ip"] = m_hostIp;
-    meta["to"] = toIp.isEmpty() ? QStringLiteral("public") : toIp;
-    meta["ts"] = nowEpoch();
+    meta[QStringLiteral("type")] = protocol::kMsgFileMeta;
+    meta[QStringLiteral("tid")] = tid;
+    meta[QStringLiteral("filename")] = fname;
+    meta[QStringLiteral("size")] = data.size();
+    meta[QStringLiteral("is_image")] = isImage;
+    meta[QStringLiteral("from_ip")] = m_hostIp;
+    meta[QStringLiteral("to")] = toIp.isEmpty() ? QStringLiteral("public") : toIp;
+    meta[QStringLiteral("ts")] = nowEpoch();
     sendUdp(meta, toIp);
 
     constexpr int kChunkSize = 60000;
@@ -860,11 +879,11 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
     for (int offset = 0; offset < total; offset += kChunkSize, ++idx) {
         const QByteArray chunk = data.mid(offset, kChunkSize);
         QJsonObject c;
-        c["type"] = protocol::kMsgFileData;
-        c["tid"] = tid;
-        c["idx"] = idx;
-        c["total"] = totalChunks;
-        c["data"] = QString::fromLatin1(chunk.toBase64());
+        c[QStringLiteral("type")] = protocol::kMsgFileData;
+        c[QStringLiteral("tid")] = tid;
+        c[QStringLiteral("idx")] = idx;
+        c[QStringLiteral("total")] = totalChunks;
+        c[QStringLiteral("data")] = QString::fromLatin1(chunk.toBase64());
         chunks.append(c);
     }
     sendChunksQueued(chunks, toIp, 0);
@@ -906,7 +925,7 @@ bool NetworkManager::connectVoice(const QString &ip)
         }
         if (host.isEmpty() || port == 0) {
             sock->deleteLater();
-            emit errorOccurred(QStringLiteral("VDS voice relay not configured — cannot start call"));
+            Q_EMIT errorOccurred(QStringLiteral("VDS voice relay not configured — cannot start call"));
             return false;
         }
         sock->connectToHost(host, port);
@@ -918,7 +937,7 @@ bool NetworkManager::connectVoice(const QString &ip)
         m_voiceConnections[ip] = sock;
         connect(sock, &QTcpSocket::readyRead, this, [this, sock, ip] { onVoiceData(sock, ip); });
         connect(sock, &QTcpSocket::disconnected, this, [this, ip] { onVoiceDisconnected(ip); });
-        emit voiceConnected(ip);
+        Q_EMIT voiceConnected(ip);
         return true;
     }
     sock->close();

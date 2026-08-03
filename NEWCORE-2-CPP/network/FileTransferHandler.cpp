@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Reassembles chunked file transfers received over UDP
 #include "FileTransferHandler.h"
 
@@ -34,18 +36,18 @@ QString FileTransferHandler::sanitizeFilename(const QString &rawName)
 
 void FileTransferHandler::onMeta(const QJsonObject &meta)
 {
-    const QString tid = meta.value("tid").toString();
+    const QString tid = meta.value(QStringLiteral("tid")).toString();
     if (tid.isEmpty())
         return;
 
-    const qint64 announcedSize = meta.value("size").toDouble(0.0);
+    const qint64 announcedSize = meta.value(QStringLiteral("size")).toDouble(0.0);
     if (announcedSize < 0 || announcedSize > kMaxTransferBytes) {
-        emit transferRejected(tid, QStringLiteral("announced size exceeds limit"));
+        Q_EMIT transferRejected(tid, QStringLiteral("announced size exceeds limit"));
         return; // no entry created - onChunkMessage will drop its chunks
     }
 
     if (!m_pending.contains(tid) && m_pending.size() >= kMaxPendingTransfers) {
-        emit transferRejected(tid, QStringLiteral("too many concurrent incoming transfers"));
+        Q_EMIT transferRejected(tid, QStringLiteral("too many concurrent incoming transfers"));
         return;
     }
 
@@ -59,14 +61,14 @@ void FileTransferHandler::onMeta(const QJsonObject &meta)
 
 void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
 {
-    const QString tid = msg.value("tid").toString();
+    const QString tid = msg.value(QStringLiteral("tid")).toString();
     if (tid.isEmpty() || !m_pending.contains(tid))
         return; // chunk for a transfer we never saw (or rejected) meta for - drop it
 
     PendingTransfer &t = m_pending[tid];
 
-    const int idx = msg.value("idx").toInt(-1);
-    const int total = msg.value("total").toInt(-1);
+    const int idx = msg.value(QStringLiteral("idx")).toInt(-1);
+    const int total = msg.value(QStringLiteral("total")).toInt(-1);
     if (idx < 0 || total <= 0 || idx >= total)
         return;
 
@@ -76,18 +78,18 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
     const qint64 maxChunks = (kMaxTransferBytes / 1024) + 1024; // generous upper bound
     if (total > maxChunks) {
         m_pending.remove(tid);
-        emit transferRejected(tid, QStringLiteral("chunk count exceeds limit"));
+        Q_EMIT transferRejected(tid, QStringLiteral("chunk count exceeds limit"));
         return;
     }
 
     t.total = total;
-    const QByteArray chunk = QByteArray::fromBase64(msg.value("data").toString().toLatin1());
+    const QByteArray chunk = QByteArray::fromBase64(msg.value(QStringLiteral("data")).toString().toLatin1());
 
     if (!t.chunks.contains(idx)) {
         t.receivedBytes += chunk.size();
         if (t.receivedBytes > kMaxTransferBytes) {
             m_pending.remove(tid);
-            emit transferRejected(tid, QStringLiteral("transfer exceeded size limit"));
+            Q_EMIT transferRejected(tid, QStringLiteral("transfer exceeded size limit"));
             return;
         }
     }
@@ -107,13 +109,13 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
         full.append(t.chunks.value(i));
     }
 
-    emit fileReceived(t.meta, full);
+    Q_EMIT fileReceived(t.meta, full);
 
     const QString localPath = saveToDisk(t.meta, full);
     if (!localPath.isEmpty())
-        emit fileSaved(t.meta, localPath);
+        Q_EMIT fileSaved(t.meta, localPath);
     else
-        emit transferRejected(tid, QStringLiteral("failed to write file to disk"));
+        Q_EMIT transferRejected(tid, QStringLiteral("failed to write file to disk"));
 
     m_pending.remove(tid);
 }
@@ -128,7 +130,7 @@ void FileTransferHandler::pruneStaleTransfers()
     }
     for (const auto &tid : stale) {
         m_pending.remove(tid);
-        emit transferRejected(tid, QStringLiteral("transfer timed out (incomplete)"));
+        Q_EMIT transferRejected(tid, QStringLiteral("transfer timed out (incomplete)"));
     }
 }
 
@@ -136,8 +138,8 @@ QString FileTransferHandler::saveToDisk(const QJsonObject &meta, const QByteArra
 {
     const QString baseDir = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
     const QString dirPath = baseDir.isEmpty()
-        ? QDir::homePath() + "/KOutNet/received"
-        : baseDir + "/KOutNet";
+        ? QString(QDir::homePath() + QStringLiteral("/KOutNet/received"))
+        : QString(baseDir + QStringLiteral("/KOutNet"));
 
     QDir dir;
     if (!dir.mkpath(dirPath))
@@ -145,7 +147,7 @@ QString FileTransferHandler::saveToDisk(const QJsonObject &meta, const QByteArra
 
     // Sanitized - never trust a peer-supplied filename directly in a disk
     // path (path traversal). See sanitizeFilename().
-    const QString filename = sanitizeFilename(meta.value("filename").toString());
+    const QString filename = sanitizeFilename(meta.value(QStringLiteral("filename")).toString());
 
     // Avoid clobbering an existing file with the same name.
     QString candidate = dirPath + "/" + filename;

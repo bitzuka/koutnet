@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "HistoryManager.h"
 
 #include <QStandardPaths>
@@ -8,7 +10,7 @@
 
 HistoryManager::HistoryManager(QObject *parent) : QObject(parent)
 {
-    historyDir().mkpath(".");
+    historyDir().mkpath(QStringLiteral("."));
 }
 
 void HistoryManager::setHistorySavingEnabled(bool enabled)
@@ -16,7 +18,7 @@ void HistoryManager::setHistorySavingEnabled(bool enabled)
     if (m_savingEnabled == enabled)
         return;
     m_savingEnabled = enabled;
-    emit historySavingEnabledChanged();
+    Q_EMIT historySavingEnabledChanged();
 }
 
 QDir HistoryManager::historyDir() const
@@ -28,7 +30,7 @@ QDir HistoryManager::historyDir() const
 QString HistoryManager::filePathFor(const QString &chatId) const
 {
     QString safe = chatId;
-    safe.replace(QRegularExpression("[^\\w\\-]"), "_");
+    safe.replace(QRegularExpression(QStringLiteral("[^\\w\\-]")), QStringLiteral("_"));
     return historyDir().filePath(safe + ".json");
 }
 
@@ -69,7 +71,7 @@ void HistoryManager::append(const QString &chatId, const QVariantMap &entry)
         qWarning() << "[HistoryManager] failed to write" << f.fileName();
     }
 
-    emit historyAppended(chatId, entry);
+    Q_EMIT historyAppended(chatId, entry);
 }
 
 QVariantList HistoryManager::loadCallLog()

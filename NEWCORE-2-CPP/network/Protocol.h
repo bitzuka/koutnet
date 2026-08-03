@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Network Protocol Constants
 #pragma once
 
@@ -7,24 +9,24 @@
 namespace koutnet::protocol {
 
 // Message types
-inline constexpr auto kMsgPresence  = "presence";
-inline constexpr auto kMsgChat      = "chat";
-inline constexpr auto kMsgPrivate   = "private";
-inline constexpr auto kMsgGroup     = "group";
-inline constexpr auto kMsgCallReq   = "call_req";
-inline constexpr auto kMsgCallAccept = "call_accept";
-inline constexpr auto kMsgCallBusy  = "call_busy";
-inline constexpr auto kMsgCallReject = "call_reject";
-inline constexpr auto kMsgCallEnd   = "call_end";
-inline constexpr auto kMsgFileMeta  = "file_meta";
-inline constexpr auto kMsgFileData  = "file_data";
-inline constexpr auto kMsgGroupInv  = "group_invite";
-inline constexpr auto kMsgTyping    = "typing";
-inline constexpr auto kMsgReaction  = "reaction";
-inline constexpr auto kMsgEdit      = "edit";
-inline constexpr auto kMsgDelete    = "delete";
-inline constexpr auto kMsgRead      = "read";
-inline constexpr auto kMsgSticker   = "sticker";
+inline constexpr QLatin1StringView kMsgPresence  ("presence");
+inline constexpr QLatin1StringView kMsgChat      ("chat");
+inline constexpr QLatin1StringView kMsgPrivate   ("private");
+inline constexpr QLatin1StringView kMsgGroup     ("group");
+inline constexpr QLatin1StringView kMsgCallReq   ("call_req");
+inline constexpr QLatin1StringView kMsgCallAccept ("call_accept");
+inline constexpr QLatin1StringView kMsgCallBusy  ("call_busy");
+inline constexpr QLatin1StringView kMsgCallReject ("call_reject");
+inline constexpr QLatin1StringView kMsgCallEnd   ("call_end");
+inline constexpr QLatin1StringView kMsgFileMeta  ("file_meta");
+inline constexpr QLatin1StringView kMsgFileData  ("file_data");
+inline constexpr QLatin1StringView kMsgGroupInv  ("group_invite");
+inline constexpr QLatin1StringView kMsgTyping    ("typing");
+inline constexpr QLatin1StringView kMsgReaction  ("reaction");
+inline constexpr QLatin1StringView kMsgEdit      ("edit");
+inline constexpr QLatin1StringView kMsgDelete    ("delete");
+inline constexpr QLatin1StringView kMsgRead      ("read");
+inline constexpr QLatin1StringView kMsgSticker   ("sticker");
 
 // LAN / VPN mode, the default and the path that actually works today.
 // Broadcast, mDNS and ARP discovery with no server, see
@@ -61,7 +63,7 @@ inline const QVector<RelayServer> &builtinRelays()
 inline constexpr int kRelayReconnectBaseMs = 3000;
 inline constexpr int kRelayReconnectMaxMs = 60000;
 
-inline constexpr auto kAppName = "KOutNet";
+inline constexpr QLatin1StringView kAppName ("KOutNet");
 inline constexpr int kProtocolVersion = 1;
 
 } // namespace koutnet::protocol

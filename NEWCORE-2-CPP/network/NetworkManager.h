@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Network & Audio core
 #pragma once
 
@@ -82,6 +84,11 @@ public:
     void setProfile(const QString &handle, const QString &displayName,
                     const QString &bio, const QString &revision);
 
+    // Shared secret for the public chat. Broadcast has no single peer to
+    // hold an ECDH session with, so a passphrase everyone knows is the only
+    // thing that can protect it. Empty means the chat goes out in the clear.
+    void setGroupPassphrase(const QString &passphrase);
+
     // Custom/self-hosted relay server. voicePort defaults to tunnelPort + 1
     // if not given. TODO: persist across restarts once AppSettings lands.
     Q_INVOKABLE void setRelayServer(const QString &host, quint16 tunnelPort, quint16 voicePort = 0);
@@ -105,7 +112,7 @@ public:
     void sendReadReceipt(const QString &toIp, const QString &chatId);
     void sendGroupInvite(const QString &gid, const QString &gname, const QString &toIp);
     void sendFileInternal(const QString &toIp, const QString &filePath,
-                  const QByteArray &rawBytes = {}, const QString &filename = "file");
+                  const QByteArray &rawBytes = {}, const QString &filename = QStringLiteral("file"));
     // QML-facing overload - QML can't supply the QByteArray/filename default
     // args cleanly, so this is the entry point for "attach file" in the UI.
     Q_INVOKABLE void sendFile(const QString &toIp, const QString &filePath);
@@ -115,7 +122,7 @@ public:
     bool sendVoice(const QString &ip, const QByteArray &data);
     void disconnectVoice(const QString &ip);
 
-signals:
+Q_SIGNALS:
     void userOnline(QJsonObject peerInfo);
     void userOffline(QString ip);
     void message(QJsonObject msg);
@@ -133,7 +140,7 @@ signals:
     void voiceConnected(QString ip);
     void voiceDisconnected(QString ip);
 
-private slots:
+private Q_SLOTS:
     void onUdpReadyRead();
     void onNewTcpConnection();
     void onBroadcastTimer();
@@ -175,6 +182,7 @@ private:
     bool m_relayConnected = false;
     QByteArray m_relayBuffer;
     ConnectionMode m_mode = ConnectionMode::LanOrVpn;
+    QString m_groupPassphrase;
     QString m_profileHandle;
     QString m_profileDisplayName;
     QString m_profileBio;

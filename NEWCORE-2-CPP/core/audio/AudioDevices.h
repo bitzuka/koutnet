@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - audio device enumeration and the settings dialog test helpers.
 //
 // Separate from AudioEngine on purpose: the engine's lifetime follows call
@@ -45,7 +47,7 @@ public:
     Q_INVOKABLE void playTestTone(const QString &deviceId);
     Q_INVOKABLE void stopTestTone();
 
-signals:
+Q_SIGNALS:
     void devicesChanged();
     void micTestRunningChanged();
     void micLevelChanged();

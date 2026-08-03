@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "Translations.h"
 
 #include <QCoreApplication>
@@ -21,7 +23,7 @@ QString findI18nDir()
 {
     QDir dir(QCoreApplication::applicationDirPath());
     for (int i = 0; i < 6; ++i) {
-        const QString candidate = dir.filePath("i18n");
+        const QString candidate = dir.filePath(QStringLiteral("i18n"));
         if (QDir(candidate).exists())
             return candidate;
         if (!dir.cdUp())
@@ -42,7 +44,7 @@ Translations::Translations(QObject *parent)
     }
 
     const QDir dir(i18nDir);
-    const auto files = dir.entryList(QStringList() << "*.json", QDir::Files);
+    const auto files = dir.entryList(QStringList() << QStringLiteral("*.json"), QDir::Files);
     for (const QString &fileName : files) {
         const QString lang = fileName.left(fileName.length() - 5); // strip ".json"
         loadLanguage(i18nDir, lang);
@@ -73,7 +75,7 @@ void Translations::validateDictionary() const
         if (!missing.isEmpty()) {
             std::sort(missing.begin(), missing.end());
             qWarning().noquote() << "Translations: [" << it.key() << "] missing"
-                                 << missing.size() << "key(s):" << missing.join(", ");
+                                 << missing.size() << QStringLiteral("key(s):") << missing.join(QStringLiteral(", "));
         }
     }
 }
@@ -105,14 +107,14 @@ void Translations::setCurrent(const QString &language)
     if (m_current == language || !m_dictionary.contains(language))
         return;
     m_current = language;
-    emit currentChanged();
+    Q_EMIT currentChanged();
 }
 
 QString Translations::t(const QString &key) const
 {
     const auto &table = m_dictionary.contains(m_current)
         ? m_dictionary[m_current]
-        : m_dictionary.value("ru");
+        : m_dictionary.value(QStringLiteral("ru"));
     return table.value(key, key);
 }
 

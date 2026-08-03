@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - persisted app settings (username, connection mode, relay config)
 // Backed by QSettings (INI/registry depending on platform). This is the
 // module every "I_Do_It_Latet.!" comment in NetworkManager/CryptoManager
@@ -136,7 +138,7 @@ public:
     bool globalAccountRegistered() const { return m_globalAccountRegistered; }
     void setGlobalAccountRegistered(bool registered);
 
-signals:
+Q_SIGNALS:
     void usernameChanged();
     void connectionModeChanged();
     void relayChanged();

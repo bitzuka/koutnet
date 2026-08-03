@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #pragma once
 
 #include <QObject>
@@ -33,7 +35,7 @@ public:
     // for every group the given ip is a member of.
     Q_INVOKABLE QVariantList listFor(const QString &ip) const;
 
-signals:
+Q_SIGNALS:
     void groupsChanged();
 
 private:

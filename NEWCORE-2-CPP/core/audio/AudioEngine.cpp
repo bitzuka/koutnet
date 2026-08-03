@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Real-time voice engine (capture, mix, playback)
 #include "AudioEngine.h"
 
@@ -178,14 +180,14 @@ void AudioEngine::onCaptureReady()
         if (m_muted) {
             if (m_speakLast) {
                 m_speakLast = false;
-                emit speaking(false);
+                Q_EMIT speaking(false);
             }
             continue;
         }
 
         const bool isSpeech = m_vadEnabled ? isSpeechAmplitude(raw) : true;
         if (isSpeech)
-            emit audioCaptured(raw);
+            Q_EMIT audioCaptured(raw);
 
         // Debounce speaking indicator: only emit on state change, checked
         // every 4 frames (~128ms), matching the legacy engine.
@@ -193,7 +195,7 @@ void AudioEngine::onCaptureReady()
             m_speakFrameCtr = 0;
             if (isSpeech != m_speakLast) {
                 m_speakLast = isSpeech;
-                emit speaking(isSpeech);
+                Q_EMIT speaking(isSpeech);
             }
         }
     }

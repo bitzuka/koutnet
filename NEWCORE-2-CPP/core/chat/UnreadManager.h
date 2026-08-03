@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #pragma once
 
 #include <QObject>
@@ -27,7 +29,7 @@ public:
     Q_INVOKABLE int get(const QString &chatId) const;
     int total() const;
 
-signals:
+Q_SIGNALS:
     void unreadChanged(const QString &chatId, int count);
     void totalChanged();
 

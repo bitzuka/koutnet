@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - application entry point
 #include <QGuiApplication>
 #include <QCryptographicHash>
@@ -17,13 +19,13 @@
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
-    app.setApplicationName("KOutNet");
-    app.setOrganizationName("KOutNet");
+    app.setApplicationName(QStringLiteral("KOutNet"));
+    app.setOrganizationName(QStringLiteral("KOutNet"));
 
     // Wayland reads the taskbar icon off the .desktop file it matches to the
     // window's app_id, which Qt takes from here. X11 ignores that and uses
     // the window icon hint below, so both get set.
-    QGuiApplication::setDesktopFileName(QStringLiteral("koutnet"));
+    QGuiApplication::setDesktopFileName(QStringLiteral("io.github.bitzuka.KOutNet"));
     // The QML module resources sit under the URI path directly rather than
     // below /qt/qml, since this build has not opted into the newer CMake
     // resource prefix policy. The isNull check is what caught the wrong path.
@@ -68,6 +70,11 @@ int main(int argc, char *argv[])
                             appSettings->bio(), revision);
     };
     publishProfile();
+    network->setGroupPassphrase(appSettings->groupPassphrase());
+    QObject::connect(appSettings, &koutnet::AppSettings::groupPassphraseChanged, network,
+                     [network, appSettings]() {
+                         network->setGroupPassphrase(appSettings->groupPassphrase());
+                     });
     for (auto signal : { &koutnet::AppSettings::usernameChanged,
                          &koutnet::AppSettings::displayNameChanged,
                          &koutnet::AppSettings::bioChanged,
@@ -119,13 +126,13 @@ int main(int argc, char *argv[])
         &app, []() { QCoreApplication::exit(-1); },
         Qt::QueuedConnection);
 
-    engine.rootContext()->setContextProperty("cryptoManager", crypto);
-    engine.rootContext()->setContextProperty("networkManager", network);
-    engine.rootContext()->setContextProperty("voiceCallManager", voice);
-    engine.rootContext()->setContextProperty("fileTransferHandler", fileTransfer);
-    engine.rootContext()->setContextProperty("Translations", translations);
-    engine.rootContext()->setContextProperty("appSettings", appSettings);
-    engine.rootContext()->setContextProperty("audioDevices", audioDevices);
+    engine.rootContext()->setContextProperty(QStringLiteral("cryptoManager"), crypto);
+    engine.rootContext()->setContextProperty(QStringLiteral("networkManager"), network);
+    engine.rootContext()->setContextProperty(QStringLiteral("voiceCallManager"), voice);
+    engine.rootContext()->setContextProperty(QStringLiteral("fileTransferHandler"), fileTransfer);
+    engine.rootContext()->setContextProperty(QStringLiteral("Translations"), translations);
+    engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), appSettings);
+    engine.rootContext()->setContextProperty(QStringLiteral("audioDevices"), audioDevices);
 
     engine.loadFromModule("koutnet.app", "Main");
 

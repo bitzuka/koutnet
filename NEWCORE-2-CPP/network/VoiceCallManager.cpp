@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Voice call manager (P2P calls, group calls via per-peer jitter buffers)
 #include "VoiceCallManager.h"
 #include "NetworkManager.h"
@@ -43,7 +45,7 @@ bool VoiceCallManager::call(const QString &ip)
     }
 
     m_active.insert(ip);
-    emit callStarted(ip);
+    Q_EMIT callStarted(ip);
     return true;
 }
 
@@ -59,7 +61,7 @@ void VoiceCallManager::hangup(const QString &ip)
     if (m_active.isEmpty())
         m_audio->stopAll();
 
-    emit callEnded(ip);
+    Q_EMIT callEnded(ip);
 }
 
 void VoiceCallManager::hangupAll()

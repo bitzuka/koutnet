@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com> -->
+<!-- SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL -->
+<component type="desktop-application">
+  <id>io.github.bitzuka.KOutNet</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL</project_license>
+
+  <name>KOutNet</name>
+  <summary>Encrypted messenger for local networks, VPNs and relays</summary>
+
+  <description>
+    <p>
+      KOutNet is a messenger that works without a central service. On a local
+      network or a VPN it finds its peers by itself and talks to them
+      directly. Where that is not possible it can route through a relay you
+      choose or host yourself.
+    </p>
+    <p>
+      Direct messages and voice calls are encrypted end to end with an X25519
+      key exchange and AES-256-GCM. It also carries a media player and a notes
+      tab, so the things people usually alt-tab away for stay in one window.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.bitzuka.KOutNet.desktop</launchable>
+  <url type="homepage">https://github.com/bitzuka/koutnet</url>
+  <url type="bugtracker">https://github.com/bitzuka/koutnet/issues</url>
+
+  <categories>
+    <category>Network</category>
+    <category>InstantMessaging</category>
+  </categories>
+
+  <provides>
+    <binary>KOutNet</binary>
+  </provides>
+
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-chat">intense</content_attribute>
+    <content_attribute id="social-audio">intense</content_attribute>
+  </content_rating>
+
+  <developer id="io.github.bitzuka">
+    <name>bitzuka</name>
+  </developer>
+
+  <releases>
+    <release version="0.0.001" date="2026-08-03">
+      <description><p>Developer build. Not released yet.</p></description>
+    </release>
+  </releases>
+</component>

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - i18n
 // Loads translation tables from an i18n/ directory found on disk next to
 // the built binary (koutnet/i18n/en.json, koutnet/i18n/ru.json) - editable
@@ -25,7 +27,7 @@ public:
 
     Q_INVOKABLE QString t(const QString &key) const;
 
-signals:
+Q_SIGNALS:
     void currentChanged();
 
 private:

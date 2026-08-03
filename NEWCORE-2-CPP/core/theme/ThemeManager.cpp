@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "ThemeManager.h"
 
 #include <QStandardPaths>
@@ -7,33 +9,33 @@
 
 namespace {
 
-QVariantMap palette(const char *label, const char *bg, const char *bg2, const char *bg3,
-                     const char *border, const char *text, const char *textDim,
-                     const char *accent, const char *accent2, const char *btnBg,
-                     const char *btnHover, const char *btnPress, const char *itemBg,
-                     const char *itemSel, const char *headerBg, const char *msgOwn,
-                     const char *msgOther, const char *online, const char *offline)
+QVariantMap palette(const QString &label, const QString &bg, const QString &bg2, const QString &bg3,
+                     const QString &border, const QString &text, const QString &textDim,
+                     const QString &accent, const QString &accent2, const QString &btnBg,
+                     const QString &btnHover, const QString &btnPress, const QString &itemBg,
+                     const QString &itemSel, const QString &headerBg, const QString &msgOwn,
+                     const QString &msgOther, const QString &online, const QString &offline)
 {
     QVariantMap m;
-    m["label"] = QString::fromUtf8(label);
-    m["bg"] = QString::fromUtf8(bg);
-    m["bg2"] = QString::fromUtf8(bg2);
-    m["bg3"] = QString::fromUtf8(bg3);
-    m["border"] = QString::fromUtf8(border);
-    m["text"] = QString::fromUtf8(text);
-    m["text_dim"] = QString::fromUtf8(textDim);
-    m["accent"] = QString::fromUtf8(accent);
-    m["accent2"] = QString::fromUtf8(accent2);
-    m["btn_bg"] = QString::fromUtf8(btnBg);
-    m["btn_hover"] = QString::fromUtf8(btnHover);
-    m["btn_press"] = QString::fromUtf8(btnPress);
-    m["item_bg"] = QString::fromUtf8(itemBg);
-    m["item_sel"] = QString::fromUtf8(itemSel);
-    m["header_bg"] = QString::fromUtf8(headerBg);
-    m["msg_own"] = QString::fromUtf8(msgOwn);
-    m["msg_other"] = QString::fromUtf8(msgOther);
-    m["online"] = QString::fromUtf8(online);
-    m["offline"] = QString::fromUtf8(offline);
+    m[QStringLiteral("label")] = label;
+    m[QStringLiteral("bg")] = bg;
+    m[QStringLiteral("bg2")] = bg2;
+    m[QStringLiteral("bg3")] = bg3;
+    m[QStringLiteral("border")] = border;
+    m[QStringLiteral("text")] = text;
+    m[QStringLiteral("text_dim")] = textDim;
+    m[QStringLiteral("accent")] = accent;
+    m[QStringLiteral("accent2")] = accent2;
+    m[QStringLiteral("btn_bg")] = btnBg;
+    m[QStringLiteral("btn_hover")] = btnHover;
+    m[QStringLiteral("btn_press")] = btnPress;
+    m[QStringLiteral("item_bg")] = itemBg;
+    m[QStringLiteral("item_sel")] = itemSel;
+    m[QStringLiteral("header_bg")] = headerBg;
+    m[QStringLiteral("msg_own")] = msgOwn;
+    m[QStringLiteral("msg_other")] = msgOther;
+    m[QStringLiteral("online")] = online;
+    m[QStringLiteral("offline")] = offline;
     return m;
 }
 
@@ -43,70 +45,70 @@ QHash<QString, QVariantMap> ThemeManager::buildPalettes()
 {
     QHash<QString, QVariantMap> p;
 
-    p["dark"] = palette("dark", "#323232", "#282828", "#1E1E1E", "#484848",
-        "#E0E0E0", "#909090", "#0078D4", "#005A9E", "#4A4A4A", "#5A5A5A",
-        "#3A3A3A", "#2E2E2E", "#0063B1", "#3C3C3C", "#1A3A5C", "#383838",
-        "#2ECC71", "#E74C3C");
+    p[QStringLiteral("dark")] = palette(QStringLiteral("dark"), QStringLiteral("#323232"), QStringLiteral("#282828"), QStringLiteral("#1E1E1E"), QStringLiteral("#484848"),
+        QStringLiteral("#E0E0E0"), QStringLiteral("#909090"), QStringLiteral("#0078D4"), QStringLiteral("#005A9E"), QStringLiteral("#4A4A4A"), QStringLiteral("#5A5A5A"),
+        QStringLiteral("#3A3A3A"), QStringLiteral("#2E2E2E"), QStringLiteral("#0063B1"), QStringLiteral("#3C3C3C"), QStringLiteral("#1A3A5C"), QStringLiteral("#383838"),
+        QStringLiteral("#2ECC71"), QStringLiteral("#E74C3C"));
 
-    p["light"] = palette("light", "#F0F0F0", "#FAFAFA", "#FFFFFF", "#C8C8C8",
-        "#1A1A1A", "#707070", "#0078D4", "#005A9E", "#E0E0E0", "#D0D0D0",
-        "#C0C0C0", "#F8F8F8", "#0078D4", "#E8E8E8", "#C8E6FA", "#EEEEEE",
-        "#27AE60", "#E74C3C");
+    p[QStringLiteral("light")] = palette(QStringLiteral("light"), QStringLiteral("#F0F0F0"), QStringLiteral("#FAFAFA"), QStringLiteral("#FFFFFF"), QStringLiteral("#C8C8C8"),
+        QStringLiteral("#1A1A1A"), QStringLiteral("#707070"), QStringLiteral("#0078D4"), QStringLiteral("#005A9E"), QStringLiteral("#E0E0E0"), QStringLiteral("#D0D0D0"),
+        QStringLiteral("#C0C0C0"), QStringLiteral("#F8F8F8"), QStringLiteral("#0078D4"), QStringLiteral("#E8E8E8"), QStringLiteral("#C8E6FA"), QStringLiteral("#EEEEEE"),
+        QStringLiteral("#27AE60"), QStringLiteral("#E74C3C"));
 
-    p["dark_blue"] = palette("dark_blue", "#1A2540", "#131B30", "#0D1220", "#2A3858",
-        "#C8D8FF", "#6878A8", "#4080FF", "#2060DD", "#2A3A60", "#3A4A70",
-        "#1A2A50", "#182038", "#2060CC", "#202848", "#1A3060", "#1E2840",
-        "#00E676", "#FF5252");
+    p[QStringLiteral("dark_blue")] = palette(QStringLiteral("dark_blue"), QStringLiteral("#1A2540"), QStringLiteral("#131B30"), QStringLiteral("#0D1220"), QStringLiteral("#2A3858"),
+        QStringLiteral("#C8D8FF"), QStringLiteral("#6878A8"), QStringLiteral("#4080FF"), QStringLiteral("#2060DD"), QStringLiteral("#2A3A60"), QStringLiteral("#3A4A70"),
+        QStringLiteral("#1A2A50"), QStringLiteral("#182038"), QStringLiteral("#2060CC"), QStringLiteral("#202848"), QStringLiteral("#1A3060"), QStringLiteral("#1E2840"),
+        QStringLiteral("#00E676"), QStringLiteral("#FF5252"));
 
-    p["dark_red"] = palette("dark_red", "#2A1010", "#200808", "#160404", "#4A2020",
-        "#FFD0D0", "#A06060", "#CC2020", "#AA1010", "#4A1818", "#5A2828",
-        "#3A0808", "#281010", "#AA0000", "#381818", "#3A1010", "#2A1818",
-        "#00E676", "#FF5252");
+    p[QStringLiteral("dark_red")] = palette(QStringLiteral("dark_red"), QStringLiteral("#2A1010"), QStringLiteral("#200808"), QStringLiteral("#160404"), QStringLiteral("#4A2020"),
+        QStringLiteral("#FFD0D0"), QStringLiteral("#A06060"), QStringLiteral("#CC2020"), QStringLiteral("#AA1010"), QStringLiteral("#4A1818"), QStringLiteral("#5A2828"),
+        QStringLiteral("#3A0808"), QStringLiteral("#281010"), QStringLiteral("#AA0000"), QStringLiteral("#381818"), QStringLiteral("#3A1010"), QStringLiteral("#2A1818"),
+        QStringLiteral("#00E676"), QStringLiteral("#FF5252"));
 
-    p["gray"] = palette("gray", "#606060", "#505050", "#404040", "#707070",
-        "#F0F0F0", "#B0B0B0", "#909090", "#707070", "#707070", "#808080",
-        "#606060", "#585858", "#888888", "#686868", "#5A5A7A", "#484848",
-        "#90EE90", "#FF9090");
+    p[QStringLiteral("gray")] = palette(QStringLiteral("gray"), QStringLiteral("#606060"), QStringLiteral("#505050"), QStringLiteral("#404040"), QStringLiteral("#707070"),
+        QStringLiteral("#F0F0F0"), QStringLiteral("#B0B0B0"), QStringLiteral("#909090"), QStringLiteral("#707070"), QStringLiteral("#707070"), QStringLiteral("#808080"),
+        QStringLiteral("#606060"), QStringLiteral("#585858"), QStringLiteral("#888888"), QStringLiteral("#686868"), QStringLiteral("#5A5A7A"), QStringLiteral("#484848"),
+        QStringLiteral("#90EE90"), QStringLiteral("#FF9090"));
 
-    p["midnight"] = palette("midnight", "#0D0D1A", "#080810", "#040408", "#1A1A3A",
-        "#B0B8FF", "#5058A0", "#6040FF", "#4020DD", "#151528", "#202040",
-        "#0A0A18", "#0E0E20", "#4030CC", "#121224", "#120A30", "#0E0E22",
-        "#00FFB0", "#FF4060");
+    p[QStringLiteral("midnight")] = palette(QStringLiteral("midnight"), QStringLiteral("#0D0D1A"), QStringLiteral("#080810"), QStringLiteral("#040408"), QStringLiteral("#1A1A3A"),
+        QStringLiteral("#B0B8FF"), QStringLiteral("#5058A0"), QStringLiteral("#6040FF"), QStringLiteral("#4020DD"), QStringLiteral("#151528"), QStringLiteral("#202040"),
+        QStringLiteral("#0A0A18"), QStringLiteral("#0E0E20"), QStringLiteral("#4030CC"), QStringLiteral("#121224"), QStringLiteral("#120A30"), QStringLiteral("#0E0E22"),
+        QStringLiteral("#00FFB0"), QStringLiteral("#FF4060"));
 
-    p["forest"] = palette("forest", "#1A2A1A", "#122012", "#0A160A", "#2A3E2A",
-        "#C8EEC8", "#6A8A6A", "#40AA40", "#208820", "#1E321E", "#284228",
-        "#142214", "#162616", "#308830", "#1E301E", "#143014", "#182018",
-        "#80FF80", "#FF6060");
+    p[QStringLiteral("forest")] = palette(QStringLiteral("forest"), QStringLiteral("#1A2A1A"), QStringLiteral("#122012"), QStringLiteral("#0A160A"), QStringLiteral("#2A3E2A"),
+        QStringLiteral("#C8EEC8"), QStringLiteral("#6A8A6A"), QStringLiteral("#40AA40"), QStringLiteral("#208820"), QStringLiteral("#1E321E"), QStringLiteral("#284228"),
+        QStringLiteral("#142214"), QStringLiteral("#162616"), QStringLiteral("#308830"), QStringLiteral("#1E301E"), QStringLiteral("#143014"), QStringLiteral("#182018"),
+        QStringLiteral("#80FF80"), QStringLiteral("#FF6060"));
 
-    p["win95"] = palette("win95", "#C0C0C0", "#D4D0C8", "#FFFFFF", "#808080",
-        "#000000", "#444444", "#000080", "#000060", "#C0C0C0", "#D4D0C8",
-        "#B0B0B0", "#FFFFFF", "#000080", "#000080", "#E0E8FF", "#F0F0F0",
-        "#008000", "#FF0000");
+    p[QStringLiteral("win95")] = palette(QStringLiteral("win95"), QStringLiteral("#C0C0C0"), QStringLiteral("#D4D0C8"), QStringLiteral("#FFFFFF"), QStringLiteral("#808080"),
+        QStringLiteral("#000000"), QStringLiteral("#444444"), QStringLiteral("#000080"), QStringLiteral("#000060"), QStringLiteral("#C0C0C0"), QStringLiteral("#D4D0C8"),
+        QStringLiteral("#B0B0B0"), QStringLiteral("#FFFFFF"), QStringLiteral("#000080"), QStringLiteral("#000080"), QStringLiteral("#E0E8FF"), QStringLiteral("#F0F0F0"),
+        QStringLiteral("#008000"), QStringLiteral("#FF0000"));
 
-    p["aurora"] = palette("aurora", "#1a1a2e", "#16213e", "#0f3460", "#533483",
-        "#e0e0ff", "#8888bb", "#e94560", "#c73652", "#1f2a4a", "#2a3a6a",
-        "#0f1f3a", "#1f2a4a", "#c73652", "#16213e", "#e9456022", "#0f346022",
-        "#2ECC71", "#E74C3C");
+    p[QStringLiteral("aurora")] = palette(QStringLiteral("aurora"), QStringLiteral("#1a1a2e"), QStringLiteral("#16213e"), QStringLiteral("#0f3460"), QStringLiteral("#533483"),
+        QStringLiteral("#e0e0ff"), QStringLiteral("#8888bb"), QStringLiteral("#e94560"), QStringLiteral("#c73652"), QStringLiteral("#1f2a4a"), QStringLiteral("#2a3a6a"),
+        QStringLiteral("#0f1f3a"), QStringLiteral("#1f2a4a"), QStringLiteral("#c73652"), QStringLiteral("#16213e"), QStringLiteral("#e9456022"), QStringLiteral("#0f346022"),
+        QStringLiteral("#2ECC71"), QStringLiteral("#E74C3C"));
 
-    p["sunset"] = palette("sunset", "#1a0a0a", "#2d1515", "#3d2020", "#7a3030",
-        "#ffd0c0", "#b07060", "#ff6b35", "#e55a25", "#3d2020", "#5a3030",
-        "#2d1515", "#3d2020", "#e55a25", "#2d1515", "#ff6b3530", "#3d202040",
-        "#2ECC71", "#E74C3C");
+    p[QStringLiteral("sunset")] = palette(QStringLiteral("sunset"), QStringLiteral("#1a0a0a"), QStringLiteral("#2d1515"), QStringLiteral("#3d2020"), QStringLiteral("#7a3030"),
+        QStringLiteral("#ffd0c0"), QStringLiteral("#b07060"), QStringLiteral("#ff6b35"), QStringLiteral("#e55a25"), QStringLiteral("#3d2020"), QStringLiteral("#5a3030"),
+        QStringLiteral("#2d1515"), QStringLiteral("#3d2020"), QStringLiteral("#e55a25"), QStringLiteral("#2d1515"), QStringLiteral("#ff6b3530"), QStringLiteral("#3d202040"),
+        QStringLiteral("#2ECC71"), QStringLiteral("#E74C3C"));
 
-    p["ocean"] = palette("ocean", "#020f1a", "#041828", "#062038", "#0e4d6e",
-        "#c0e8ff", "#5090b0", "#00b4d8", "#0096b4", "#062038", "#0a3050",
-        "#041828", "#062038", "#0096b4", "#041828", "#00b4d830", "#06203840",
-        "#2ECC71", "#E74C3C");
+    p[QStringLiteral("ocean")] = palette(QStringLiteral("ocean"), QStringLiteral("#020f1a"), QStringLiteral("#041828"), QStringLiteral("#062038"), QStringLiteral("#0e4d6e"),
+        QStringLiteral("#c0e8ff"), QStringLiteral("#5090b0"), QStringLiteral("#00b4d8"), QStringLiteral("#0096b4"), QStringLiteral("#062038"), QStringLiteral("#0a3050"),
+        QStringLiteral("#041828"), QStringLiteral("#062038"), QStringLiteral("#0096b4"), QStringLiteral("#041828"), QStringLiteral("#00b4d830"), QStringLiteral("#06203840"),
+        QStringLiteral("#2ECC71"), QStringLiteral("#E74C3C"));
 
-    p["neon"] = palette("neon", "#0a0a0a", "#111111", "#1a1a1a", "#333333",
-        "#f0f0f0", "#888888", "#00ff88", "#00cc66", "#1a1a1a", "#222222",
-        "#111111", "#1a1a1a", "#00cc66", "#111111", "#00ff8825", "#1a1a1a80",
-        "#2ECC71", "#E74C3C");
+    p[QStringLiteral("neon")] = palette(QStringLiteral("neon"), QStringLiteral("#0a0a0a"), QStringLiteral("#111111"), QStringLiteral("#1a1a1a"), QStringLiteral("#333333"),
+        QStringLiteral("#f0f0f0"), QStringLiteral("#888888"), QStringLiteral("#00ff88"), QStringLiteral("#00cc66"), QStringLiteral("#1a1a1a"), QStringLiteral("#222222"),
+        QStringLiteral("#111111"), QStringLiteral("#1a1a1a"), QStringLiteral("#00cc66"), QStringLiteral("#111111"), QStringLiteral("#00ff8825"), QStringLiteral("#1a1a1a80"),
+        QStringLiteral("#2ECC71"), QStringLiteral("#E74C3C"));
 
-    p["sakura"] = palette("sakura", "#1a0a12", "#280f1e", "#38182c", "#6a3050",
-        "#ffd0e8", "#b07090", "#ff6eb4", "#e050a0", "#38182c", "#502040",
-        "#280f1e", "#38182c", "#e050a0", "#280f1e", "#ff6eb430", "#38182c40",
-        "#2ECC71", "#E74C3C");
+    p[QStringLiteral("sakura")] = palette(QStringLiteral("sakura"), QStringLiteral("#1a0a12"), QStringLiteral("#280f1e"), QStringLiteral("#38182c"), QStringLiteral("#6a3050"),
+        QStringLiteral("#ffd0e8"), QStringLiteral("#b07090"), QStringLiteral("#ff6eb4"), QStringLiteral("#e050a0"), QStringLiteral("#38182c"), QStringLiteral("#502040"),
+        QStringLiteral("#280f1e"), QStringLiteral("#38182c"), QStringLiteral("#e050a0"), QStringLiteral("#280f1e"), QStringLiteral("#ff6eb430"), QStringLiteral("#38182c40"),
+        QStringLiteral("#2ECC71"), QStringLiteral("#E74C3C"));
 
     return p;
 }
@@ -124,7 +126,7 @@ void ThemeManager::setTheme(const QString &name)
         return;
     m_current = name;
     saveTheme();
-    emit themeChanged();
+    Q_EMIT themeChanged();
 }
 
 QVariantMap ThemeManager::colors() const
@@ -139,14 +141,14 @@ QStringList ThemeManager::availableThemes() const
 
 QString ThemeManager::themeLabel(const QString &name) const
 {
-    return m_palettes.value(name).value("label").toString();
+    return m_palettes.value(name).value(QStringLiteral("label")).toString();
 }
 
 QString ThemeManager::settingsFilePath() const
 {
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(dir);
-    return dir + "/theme.txt";
+    return dir + QStringLiteral("/theme.txt");
 }
 
 void ThemeManager::loadSavedTheme()

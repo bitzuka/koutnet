@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "ChatModel.h"
 #include "HistoryManager.h"
 #include "ReactionStore.h"
@@ -43,7 +45,7 @@ QVariant ChatModel::data(const QModelIndex &index, int role) const
             ? m_reactions->summary(m.chatId.isEmpty() ? QStringLiteral("public") : m.chatId, m.ts)
             : QVariantList();
     case TimeStringRole:
-        return QDateTime::fromSecsSinceEpoch(static_cast<qint64>(m.ts)).toString("HH:mm");
+        return QDateTime::fromSecsSinceEpoch(static_cast<qint64>(m.ts)).toString(QStringLiteral("HH:mm"));
     default:
         return {};
     }
@@ -68,7 +70,7 @@ void ChatModel::setChatId(const QString &id)
     if (m_chatId == id)
         return;
     m_chatId = id;
-    emit chatIdChanged();
+    Q_EMIT chatIdChanged();
     reload();
 }
 
@@ -78,7 +80,7 @@ void ChatModel::setHistoryManagerObj(QObject *obj)
     auto *h = qobject_cast<HistoryManager *>(obj);
     if (m_history == h) return;
     m_history = h;
-    emit historyManagerChanged();
+    Q_EMIT historyManagerChanged();
     reload();
 }
 
@@ -99,7 +101,7 @@ void ChatModel::setReactionStoreObj(QObject *obj)
                     }
                 });
     }
-    emit reactionStoreChanged();
+    Q_EMIT reactionStoreChanged();
 }
 
 QObject *ChatModel::unreadManagerObj() const { return m_unread; }
@@ -108,7 +110,7 @@ void ChatModel::setUnreadManagerObj(QObject *obj)
     auto *u = qobject_cast<UnreadManager *>(obj);
     if (m_unread == u) return;
     m_unread = u;
-    emit unreadManagerChanged();
+    Q_EMIT unreadManagerChanged();
 }
 
 void ChatModel::reload()
@@ -156,7 +158,7 @@ void ChatModel::sendMessage(const QString &text, const QString &replyToText)
 void ChatModel::sendFile(const QString &filePath, bool isImage)
 {
     MessageEntry e;
-    e.text = filePath.section('/', -1);
+    e.text = filePath.section(QLatin1Char('/'), -1);
     e.ts = QDateTime::currentMSecsSinceEpoch() / 1000.0;
     e.isOwn = true;
     e.isFile = true;
@@ -178,7 +180,7 @@ void ChatModel::receiveMessage(const QString &text, const QString &sender)
 void ChatModel::receiveFile(const QString &filePath, bool isImage, const QString &sender)
 {
     MessageEntry e;
-    e.text = filePath.section('/', -1);
+    e.text = filePath.section(QLatin1Char('/'), -1);
     e.sender = sender;
     e.ts = QDateTime::currentMSecsSinceEpoch() / 1000.0;
     e.isOwn = false;
@@ -213,7 +215,7 @@ void ChatModel::markOwnMessagesRead()
             m_messages[i].isRead = true;
             any = true;
             const QModelIndex idx = index(i);
-            emit dataChanged(idx, idx, {IsReadRole});
+            Q_EMIT dataChanged(idx, idx, {IsReadRole});
         }
     }
     // Persist read-state by rewriting full history for this chat.
@@ -232,5 +234,5 @@ void ChatModel::markAllRead()
 void ChatModel::refreshRow(int row)
 {
     const QModelIndex idx = index(row);
-    emit dataChanged(idx, idx, {ReactionsRole});
+    Q_EMIT dataChanged(idx, idx, {ReactionsRole});
 }

@@ -1,3 +1,5 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <matveypotyzhno@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - real-time voice engine: capture, mix, playback.
 //
 // QAudioSource/QAudioSink in pull mode rather than a polling thread. Letting
@@ -53,11 +55,11 @@ public:
     void pushPeerAudio(const QString &ip, const QByteArray &data);
     AudioMixer &mixer() { return m_mixer; }
 
-signals:
+Q_SIGNALS:
     void audioCaptured(QByteArray raw);
     void speaking(bool isSpeaking);
 
-private slots:
+private Q_SLOTS:
     void onCaptureReady();
 
 private:

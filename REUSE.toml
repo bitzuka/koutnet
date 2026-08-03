@@ -1,0 +1,18 @@
+version = 1
+SPDX-PackageName = "KOutNet"
+SPDX-PackageSupplier = "bitzuka <matveypotyzhno@gmail.com>"
+SPDX-PackageDownloadLocation = "https://github.com/bitzuka/koutnet"
+
+# Translation catalogs are JSON and have nowhere to put a comment.
+[[annotations]]
+path = "i18n/**.json"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 bitzuka <matveypotyzhno@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL"
+
+# Binary assets and plain text that carries no header of its own.
+[[annotations]]
+path = ["NEWCORE-2-CPP/assets/**", "ABOUT/**", "README.md", ".gitignore"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 bitzuka <matveypotyzhno@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL"
