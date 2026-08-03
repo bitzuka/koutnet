@@ -122,3 +122,12 @@ target_include_directories(KOutNet PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/core/theme
     ${CMAKE_CURRENT_SOURCE_DIR}/core/chat
 )
+
+# Tests are opt out so a plain build stays quick, but they are on by default
+# because a test nobody runs is not a test.
+option(BUILD_TESTING "Build the test suite" ON)
+if(BUILD_TESTING)
+    find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Test)
+    include(ECMAddTests)
+    add_subdirectory(tests)
+endif()
