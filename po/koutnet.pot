@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: KOutNet\n"
 "Report-Msgid-Bugs-To: bitzuka.koutnet@gmail.com\n"
-"POT-Creation-Date: 2026-08-03 14:41+0000\n"
+"POT-Creation-Date: 2026-08-03 15:08+0000\n"
 "PO-Revision-Date: 2026-08-03 00:00+0000\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -16,1069 +16,1101 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: NEWCORE-2-CPP/core/audio/AudioDevices.cpp:173
+#: src/core/audio/AudioDevices.cpp:175
 msgctxt "@info:status"
 msgid "No audio input device available."
 msgstr ""
 
-#: NEWCORE-2-CPP/core/audio/AudioDevices.cpp:179
+#: src/core/audio/AudioDevices.cpp:185
 msgctxt "@info:status"
 msgid "The input device rejects every format we can read."
 msgstr ""
 
-#: NEWCORE-2-CPP/core/audio/AudioDevices.cpp:188
+#: src/core/audio/AudioDevices.cpp:195
 msgctxt "@info:status"
 msgid "Could not open the input device."
 msgstr ""
 
-#: NEWCORE-2-CPP/core/audio/AudioDevices.cpp:230
+#: src/core/audio/AudioDevices.cpp:237
 msgctxt "@info:status"
 msgid "No audio output device available."
 msgstr ""
 
-#: NEWCORE-2-CPP/core/audio/AudioDevices.cpp:243
+#: src/core/audio/AudioDevices.cpp:250
 msgctxt "@info:status"
 msgid "Could not prepare the test tone."
 msgstr ""
 
-#: NEWCORE-2-CPP/core/security/CryptoManager.cpp:743
+#: src/core/security/CryptoManager.cpp:749
 msgctxt "@info shown in place of a message body"
 msgid "[decrypt error: cleartext on a keyed channel]"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/security/CryptoManager.cpp:750
+#: src/core/security/CryptoManager.cpp:756
 msgctxt "@info shown in place of a message body"
 msgid "[decrypt error: empty packet]"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/security/CryptoManager.cpp:772
+#: src/core/security/CryptoManager.cpp:778
 msgctxt "@info shown in place of a message body"
 msgid "[decrypt error: invalid key or tampered packet]"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/theme/ThemeManager.cpp:153
+#: src/core/theme/ThemeManager.cpp:154
 msgctxt "theme name"
 msgid "Aurora"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/theme/ThemeManager.cpp:155
+#: src/core/theme/ThemeManager.cpp:156
 msgctxt "theme name"
 msgid "Dark"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/theme/ThemeManager.cpp:157
+#: src/core/theme/ThemeManager.cpp:158
 msgctxt "theme name"
 msgid "Dark Blue"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/theme/ThemeManager.cpp:159
+#: src/core/theme/ThemeManager.cpp:160
 msgctxt "theme name"
 msgid "Dark Red"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/theme/ThemeManager.cpp:161
+#: src/core/theme/ThemeManager.cpp:162
 msgctxt "theme name"
 msgid "Forest"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/theme/ThemeManager.cpp:163
+#: src/core/theme/ThemeManager.cpp:164
 msgctxt "theme name"
 msgid "Gray"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/theme/ThemeManager.cpp:165
+#: src/core/theme/ThemeManager.cpp:166
 msgctxt "theme name"
 msgid "Light"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/theme/ThemeManager.cpp:167
+#: src/core/theme/ThemeManager.cpp:168
 msgctxt "theme name"
 msgid "Midnight"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/theme/ThemeManager.cpp:169
+#: src/core/theme/ThemeManager.cpp:170
 msgctxt "theme name"
 msgid "Neon"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/theme/ThemeManager.cpp:171
+#: src/core/theme/ThemeManager.cpp:172
 msgctxt "theme name"
 msgid "Ocean"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/theme/ThemeManager.cpp:173
+#: src/core/theme/ThemeManager.cpp:174
 msgctxt "theme name"
 msgid "Sakura"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/theme/ThemeManager.cpp:175
+#: src/core/theme/ThemeManager.cpp:176
 msgctxt "theme name"
 msgid "Sunset"
 msgstr ""
 
-#: NEWCORE-2-CPP/core/theme/ThemeManager.cpp:177
+#: src/core/theme/ThemeManager.cpp:178
 msgctxt "theme name"
 msgid "Windows 95"
 msgstr ""
 
-#: NEWCORE-2-CPP/network/FileTransferHandler.cpp:48
+#: src/main.cpp:35
+msgctxt "@title application name"
+msgid "KOutNet"
+msgstr ""
+
+#: src/main.cpp:37
+msgctxt "@info:whatsthis"
+msgid "P2P encrypted messenger for LAN, VPN and relay"
+msgstr ""
+
+#: src/main.cpp:39
+msgctxt "@info:credit"
+msgid "Copyright 2026 bitzuka"
+msgstr ""
+
+#: src/main.cpp:40
+msgctxt "@info:credit"
+msgid "bitzuka"
+msgstr ""
+
+#: src/main.cpp:41
+msgctxt "@info:credit"
+msgid "Author and maintainer"
+msgstr ""
+
+#: src/main.cpp:50
+msgctxt "NAME OF TRANSLATORS"
+msgid "Your names"
+msgstr ""
+
+#: src/main.cpp:51
+msgctxt "EMAIL OF TRANSLATORS"
+msgid "Your emails"
+msgstr ""
+
+#: src/network/FileTransferHandler.cpp:48
 msgctxt "@info:status file transfer refused"
 msgid "The announced size exceeds the limit."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/FileTransferHandler.cpp:54
+#: src/network/FileTransferHandler.cpp:54
 msgctxt "@info:status file transfer refused"
 msgid "Too many concurrent incoming transfers."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/FileTransferHandler.cpp:86
+#: src/network/FileTransferHandler.cpp:86
 msgctxt "@info:status file transfer refused"
 msgid "The chunk count exceeds the limit."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/FileTransferHandler.cpp:99
+#: src/network/FileTransferHandler.cpp:99
 msgctxt "@info:status file transfer refused"
 msgid "A chunk was resent with different contents."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/FileTransferHandler.cpp:110
+#: src/network/FileTransferHandler.cpp:110
 msgctxt "@info:status file transfer refused"
 msgid "The transfer exceeded the size limit."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/FileTransferHandler.cpp:136
+#: src/network/FileTransferHandler.cpp:136
 msgctxt "@info:status file transfer refused"
 msgid "Failed to write the file to disk."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/FileTransferHandler.cpp:152
+#: src/network/FileTransferHandler.cpp:152
 msgctxt "@info:status file transfer refused"
 msgid "The transfer timed out while incomplete."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:240
+#: src/network/NetworkManager.cpp:240
 msgctxt "@info:status %1 is a port number"
 msgid "UDP bind failed on port %1."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:253
+#: src/network/NetworkManager.cpp:253
 msgctxt "@info:status %1 is a port number"
 msgid "TCP listen failed on port %1."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:471
+#: src/network/NetworkManager.cpp:471
 msgctxt "@info:status %1 is a host address, %2 the parser message"
 msgid "UDP parse error from %1: %2"
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:506
+#: src/network/NetworkManager.cpp:506
 msgctxt "@info:status %1 is a host address"
 msgid "HMAC verification failed from %1 - dropping."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:511
+#: src/network/NetworkManager.cpp:511
 msgctxt "@info:status %1 is a message type, %2 a host address"
 msgid "Unauthenticated %1 from %2 - dropping."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:632
+#: src/network/NetworkManager.cpp:632
 msgctxt "@info:status %1 is a host address, %2 a byte count"
 msgid "Voice frame from %1 declared %2 bytes - dropping the connection."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:686
+#: src/network/NetworkManager.cpp:686
 msgctxt "@info:status"
 msgid ""
 "VDS mode is on but no relay server is configured. Set one in Settings, or "
 "switch back to LAN/VPN mode."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:733
+#: src/network/NetworkManager.cpp:733
 msgctxt "@info:status %1 is a socket error message"
 msgid "Tunnel connect failed: %1"
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:756
+#: src/network/NetworkManager.cpp:756
 msgctxt "@info:status %1 is a byte count"
 msgid "Relay frame declared %1 bytes - dropping the tunnel."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:774
+#: src/network/NetworkManager.cpp:774
 msgctxt "@info:status %1 is the parser message"
 msgid "Relay parse error: %1"
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:786
+#: src/network/NetworkManager.cpp:786
 msgctxt "@info:status"
 msgid "Relay frame with no sender address - dropping."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:901
+#: src/network/NetworkManager.cpp:901
 msgctxt "@info:status"
 msgid ""
 "Set a group passphrase before sending to a group - refusing to send in the "
 "clear."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:911
+#: src/network/NetworkManager.cpp:911
 msgctxt "@info:status"
 msgid "Failed to encrypt the group message - not sent."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:1034
+#: src/network/NetworkManager.cpp:1034
 msgctxt "@info:status %1 is a file path"
 msgid "File not found: %1"
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:1117
+#: src/network/NetworkManager.cpp:1117
 msgctxt "@info:status"
 msgid "VDS voice relay is not configured - cannot start the call."
 msgstr ""
 
-#: NEWCORE-2-CPP/network/NetworkManager.cpp:1139
+#: src/network/NetworkManager.cpp:1139
 msgctxt "@info:status %1 is a host address, %2 a socket error message"
 msgid "Voice connect to %1 failed: %2"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/call/ActiveCallWindow.qml:157
+#: src/qml/call/ActiveCallWindow.qml:157
 msgctxt "@action:button silence your own microphone"
 msgid "Mute"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/call/ActiveCallWindow.qml:158
+#: src/qml/call/ActiveCallWindow.qml:158
 msgctxt "@action:button"
 msgid "Speaker"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/call/ActiveCallWindow.qml:159
+#: src/qml/call/ActiveCallWindow.qml:159
 msgctxt "@action:button share your screen"
 msgid "Screen"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/call/ActiveCallWindow.qml:187
+#: src/qml/call/ActiveCallWindow.qml:187
 msgctxt "@action:button hang up the call"
 msgid "End"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/call/IncomingCallDialog.qml:105
+#: src/qml/call/IncomingCallDialog.qml:105
 msgctxt "@info:status"
 msgid "Incoming call"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/call/OutgoingCallWindow.qml:31
+#: src/qml/call/OutgoingCallWindow.qml:31
 msgctxt "@info:status waiting for the peer to pick up, %1 is a run of dots"
 msgid "Calling%1"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/call/OutgoingCallWindow.qml:208
+#: src/qml/call/OutgoingCallWindow.qml:208
 msgctxt "@action:button abandon the outgoing call"
 msgid "Cancel"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/call/OutgoingCallWindow.qml:217
+#: src/qml/call/OutgoingCallWindow.qml:217
 msgctxt "@info:status"
 msgid "Connecting..."
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:71
+#: src/qml/main_window/ChatPage.qml:71
 msgctxt "@action:button back to the contact list"
 msgid "Back"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:77
+#: src/qml/main_window/ChatPage.qml:77
 msgctxt "@action:button open the peer's profile"
 msgid "Profile"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:82
+#: src/qml/main_window/ChatPage.qml:82
 msgctxt "@action:button start a voice call"
 msgid "Call"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:261
+#: src/qml/main_window/ChatPage.qml:261
 msgctxt "@title:window"
 msgid "Choose an image for the emoji"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:263
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:64
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:71
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:78
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:85
+#: src/qml/main_window/ChatPage.qml:263
+#: src/qml/profile/your_prof/YourProfile.qml:64
+#: src/qml/profile/your_prof/YourProfile.qml:71
+#: src/qml/profile/your_prof/YourProfile.qml:78
+#: src/qml/profile/your_prof/YourProfile.qml:85
 msgctxt "@item:inlistbox file dialog filter, keep the glob patterns"
 msgid "Images (*.png *.jpg *.jpeg *.webp *.gif)"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:285
+#: src/qml/main_window/ChatPage.qml:285
 msgctxt "@action:inmenu"
 msgid "Reply"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:292
+#: src/qml/main_window/ChatPage.qml:292
 msgctxt "@action:inmenu"
 msgid "Copy"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:296
+#: src/qml/main_window/ChatPage.qml:296
 msgctxt "@info:status"
 msgid "Copied!"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:301
+#: src/qml/main_window/ChatPage.qml:301
 msgctxt "@action:inmenu forward this message"
 msgid "Forward"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:305
+#: src/qml/main_window/ChatPage.qml:305
 msgctxt "@action:inmenu add a reaction"
 msgid "React"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:310
+#: src/qml/main_window/ChatPage.qml:310
 msgctxt "@action:inmenu delete this message"
 msgid "Delete"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:375
+#: src/qml/main_window/ChatPage.qml:375
 msgctxt "@info:status %1 is a date and time"
 msgid "last seen %1"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:377
-#: NEWCORE-2-CPP/qml/profile/not_your_prof/OtherProfile.qml:135
+#: src/qml/main_window/ChatPage.qml:377
+#: src/qml/profile/not_your_prof/OtherProfile.qml:135
 msgctxt "@info:status the peer is online"
 msgid "online"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:640
+#: src/qml/main_window/ChatPage.qml:640
 msgctxt "@item reaction badge, %2 is the emoji"
 msgid "%2 %1"
 msgid_plural "%2 %1"
 msgstr[0] ""
 msgstr[1] ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:662
+#: src/qml/main_window/ChatPage.qml:662
 msgctxt "@info:status the message was edited"
 msgid "edited"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:738
+#: src/qml/main_window/ChatPage.qml:738
 msgctxt "@info:placeholder"
 msgid "Message..."
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:756
+#: src/qml/main_window/ChatPage.qml:756
 msgctxt "@action:button"
 msgid "Send"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ChatPage.qml:857
+#: src/qml/main_window/ChatPage.qml:857
 msgctxt "@title:window"
 msgid "Attach a file"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ContactDelegate.qml:108
-#: NEWCORE-2-CPP/qml/profile/not_your_prof/OtherProfile.qml:123
+#: src/qml/main_window/ContactDelegate.qml:108
+#: src/qml/profile/not_your_prof/OtherProfile.qml:123
 msgctxt "@info:status the session is end to end encrypted"
 msgid "E2E"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ContactDelegate.qml:109
+#: src/qml/main_window/ContactDelegate.qml:109
 msgctxt "@info:status there is no encrypted session"
 msgid "Plain"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/ContactDelegate.qml:113
+#: src/qml/main_window/ContactDelegate.qml:113
 msgctxt ""
 "@info:status %1 is the encryption state, %2 the peer's operating system"
 msgid "%1 - %2"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:14
+#: src/qml/main_window/Main.qml:14
 msgctxt "@title:window"
 msgid "Welcome to KOutNet"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:26
+#: src/qml/main_window/Main.qml:26
 msgctxt "@item:inlistbox audio device"
 msgid "System default"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:90
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:470
+#: src/qml/main_window/Main.qml:90 src/qml/main_window/Main.qml:470
 msgctxt "@item contact list, chat with yourself"
 msgid "Favorites"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:222
+#: src/qml/main_window/Main.qml:222
 msgctxt "@title:menu"
 msgid "File"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:224
+#: src/qml/main_window/Main.qml:224
 msgctxt "@action:inmenu"
 msgid "My profile"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:227
+#: src/qml/main_window/Main.qml:227
 msgctxt "@action:inmenu"
 msgid "Settings"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:229
+#: src/qml/main_window/Main.qml:229
 msgctxt "@action:inmenu"
 msgid "Quit"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:233
+#: src/qml/main_window/Main.qml:233
 msgctxt "@title:menu"
 msgid "View"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:236
+#: src/qml/main_window/Main.qml:236
 msgctxt "@title:menu"
 msgid "Themes"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:257
+#: src/qml/main_window/Main.qml:257
 msgctxt "@action:inmenu toggle window fullscreen, %1 is the shortcut"
 msgid "Fullscreen (%1)"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:267
+#: src/qml/main_window/Main.qml:267
 msgctxt "@title:menu"
 msgid "Calls"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:269
+#: src/qml/main_window/Main.qml:269
 msgctxt "@action:inmenu"
 msgid "Mute microphone"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:278
+#: src/qml/main_window/Main.qml:278
 msgctxt "@action:inmenu"
 msgid "End all calls"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:288
+#: src/qml/main_window/Main.qml:288
 msgctxt "@title:menu"
 msgid "Help"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:289
+#: src/qml/main_window/Main.qml:289
 msgctxt "@action:inmenu"
 msgid "About"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:291
+#: src/qml/main_window/Main.qml:291
 msgctxt "@action:inmenu"
 msgid "Tutorial"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:292
+#: src/qml/main_window/Main.qml:292
 msgctxt "@title:window"
 msgid "Tutorial"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:293
+#: src/qml/main_window/Main.qml:293
 msgctxt "@info"
 msgid "The interactive tutorial has not been ported yet."
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:310
+#: src/qml/main_window/Main.qml:310
 msgctxt "@info:status"
 msgid "Searching for peers..."
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:317
+#: src/qml/main_window/Main.qml:317
 msgctxt "@info:status %1 is this host's address"
 msgid "IP: %1"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:324
+#: src/qml/main_window/Main.qml:324
 msgctxt "@info:status"
 msgid "Microphone off"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:325
+#: src/qml/main_window/Main.qml:325
 msgctxt "@info:status"
 msgid "Microphone on"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:338
+#: src/qml/main_window/Main.qml:338
 msgctxt "@info:status no call is in progress"
 msgid "No calls"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:389
+#: src/qml/main_window/Main.qml:389
 msgctxt "@title:window"
 msgid "Network error"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:396
+#: src/qml/main_window/Main.qml:396
 msgctxt "@title:window"
 msgid "Audio error"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:403
+#: src/qml/main_window/Main.qml:403
 msgctxt "@title:window"
 msgid "File transfer failed"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:457
+#: src/qml/main_window/Main.qml:457
 msgctxt "@title sidebar section"
 msgid "Contacts"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:482
+#: src/qml/main_window/Main.qml:482
 msgctxt "@info:placeholder filter the contact list"
 msgid "Search"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:512
+#: src/qml/main_window/Main.qml:512
 msgctxt "@info"
 msgid "No one here yet"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:513
+#: src/qml/main_window/Main.qml:513
 msgctxt "@info"
 msgid "KOutNet is looking for other users, but it's quiet here for now..."
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:553
+#: src/qml/main_window/Main.qml:553
 msgctxt "@title:tab"
 msgid "Chat"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:554
+#: src/qml/main_window/Main.qml:554
 msgctxt "@title:tab"
 msgid "Notes"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:555
+#: src/qml/main_window/Main.qml:555
 msgctxt "@title:tab call log"
 msgid "Calls"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:656
+#: src/qml/main_window/Main.qml:656
 msgctxt "@title:window"
 msgid "My profile"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:673
+#: src/qml/main_window/Main.qml:673
 msgctxt "@title:window"
 msgid "Settings"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:691
+#: src/qml/main_window/Main.qml:691
 msgctxt "@title:tab"
 msgid "General"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:692
+#: src/qml/main_window/Main.qml:692
 msgctxt "@title:tab"
 msgid "Audio"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:693
+#: src/qml/main_window/Main.qml:693
 msgctxt "@title:tab"
 msgid "Network"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:703
+#: src/qml/main_window/Main.qml:703
 msgctxt "@label:textbox"
 msgid "Username"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:710
+#: src/qml/main_window/Main.qml:710
 msgctxt "@label:textbox"
 msgid "Display name"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:717
+#: src/qml/main_window/Main.qml:717
 msgctxt "@label:listbox"
 msgid "Theme"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:735
+#: src/qml/main_window/Main.qml:735
 msgctxt "@label:listbox"
 msgid "Microphone"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:750
+#: src/qml/main_window/Main.qml:750
 msgctxt "@action:button"
 msgid "Stop test"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:751
+#: src/qml/main_window/Main.qml:751
 msgctxt "@action:button"
 msgid "Test microphone"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:767
+#: src/qml/main_window/Main.qml:767
 msgctxt "@label:listbox"
 msgid "Speakers"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:779
+#: src/qml/main_window/Main.qml:779
 msgctxt "@action:button"
 msgid "Test speakers"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:786
+#: src/qml/main_window/Main.qml:786
 msgctxt "@label:slider playback volume in percent"
 msgid "Volume: %1%"
 msgid_plural "Volume: %1%"
 msgstr[0] ""
 msgstr[1] ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:799
+#: src/qml/main_window/Main.qml:799
 msgctxt "@option:check"
 msgid "Mute microphone"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:804
+#: src/qml/main_window/Main.qml:804
 msgctxt "@option:check"
 msgid "Voice activity detection"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:813
+#: src/qml/main_window/Main.qml:813
 msgctxt "@label:listbox"
 msgid "Network mode"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:818
+#: src/qml/main_window/Main.qml:818
 msgctxt "@item:inlistbox network mode"
 msgid "Local network (LAN)"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:819
+#: src/qml/main_window/Main.qml:819
 msgctxt "@item:inlistbox network mode"
 msgid "K-Server (self-hosted)"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:820
+#: src/qml/main_window/Main.qml:820
 msgctxt "@item:inlistbox network mode"
 msgid "K-Server (join someone else's)"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:821
+#: src/qml/main_window/Main.qml:821
 msgctxt "@item:inlistbox network mode"
 msgid "Relay (not a K-Server)"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:822
+#: src/qml/main_window/Main.qml:822
 msgctxt "@item:inlistbox network mode"
 msgid "Maintainer's VDS"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:833
+#: src/qml/main_window/Main.qml:833
 msgctxt "@item:inlistbox %1 is a network mode name"
 msgid "%1 (not available yet)"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:843
+#: src/qml/main_window/Main.qml:843
 msgctxt "@label:textbox"
 msgid "Relay server address"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:851
+#: src/qml/main_window/Main.qml:851
 msgctxt "@label:textbox"
 msgid "Relay server port"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:864
+#: src/qml/main_window/Main.qml:864
 msgctxt "@action:button"
 msgid "Save"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:868
+#: src/qml/main_window/Main.qml:868
 msgctxt "@title:window confirmation that settings were applied"
 msgid "Settings"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:869
+#: src/qml/main_window/Main.qml:869
 msgctxt "@info:status"
 msgid "Settings saved"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:879
-#: NEWCORE-2-CPP/qml/welcome/WelcomeScreen.qml:215
+#: src/qml/main_window/Main.qml:879 src/qml/welcome/WelcomeScreen.qml:215
 msgctxt "@title:window"
 msgid "About"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:883
-#: NEWCORE-2-CPP/qml/welcome/WelcomeScreen.qml:221
-msgctxt "@info application tagline"
-msgid "KOutNet - P2P encrypted messenger"
+#: src/qml/main_window/Main.qml:892
+msgctxt "@info:status %1 is the version number"
+msgid "Version %1"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:921
+#: src/qml/main_window/Main.qml:940
 msgctxt "@title:window forwarding a message"
 msgid "Forward"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:922
+#: src/qml/main_window/Main.qml:941
 msgctxt "@info"
 msgid "Forwarding messages is not implemented in ChatModel yet."
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:923
+#: src/qml/main_window/Main.qml:942
 msgctxt "@title:window deleting a message"
 msgid "Delete"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:924
+#: src/qml/main_window/Main.qml:943
 msgctxt "@info"
 msgid "Deleting messages is not implemented in ChatModel yet."
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/main_window/Main.qml:932
+#: src/qml/main_window/Main.qml:951
 msgctxt "@info"
 msgid "Select a peer on the left to start a conversation."
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/not_your_prof/OtherProfile.qml:124
+#: src/qml/profile/not_your_prof/OtherProfile.qml:124
 msgctxt "@info:status"
 msgid "No session"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/not_your_prof/OtherProfile.qml:134
+#: src/qml/profile/not_your_prof/OtherProfile.qml:134
 msgctxt "@info:status %1 is the peer's operating system"
 msgid "online - %1"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/not_your_prof/OtherProfile.qml:169
+#: src/qml/profile/not_your_prof/OtherProfile.qml:169
 msgctxt "@info"
 msgid "No description"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/not_your_prof/OtherProfile.qml:176
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:342
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:347
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:606
+#: src/qml/profile/not_your_prof/OtherProfile.qml:176
+#: src/qml/profile/your_prof/YourProfile.qml:342
+#: src/qml/profile/your_prof/YourProfile.qml:347
+#: src/qml/profile/your_prof/YourProfile.qml:606
 msgctxt "@info"
 msgid "Will appear once connected to a K-Server"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/not_your_prof/OtherProfile.qml:201
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:576
+#: src/qml/profile/not_your_prof/OtherProfile.qml:201
+#: src/qml/profile/your_prof/YourProfile.qml:576
 msgctxt "@title profile section"
 msgid "Friends"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/not_your_prof/OtherProfile.qml:205
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:580
+#: src/qml/profile/not_your_prof/OtherProfile.qml:205
+#: src/qml/profile/your_prof/YourProfile.qml:580
 msgctxt "@info the friend list is empty"
 msgid "No one yet"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:62
+#: src/qml/profile/your_prof/YourProfile.qml:62
 msgctxt "@title:window"
 msgid "Change avatar"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:69
+#: src/qml/profile/your_prof/YourProfile.qml:69
 msgctxt "@title:window"
 msgid "Change banner"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:76
+#: src/qml/profile/your_prof/YourProfile.qml:76
 msgctxt "@title:window"
 msgid "Change background"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:83
+#: src/qml/profile/your_prof/YourProfile.qml:83
 msgctxt "@title:window"
 msgid "Choose name badge"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:157
+#: src/qml/profile/your_prof/YourProfile.qml:157
 msgctxt "@info:tooltip"
 msgid "Change banner"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:298
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:450
+#: src/qml/profile/your_prof/YourProfile.qml:298
+#: src/qml/profile/your_prof/YourProfile.qml:450
 msgctxt "@info:placeholder"
 msgid "Add information about yourself"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:311
+#: src/qml/profile/your_prof/YourProfile.qml:311
 msgctxt "@action:button"
 msgid "Choose name badge"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:321
+#: src/qml/profile/your_prof/YourProfile.qml:321
 msgctxt "@action:button"
 msgid "Done"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:322
+#: src/qml/profile/your_prof/YourProfile.qml:322
 msgctxt "@action:button"
 msgid "Edit profile"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:330
+#: src/qml/profile/your_prof/YourProfile.qml:330
 msgctxt "@info:tooltip"
 msgid "Change background"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:337
+#: src/qml/profile/your_prof/YourProfile.qml:337
 msgctxt "@info:tooltip"
 msgid "Remove background"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:341
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:346
+#: src/qml/profile/your_prof/YourProfile.qml:341
+#: src/qml/profile/your_prof/YourProfile.qml:346
 msgctxt "@title:window"
 msgid "Edit profile"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:372
+#: src/qml/profile/your_prof/YourProfile.qml:372
 msgctxt "@option:radio account scope, this device only"
 msgid "Local"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:387
+#: src/qml/profile/your_prof/YourProfile.qml:387
 msgctxt "@option:radio account scope, hosted on a K-Server"
 msgid "Global"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:399
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:600
+#: src/qml/profile/your_prof/YourProfile.qml:399
+#: src/qml/profile/your_prof/YourProfile.qml:600
 msgctxt "@info:status this identity has no K-Server account"
 msgid "not registered"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:416
+#: src/qml/profile/your_prof/YourProfile.qml:416
 msgctxt "@info:status your own presence"
 msgid "online"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:463
+#: src/qml/profile/your_prof/YourProfile.qml:463
 msgctxt "@info:placeholder"
 msgid "Tell us about yourself..."
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:483
+#: src/qml/profile/your_prof/YourProfile.qml:483
 msgctxt "@title:tab"
 msgid "Music"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:484
+#: src/qml/profile/your_prof/YourProfile.qml:484
 msgctxt "@title:tab"
 msgid "Photos"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:485
+#: src/qml/profile/your_prof/YourProfile.qml:485
 msgctxt "@title:tab"
 msgid "Videos"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:486
+#: src/qml/profile/your_prof/YourProfile.qml:486
 msgctxt "@title:tab"
 msgid "Albums"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:487
+#: src/qml/profile/your_prof/YourProfile.qml:487
 msgctxt "@title:tab"
 msgid "Clips"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:488
+#: src/qml/profile/your_prof/YourProfile.qml:488
 msgctxt "@title:tab"
 msgid "Articles"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:544
+#: src/qml/profile/your_prof/YourProfile.qml:544
 msgctxt "@info"
 msgid "Nothing here yet - upload files from your device"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:551
+#: src/qml/profile/your_prof/YourProfile.qml:551
 msgctxt "@info"
 msgid "No internet connection"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:601
+#: src/qml/profile/your_prof/YourProfile.qml:601
 msgctxt "@info"
 msgid "Register this identity on a K-Server to use the global profile"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:603
+#: src/qml/profile/your_prof/YourProfile.qml:603
 msgctxt "@action:button"
 msgid "Register"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/profile/your_prof/YourProfile.qml:605
+#: src/qml/profile/your_prof/YourProfile.qml:605
 msgctxt "@title:window"
 msgid "Register"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/CallsTab.qml:24
+#: src/qml/tabs/CallsTab.qml:24
 msgctxt "@title call log"
 msgid "Calls"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/CallsTab.qml:39
+#: src/qml/tabs/CallsTab.qml:39
 msgctxt "@info the call log is empty"
 msgid "No calls"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/NotesTab.qml:20
+#: src/qml/tabs/NotesTab.qml:20
 msgctxt "@item note sheet name"
 msgid "Sheet %1"
 msgid_plural "Sheet %1"
 msgstr[0] ""
 msgstr[1] ""
 
-#: NEWCORE-2-CPP/qml/tabs/NotesTab.qml:42
+#: src/qml/tabs/NotesTab.qml:42
 msgctxt "@title notes tab"
 msgid "Notes"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/NotesTab.qml:44
+#: src/qml/tabs/NotesTab.qml:44
 msgctxt "@action:button"
 msgid "Editor"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/NotesTab.qml:45
+#: src/qml/tabs/NotesTab.qml:45
 msgctxt "@action:button"
 msgid "Preview"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/NotesTab.qml:100
+#: src/qml/tabs/NotesTab.qml:100
 msgctxt "@info:placeholder"
 msgid "Write something"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/PlayerTab.qml:121
+#: src/qml/tabs/PlayerTab.qml:121
 msgctxt "@title:window"
 msgid "Open files"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/PlayerTab.qml:125
+#: src/qml/tabs/PlayerTab.qml:125
 msgctxt "@item:inlistbox file dialog filter, keep the glob patterns"
 msgid ""
 "Media (*.mp3 *.flac *.ogg *.opus *.wav *.m4a *.aac *.mp4 *.mkv *.webm *.avi "
 "*.mov)"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/PlayerTab.qml:126
+#: src/qml/tabs/PlayerTab.qml:126
 msgctxt "@item:inlistbox file dialog filter, keep the glob pattern"
 msgid "All files (*)"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/PlayerTab.qml:224
+#: src/qml/tabs/PlayerTab.qml:224
 msgctxt "@info:status"
 msgid "Unknown artist"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/PlayerTab.qml:226
+#: src/qml/tabs/PlayerTab.qml:226
 msgctxt "@info:status"
 msgid "Unknown album"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/PlayerTab.qml:222
+#: src/qml/tabs/PlayerTab.qml:222
 msgctxt "@info:status %1 is the album artist, %2 the album title"
 msgid "%1 - %2"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/PlayerTab.qml:235
+#: src/qml/tabs/PlayerTab.qml:235
 msgctxt "@info"
 msgid "Open a file to start playback"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/PlayerTab.qml:257
+#: src/qml/tabs/PlayerTab.qml:257
 msgctxt "@title playlist panel"
 msgid "Playlist"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/PlayerTab.qml:270
+#: src/qml/tabs/PlayerTab.qml:270
 msgctxt "@info:tooltip"
 msgid "Clear playlist"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/PlayerTab.qml:278
+#: src/qml/tabs/PlayerTab.qml:278
 msgctxt "@info"
 msgid "Nothing queued yet"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/PlayerTab.qml:383
+#: src/qml/tabs/PlayerTab.qml:383
 msgctxt "@info:tooltip"
 msgid "Open files"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/PlayerTab.qml:391
+#: src/qml/tabs/PlayerTab.qml:391
 msgctxt "@info:tooltip show the playlist panel"
 msgid "Playlist"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/PlayerTab.qml:398
+#: src/qml/tabs/PlayerTab.qml:398
 msgctxt "@info:tooltip video player"
 msgid "Fullscreen"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/tabs/WnsTab.qml:22
+#: src/qml/tabs/WnsTab.qml:22
 msgctxt "@info"
 msgid "A custom rendering engine is the next step"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/welcome/WelcomeScreen.qml:20
+#: src/qml/welcome/WelcomeScreen.qml:20
 msgctxt "@info:status %1 is the version number"
 msgid "Developer build %1"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/welcome/WelcomeScreen.qml:79
+#: src/qml/welcome/WelcomeScreen.qml:79
 msgctxt "@action:button"
 msgid "About"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/welcome/WelcomeScreen.qml:101
+#: src/qml/welcome/WelcomeScreen.qml:101
 msgctxt "@option:check"
 msgid "Check for updates at startup"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/welcome/WelcomeScreen.qml:109
+#: src/qml/welcome/WelcomeScreen.qml:109
 msgctxt "@info:status this option does nothing yet"
 msgid "In development"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/welcome/WelcomeScreen.qml:132
+#: src/qml/welcome/WelcomeScreen.qml:132
 msgctxt "@title"
 msgid "Community"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/welcome/WelcomeScreen.qml:138
+#: src/qml/welcome/WelcomeScreen.qml:138
 msgctxt "@info"
 msgid "Join like-minded KOutNet people in our community:"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/welcome/WelcomeScreen.qml:144
+#: src/qml/welcome/WelcomeScreen.qml:144
 msgctxt "@label the Telegram chat platform"
 msgid "Telegram:"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/welcome/WelcomeScreen.qml:169
+#: src/qml/welcome/WelcomeScreen.qml:169
 msgctxt "@title"
 msgid "Contribute"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/welcome/WelcomeScreen.qml:176
+#: src/qml/welcome/WelcomeScreen.qml:176
 msgctxt "@info"
 msgid ""
 "Want to help make KOutNet better? Visit our <a href=\"github\">GitHub page</"
 "a>. Report bugs or contribute code, anyone can do it."
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/welcome/WelcomeScreen.qml:197
+#: src/qml/welcome/WelcomeScreen.qml:197
 msgctxt "@option:check"
 msgid "Do not show this again"
 msgstr ""
 
-#: NEWCORE-2-CPP/qml/welcome/WelcomeScreen.qml:205
+#: src/qml/welcome/WelcomeScreen.qml:205
 msgctxt "@action:button"
 msgid "Continue"
 msgstr ""

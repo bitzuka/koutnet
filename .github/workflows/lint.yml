@@ -44,5 +44,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check formatting
         run: |
-          find NEWCORE-2-CPP -name '*.cpp' -o -name '*.h' \
+          find src -name '*.cpp' -o -name '*.h' \
             | xargs clang-format --dry-run --Werror

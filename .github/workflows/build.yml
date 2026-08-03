@@ -37,7 +37,7 @@ jobs:
       - name: Build
         run: cmake --build build --parallel
       # No kwalletd and no display here, so the crypto test runs the
-      # no-wallet path on purpose - see NEWCORE-2-CPP/tests.
+      # no-wallet path on purpose - see src/tests.
       - name: Test
         run: ctest --test-dir build --output-on-failure
         env:

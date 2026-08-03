@@ -10,7 +10,7 @@
 # The file list goes through a NUL-delimited pipe rather than unquoted
 # command substitution, so a path with a space in it cannot silently turn
 # into two arguments.
-find NEWCORE-2-CPP \( -path '*/build' -o -path 'NEWCORE-2-CPP/tests' \) -prune -o \
+find src \( -path '*/build' -o -path 'src/tests' \) -prune -o \
     \( -name '*.cpp' -o -name '*.h' -o -name '*.qml' \) -print0 \
     | sort -z \
     | xargs -0 $XGETTEXT -o "$podir/koutnet.pot"

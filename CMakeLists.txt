@@ -45,7 +45,7 @@ ecm_set_disabled_deprecation_versions(
     KF ${KF_MIN_VERSION}
 )
 
-add_subdirectory(NEWCORE-2-CPP)
+add_subdirectory(src)
 
 # Formatting is a commit-time concern rather than a review-time one. The hook
 # only lands in a git checkout, so builds from a tarball are unaffected.
