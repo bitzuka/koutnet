@@ -877,11 +877,30 @@ Kirigami.ApplicationWindow {
     Kirigami.OverlaySheet {
         id: aboutSheet
         title: i18nc("@title:window", "About")
-        Label {
-            width: Kirigami.Units.gridUnit * 20
-            wrapMode: Text.WordWrap
-            text: i18nc("@info application tagline", "KOutNet - P2P encrypted messenger")
-            color: root.theme.text
+        // Everything here comes from the KAboutData built in main.cpp, so the
+        // dialog cannot drift away from what --version and DrKonqi report.
+        ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            Label {
+                Layout.preferredWidth: Kirigami.Units.gridUnit * 20
+                wrapMode: Text.WordWrap
+                text: aboutData.shortDescription
+                color: root.theme.text
+            }
+            Label {
+                text: i18nc("@info:status %1 is the version number", "Version %1", aboutData.version)
+                color: root.theme.text_dim
+            }
+            Label {
+                text: aboutData.copyrightStatement
+                color: root.theme.text_dim
+            }
+            Label {
+                text: "<a href=\"" + aboutData.homepage + "\">" + aboutData.homepage + "</a>"
+                onLinkActivated: (link) => Qt.openUrlExternally(link)
+                color: root.theme.text_dim
+            }
         }
     }
 

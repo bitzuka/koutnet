@@ -18,6 +18,11 @@ set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
 include(KDEInstallDirs)
 include(KDECMakeSettings)
 include(KDECompilerSettings NO_POLICY_SCOPE)
+include(KDEGitCommitHooks)
+include(ECMDeprecationSettings)
+include(ECMInstallIcons)
+include(ECMQtDeclareLoggingCategory)
+include(ECMSetupVersion)
 include(FeatureSummary)
 
 # After the KDE includes on purpose: KDECompilerSettings picks a standard of
@@ -26,6 +31,24 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
+# The About dialog and the welcome screen read the version from this header, so
+# project() above stays the only place it is written down.
+ecm_setup_version(${PROJECT_VERSION}
+    VARIABLE_PREFIX KOUTNET
+    VERSION_HEADER ${CMAKE_CURRENT_BINARY_DIR}/koutnet-version.h
+)
+
+# Anything deprecated before the minimum versions this project claims to
+# support has no business compiling, or the claim is not worth much.
+ecm_set_disabled_deprecation_versions(
+    QT ${QT_MIN_VERSION}
+    KF ${KF_MIN_VERSION}
+)
+
 add_subdirectory(NEWCORE-2-CPP)
+
+# Formatting is a commit-time concern rather than a review-time one. The hook
+# only lands in a git checkout, so builds from a tarball are unaffected.
+kde_configure_git_pre_commit_hook(CHECKS CLANG_FORMAT)
 
 feature_summary(WHAT ALL INCLUDE_QUIET_PACKAGES FATAL_ON_MISSING_REQUIRED_PACKAGES)

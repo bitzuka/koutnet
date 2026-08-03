@@ -2,11 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "AppSettings.h"
 #include "../security/SecretStore.h"
+#include "koutnet_crypto_debug.h"
 
+#include <KConfigGroup>
+
+#include <QMetaMethod>
+#include <QMetaProperty>
 #include <QSettings>
-#include <QHostInfo>
 #include <QTimer>
-#include <QDebug>
 
 namespace koutnet {
 
@@ -25,55 +28,118 @@ QStringList legacyConfigKeys()
     return { QStringLiteral("app/group_passphrase") };
 }
 
+// The single group the kcfg writes to, needed here for the two keys the
+// generated code knows nothing about.
+QString configGroupName()
+{
+    return QStringLiteral("app");
+}
+
+// A file written before this port carries none of KConfig's own escaping, so
+// one pass through QSettings normalises it for good.
+constexpr int kCurrentConfigVersion = 1;
+
+// Long enough that a dragged slider settles into a single write, short enough
+// that a crash immediately after a change is the only way to lose one.
+constexpr int kSaveDelayMs = 1000;
+
 } // namespace
 
-AppSettings::AppSettings(QObject *parent) : QObject(parent)
+AppSettings::AppSettings(QObject *parent) : KOutNetSettings()
 {
-    load();
+    setParent(parent);
+
+    m_saveTimer = new QTimer(this);
+    m_saveTimer->setSingleShot(true);
+    m_saveTimer->setInterval(kSaveDelayMs);
+    connect(m_saveTimer, &QTimer::timeout, this, [this]() { save(); });
+
+    // First, because it is the only step that still edits the file through
+    // QSettings, and the last writer of any given run has to be KConfig.
+    loadGroupPassphrase();
+    migrateEscapedValues();
+    adoptLegacyConnectionMode();
+    adoptHandleAsDisplayName();
+    save();
+
+    connectAutoSave();
 }
 
-void AppSettings::load()
+AppSettings::~AppSettings()
 {
-    QSettings settings;
-    // Falls back to the machine's hostname rather than a blank field, so a
-    // fresh install has a usable (if generic) name on the network instead
-    // of showing up to peers as an empty string.
-    m_username = settings.value("app/username", QHostInfo::localHostName()).toString();
-    // Used to be a bool. Anyone whose old key said true was on the relay,
-    // which is mode 3 in the five-mode enum.
-    if (settings.contains("app/vds_mode") && !settings.contains("app/connection_mode")) {
-        m_connectionMode = settings.value("app/vds_mode").toBool() ? 3 : 0;
-        settings.setValue("app/connection_mode", m_connectionMode);
-    } else {
-        m_connectionMode = settings.value("app/connection_mode", 0).toInt();
+    // A pending change is a change the user made; quitting is not a reason to
+    // drop it.
+    if (m_saveTimer->isActive()) {
+        m_saveTimer->stop();
+        save();
     }
-    m_relayHost = settings.value("app/relay_host", QString()).toString();
-    m_relayPort = settings.value("app/relay_port", 0).toInt();
-    m_language = settings.value(QStringLiteral("app/language"), QStringLiteral("ru")).toString();
-    m_audioInputId = settings.value("app/audio_input_id", QString()).toString();
-    m_audioOutputId = settings.value("app/audio_output_id", QString()).toString();
-    m_audioVolume = settings.value("app/audio_volume", 100).toInt();
-    m_micMuted = settings.value("app/mic_muted", false).toBool();
-    m_vadEnabled = settings.value("app/vad_enabled", true).toBool();
-    m_showWelcome = settings.value("app/show_welcome", true).toBool();
-    m_checkUpdatesOnStart = settings.value("app/check_updates_on_start", false).toBool();
-    m_displayName = settings.value("app/display_name", m_username).toString();
-    m_avatarPath = settings.value("app/avatar_path", QString()).toString();
-    m_bannerPath = settings.value("app/banner_path", QString()).toString();
-    m_profileBackgroundPath = settings.value("app/profile_background_path", QString()).toString();
-    m_nameBadgePath = settings.value("app/name_badge_path", QString()).toString();
-    m_bio = settings.value("app/bio", QString()).toString();
-    m_globalAccount = settings.value("app/global_account", false).toBool();
-    m_globalAccountRegistered = settings.value("app/global_account_registered", false).toBool();
-
-    loadGroupPassphrase(settings);
 }
 
-// Last thing load() does, because the deletion below rewrites the file the rest
-// of load() has been reading from. The instance passed in stays usable: every
-// QSettings on one file shares a single in-memory copy, so it sees the removal
-// too and cannot put the key back when it syncs.
-void AppSettings::loadGroupPassphrase(QSettings &settings)
+// One connection per generated property, taken from the metaobject rather than
+// written out twenty times.
+void AppSettings::connectAutoSave()
+{
+    const QMetaObject *mo = metaObject();
+    const QMetaMethod slot = mo->method(mo->indexOfSlot("scheduleSave()"));
+    const QMetaObject &generated = KOutNetSettings::staticMetaObject;
+    for (int i = generated.propertyOffset(); i < generated.propertyCount(); ++i) {
+        const QMetaProperty property = generated.property(i);
+        if (property.hasNotifySignal())
+            connect(this, property.notifySignal(), this, slot);
+    }
+}
+
+void AppSettings::scheduleSave()
+{
+    m_saveTimer->start();
+}
+
+// QSettings stores anything outside ASCII as \xNNNN and quotes anything with a
+// comma in it; KConfig hands both back verbatim, so a Cyrillic display name
+// would show up as visible backslashes. Read the old file once through the
+// writer that produced it and let the save in the constructor put the values
+// back as UTF-8.
+void AppSettings::migrateEscapedValues()
+{
+    if (configVersion() >= kCurrentConfigVersion)
+        return;
+
+    QSettings legacy;
+    const KConfigSkeletonItem::List entries = items();
+    for (KConfigSkeletonItem *entry : entries) {
+        const QVariant value = legacy.value(configGroupName() + QLatin1Char('/') + entry->key());
+        if (!value.isValid())
+            continue;
+        entry->setProperty(value);
+    }
+    setConfigVersion(kCurrentConfigVersion);
+}
+
+void AppSettings::adoptLegacyConnectionMode()
+{
+    KConfigGroup group(config(), configGroupName());
+    if (!group.hasKey(QStringLiteral("vds_mode")) || group.hasKey(QStringLiteral("connection_mode")))
+        return;
+
+    // The mode used to be a bool. Anyone whose old key said true was on the
+    // relay, which is mode 3 in the five-mode enum.
+    setConnectionMode(group.readEntry(QStringLiteral("vds_mode"), false) ? 3 : 0);
+}
+
+void AppSettings::adoptHandleAsDisplayName()
+{
+    KConfigGroup group(config(), configGroupName());
+    if (group.hasKey(QStringLiteral("display_name")))
+        return;
+
+    // The display name has always fallen back to the handle rather than to the
+    // machine name, so a file that never had the key has to keep looking the
+    // same. It is written down now, which also means that renaming the handle
+    // later no longer renames the profile along with it.
+    setDisplayName(username());
+}
+
+void AppSettings::loadGroupPassphrase()
 {
     m_groupPassphrase.clear();
 
@@ -88,15 +154,16 @@ void AppSettings::loadGroupPassphrase(QSettings &settings)
 
     // Older builds kept the passphrase next to the window geometry, in clear
     // text. Move it, and only forget the old copy once the wallet has it.
-    const QString legacy = settings.value(legacyConfigKeys().at(0)).toString();
+    const QString legacy = QSettings().value(legacyConfigKeys().at(0)).toString();
     if (legacy.isEmpty())
         return;
 
     m_groupPassphrase = legacy;
     if (!SecretStore::write(walletKey, legacy)) {
-        qCritical("AppSettings: the group passphrase is still in the config file in clear "
-                  "text because KWallet is unavailable (%s)",
-                  qUtf8Printable(SecretStore::lastError()));
+        qCCritical(KOUTNET_LOG_CRYPTO,
+                   "the group passphrase is still in the config file in clear text because "
+                   "KWallet is unavailable (%s)",
+                   qUtf8Printable(SecretStore::lastError()));
         reportSecretStoreProblem(SecretStore::lastError());
         return;
     }
@@ -109,9 +176,10 @@ void AppSettings::dropLegacyPassphrase()
     if (SecretStore::purgePlaintextConfigKeys(legacyConfigKeys(), &detail))
         return;
 
-    qCritical("AppSettings: KWallet holds the group passphrase, but the clear-text copy "
-              "could NOT be deleted from the config file: %s",
-              qUtf8Printable(detail));
+    qCCritical(KOUTNET_LOG_CRYPTO,
+               "KWallet holds the group passphrase, but the clear-text copy could NOT be "
+               "deleted from the config file: %s",
+               qUtf8Printable(detail));
     reportSecretStoreProblem(detail);
 }
 
@@ -123,42 +191,6 @@ void AppSettings::reportSecretStoreProblem(const QString &reason)
     QTimer::singleShot(0, this, [this, reason]() {
         Q_EMIT secretStoreUnavailable(reason);
     });
-}
-
-void AppSettings::setUsername(const QString &name)
-{
-    if (m_username == name)
-        return;
-    m_username = name;
-    QSettings().setValue("app/username", m_username);
-    Q_EMIT usernameChanged();
-}
-
-void AppSettings::setConnectionMode(int mode)
-{
-    if (m_connectionMode == mode)
-        return;
-    m_connectionMode = mode;
-    QSettings().setValue("app/connection_mode", m_connectionMode);
-    Q_EMIT connectionModeChanged();
-}
-
-void AppSettings::setRelayHost(const QString &host)
-{
-    if (m_relayHost == host)
-        return;
-    m_relayHost = host;
-    QSettings().setValue("app/relay_host", m_relayHost);
-    Q_EMIT relayChanged();
-}
-
-void AppSettings::setRelayPort(int port)
-{
-    if (m_relayPort == port)
-        return;
-    m_relayPort = port;
-    QSettings().setValue("app/relay_port", m_relayPort);
-    Q_EMIT relayChanged();
 }
 
 void AppSettings::setGroupPassphrase(const QString &passphrase)
@@ -173,155 +205,10 @@ void AppSettings::setGroupPassphrase(const QString &passphrase)
                                              : SecretStore::write(passphraseWalletKey(), passphrase);
     if (!stored) {
         Q_EMIT secretStoreUnavailable(SecretStore::lastError());
-        qCritical("AppSettings: the group passphrase was not saved (%s)",
-                  qUtf8Printable(SecretStore::lastError()));
+        qCCritical(KOUTNET_LOG_CRYPTO, "the group passphrase was not saved (%s)",
+                   qUtf8Printable(SecretStore::lastError()));
     }
     Q_EMIT groupPassphraseChanged();
-}
-
-void AppSettings::setLanguage(const QString &lang)
-{
-    if (m_language == lang)
-        return;
-    m_language = lang;
-    QSettings().setValue("app/language", m_language);
-    Q_EMIT languageChanged();
-}
-
-void AppSettings::setAudioInputId(const QString &id)
-{
-    if (m_audioInputId == id)
-        return;
-    m_audioInputId = id;
-    QSettings().setValue("app/audio_input_id", m_audioInputId);
-    Q_EMIT audioInputIdChanged();
-}
-
-void AppSettings::setAudioOutputId(const QString &id)
-{
-    if (m_audioOutputId == id)
-        return;
-    m_audioOutputId = id;
-    QSettings().setValue("app/audio_output_id", m_audioOutputId);
-    Q_EMIT audioOutputIdChanged();
-}
-
-void AppSettings::setAudioVolume(int percent)
-{
-    const int clamped = qBound(0, percent, 100);
-    if (m_audioVolume == clamped)
-        return;
-    m_audioVolume = clamped;
-    QSettings().setValue("app/audio_volume", m_audioVolume);
-    Q_EMIT audioVolumeChanged();
-}
-
-void AppSettings::setMicMuted(bool muted)
-{
-    if (m_micMuted == muted)
-        return;
-    m_micMuted = muted;
-    QSettings().setValue("app/mic_muted", m_micMuted);
-    Q_EMIT micMutedChanged();
-}
-
-void AppSettings::setVadEnabled(bool enabled)
-{
-    if (m_vadEnabled == enabled)
-        return;
-    m_vadEnabled = enabled;
-    QSettings().setValue("app/vad_enabled", m_vadEnabled);
-    Q_EMIT vadEnabledChanged();
-}
-
-void AppSettings::setShowWelcome(bool show)
-{
-    if (m_showWelcome == show)
-        return;
-    m_showWelcome = show;
-    QSettings().setValue("app/show_welcome", m_showWelcome);
-    Q_EMIT showWelcomeChanged();
-}
-
-void AppSettings::setCheckUpdatesOnStart(bool check)
-{
-    if (m_checkUpdatesOnStart == check)
-        return;
-    m_checkUpdatesOnStart = check;
-    QSettings().setValue("app/check_updates_on_start", m_checkUpdatesOnStart);
-    Q_EMIT checkUpdatesOnStartChanged();
-}
-
-void AppSettings::setDisplayName(const QString &name)
-{
-    if (m_displayName == name)
-        return;
-    m_displayName = name;
-    QSettings().setValue("app/display_name", m_displayName);
-    Q_EMIT displayNameChanged();
-}
-
-void AppSettings::setAvatarPath(const QString &path)
-{
-    if (m_avatarPath == path)
-        return;
-    m_avatarPath = path;
-    QSettings().setValue("app/avatar_path", m_avatarPath);
-    Q_EMIT avatarPathChanged();
-}
-
-void AppSettings::setBannerPath(const QString &path)
-{
-    if (m_bannerPath == path)
-        return;
-    m_bannerPath = path;
-    QSettings().setValue("app/banner_path", m_bannerPath);
-    Q_EMIT bannerPathChanged();
-}
-
-void AppSettings::setProfileBackgroundPath(const QString &path)
-{
-    if (m_profileBackgroundPath == path)
-        return;
-    m_profileBackgroundPath = path;
-    QSettings().setValue("app/profile_background_path", m_profileBackgroundPath);
-    Q_EMIT profileBackgroundPathChanged();
-}
-
-void AppSettings::setNameBadgePath(const QString &path)
-{
-    if (m_nameBadgePath == path)
-        return;
-    m_nameBadgePath = path;
-    QSettings().setValue("app/name_badge_path", m_nameBadgePath);
-    Q_EMIT nameBadgePathChanged();
-}
-
-void AppSettings::setBio(const QString &text)
-{
-    if (m_bio == text)
-        return;
-    m_bio = text;
-    QSettings().setValue("app/bio", m_bio);
-    Q_EMIT bioChanged();
-}
-
-void AppSettings::setGlobalAccount(bool enabled)
-{
-    if (m_globalAccount == enabled)
-        return;
-    m_globalAccount = enabled;
-    QSettings().setValue("app/global_account", m_globalAccount);
-    Q_EMIT globalAccountChanged();
-}
-
-void AppSettings::setGlobalAccountRegistered(bool registered)
-{
-    if (m_globalAccountRegistered == registered)
-        return;
-    m_globalAccountRegistered = registered;
-    QSettings().setValue("app/global_account_registered", m_globalAccountRegistered);
-    Q_EMIT globalAccountRegisteredChanged();
 }
 
 } // namespace koutnet

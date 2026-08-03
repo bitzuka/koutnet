@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com> -->
+<!-- SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL -->
+<!--
+  The file name, the group and every key below are the ones QSettings has been
+  writing since the first build. They are not free to change: an installed copy
+  of KOutNet keeps its settings in ~/.config/KOutNet/KOutNet.conf, and a
+  different name or key would read as a fresh install.
+
+  Entry names are the QML-facing property names, so appSettings.displayName
+  keeps working while the key on disk stays display_name.
+
+  No <label> or <whatsthis> on purpose: nothing here is shown in a
+  KConfigDialog, and kconfig_compiler would turn them into bare i18n() calls
+  that Messages.sh does not even collect.
+-->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+                          http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <include>QHostInfo</include>
+
+  <kcfgfile name="KOutNet/KOutNet.conf"/>
+
+  <group name="app">
+    <!-- The @handle peers see. A blank one would show up on the network as an
+         empty string, so it falls back to the machine name. -->
+    <entry name="username" key="username" type="String">
+      <default code="true">QHostInfo::localHostName()</default>
+    </entry>
+
+    <!-- NetworkManager::ConnectionMode as an int, so core/constructor does not
+         have to include the network header. 0 = LAN/VPN, 3 = relay. -->
+    <entry name="connectionMode" key="connection_mode" type="Int">
+      <default>0</default>
+    </entry>
+    <entry name="relayHost" key="relay_host" type="String"/>
+    <entry name="relayPort" key="relay_port" type="Int">
+      <default>0</default>
+    </entry>
+
+    <entry name="language" key="language" type="String">
+      <default>ru</default>
+    </entry>
+
+    <!-- Audio device ids as reported by QAudioDevice::id(). Empty means
+         "follow the system default", which is also the fallback when a saved
+         device is no longer plugged in. -->
+    <entry name="audioInputId" key="audio_input_id" type="String"/>
+    <entry name="audioOutputId" key="audio_output_id" type="String"/>
+    <!-- Percent rather than a 0..1 factor, so the slider and the stored value
+         read the same way. -->
+    <entry name="audioVolume" key="audio_volume" type="Int">
+      <default>100</default>
+      <min>0</min>
+      <max>100</max>
+    </entry>
+    <entry name="micMuted" key="mic_muted" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="vadEnabled" key="vad_enabled" type="Bool">
+      <default>true</default>
+    </entry>
+
+    <!-- Welcome screen at startup. Ticking "do not show again" clears this and
+         the main window comes up directly. -->
+    <entry name="showWelcome" key="show_welcome" type="Bool">
+      <default>true</default>
+    </entry>
+    <!-- Stored only. There is no updater yet, and the welcome screen says so
+         next to the checkbox. -->
+    <entry name="checkUpdatesOnStart" key="check_updates_on_start" type="Bool">
+      <default>false</default>
+    </entry>
+
+    <!-- The free-form nickname shown big in the profile header, as opposed to
+         the handle above. A first start has neither, so both default to the
+         machine name; AppSettings adopts an existing handle instead. -->
+    <entry name="displayName" key="display_name" type="String">
+      <default code="true">QHostInfo::localHostName()</default>
+    </entry>
+    <entry name="avatarPath" key="avatar_path" type="String"/>
+    <entry name="bannerPath" key="banner_path" type="String"/>
+    <!-- Full-bleed backdrop behind the whole profile page, separate from the
+         banner strip up top. -->
+    <entry name="profileBackgroundPath" key="profile_background_path" type="String"/>
+    <!-- Small custom image next to the display name. -->
+    <entry name="nameBadgePath" key="name_badge_path" type="String"/>
+    <!-- Markdown-formatted "about me" text. -->
+    <entry name="bio" key="bio" type="String"/>
+
+    <!-- false = local account (this device only), true = global account synced
+         through a K-Server. A UI-level toggle for now. -->
+    <entry name="globalAccount" key="global_account" type="Bool">
+      <default>false</default>
+    </entry>
+    <!-- Only meaningful while globalAccount is true: a local account is
+         implicitly registered, it is just this device. -->
+    <entry name="globalAccountRegistered" key="global_account_registered" type="Bool">
+      <default>false</default>
+    </entry>
+
+    <!-- Bumped by AppSettings when it has rewritten values that QSettings had
+         escaped. Absent in every file written before the KConfig port. -->
+    <entry name="configVersion" key="config_version" type="Int">
+      <default>0</default>
+    </entry>
+  </group>
+</kcfg>

@@ -12,6 +12,7 @@
 #include <QDateTime>
 #include <QRandomGenerator>
 #include <QDebug>
+#include "koutnet_chat_debug.h"
 
 GroupManager::GroupManager(QObject *parent) : QObject(parent)
 {
@@ -123,8 +124,8 @@ void GroupManager::load()
         // a truncated or hand-edited file is still the user's group list, so
         // block saving rather than replacing it with whatever we managed to read
         m_loadFailed = true;
-        qWarning() << "[GroupManager] refusing to overwrite unreadable" << f.fileName()
-                   << err.errorString();
+        qCWarning(KOUTNET_LOG_CHAT) << "refusing to overwrite unreadable" << f.fileName()
+                                    << err.errorString();
         return;
     }
     const QJsonObject root = doc.object();
@@ -135,7 +136,7 @@ void GroupManager::load()
 void GroupManager::save()
 {
     if (m_loadFailed) {
-        qWarning() << "[GroupManager] not saving, the file on disk failed to parse";
+        qCWarning(KOUTNET_LOG_CHAT) << "not saving, the file on disk failed to parse";
         return;
     }
 
@@ -146,10 +147,10 @@ void GroupManager::save()
     // QSaveFile so a crash or a full disk mid-write leaves the old list intact
     QSaveFile f(filePath());
     if (!f.open(QIODevice::WriteOnly)) {
-        qWarning() << "[GroupManager] save failed:" << f.fileName() << f.errorString();
+        qCWarning(KOUTNET_LOG_CHAT) << "save failed:" << f.fileName() << f.errorString();
         return;
     }
     f.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
     if (!f.commit())
-        qWarning() << "[GroupManager] commit failed:" << f.fileName() << f.errorString();
+        qCWarning(KOUTNET_LOG_CHAT) << "commit failed:" << f.fileName() << f.errorString();
 }

@@ -1,22 +1,27 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - application entry point
+#include <QCommandLineParser>
 #include <QGuiApplication>
 #include <QCryptographicHash>
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
-#include <QDebug>
 
 #include "core/security/CryptoManager.h"
 #include "network/NetworkManager.h"
 #include "network/VoiceCallManager.h"
 #include "network/FileTransferHandler.h"
+#include <KAboutData>
 #include <KLocalizedQmlContext>
 #include <KLocalizedString>
 
 #include "core/constructor/AppSettings.h"
 #include "core/audio/AudioDevices.h"
+#include "koutnet-version.h"
+#include "koutnet_app_debug.h"
+#include "koutnet_crypto_debug.h"
+#include "koutnet_network_debug.h"
 
 int main(int argc, char *argv[])
 {
@@ -25,8 +30,46 @@ int main(int argc, char *argv[])
     // asks for a translated string, so nothing resolves against whatever
     // domain happened to be current.
     KLocalizedString::setApplicationDomain(QByteArrayLiteral("koutnet"));
+
+    KAboutData aboutData(QStringLiteral("koutnet"),
+                         i18nc("@title application name", "KOutNet"),
+                         QStringLiteral(KOUTNET_VERSION_STRING),
+                         i18nc("@info:whatsthis", "P2P encrypted messenger for LAN, VPN and relay"),
+                         KAboutLicense::GPL_V3,
+                         i18nc("@info:credit", "Copyright 2026 bitzuka"));
+    aboutData.addAuthor(i18nc("@info:credit", "bitzuka"),
+                        i18nc("@info:credit", "Author and maintainer"),
+                        QStringLiteral("bitzuka.koutnet@gmail.com"));
+    aboutData.setHomepage(QStringLiteral("https://github.com/bitzuka/koutnet"));
+    // DrKonqi offers to file a report at this address after a crash, so it has
+    // to be a tracker that exists. The KDE product is created together with the
+    // incubation request; the metainfo still points at the GitHub tracker.
+    aboutData.setBugAddress(QByteArrayLiteral("https://bugs.kde.org/enter_bug.cgi?product=koutnet"));
+    // Filled in per catalog by whoever translates it, which is why these two
+    // strings are placeholders rather than prose.
+    aboutData.setTranslator(i18nc("NAME OF TRANSLATORS", "Your names"),
+                            i18nc("EMAIL OF TRANSLATORS", "Your emails"));
+    aboutData.setDesktopFileName(QStringLiteral("io.github.bitzuka.KOutNet"));
+    KAboutData::setApplicationData(aboutData);
+
+    // After setApplicationData on purpose: that call takes the application name
+    // from the component name, which would point QSettings at
+    // KOutNet/koutnet.conf and leave the plaintext-key cleanup looking at a
+    // file nobody has ever written.
+    //
+    // "KOutNet" rather than the KDE-conventional organisation domain because
+    // every installed copy already keeps its settings in ~/.config/KOutNet/,
+    // and the KWallet migration reads them from there. Moving the path would
+    // strand them.
     app.setApplicationName(QStringLiteral("KOutNet"));
     app.setOrganizationName(QStringLiteral("KOutNet"));
+
+    // --version and --help, plus whatever the platform plugin wants to take off
+    // the command line.
+    QCommandLineParser parser;
+    aboutData.setupCommandLine(&parser);
+    parser.process(app);
+    aboutData.processCommandLine(&parser);
 
     // Wayland reads the taskbar icon off the .desktop file it matches to the
     // window's app_id, which Qt takes from here. X11 ignores that and uses
@@ -35,22 +78,27 @@ int main(int argc, char *argv[])
     // The QML module resources sit under the URI path directly rather than
     // below /qt/qml, since this build has not opted into the newer CMake
     // resource prefix policy. The isNull check is what caught the wrong path.
-    const QIcon appIcon(QStringLiteral(":/koutnet/app/assets/koutnet_logo.png"));
+    const QIcon appIcon(QStringLiteral(":/koutnet/app/assets/512-apps-io.github.bitzuka.KOutNet.png"));
     if (appIcon.isNull())
-        qWarning("KOutNet: application icon missing from the QML module resources");
+        qCWarning(KOUTNET_LOG_APP, "application icon missing from the QML module resources");
     app.setWindowIcon(appIcon);
 
     // Single shared CryptoManager instance - injected into every module that
     // needs it (NetworkManager, VoiceCallManager). Never create a second
     // instance elsewhere; identity keys and session state must stay
     // single-sourced. See core/security/CryptoManager.h.
-    auto *appSettings = new koutnet::AppSettings(&app);
-
     auto *crypto = new koutnet::CryptoManager(&app);
     if (!crypto->isValid()) {
-        qCritical("KOutNet: cryptographic identity failed to initialize - aborting startup");
+        qCCritical(KOUTNET_LOG_CRYPTO,
+                   "cryptographic identity failed to initialize - aborting startup");
         return 1;
     }
+
+    // Constructed after CryptoManager because that is the last thing to edit
+    // the config file through QSettings while it clears out plaintext keys.
+    // AppSettings writes the same file with KConfig, and the two encode
+    // non-ASCII differently, so the KConfig write has to come second.
+    auto *appSettings = new koutnet::AppSettings(&app);
     auto *network = new koutnet::NetworkManager(crypto, &app);
 
     // Apply persisted connection settings before start() - see AppSettings.
@@ -117,7 +165,7 @@ int main(int argc, char *argv[])
                      fileTransfer, &koutnet::FileTransferHandler::onChunkMessage);
 
     if (!network->start())
-        qWarning("KOutNet: failed to start network layer");
+        qCWarning(KOUTNET_LOG_NETWORK, "failed to start network layer");
 
     QQmlApplicationEngine engine;
 
@@ -139,6 +187,11 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("fileTransferHandler"), fileTransfer);
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), appSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("audioDevices"), audioDevices);
+    // KAboutData is a gadget, so QML reads its properties straight out of the
+    // QVariant. That keeps the version and the licence in one place instead of
+    // hardcoded a second time in the About dialog.
+    engine.rootContext()->setContextProperty(QStringLiteral("aboutData"),
+                                             QVariant::fromValue(aboutData));
 
     engine.loadFromModule("koutnet.app", "Main");
 

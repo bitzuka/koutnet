@@ -6,6 +6,10 @@ Dependencies:
     'frameworks/extra-cmake-modules': '@latest'
     'frameworks/kirigami': '@latest'
     'frameworks/ki18n': '@stable'
+    # The settings class is generated from koutnetsettings.kcfg, and the about
+    # data comes from KAboutData, so neither of these is optional either.
+    'frameworks/kconfig': '@stable'
+    'frameworks/kcoreaddons': '@stable'
     # The private keys and the group passphrase live in KWallet, so this is a
     # hard build dependency and not an optional integration.
     'frameworks/kwallet': '@stable'

@@ -13,7 +13,12 @@ ecm_add_test(
     CryptoManagerTest.cpp
     ../core/security/CryptoManager.cpp
     ../core/security/SecretStore.cpp
+    ${KOUTNET_CRYPTO_LOGGING_SRCS}
     TEST_NAME crypto-manager
     NAME_PREFIX koutnet-
     LINK_LIBRARIES Qt6::Test Qt6::Core OpenSSL::Crypto KF6::Wallet KF6::I18n
 )
+
+# CryptoManager.cpp includes its logging category header, which is generated
+# into the parent directory's build tree and not into this one.
+target_include_directories(crypto-manager PRIVATE ${KOUTNET_GENERATED_INCLUDE_DIR})

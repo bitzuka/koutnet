@@ -10,6 +10,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QDebug>
+#include "koutnet_chat_debug.h"
 #include <algorithm>
 
 ReactionStore::ReactionStore(QObject *parent) : QObject(parent)
@@ -103,7 +104,7 @@ QVariantList ReactionStore::summary(const QString &chatId, double ts) const
 void ReactionStore::save()
 {
     if (m_loadFailed) {
-        qWarning() << "[ReactionStore] not saving, the file on disk failed to parse";
+        qCWarning(KOUTNET_LOG_CHAT) << "not saving, the file on disk failed to parse";
         return;
     }
 
@@ -121,12 +122,12 @@ void ReactionStore::save()
     // until the new one is complete
     QSaveFile f(dataDir + QStringLiteral("/reactions.json"));
     if (!f.open(QIODevice::WriteOnly)) {
-        qWarning() << "[ReactionStore] save failed:" << f.fileName() << f.errorString();
+        qCWarning(KOUTNET_LOG_CHAT) << "save failed:" << f.fileName() << f.errorString();
         return;
     }
     f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
     if (!f.commit())
-        qWarning() << "[ReactionStore] commit failed:" << f.fileName() << f.errorString();
+        qCWarning(KOUTNET_LOG_CHAT) << "commit failed:" << f.fileName() << f.errorString();
 }
 
 void ReactionStore::load()
@@ -147,8 +148,8 @@ void ReactionStore::load()
         // reactions the user actually made are in there somewhere, so keep the
         // file and refuse to save rather than silently starting from empty
         m_loadFailed = true;
-        qWarning() << "[ReactionStore] refusing to overwrite unreadable" << f.fileName()
-                   << err.errorString();
+        qCWarning(KOUTNET_LOG_CHAT) << "refusing to overwrite unreadable" << f.fileName()
+                                    << err.errorString();
         return;
     }
 

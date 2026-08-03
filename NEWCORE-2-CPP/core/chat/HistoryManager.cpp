@@ -9,6 +9,7 @@
 #include <QJsonArray>
 #include <QRegularExpression>
 #include <QDebug>
+#include "koutnet_chat_debug.h"
 
 HistoryManager::HistoryManager(QObject *parent) : QObject(parent)
 {
@@ -54,8 +55,8 @@ QVariantList HistoryManager::load(const QString &chatId)
             // whatever is in there is still the user's log, so keep the chat
             // usable in memory but never write over the file again
             m_unreadable.insert(chatId);
-            qWarning() << "[HistoryManager] refusing to overwrite unreadable" << f.fileName()
-                       << err.errorString();
+            qCWarning(KOUTNET_LOG_CHAT) << "refusing to overwrite unreadable" << f.fileName()
+                                        << err.errorString();
         }
     }
     m_cache.insert(chatId, result);
@@ -79,11 +80,11 @@ void HistoryManager::append(const QString &chatId, const QVariantMap &entry)
         // halfway through the old QFile write left the chat truncated
         QSaveFile f(filePathFor(chatId));
         if (!f.open(QIODevice::WriteOnly)) {
-            qWarning() << "[HistoryManager] failed to write" << f.fileName() << f.errorString();
+            qCWarning(KOUTNET_LOG_CHAT) << "failed to write" << f.fileName() << f.errorString();
         } else {
             f.write(QJsonDocument(QJsonArray::fromVariantList(msgs)).toJson(QJsonDocument::Indented));
             if (!f.commit())
-                qWarning() << "[HistoryManager] commit failed" << f.fileName() << f.errorString();
+                qCWarning(KOUTNET_LOG_CHAT) << "commit failed" << f.fileName() << f.errorString();
         }
     }
 

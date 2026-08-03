@@ -10,6 +10,7 @@
 #include <QSaveFile>
 #include <QTextStream>
 #include <QDebug>
+#include "koutnet_app_debug.h"
 
 namespace {
 
@@ -203,7 +204,7 @@ void ThemeManager::saveTheme()
     // that loadSavedTheme() then throws away
     QSaveFile f(settingsFilePath());
     if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        qWarning() << "[ThemeManager] save failed:" << f.fileName() << f.errorString();
+        qCWarning(KOUTNET_LOG_APP) << "save failed:" << f.fileName() << f.errorString();
         return;
     }
     {
@@ -211,5 +212,5 @@ void ThemeManager::saveTheme()
         out << m_current;
     }
     if (!f.commit())
-        qWarning() << "[ThemeManager] commit failed:" << f.fileName() << f.errorString();
+        qCWarning(KOUTNET_LOG_APP) << "commit failed:" << f.fileName() << f.errorString();
 }

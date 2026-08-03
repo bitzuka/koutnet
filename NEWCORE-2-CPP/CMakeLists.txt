@@ -9,7 +9,9 @@ find_package(OpenSSL REQUIRED)
 # structure and the units, so a build without it fails at first window.
 # Wallet is required, not optional: the identity keys and the group passphrase
 # have nowhere else to go, and the app refuses to write them in plain text.
-find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS I18n Kirigami Wallet)
+# Config carries the generated settings class, CoreAddons the about data that
+# DrKonqi and --version read.
+find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS Config CoreAddons I18n Kirigami Wallet)
 
 # The i18n() call in QML comes from the localized context object, which lives
 # in a target of its own rather than in KF6::I18n.
@@ -19,8 +21,50 @@ endif()
 
 qt_standard_project_setup(REQUIRES 6.4)
 
+# One category per subsystem, so a bug report can be asked for
+# QT_LOGGING_RULES="koutnet.network.debug=true" instead of the whole log.
+# Crypto is declared into a variable of its own because the test suite compiles
+# CryptoManager.cpp without the rest of the application.
+ecm_qt_declare_logging_category(KOUTNET_CRYPTO_LOGGING_SRCS
+    HEADER koutnet_crypto_debug.h
+    IDENTIFIER KOUTNET_LOG_CRYPTO
+    CATEGORY_NAME koutnet.crypto
+    DESCRIPTION "KOutNet identity keys, encryption and secret storage"
+    EXPORT KOUTNET
+)
+ecm_qt_declare_logging_category(KOUTNET_LOGGING_SRCS
+    HEADER koutnet_network_debug.h
+    IDENTIFIER KOUTNET_LOG_NETWORK
+    CATEGORY_NAME koutnet.network
+    DESCRIPTION "KOutNet peer discovery, transport and file transfer"
+    EXPORT KOUTNET
+)
+ecm_qt_declare_logging_category(KOUTNET_LOGGING_SRCS
+    HEADER koutnet_chat_debug.h
+    IDENTIFIER KOUTNET_LOG_CHAT
+    CATEGORY_NAME koutnet.chat
+    DESCRIPTION "KOutNet chat history, groups and reactions"
+    EXPORT KOUTNET
+)
+ecm_qt_declare_logging_category(KOUTNET_LOGGING_SRCS
+    HEADER koutnet_audio_debug.h
+    IDENTIFIER KOUTNET_LOG_AUDIO
+    CATEGORY_NAME koutnet.audio
+    DESCRIPTION "KOutNet audio devices, capture and playback"
+    EXPORT KOUTNET
+)
+ecm_qt_declare_logging_category(KOUTNET_LOGGING_SRCS
+    HEADER koutnet_app_debug.h
+    IDENTIFIER KOUTNET_LOG_APP
+    CATEGORY_NAME koutnet.app
+    DESCRIPTION "KOutNet startup, settings and theming"
+    EXPORT KOUTNET
+)
+
 qt_add_executable(KOutNet
     main.cpp
+    ${KOUTNET_LOGGING_SRCS}
+    ${KOUTNET_CRYPTO_LOGGING_SRCS}
     core/audio/AudioEngine.cpp
     core/audio/AudioEngine.h
     core/audio/AudioMixer.cpp
@@ -74,8 +118,13 @@ qt_add_qml_module(KOutNet
         qml/call/ActiveCallWindow.qml
         qml/welcome/WelcomeScreen.qml
     RESOURCES
-        assets/koutnet_logo.png
+        assets/512-apps-io.github.bitzuka.KOutNet.png
 )
+
+# The settings class is generated from the kcfg rather than written by hand: the
+# hand-written one was twenty properties of identical setter, each opening a
+# QSettings of its own.
+kconfig_add_kcfg_files(KOutNet GENERATE_MOC core/constructor/koutnetsettings.kcfgc)
 
 target_link_libraries(KOutNet PRIVATE
     Qt6::Core
@@ -86,33 +135,49 @@ target_link_libraries(KOutNet PRIVATE
     Qt6::Multimedia
     Qt6::Network
     OpenSSL::Crypto
+    KF6::ConfigCore
+    KF6::ConfigGui
+    KF6::CoreAddons
     KF6::I18n
     KF6::I18nQml
     KF6::Kirigami
     KF6::Wallet
 )
 
-install(TARGETS KOutNet RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS KOutNet ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
 ki18n_install(${CMAKE_CURRENT_SOURCE_DIR}/../po)
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/io.github.bitzuka.KOutNet.desktop
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+        DESTINATION ${KDE_INSTALL_APPDIR})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/io.github.bitzuka.KOutNet.metainfo.xml
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/metainfo)
-# The installed icon is named after the desktop entry, not after the file in
-# assets/, because that is the name Icon= refers to.
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/assets/koutnet_logo.png
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/512x512/apps
-        RENAME io.github.bitzuka.KOutNet.png)
+        DESTINATION ${KDE_INSTALL_METAINFODIR})
+# The file name carries the size and the theme directory it belongs in, which is
+# what ecm_install_icons reads it out of. It is still a single 512px bitmap: a
+# scalable icon is what this actually wants, and drawing one is its own job.
+ecm_install_icons(
+    ICONS ${CMAKE_CURRENT_SOURCE_DIR}/assets/512-apps-io.github.bitzuka.KOutNet.png
+    DESTINATION ${KDE_INSTALL_ICONDIR}
+)
+# Lets a bug reporter find the category names without reading the source.
+ecm_qt_install_logging_categories(
+    EXPORT KOUTNET
+    FILE koutnet.categories
+    DESTINATION ${KDE_INSTALL_LOGGINGCATEGORIESDIR}
+)
 
 set_target_properties(KOutNet PROPERTIES
     WIN32_EXECUTABLE TRUE
     MACOSX_BUNDLE TRUE
 )
 
+# The version header comes from ecm_setup_version at the top level, the logging
+# categories and the generated settings class from this directory's build tree.
+set(KOUTNET_GENERATED_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(KOutNet PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/core/theme
     ${CMAKE_CURRENT_SOURCE_DIR}/core/chat
+    ${KOUTNET_GENERATED_INCLUDE_DIR}
+    ${PROJECT_BINARY_DIR}
 )
 
 # Tests are opt out so a plain build stays quick, but they are on by default

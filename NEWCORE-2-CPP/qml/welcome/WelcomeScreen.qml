@@ -13,9 +13,9 @@ Item {
     id: root
     readonly property var theme: ThemeManager.colors
 
-    // The version number itself is not prose, so only the words around it
-    // are translated.
-    readonly property string appVersion: "0.1"
+    // Read from the about data rather than written down a second time. The
+    // version itself is not prose, so only the words around it are translated.
+    readonly property string appVersion: aboutData.version
     readonly property string buildLabel: i18nc("@info:status %1 is the version number",
                                                "Developer build %1", root.appVersion)
     readonly property string githubUrl: "https://github.com/bitzuka/koutnet"
@@ -55,7 +55,7 @@ Item {
             // Relative to this file inside the QML module resource tree, so it
             // resolves the same whether the app runs from a build dir or an
             // installed prefix.
-            source: "../../assets/koutnet_logo.png"
+            source: "../../assets/512-apps-io.github.bitzuka.KOutNet.png"
             sourceSize.height: Kirigami.Units.gridUnit * 6
             fillMode: Image.PreserveAspectFit
         }
@@ -218,8 +218,8 @@ Item {
         Label {
             width: Kirigami.Units.gridUnit * 18
             wrapMode: Text.Wrap
-            text: i18nc("@info application tagline", "KOutNet - P2P encrypted messenger")
-                  + "\n\n" + root.buildLabel
+            text: aboutData.shortDescription + "\n\n" + root.buildLabel
+                  + "\n" + aboutData.copyrightStatement
             color: root.theme.text
         }
     }

@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "AudioDevices.h"
+#include "koutnet_audio_debug.h"
 
 #include <KLocalizedString>
 
@@ -9,6 +10,7 @@
 #include <QAudioSink>
 #include <QAudioSource>
 #include <QBuffer>
+#include <QDebug>
 #include <QIODevice>
 #include <QMediaDevices>
 #include <QtMath>
@@ -176,6 +178,10 @@ void AudioDevices::startMicTest(const QString &deviceId)
 
     const QAudioFormat fmt = probeFormat(device);
     if (!device.isFormatSupported(fmt)) {
+        // The message to the user cannot name a format without turning into
+        // noise, and the format is the only useful part of a bug report here.
+        qCWarning(KOUTNET_LOG_AUDIO) << "input device" << device.description()
+                                     << "rejects" << fmt;
         Q_EMIT error(i18nc("@info:status", "The input device rejects every format we can read."));
         return;
     }
@@ -183,6 +189,7 @@ void AudioDevices::startMicTest(const QString &deviceId)
     m_source = new QAudioSource(device, fmt, this);
     m_capture = m_source->start();
     if (!m_capture) {
+        qCWarning(KOUTNET_LOG_AUDIO) << "could not open input device" << device.description();
         delete m_source;
         m_source = nullptr;
         Q_EMIT error(i18nc("@info:status", "Could not open the input device."));

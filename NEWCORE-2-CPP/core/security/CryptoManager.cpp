@@ -3,6 +3,7 @@
 // KOutNet - Security Engine v2 (C++/Qt6 port)
 #include "CryptoManager.h"
 #include "SecretStore.h"
+#include "koutnet_crypto_debug.h"
 
 #include <KLocalizedString>
 
@@ -10,7 +11,6 @@
 #include <QDateTime>
 #include <QCryptographicHash>
 #include <QTimer>
-#include <QDebug>
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -70,9 +70,10 @@ CryptoManager::CryptoManager(QObject *parent) : QObject(parent)
 {
     m_valid = initKeypairs();
     if (!m_valid) {
-        qCritical("CryptoManager: failed to initialize identity/DH keypairs - "
-                  "encryption is unavailable for this session. Check isValid() "
-                  "before relying on encrypt()/handshakePayload().");
+        qCCritical(KOUTNET_LOG_CRYPTO,
+                   "failed to initialize identity/DH keypairs - encryption is unavailable "
+                   "for this session. Check isValid() before relying on "
+                   "encrypt()/handshakePayload().");
     }
 }
 
@@ -170,15 +171,16 @@ bool CryptoManager::migrateLegacyKeys(QString *outIdentityB64, QString *outDhB64
     // wallet that is merely unreachable today would cost the user their identity.
     if (!SecretStore::write(identityWalletKey(), legacyId)
         || !SecretStore::write(dhWalletKey(), legacyDh)) {
-        qCritical("CryptoManager: your private keys are still stored in plain text in the "
-                  "config file because they could not be moved into KWallet (%s). Start "
-                  "kwalletd and restart KOutNet.",
-                  qUtf8Printable(SecretStore::lastError()));
+        qCCritical(KOUTNET_LOG_CRYPTO,
+                   "your private keys are still stored in plain text in the config file "
+                   "because they could not be moved into KWallet (%s). Start kwalletd and "
+                   "restart KOutNet.",
+                   qUtf8Printable(SecretStore::lastError()));
         reportPlaintextKeysLeft(SecretStore::lastError());
         return true;
     }
 
-    qInfo("CryptoManager: copied the identity keys into KWallet");
+    qCInfo(KOUTNET_LOG_CRYPTO, "copied the identity keys into KWallet");
     dropLegacyPlaintextKeys();
     return true;
 }
@@ -196,11 +198,12 @@ void CryptoManager::dropLegacyPlaintextKeys()
     if (SecretStore::purgePlaintextConfigKeys(legacyConfigKeys(), &detail))
         return;
 
-    qCritical("CryptoManager: KWallet holds your private keys, but the plaintext copy "
-              "could NOT be deleted from the config file: %s. Anyone who can read that "
-              "file can impersonate you - delete the identity_priv_b64 and dh_priv_b64 "
-              "entries by hand.",
-              qUtf8Printable(detail));
+    qCCritical(KOUTNET_LOG_CRYPTO,
+               "KWallet holds your private keys, but the plaintext copy could NOT be "
+               "deleted from the config file: %s. Anyone who can read that file can "
+               "impersonate you - delete the identity_priv_b64 and dh_priv_b64 entries "
+               "by hand.",
+               qUtf8Printable(detail));
     reportPlaintextKeysLeft(detail);
 }
 
@@ -234,17 +237,19 @@ bool CryptoManager::stashSupersededPlaintextKeys()
          && !SecretStore::write(supersededWalletKey(identityWalletKey()), legacyId))
         || (!legacyDh.isEmpty()
             && !SecretStore::write(supersededWalletKey(dhWalletKey()), legacyDh))) {
-        qCritical("CryptoManager: the config file holds an identity that KWallet does not, "
-                  "and it could not be copied into the wallet (%s) - leaving the plaintext "
-                  "alone rather than destroying the only copy of it.",
-                  qUtf8Printable(SecretStore::lastError()));
+        qCCritical(KOUTNET_LOG_CRYPTO,
+                   "the config file holds an identity that KWallet does not, and it could "
+                   "not be copied into the wallet (%s) - leaving the plaintext alone rather "
+                   "than destroying the only copy of it.",
+                   qUtf8Printable(SecretStore::lastError()));
         reportPlaintextKeysLeft(SecretStore::lastError());
         return false;
     }
 
-    qWarning("CryptoManager: the config file held a different identity than the one in use; "
-             "it was copied into KWallet as %s before the plaintext was deleted.",
-             qUtf8Printable(supersededWalletKey(identityWalletKey())));
+    qCWarning(KOUTNET_LOG_CRYPTO,
+              "the config file held a different identity than the one in use; it was copied "
+              "into KWallet as %s before the plaintext was deleted.",
+              qUtf8Printable(supersededWalletKey(identityWalletKey())));
     return true;
 }
 
@@ -342,10 +347,11 @@ bool CryptoManager::generateAndStoreKeys()
     // away, so peers will see a new fingerprint next time.
     if (!SecretStore::write(identityWalletKey(), QString::fromLatin1(idRaw.toBase64()))
         || !SecretStore::write(dhWalletKey(), QString::fromLatin1(dhRaw.toBase64()))) {
-        qCritical("CryptoManager: could not store the identity keys in KWallet (%s). "
-                  "Running with a throwaway identity for this session - it is NOT "
-                  "written to disk in plain text.",
-                  qUtf8Printable(SecretStore::lastError()));
+        qCCritical(KOUTNET_LOG_CRYPTO,
+                   "could not store the identity keys in KWallet (%s). Running with a "
+                   "throwaway identity for this session - it is NOT written to disk in "
+                   "plain text.",
+                   qUtf8Printable(SecretStore::lastError()));
         return true;
     }
 
