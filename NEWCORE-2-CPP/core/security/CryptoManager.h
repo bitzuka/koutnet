@@ -44,9 +44,9 @@ public:
     explicit CryptoManager(QObject *parent = nullptr);
     ~CryptoManager() override;
 
-    // False when keypair generation or loading failed at startup. Check it:
-    // every method below passes plaintext straight through when keys are
-    // missing, so the failure otherwise looks like everything working.
+    // False when keypair generation or loading failed at startup. Check it
+    // before offering any secure feature: nothing below can establish a
+    // session without keys, so every call will simply refuse.
     bool isValid() const { return m_valid; }
 
     // Handshake
@@ -75,8 +75,8 @@ public:
                     const QString &peerIp = QString()) const;
 
     // Raw byte encryption (voice frames - no base64/JSON overhead)
-    // Falls back to passthrough (plaintext) if no session exists yet, same
-    // as the text path falling back to unencrypted when nothing is set up.
+    // Both refuse to work without a session: encryptBytes returns an empty
+    // array and decryptBytes returns false, and the caller drops the frame.
     QByteArray encryptBytes(const QString &peerIp, const QByteArray &plaintext) const;
     bool decryptBytes(const QString &peerIp, const QByteArray &data, QByteArray *outPlain) const;
 

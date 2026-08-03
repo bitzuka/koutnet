@@ -116,29 +116,32 @@ void VoiceCallManager::cleanup()
 
 void VoiceCallManager::onCaptured(const QByteArray &data)
 {
-    // Send mic audio to every active peer, encrypted per-peer with that
-    // peer's ECDH session key if one exists (falls back to plaintext frames
-    // until the handshake completes - same fallback behaviour as text chat).
+    // Send mic audio to every active peer, encrypted with that peer's ECDH
+    // session key. A peer we have no key for is skipped rather than sent
+    // cleartext: a gap in the audio is recoverable, a leaked call is not.
+    if (!m_crypto)
+        return;
+
     for (const auto &ip : std::as_const(m_active)) {
-        const QByteArray toSend = m_crypto ? m_crypto->encryptBytes(ip, data) : data;
+        const QByteArray toSend = m_crypto->encryptBytes(ip, data);
+        if (toSend.isEmpty())
+            continue;
         m_net->sendVoice(ip, toSend);
     }
 }
 
 void VoiceCallManager::onPeerAudio(const QString &ip, const QByteArray &data)
 {
-    // Incoming audio from a peer -> decrypt (if a session exists) -> push
-    // into their jitter buffer.
-    if (!m_active.contains(ip))
+    // Incoming audio from a peer -> decrypt -> push into their jitter buffer.
+    if (!m_active.contains(ip) || !m_crypto)
         return;
 
+    // decryptBytes says no both for a tampered frame and for a peer we hold no
+    // session with, and neither is audio worth playing.
     QByteArray plain;
-    if (m_crypto) {
-        if (!m_crypto->decryptBytes(ip, data, &plain))
-            return; // bad tag / tampered frame - drop it, don't play garbage audio
-    } else {
-        plain = data;
-    }
+    if (!m_crypto->decryptBytes(ip, data, &plain))
+        return;
+
     m_audio->pushPeerAudio(ip, plain);
 }
 

@@ -63,6 +63,16 @@ QByteArray signableBytes(QJsonObject obj)
     return QJsonDocument(obj).toJson(QJsonDocument::Compact);
 }
 
+// Packet types accepted from a host we hold no session key for. Presence has
+// to be here because it is the packet that carries the handshake, so requiring
+// a signature on it would mean no peer could ever get one. Nothing else has an
+// excuse, so keep this list at one entry unless the protocol grows another
+// genuinely pre-session message.
+bool allowedUnsigned(const QString &type)
+{
+    return type == protocol::kMsgPresence;
+}
+
 } // namespace
 
 NetworkManager::NetworkManager(CryptoManager *crypto, QObject *parent)
@@ -178,8 +188,12 @@ void NetworkManager::refreshLocalIps()
     m_localIps = allLocalIpsFallback();
     m_localIps.insert(m_hostIp);
     const QString newPrimary = localIpFallback();
-    if (newPrimary != m_hostIp)
+    if (newPrimary != m_hostIp) {
         m_hostIp = newPrimary;
+        // the address is on screen and in every packet we send, so a silent
+        // swap leaves the UI showing the old one until the next restart
+        Q_EMIT hostIpChanged();
+    }
 }
 
 bool NetworkManager::start()
@@ -442,17 +456,20 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
             return; // own broadcast echoed back
     }
 
-    // Layer 4 - HMAC verification (only meaningful once a session exists;
-    // verifyPacket() itself returns true if there's no session yet, so
-    // unauthenticated peers can still complete their first handshake).
-    if (m_crypto && type != protocol::kMsgPresence && !type.isEmpty()) {
-        const QString sig = msg.value(QStringLiteral("_sig")).toString();
-        if (!sig.isEmpty()) {
-            const QByteArray payloadBytes = signableBytes(msg);
-            if (!m_crypto->verifyPacket(host, payloadBytes, sig)) {
-                Q_EMIT errorOccurred(QStringLiteral("HMAC verification failed from %1 — dropping").arg(host));
+    // Layer 4 - HMAC verification. Once a session exists with this host, every
+    // packet has to carry a valid _sig; an absent one used to be waved through,
+    // which let anyone spoof a peer we had already authenticated by simply
+    // omitting the field. Before a session exists only the allowlist passes.
+    if (m_crypto && !type.isEmpty()) {
+        if (m_crypto->hasSession(host)) {
+            const QString sig = msg.value(QStringLiteral("_sig")).toString();
+            if (sig.isEmpty() || !m_crypto->verifyPacket(host, signableBytes(msg), sig)) {
+                Q_EMIT errorOccurred(QStringLiteral("HMAC verification failed from %1 - dropping").arg(host));
                 return;
             }
+        } else if (!allowedUnsigned(type)) {
+            Q_EMIT errorOccurred(QStringLiteral("unauthenticated %1 from %2 - dropping").arg(type, host));
+            return;
         }
     }
 
@@ -490,7 +507,16 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
 
 void NetworkManager::decryptMessageText(const QString &fromIp, QJsonObject &msg) const
 {
-    if (!m_crypto || !msg.value(QStringLiteral("encrypted")).toBool(false))
+    // Reactions, receipts and deletes share this dispatch path but carry no
+    // body, and inventing a "text" field for them would confuse the UI.
+    if (!m_crypto || !msg.contains(QStringLiteral("text")))
+        return;
+
+    // The sender's "encrypted" flag used to decide this, which meant clearing
+    // it was enough to have the text handed to the UI unchecked. What matters
+    // is whether we hold a key for this channel; decrypt() refuses cleartext
+    // once we do.
+    if (!m_crypto->hasSession(fromIp) && m_groupPassphrase.isEmpty())
         return;
 
     const QString cipherText = msg.value(QStringLiteral("text")).toString();

@@ -56,7 +56,10 @@ CryptoManager::~CryptoManager()
 QByteArray CryptoManager::randomBytes(int n)
 {
     QByteArray buf(n, 0);
-    RAND_bytes(reinterpret_cast<unsigned char *>(buf.data()), n);
+    // an exhausted entropy pool would otherwise hand back a buffer of zeroes,
+    // which is a perfectly usable nonce as far as the caller can tell
+    if (RAND_bytes(reinterpret_cast<unsigned char *>(buf.data()), n) != 1)
+        return {};
     return buf;
 }
 
@@ -238,16 +241,39 @@ bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &d
     }
 
     EVP_PKEY_CTX *dctx = EVP_PKEY_CTX_new(m_dhPriv, nullptr);
-    EVP_PKEY_derive_init(dctx);
-    EVP_PKEY_derive_set_peer(dctx, peerDhPub);
+    if (!dctx) {
+        EVP_PKEY_free(peerDhPub);
+        EVP_PKEY_free(peerIdPub);
+        return false;
+    }
+
+    // a failed derive leaves sharedSecret full of zeroes, and the session key
+    // built from it would then be the same on every machine
     size_t secretLen = 0;
-    EVP_PKEY_derive(dctx, nullptr, &secretLen);
-    QByteArray sharedSecret(int(secretLen), 0);
-    EVP_PKEY_derive(dctx, reinterpret_cast<unsigned char *>(sharedSecret.data()), &secretLen);
+    QByteArray sharedSecret;
+    bool derived = EVP_PKEY_derive_init(dctx) == 1
+                   && EVP_PKEY_derive_set_peer(dctx, peerDhPub) == 1
+                   && EVP_PKEY_derive(dctx, nullptr, &secretLen) == 1
+                   && secretLen > 0;
+    if (derived) {
+        sharedSecret.resize(int(secretLen));
+        derived = EVP_PKEY_derive(dctx, reinterpret_cast<unsigned char *>(sharedSecret.data()), &secretLen) == 1;
+        if (derived)
+            sharedSecret.resize(int(secretLen));
+    }
     EVP_PKEY_CTX_free(dctx);
     EVP_PKEY_free(peerDhPub);
 
+    if (!derived) {
+        EVP_PKEY_free(peerIdPub);
+        return false;
+    }
+
     const QByteArray sessionKey = hkdfSha256(sharedSecret, QByteArrayLiteral("-v2-session"), kKeyLen);
+    if (sessionKey.size() != kKeyLen) {
+        EVP_PKEY_free(peerIdPub);
+        return false;
+    }
 
     m_sessionKeys[peerIp] = sessionKey;
     m_peerIdPub[peerIp] = peerIdBytes;
@@ -286,18 +312,26 @@ SecurityLevel CryptoManager::securityLevel(const QString &peerIp, bool encryptio
 QByteArray CryptoManager::hkdfSha256(const QByteArray &secret, const QByteArray &info, int outLen)
 {
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
-    EVP_PKEY_derive_init(ctx);
-    EVP_PKEY_CTX_set_hkdf_md(ctx, EVP_sha256());
+    if (!ctx)
+        return {};
+
     // RFC 5869 default salt (no salt provided) = HashLen zero bytes.
     const QByteArray zeroSalt(32, 0);
-    EVP_PKEY_CTX_set1_hkdf_salt(ctx, reinterpret_cast<const unsigned char *>(zeroSalt.constData()), zeroSalt.size());
-    EVP_PKEY_CTX_set1_hkdf_key(ctx, reinterpret_cast<const unsigned char *>(secret.constData()), secret.size());
-    EVP_PKEY_CTX_add1_hkdf_info(ctx, reinterpret_cast<const unsigned char *>(info.constData()), info.size());
 
     QByteArray out(outLen, 0);
     size_t len = size_t(outLen);
-    EVP_PKEY_derive(ctx, reinterpret_cast<unsigned char *>(out.data()), &len);
+    // an unchecked failure here returns all zeroes, which downstream code
+    // cannot tell apart from a real key
+    const bool ok = EVP_PKEY_derive_init(ctx) == 1
+                    && EVP_PKEY_CTX_set_hkdf_md(ctx, EVP_sha256()) == 1
+                    && EVP_PKEY_CTX_set1_hkdf_salt(ctx, reinterpret_cast<const unsigned char *>(zeroSalt.constData()), zeroSalt.size()) == 1
+                    && EVP_PKEY_CTX_set1_hkdf_key(ctx, reinterpret_cast<const unsigned char *>(secret.constData()), secret.size()) == 1
+                    && EVP_PKEY_CTX_add1_hkdf_info(ctx, reinterpret_cast<const unsigned char *>(info.constData()), info.size()) == 1
+                    && EVP_PKEY_derive(ctx, reinterpret_cast<unsigned char *>(out.data()), &len) == 1;
     EVP_PKEY_CTX_free(ctx);
+
+    if (!ok || len != size_t(outLen))
+        return {};
     return out;
 }
 
@@ -305,25 +339,33 @@ QByteArray CryptoManager::hkdfSha256(const QByteArray &secret, const QByteArray 
 QByteArray CryptoManager::gcmEncrypt(const QByteArray &key, const QByteArray &plaintext)
 {
     const QByteArray nonce = randomBytes(kNonceLen);
+    if (nonce.size() != kNonceLen)
+        return {}; // no nonce, no encryption - reusing a fixed one breaks GCM outright
+
     QByteArray ciphertext(plaintext.size(), 0);
     QByteArray tag(kTagLen, 0);
 
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr);
-    EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, kNonceLen, nullptr);
-    EVP_EncryptInit_ex(ctx, nullptr, nullptr,
-        reinterpret_cast<const unsigned char *>(key.constData()),
-        reinterpret_cast<const unsigned char *>(nonce.constData()));
+    if (!ctx)
+        return {};
 
     int outLen = 0;
-    EVP_EncryptUpdate(ctx, reinterpret_cast<unsigned char *>(ciphertext.data()), &outLen,
-        reinterpret_cast<const unsigned char *>(plaintext.constData()), plaintext.size());
     int finalLen = 0;
-    EVP_EncryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(ciphertext.data()) + outLen, &finalLen);
-    EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, kTagLen, tag.data());
+    const bool ok = EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) == 1
+                    && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, kNonceLen, nullptr) == 1
+                    && EVP_EncryptInit_ex(ctx, nullptr, nullptr,
+                           reinterpret_cast<const unsigned char *>(key.constData()),
+                           reinterpret_cast<const unsigned char *>(nonce.constData())) == 1
+                    && EVP_EncryptUpdate(ctx, reinterpret_cast<unsigned char *>(ciphertext.data()), &outLen,
+                           reinterpret_cast<const unsigned char *>(plaintext.constData()), plaintext.size()) == 1
+                    && EVP_EncryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(ciphertext.data()) + outLen, &finalLen) == 1
+                    && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, kTagLen, tag.data()) == 1;
     EVP_CIPHER_CTX_free(ctx);
 
-    return nonce + ciphertext + tag; // nonce + ciphertext + tag, matches legacy wire layout
+    if (!ok)
+        return {};
+
+    return nonce + ciphertext.left(outLen + finalLen) + tag; // matches legacy wire layout
 }
 
 bool CryptoManager::gcmDecrypt(const QByteArray &key, const QByteArray &data, QByteArray *outPlain)
@@ -337,23 +379,26 @@ bool CryptoManager::gcmDecrypt(const QByteArray &key, const QByteArray &data, QB
 
     QByteArray plaintext(ciphertext.size(), 0);
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr);
-    EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, kNonceLen, nullptr);
-    EVP_DecryptInit_ex(ctx, nullptr, nullptr,
-        reinterpret_cast<const unsigned char *>(key.constData()),
-        reinterpret_cast<const unsigned char *>(nonce.constData()));
+    if (!ctx)
+        return false;
 
     int outLen = 0;
-    EVP_DecryptUpdate(ctx, reinterpret_cast<unsigned char *>(plaintext.data()), &outLen,
-        reinterpret_cast<const unsigned char *>(ciphertext.constData()), ciphertext.size());
-    EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, kTagLen,
-        const_cast<char *>(tag.constData()));
-
     int finalLen = 0;
-    const int rc = EVP_DecryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(plaintext.data()) + outLen, &finalLen);
+    // a skipped setup step means the tag is never actually checked, so setup
+    // failures have to be as fatal as a tag mismatch
+    const bool ok = EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) == 1
+                    && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, kNonceLen, nullptr) == 1
+                    && EVP_DecryptInit_ex(ctx, nullptr, nullptr,
+                           reinterpret_cast<const unsigned char *>(key.constData()),
+                           reinterpret_cast<const unsigned char *>(nonce.constData())) == 1
+                    && EVP_DecryptUpdate(ctx, reinterpret_cast<unsigned char *>(plaintext.data()), &outLen,
+                           reinterpret_cast<const unsigned char *>(ciphertext.constData()), ciphertext.size()) == 1
+                    && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, kTagLen,
+                           const_cast<char *>(tag.constData())) == 1
+                    && EVP_DecryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(plaintext.data()) + outLen, &finalLen) == 1;
     EVP_CIPHER_CTX_free(ctx);
 
-    if (rc != 1)
+    if (!ok)
         return false; // tag mismatch - tampered or wrong key
 
     *outPlain = plaintext.left(outLen + finalLen);
@@ -369,9 +414,12 @@ QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray 
 
     QByteArray key(kKeyLen, 0);
     const QByteArray pass = passphrase.toUtf8();
-    PKCS5_PBKDF2_HMAC(pass.constData(), pass.size(),
-        reinterpret_cast<const unsigned char *>(salt.constData()), salt.size(),
-        kKdfIters, EVP_sha256(), kKeyLen, reinterpret_cast<unsigned char *>(key.data()));
+    // an all-zero key would be shared by every peer whose derivation failed
+    if (PKCS5_PBKDF2_HMAC(pass.constData(), pass.size(),
+            reinterpret_cast<const unsigned char *>(salt.constData()), salt.size(),
+            kKdfIters, EVP_sha256(), kKeyLen, reinterpret_cast<unsigned char *>(key.data())) != 1) {
+        return {};
+    }
 
     // Cheap unbounded-growth guard: each PBKDF2 derivation is expensive
     // (480k iterations), which is why we cache it - but a long session
@@ -402,8 +450,10 @@ QString CryptoManager::signPacket(const QString &peerIp, const QByteArray &paylo
 bool CryptoManager::verifyPacket(const QString &peerIp, const QByteArray &payload,
                                  const QString &sigB64) const
 {
+    // no key means nothing was verified, so the answer is no. deciding which
+    // pre-session packets may pass anyway is the caller's job, not ours.
     if (!m_sessionKeys.contains(peerIp))
-        return true; // no session yet - accept unsigned packet, matches legacy behaviour
+        return false;
 
     const QByteArray key = m_sessionKeys.value(peerIp);
     unsigned char expected[32];
@@ -472,16 +522,28 @@ QString CryptoManager::encrypt(const QString &plaintext, const QString &passphra
 {
     const QByteArray data = plaintext.toUtf8();
 
+    // an empty return says "could not seal this", never "here it is in the
+    // clear", so a broken salt or cipher cannot leak the message
     QByteArray wire;
     if (!peerIp.isEmpty() && m_sessionKeys.contains(peerIp)) {
+        const QByteArray sealed = gcmEncrypt(m_sessionKeys.value(peerIp), data);
+        if (sealed.isEmpty())
+            return QString();
         wire.append(char(0x01));
-        wire.append(gcmEncrypt(m_sessionKeys.value(peerIp), data));
+        wire.append(sealed);
     } else if (!passphrase.isEmpty()) {
         const QByteArray salt = randomBytes(kSaltLen);
+        if (salt.size() != kSaltLen)
+            return QString();
         const QByteArray key = deriveKey(passphrase, salt);
+        if (key.size() != kKeyLen)
+            return QString();
+        const QByteArray sealed = gcmEncrypt(key, data);
+        if (sealed.isEmpty())
+            return QString();
         wire.append(char(0x02));
         wire.append(salt);
-        wire.append(gcmEncrypt(key, data));
+        wire.append(sealed);
     } else {
         return plaintext; // nothing to encrypt with
     }
@@ -492,8 +554,17 @@ QString CryptoManager::encrypt(const QString &plaintext, const QString &passphra
 QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphrase,
                                const QString &peerIp) const
 {
-    if (!ciphertext.startsWith(QStringLiteral("KNC1:")))
-        return ciphertext; // not encrypted by us - pass through
+    // whether this text was supposed to arrive sealed is decided by the keys
+    // we hold, not by anything the sender put in the packet. otherwise
+    // stripping the tag is all it takes to downgrade a session to cleartext.
+    const bool expectSealed = (!peerIp.isEmpty() && m_sessionKeys.contains(peerIp))
+                              || !passphrase.isEmpty();
+
+    if (!ciphertext.startsWith(QStringLiteral("KNC1:"))) {
+        if (expectSealed)
+            return QStringLiteral("[decrypt error: cleartext on a keyed channel]");
+        return ciphertext; // no key on this channel anyway - pass through
+    }
 
     const QByteArray wire = QByteArray::fromBase64(ciphertext.mid(5).toLatin1());
     if (wire.isEmpty())
@@ -512,7 +583,8 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
         if (payload.size() > kSaltLen && !passphrase.isEmpty()) {
             const QByteArray salt = payload.left(kSaltLen);
             const QByteArray key = deriveKey(passphrase, salt);
-            ok = gcmDecrypt(key, payload.mid(kSaltLen), &plain);
+            if (key.size() == kKeyLen)
+                ok = gcmDecrypt(key, payload.mid(kSaltLen), &plain);
         }
     }
 
@@ -525,18 +597,19 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
 // Raw byte encryption (voice)
 QByteArray CryptoManager::encryptBytes(const QString &peerIp, const QByteArray &plaintext) const
 {
+    // empty means "not encrypted", and the caller has to drop the frame. voice
+    // in the clear is not a graceful degradation, it is the bug.
     if (!m_sessionKeys.contains(peerIp))
-        return plaintext; // no session yet - send unencrypted, same fallback as text path
+        return {};
 
     return gcmEncrypt(m_sessionKeys.value(peerIp), plaintext); // nonce+ciphertext+tag
 }
 
 bool CryptoManager::decryptBytes(const QString &peerIp, const QByteArray &data, QByteArray *outPlain) const
 {
-    if (!m_sessionKeys.contains(peerIp)) {
-        *outPlain = data; // no session - treat as plaintext passthrough
-        return true;
-    }
+    if (!m_sessionKeys.contains(peerIp))
+        return false; // unkeyed frames are not audio we are willing to play
+
     return gcmDecrypt(m_sessionKeys.value(peerIp), data, outPlain);
 }
 

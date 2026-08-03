@@ -312,7 +312,7 @@ Kirigami.ApplicationWindow {
             }
 
             Label {
-                text: i18n("IP: ") + (networkManager.localIp || "—")
+                text: i18n("IP: ") + (networkManager.hostIp || "?")
                 color: root.theme.text_dim
                 font.pointSize: Kirigami.Theme.smallFont.pointSize
             }

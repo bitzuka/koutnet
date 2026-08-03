@@ -24,6 +24,9 @@ class AppSettings;
 
 class NetworkManager : public QObject {
     Q_OBJECT
+    // The primary local address changes under us when a VPN adapter comes up,
+    // so the status bar needs a notify rather than a one-shot read.
+    Q_PROPERTY(QString hostIp READ hostIp NOTIFY hostIpChanged)
 
 public:
     // LanOrVpn: broadcast, mDNS and ARP discovery over any local interface
@@ -81,8 +84,8 @@ public:
     // revision is a short digest of everything in the profile,
     // including the images that are too big to broadcast, so a peer
     // can tell it needs to re-fetch without being sent the files.
-    void setProfile(const QString &handle, const QString &displayName,
-                    const QString &bio, const QString &revision);
+    Q_INVOKABLE void setProfile(const QString &handle, const QString &displayName,
+                                const QString &bio, const QString &revision);
 
     // Shared secret for the public chat. Broadcast has no single peer to
     // hold an ECDH session with, so a passphrase everyone knows is the only
@@ -97,20 +100,20 @@ public:
     void sendUdp(QJsonObject payload, const QString &targetIp = QString());
     Q_INVOKABLE void sendChat(const QString &text);
     Q_INVOKABLE void sendPrivate(const QString &text, const QString &toIp);
-    void sendGroupMessage(const QString &gid, const QString &text,
-                          const QVector<QString> &members);
+    Q_INVOKABLE void sendGroupMessage(const QString &gid, const QString &text,
+                                      const QVector<QString> &members);
     Q_INVOKABLE void sendTyping(const QString &chatId, const QString &targetIp = QString());
     Q_INVOKABLE void sendCallRequest(const QString &toIp);
     Q_INVOKABLE void sendCallAccept(const QString &toIp);
     Q_INVOKABLE void sendCallReject(const QString &toIp);
     Q_INVOKABLE void sendCallEnd(const QString &toIp);
-    void sendReaction(const QString &toIp, const QString &chatId,
-                      double ts, const QString &emoji, bool added);
-    void sendMessageEdit(const QString &toIp, const QString &chatId,
-                         double ts, const QString &newText);
-    void sendMessageDelete(const QString &toIp, const QString &chatId, double ts);
-    void sendReadReceipt(const QString &toIp, const QString &chatId);
-    void sendGroupInvite(const QString &gid, const QString &gname, const QString &toIp);
+    Q_INVOKABLE void sendReaction(const QString &toIp, const QString &chatId,
+                                  double ts, const QString &emoji, bool added);
+    Q_INVOKABLE void sendMessageEdit(const QString &toIp, const QString &chatId,
+                                     double ts, const QString &newText);
+    Q_INVOKABLE void sendMessageDelete(const QString &toIp, const QString &chatId, double ts);
+    Q_INVOKABLE void sendReadReceipt(const QString &toIp, const QString &chatId);
+    Q_INVOKABLE void sendGroupInvite(const QString &gid, const QString &gname, const QString &toIp);
     void sendFileInternal(const QString &toIp, const QString &filePath,
                   const QByteArray &rawBytes = {}, const QString &filename = QStringLiteral("file"));
     // QML-facing overload - QML can't supply the QByteArray/filename default
@@ -123,6 +126,7 @@ public:
     void disconnectVoice(const QString &ip);
 
 Q_SIGNALS:
+    void hostIpChanged();
     void userOnline(QJsonObject peerInfo);
     void userOffline(QString ip);
     void message(QJsonObject msg);

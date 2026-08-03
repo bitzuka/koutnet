@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonArray>
+#include <QRegularExpression>
 #include <QDebug>
 
 HistoryManager::HistoryManager(QObject *parent) : QObject(parent)

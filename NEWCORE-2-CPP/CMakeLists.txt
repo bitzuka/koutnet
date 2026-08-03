@@ -1,27 +1,13 @@
 # SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-cmake_minimum_required(VERSION 3.21)
-project(KOutNet VERSION 2.0 LANGUAGES CXX)
+# Configured from the top level CMakeLists.txt, which owns project(), the ECM
+# lookup and the KDE includes. This file only describes the application.
 
-set(QT_MIN_VERSION 6.4)
-set(KF_MIN_VERSION 6.0)
-
-find_package(ECM ${KF_MIN_VERSION} REQUIRED NO_MODULE)
-set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
-
-include(KDEInstallDirs)
-include(KDECMakeSettings)
-include(KDECompilerSettings NO_POLICY_SCOPE)
-
-# After the KDE includes on purpose: KDECompilerSettings picks a standard of
-# its own, and this project wants 20.
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_AUTOMOC ON)
-
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Quick QuickControls2 QuickDialogs2 Multimedia Network)
+find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Quick QuickControls2 QuickDialogs2 Multimedia Network)
 find_package(OpenSSL REQUIRED)
-find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS I18n)
+# Kirigami is not optional: every QML file in qml/ imports it for the page
+# structure and the units, so a build without it fails at first window.
+find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS I18n Kirigami)
 
 # The i18n() call in QML comes from the localized context object, which lives
 # in a target of its own rather than in KF6::I18n.
@@ -98,6 +84,7 @@ target_link_libraries(KOutNet PRIVATE
     OpenSSL::Crypto
     KF6::I18n
     KF6::I18nQml
+    KF6::Kirigami
 )
 
 install(TARGETS KOutNet RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

@@ -5,6 +5,7 @@ Dependencies:
   'require':
     'frameworks/extra-cmake-modules': '@latest'
     'frameworks/kirigami': '@latest'
+    'frameworks/ki18n': '@stable'
 
 Options:
-  require-passing-tests-on: []
+  require-passing-tests-on: ['Linux']
