@@ -4,6 +4,7 @@
 
 #include <QStandardPaths>
 #include <QFile>
+#include <QSaveFile>
 #include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -101,6 +102,11 @@ QVariantList ReactionStore::summary(const QString &chatId, double ts) const
 
 void ReactionStore::save()
 {
+    if (m_loadFailed) {
+        qWarning() << "[ReactionStore] not saving, the file on disk failed to parse";
+        return;
+    }
+
     QJsonObject root;
     for (auto it = m_data.constBegin(); it != m_data.constEnd(); ++it) {
         QJsonObject emojiObj;
@@ -111,13 +117,16 @@ void ReactionStore::save()
 
     const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(dataDir);
-    QFile f(dataDir + QStringLiteral("/reactions.json"));
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
-        f.close();
-    } else {
-        qWarning() << "[ReactionStore] save failed:" << f.fileName();
+    // debounced full rewrite, so it has to be atomic: the old file stays put
+    // until the new one is complete
+    QSaveFile f(dataDir + QStringLiteral("/reactions.json"));
+    if (!f.open(QIODevice::WriteOnly)) {
+        qWarning() << "[ReactionStore] save failed:" << f.fileName() << f.errorString();
+        return;
     }
+    f.write(QJsonDocument(root).toJson(QJsonDocument::Compact));
+    if (!f.commit())
+        qWarning() << "[ReactionStore] commit failed:" << f.fileName() << f.errorString();
 }
 
 void ReactionStore::load()
@@ -127,10 +136,21 @@ void ReactionStore::load()
     if (!f.exists() || !f.open(QIODevice::ReadOnly))
         return;
 
-    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    const QByteArray raw = f.readAll();
     f.close();
-    if (!doc.isObject())
+    if (raw.trimmed().isEmpty())
+        return; // nothing written yet, saving over it is fine
+
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(raw, &err);
+    if (!doc.isObject()) {
+        // reactions the user actually made are in there somewhere, so keep the
+        // file and refuse to save rather than silently starting from empty
+        m_loadFailed = true;
+        qWarning() << "[ReactionStore] refusing to overwrite unreadable" << f.fileName()
+                   << err.errorString();
         return;
+    }
 
     const QJsonObject root = doc.object();
     for (auto it = root.constBegin(); it != root.constEnd(); ++it) {

@@ -44,4 +44,7 @@ private:
     void save();
 
     QHash<QString, QVariantMap> m_groups; // gid -> group data
+    // set when groups.json exists but will not parse, which blocks saving so
+    // a corrupt file is never traded for an empty one
+    bool m_loadFailed = false;
 };

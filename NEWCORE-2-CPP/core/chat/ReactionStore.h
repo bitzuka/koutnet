@@ -46,4 +46,7 @@ private:
 
     QHash<QString, QHash<QString, QStringList>> m_data; // key -> emoji -> usernames
     QTimer m_saveTimer;
+    // set when reactions.json exists but will not parse, which blocks saving
+    // so a corrupt file is never traded for an empty one
+    bool m_loadFailed = false;
 };

@@ -121,6 +121,10 @@ public:
     Q_INVOKABLE void sendFile(const QString &toIp, const QString &filePath);
 
     // voice TCP
+    // Starts the connect and returns straight away: true means an attempt is
+    // in flight (or a socket already exists), false only that there is nothing
+    // to connect to. The outcome arrives as voiceConnected() or, on failure,
+    // voiceDisconnected() with an errorOccurred() before it.
     bool connectVoice(const QString &ip);
     bool sendVoice(const QString &ip, const QByteArray &data);
     void disconnectVoice(const QString &ip);
@@ -160,6 +164,9 @@ private:
     void onVoiceData(QTcpSocket *sock, const QString &ip);
     void onVoiceDisconnected(const QString &ip);
     void startInternetTunnel();
+    // Fires startInternetTunnel() again after the current backoff and doubles
+    // it, capped at kRelayReconnectMaxMs.
+    void scheduleRelayReconnect();
     void sendChunksQueued(const QVector<QJsonObject> &chunks,
                           const QString &toIp, int idx, int batch = 3);
     void pruneStalePeers();
@@ -169,6 +176,7 @@ private:
     QUdpSocket *m_udp = nullptr;
     QTcpServer *m_tcpServer = nullptr;
     QMap<QString, QTcpSocket *> m_voiceConnections;   // ip -> voice socket
+    QMap<QString, QTcpSocket *> m_pendingVoice;       // ip -> socket still connecting
     QMap<QString, QJsonObject>  m_peers;              // ip -> peer info
 
     QString m_hostIp;

@@ -80,6 +80,16 @@ public:
     QByteArray encryptBytes(const QString &peerIp, const QByteArray &plaintext) const;
     bool decryptBytes(const QString &peerIp, const QByteArray &data, QByteArray *outPlain) const;
 
+Q_SIGNALS:
+    // A handshake presented an identity key that does not match the one
+    // already pinned for this IP. The handshake was refused and the existing
+    // session left alone, so this is a warning, not a state change: either
+    // someone is impersonating the peer, or the peer reinstalled and lost its
+    // keys. The UI should show both fingerprints and let the user decide
+    // (clearing the pin is not implemented yet).
+    void peerIdentityChanged(const QString &peerIp, const QString &oldFingerprint,
+                             const QString &newFingerprint);
+
 private:
     bool initKeypairs();
     bool loadStoredKeys();
@@ -101,6 +111,7 @@ private:
 
     QHash<QString, QByteArray> m_sessionKeys;             // peer ip -> 32-byte session key
     QHash<QString, QByteArray> m_peerIdPub;               // peer ip -> raw Ed25519 pubkey
+    QHash<QString, QByteArray> m_warnedIdPub;             // peer ip -> key we last warned about
     QHash<QString, QHash<QString, double>> m_seenNonces;  // peer ip -> nonce -> ts
     QHash<QString, QVector<double>> m_rateCounters;       // peer ip -> recent timestamps
 

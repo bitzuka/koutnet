@@ -7,7 +7,9 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QFile>
+#include <QSaveFile>
 #include <QTextStream>
+#include <QDebug>
 
 namespace {
 
@@ -197,9 +199,17 @@ void ThemeManager::loadSavedTheme()
 
 void ThemeManager::saveTheme()
 {
-    QFile f(settingsFilePath());
-    if (f.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
-        QTextStream(&f) << m_current;
-        f.close();
+    // atomic, so a crash while saving cannot leave a half-written theme name
+    // that loadSavedTheme() then throws away
+    QSaveFile f(settingsFilePath());
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        qWarning() << "[ThemeManager] save failed:" << f.fileName() << f.errorString();
+        return;
     }
+    {
+        QTextStream out(&f);
+        out << m_current;
+    }
+    if (!f.commit())
+        qWarning() << "[ThemeManager] commit failed:" << f.fileName() << f.errorString();
 }

@@ -85,13 +85,23 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
     t.total = total;
     const QByteArray chunk = QByteArray::fromBase64(msg.value(QStringLiteral("data")).toString().toLatin1());
 
-    if (!t.chunks.contains(idx)) {
-        t.receivedBytes += chunk.size();
-        if (t.receivedBytes > kMaxTransferBytes) {
-            m_pending.remove(tid);
-            Q_EMIT transferRejected(tid, QStringLiteral("transfer exceeded size limit"));
-            return;
-        }
+    const auto held = t.chunks.constFind(idx);
+    if (held != t.chunks.constEnd() && *held != chunk) {
+        // a peer resending an index with different bytes is either broken or
+        // walking the whole range twice to hide the second pass from the cap
+        m_pending.remove(tid);
+        Q_EMIT transferRejected(tid, QStringLiteral("chunk resent with different contents"));
+        return;
+    }
+
+    // Count the delta against what is already held for this index rather than
+    // only the first sighting: insert() replaces, so every index sent once at
+    // one byte and again at full size used to cost nothing.
+    t.receivedBytes += chunk.size() - (held != t.chunks.constEnd() ? held->size() : 0);
+    if (t.receivedBytes > kMaxTransferBytes) {
+        m_pending.remove(tid);
+        Q_EMIT transferRejected(tid, QStringLiteral("transfer exceeded size limit"));
+        return;
     }
     t.chunks.insert(idx, chunk);
 
@@ -163,19 +173,31 @@ QString FileTransferHandler::saveToDisk(const QJsonObject &meta, const QByteArra
         } while (QFileInfo::exists(candidate));
     }
 
-    // Belt-and-suspenders: confirm the resolved absolute path is still
-    // inside dirPath before writing, in case some future edge case slips
-    // past sanitizeFilename().
-    const QFileInfo candidateInfo(candidate);
-    const QString canonicalDir = QFileInfo(dirPath).absoluteFilePath();
-    if (!candidateInfo.absoluteFilePath().startsWith(canonicalDir + QLatin1Char('/')))
+    // Belt-and-suspenders: confirm the resolved path is still inside dirPath
+    // before writing, in case some future edge case slips past
+    // sanitizeFilename(). absoluteFilePath() only cleaned "." and ".." out of
+    // the string, so a symlink anywhere along the way still escaped; canonical
+    // paths resolve those. The candidate itself does not exist yet and would
+    // canonicalise to an empty string, so compare its parent instead.
+    const QString canonicalDir = QFileInfo(dirPath).canonicalFilePath();
+    const QString candidateDir = QFileInfo(candidate).absolutePath();
+    if (canonicalDir.isEmpty() || QFileInfo(candidateDir).canonicalFilePath() != canonicalDir)
         return QString();
 
+    // NewOnly, not WriteOnly: the exists() loop above ran a moment ago, and
+    // between then and now something could have created the path. Failing is
+    // better than overwriting whatever appeared.
     QFile out(candidate);
-    if (!out.open(QIODevice::WriteOnly))
+    if (!out.open(QIODevice::NewOnly))
         return QString();
-    out.write(data);
+    const qint64 written = out.write(data);
+    const bool ok = written == data.size() && out.flush();
     out.close();
+    if (!ok) {
+        // a half-written file is worse than none, and the name is free again
+        out.remove();
+        return QString();
+    }
 
     return candidate;
 }

@@ -22,6 +22,11 @@ VoiceCallManager::VoiceCallManager(NetworkManager *net, CryptoManager *crypto, Q
     // Route incoming voice bytes from the network layer, keyed by peer IP,
     // into that peer's jitter buffer via AudioEngine.
     connect(m_net, &NetworkManager::voiceDataFrom, this, &VoiceCallManager::onPeerAudio);
+
+    // connectVoice() no longer blocks, so a refused or dropped voice socket is
+    // the only thing that tells us a call is over. hangup() ignores IPs it does
+    // not hold, which covers the peer that hung up first.
+    connect(m_net, &NetworkManager::voiceDisconnected, this, &VoiceCallManager::hangup);
 }
 
 bool VoiceCallManager::call(const QString &ip)
@@ -36,8 +41,9 @@ bool VoiceCallManager::call(const QString &ip)
 
     m_audio->mixer().addPeer(ip);
 
+    // Only a missing relay fails here now; a connect that cannot be made comes
+    // back later as NetworkManager::voiceDisconnected, handled in the ctor.
     if (!m_net->connectVoice(ip)) {
-        // Voice TCP connect failed - don't leave a half-open call.
         m_audio->mixer().removePeer(ip);
         if (m_active.isEmpty())
             m_audio->stopAll();

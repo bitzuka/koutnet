@@ -8,6 +8,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QHash>
+#include <QSet>
 #include <QDir>
 
 // Chat history on disk as JSON, one file per chat_id, with an in-memory
@@ -52,4 +53,7 @@ private:
 
     bool m_savingEnabled = true;
     QHash<QString, QVariantList> m_cache;
+    // chats whose file exists but will not parse, so appends stay in memory
+    // only instead of replacing a damaged log with a fresh one
+    QSet<QString> m_unreadable;
 };

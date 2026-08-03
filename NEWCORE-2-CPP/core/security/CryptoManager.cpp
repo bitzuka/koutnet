@@ -41,7 +41,7 @@ CryptoManager::CryptoManager(QObject *parent) : QObject(parent)
 {
     m_valid = initKeypairs();
     if (!m_valid) {
-        qCritical("CryptoManager: failed to initialize identity/DH keypairs — "
+        qCritical("CryptoManager: failed to initialize identity/DH keypairs - "
                   "encryption is unavailable for this session. Check isValid() "
                   "before relying on encrypt()/handshakePayload().");
     }
@@ -231,6 +231,25 @@ bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &d
     if (verifyRc != 1) {
         EVP_PKEY_free(peerIdPub);
         return false;
+    }
+
+    // Trust on first use. Presence is unauthenticated by design, since it is
+    // the packet that carries the handshake, so without this any host claiming
+    // a known peer's IP could hand us its own identity key and take over the
+    // session with no prompt. The first key seen for an IP is the one that
+    // stays; a different one later is either a MITM or a reinstall, and only
+    // the user can tell those apart.
+    const auto pinned = m_peerIdPub.constFind(peerIp);
+    if (pinned != m_peerIdPub.constEnd() && *pinned != peerIdBytes) {
+        // presence repeats every couple of seconds, so warn once per offending
+        // key instead of on every packet
+        if (m_warnedIdPub.value(peerIp) != peerIdBytes) {
+            m_warnedIdPub[peerIp] = peerIdBytes;
+            Q_EMIT peerIdentityChanged(peerIp, bytesToFingerprint(*pinned),
+                                       bytesToFingerprint(peerIdBytes));
+        }
+        EVP_PKEY_free(peerIdPub);
+        return false; // the session we already had stays live and usable
     }
 
     EVP_PKEY *peerDhPub = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, nullptr,

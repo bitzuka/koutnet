@@ -4,6 +4,7 @@
 
 #include <QStandardPaths>
 #include <QFile>
+#include <QSaveFile>
 #include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -28,7 +29,9 @@ QString GroupManager::createGroup(const QString &name, const QString &creatorIp)
 {
     const QString gid = QStringLiteral("g_%1_%2")
         .arg(QDateTime::currentSecsSinceEpoch())
-        .arg(QRandomGenerator::global()->bounded(9999), 4, 10, QLatin1Char('0'));
+        // two groups created in the same second must not collide, so this is
+        // wider than the old 4 digits and comes from the system generator
+        .arg(QRandomGenerator::system()->generate(), 8, 16, QLatin1Char('0'));
 
     QVariantMap g;
     g[QStringLiteral("name")] = name;
@@ -109,10 +112,21 @@ void GroupManager::load()
     QFile f(filePath());
     if (!f.exists() || !f.open(QIODevice::ReadOnly))
         return;
-    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    const QByteArray raw = f.readAll();
     f.close();
-    if (!doc.isObject())
+    if (raw.trimmed().isEmpty())
+        return; // nothing written yet, saving over it is fine
+
+    QJsonParseError err;
+    const QJsonDocument doc = QJsonDocument::fromJson(raw, &err);
+    if (err.error != QJsonParseError::NoError || !doc.isObject()) {
+        // a truncated or hand-edited file is still the user's group list, so
+        // block saving rather than replacing it with whatever we managed to read
+        m_loadFailed = true;
+        qWarning() << "[GroupManager] refusing to overwrite unreadable" << f.fileName()
+                   << err.errorString();
         return;
+    }
     const QJsonObject root = doc.object();
     for (auto it = root.constBegin(); it != root.constEnd(); ++it)
         m_groups.insert(it.key(), it.value().toObject().toVariantMap());
@@ -120,15 +134,22 @@ void GroupManager::load()
 
 void GroupManager::save()
 {
+    if (m_loadFailed) {
+        qWarning() << "[GroupManager] not saving, the file on disk failed to parse";
+        return;
+    }
+
     QJsonObject root;
     for (auto it = m_groups.constBegin(); it != m_groups.constEnd(); ++it)
         root[it.key()] = QJsonObject::fromVariantMap(it.value());
 
-    QFile f(filePath());
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        f.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
-        f.close();
-    } else {
-        qWarning() << "[GroupManager] save failed:" << f.fileName();
+    // QSaveFile so a crash or a full disk mid-write leaves the old list intact
+    QSaveFile f(filePath());
+    if (!f.open(QIODevice::WriteOnly)) {
+        qWarning() << "[GroupManager] save failed:" << f.fileName() << f.errorString();
+        return;
     }
+    f.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+    if (!f.commit())
+        qWarning() << "[GroupManager] commit failed:" << f.fileName() << f.errorString();
 }

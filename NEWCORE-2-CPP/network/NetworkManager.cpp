@@ -42,11 +42,12 @@ QSet<QString> allLocalIpsFallback()
     return result;
 }
 
+// These end up as replay-guard nonces and transfer ids, so they have to be
+// unguessable: global() is a seeded Mersenne twister, system() is the OS CSPRNG.
 QString randomHex(int bytes)
 {
     QByteArray buf(bytes, 0);
-    for (int i = 0; i < bytes; ++i)
-        buf[i] = static_cast<char>(QRandomGenerator::global()->bounded(256));
+    QRandomGenerator::system()->generate(buf.begin(), buf.end());
     return QString::fromLatin1(buf.toHex());
 }
 
@@ -255,6 +256,10 @@ void NetworkManager::stop()
         sock->disconnectFromHost();
     m_voiceConnections.clear();
 
+    for (auto *sock : std::as_const(m_pendingVoice))
+        sock->abort();
+    m_pendingVoice.clear();
+
     if (m_internetMode && m_relaySocket) {
         m_relaySocket->close();
         m_relaySocket = nullptr;
@@ -429,9 +434,13 @@ void NetworkManager::onUdpReadyRead()
         if (host.startsWith(QLatin1String("::ffff:")))
             host = host.mid(7);
 
-        const auto doc = QJsonDocument::fromJson(dg.data());
-        if (!doc.isObject()) {
-            Q_EMIT errorOccurred(QStringLiteral("UDP parse error from %1").arg(host));
+        // Attacker-supplied bytes, so say what was wrong with them rather than
+        // treating "not an object" and "not even JSON" as the same thing.
+        QJsonParseError parseErr;
+        const auto doc = QJsonDocument::fromJson(dg.data(), &parseErr);
+        if (parseErr.error != QJsonParseError::NoError || !doc.isObject()) {
+            Q_EMIT errorOccurred(QStringLiteral("UDP parse error from %1: %2")
+                                     .arg(host, parseErr.errorString()));
             continue;
         }
         dispatch(host, doc.object());
@@ -614,7 +623,7 @@ void NetworkManager::startInternetTunnel()
         // can't possibly succeed - just check back periodically in case the
         // user configures one, or an update ships a built-in relay.
         Q_EMIT errorOccurred(QStringLiteral(
-            "VDS mode is on but no relay server is configured — call setRelayServer(), "
+            "VDS mode is on but no relay server is configured - call setRelayServer(), "
             "or switch back to LAN/VPN mode."));
         QTimer::singleShot(protocol::kRelayReconnectMaxMs, this, [this] {
             if (m_internetMode && m_running)
@@ -623,35 +632,56 @@ void NetworkManager::startInternetTunnel()
         return;
     }
 
-    m_relaySocket = new QTcpSocket(this);
-    connect(m_relaySocket, &QTcpSocket::connected, this, [this] {
-        m_relayReconnectMs = protocol::kRelayReconnectBaseMs; // reset backoff on success
-    });
-    connect(m_relaySocket, &QTcpSocket::disconnected, this, [this] {
-        m_relayConnected = false;
-        const int delay = m_relayReconnectMs;
-        m_relayReconnectMs = qMin(m_relayReconnectMs * 2, protocol::kRelayReconnectMaxMs);
-        QTimer::singleShot(delay, this, [this] {
-            if (m_internetMode && m_running)
-                startInternetTunnel();
-        });
-    });
-    m_relaySocket->connectToHost(host, port);
-    m_relayConnected = m_relaySocket->waitForConnected(3000);
-    if (m_relayConnected) {
-        m_relayReconnectMs = protocol::kRelayReconnectBaseMs;
-        onBroadcastTimer();
-    } else {
-        Q_EMIT errorOccurred(QStringLiteral("Tunnel connect failed"));
-        const int delay = m_relayReconnectMs;
-        m_relayReconnectMs = qMin(m_relayReconnectMs * 2, protocol::kRelayReconnectMaxMs);
-        QTimer::singleShot(delay, this, [this] {
-            if (m_internetMode && m_running)
-                startInternetTunnel();
-        });
+    // One socket at a time. Every retry used to hand m_relaySocket a fresh
+    // QTcpSocket and leave the old one alive with its handlers attached.
+    if (m_relaySocket) {
+        m_relaySocket->disconnect(this);
+        m_relaySocket->abort();
+        m_relaySocket->deleteLater();
     }
+    m_relayConnected = false;
+
+    auto *sock = new QTcpSocket(this);
+    m_relaySocket = sock;
+
+    connect(sock, &QTcpSocket::connected, this, [this, sock] {
+        if (m_relaySocket != sock)
+            return; // a newer attempt already replaced this socket
+        m_relayConnected = true;
+        m_relayReconnectMs = protocol::kRelayReconnectBaseMs; // reset backoff on success
+        onBroadcastTimer();
+    });
+    connect(sock, &QTcpSocket::disconnected, this, [this, sock] {
+        if (m_relaySocket != sock)
+            return;
+        m_relayConnected = false;
+        scheduleRelayReconnect();
+    });
+    // A connect that never lands (refused, unreachable, bad name) emits this
+    // and never disconnected(), so it is the only place that hears about it.
+    connect(sock, &QTcpSocket::errorOccurred, this, [this, sock](QAbstractSocket::SocketError) {
+        if (m_relaySocket != sock || m_relayConnected)
+            return; // an established link that drops is disconnected()'s job
+        Q_EMIT errorOccurred(QStringLiteral("Tunnel connect failed: %1").arg(sock->errorString()));
+        scheduleRelayReconnect();
+    });
+
+    // No waitForConnected: this runs on the GUI thread, so it froze the whole
+    // window for three seconds on every attempt, retries included.
+    sock->connectToHost(host, port);
+
     // TODO: length-prefixed frame reader (4-byte BE length + JSON payload)
     // feeding into dispatch(), matching the Python _tunnel_recv_loop.
+}
+
+void NetworkManager::scheduleRelayReconnect()
+{
+    const int delay = m_relayReconnectMs;
+    m_relayReconnectMs = qMin(m_relayReconnectMs * 2, protocol::kRelayReconnectMaxMs);
+    QTimer::singleShot(delay, this, [this] {
+        if (m_internetMode && m_running)
+            startInternetTunnel();
+    });
 }
 
 // outgoing
@@ -754,12 +784,28 @@ void NetworkManager::sendPrivate(const QString &text, const QString &toIp)
 void NetworkManager::sendGroupMessage(const QString &gid, const QString &text,
                                       const QVector<QString> &members)
 {
-    // I_Do_It_Latet.! - group E2E (per-group passphrase or per-member ECDH
-    // fan-out) needs AppSettings for the passphrase; sent plaintext for now.
+    // TODO: per-group passphrase, or per-member ECDH fan-out, once GroupManager
+    // can store one. For now every group shares the app-wide passphrase, which
+    // is also what the receiving side decrypts with.
+    if (!m_crypto || m_groupPassphrase.isEmpty()) {
+        Q_EMIT errorOccurred(QStringLiteral(
+            "Set a group passphrase before sending to a group - refusing to send in the clear."));
+        return;
+    }
+
+    const QString cipherText = m_crypto->encrypt(text, m_groupPassphrase, QString());
+    if (cipherText == text) {
+        // encrypt() hands back the plaintext when it fails, and sending that
+        // would leak the message the user thinks is protected
+        Q_EMIT errorOccurred(QStringLiteral("Failed to encrypt group message - not sent."));
+        return;
+    }
+
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgGroup;
     payload[QStringLiteral("gid")] = gid;
-    payload[QStringLiteral("text")] = text;
+    payload[QStringLiteral("text")] = cipherText;
+    payload[QStringLiteral("encrypted")] = true;
     payload[QStringLiteral("ts")] = nowEpoch();
     for (const auto &ip : members) {
         if (ip != m_hostIp)
@@ -937,38 +983,60 @@ bool NetworkManager::connectVoice(const QString &ip)
 {
     if (m_voiceConnections.contains(ip))
         return true;
+    if (m_pendingVoice.contains(ip))
+        return true; // an attempt is already in flight for this peer
 
-    auto *sock = new QTcpSocket(this);
+    // Resolved up front so a missing relay is still reported synchronously,
+    // which is the one failure the caller can know about without waiting.
+    QString relayHost;
+    quint16 relayPort = 0;
     if (m_internetMode) {
-        QString host = m_relayHostOverride;
-        quint16 port = m_relayVoicePortOverride;
-        if (host.isEmpty() || port == 0) {
+        relayHost = m_relayHostOverride;
+        relayPort = m_relayVoicePortOverride;
+        if (relayHost.isEmpty() || relayPort == 0) {
             const auto &builtins = protocol::builtinRelays();
             if (!builtins.isEmpty()) {
-                host = QString::fromLatin1(builtins.first().host);
-                port = builtins.first().voicePort;
+                relayHost = QString::fromLatin1(builtins.first().host);
+                relayPort = builtins.first().voicePort;
             }
         }
-        if (host.isEmpty() || port == 0) {
-            sock->deleteLater();
-            Q_EMIT errorOccurred(QStringLiteral("VDS voice relay not configured — cannot start call"));
+        if (relayHost.isEmpty() || relayPort == 0) {
+            Q_EMIT errorOccurred(QStringLiteral("VDS voice relay not configured - cannot start call"));
             return false;
         }
-        sock->connectToHost(host, port);
-    } else {
-        sock->connectToHost(QHostAddress(ip), m_voiceTcpPort);
     }
 
-    if (sock->waitForConnected(3000)) {
+    auto *sock = new QTcpSocket(this);
+    m_pendingVoice[ip] = sock;
+
+    connect(sock, &QTcpSocket::connected, this, [this, sock, ip] {
+        if (m_pendingVoice.value(ip) != sock)
+            return; // superseded, or the call was already torn down
+        m_pendingVoice.remove(ip);
         m_voiceConnections[ip] = sock;
         connect(sock, &QTcpSocket::readyRead, this, [this, sock, ip] { onVoiceData(sock, ip); });
         connect(sock, &QTcpSocket::disconnected, this, [this, ip] { onVoiceDisconnected(ip); });
         Q_EMIT voiceConnected(ip);
-        return true;
-    }
-    sock->close();
-    sock->deleteLater();
-    return false;
+    });
+    connect(sock, &QTcpSocket::errorOccurred, this, [this, sock, ip](QAbstractSocket::SocketError) {
+        if (m_pendingVoice.value(ip) != sock)
+            return; // already connected, or replaced by a newer attempt
+        m_pendingVoice.remove(ip);
+        Q_EMIT errorOccurred(QStringLiteral("Voice connect to %1 failed: %2").arg(ip, sock->errorString()));
+        // whoever started the call listens for this to unwind its own state
+        Q_EMIT voiceDisconnected(ip);
+        sock->deleteLater();
+    });
+
+    // No waitForConnected: it blocked the GUI thread for up to three seconds
+    // while the callee's ringtone was supposed to be playing. The result now
+    // arrives as voiceConnected() or voiceDisconnected().
+    if (m_internetMode)
+        sock->connectToHost(relayHost, relayPort);
+    else
+        sock->connectToHost(QHostAddress(ip), m_voiceTcpPort);
+
+    return true;
 }
 
 bool NetworkManager::sendVoice(const QString &ip, const QByteArray &data)
@@ -983,6 +1051,11 @@ bool NetworkManager::sendVoice(const QString &ip, const QByteArray &data)
 
 void NetworkManager::disconnectVoice(const QString &ip)
 {
+    // a call hung up while the socket is still connecting has to stop too
+    if (auto *pending = m_pendingVoice.take(ip)) {
+        pending->abort();
+        pending->deleteLater();
+    }
     if (auto *sock = m_voiceConnections.take(ip))
         sock->disconnectFromHost();
 }

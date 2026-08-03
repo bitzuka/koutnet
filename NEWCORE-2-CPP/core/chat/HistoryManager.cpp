@@ -4,6 +4,7 @@
 
 #include <QStandardPaths>
 #include <QFile>
+#include <QSaveFile>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QRegularExpression>
@@ -43,10 +44,19 @@ QVariantList HistoryManager::load(const QString &chatId)
     QVariantList result;
     QFile f(filePathFor(chatId));
     if (f.exists() && f.open(QIODevice::ReadOnly)) {
-        const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+        const QByteArray raw = f.readAll();
         f.close();
-        if (doc.isArray())
+        QJsonParseError err;
+        const QJsonDocument doc = QJsonDocument::fromJson(raw, &err);
+        if (doc.isArray()) {
             result = doc.array().toVariantList();
+        } else if (!raw.trimmed().isEmpty()) {
+            // whatever is in there is still the user's log, so keep the chat
+            // usable in memory but never write over the file again
+            m_unreadable.insert(chatId);
+            qWarning() << "[HistoryManager] refusing to overwrite unreadable" << f.fileName()
+                       << err.errorString();
+        }
     }
     m_cache.insert(chatId, result);
     return result;
@@ -64,12 +74,17 @@ void HistoryManager::append(const QString &chatId, const QVariantMap &entry)
 
     m_cache.insert(chatId, msgs);
 
-    QFile f(filePathFor(chatId));
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        f.write(QJsonDocument(QJsonArray::fromVariantList(msgs)).toJson(QJsonDocument::Indented));
-        f.close();
-    } else {
-        qWarning() << "[HistoryManager] failed to write" << f.fileName();
+    if (!m_unreadable.contains(chatId)) {
+        // QSaveFile because this rewrites the whole log every message: a crash
+        // halfway through the old QFile write left the chat truncated
+        QSaveFile f(filePathFor(chatId));
+        if (!f.open(QIODevice::WriteOnly)) {
+            qWarning() << "[HistoryManager] failed to write" << f.fileName() << f.errorString();
+        } else {
+            f.write(QJsonDocument(QJsonArray::fromVariantList(msgs)).toJson(QJsonDocument::Indented));
+            if (!f.commit())
+                qWarning() << "[HistoryManager] commit failed" << f.fileName() << f.errorString();
+        }
     }
 
     Q_EMIT historyAppended(chatId, entry);
