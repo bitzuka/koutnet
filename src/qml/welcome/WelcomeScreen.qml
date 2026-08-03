@@ -13,6 +13,18 @@ Item {
     id: root
     readonly property var theme: ThemeManager.colors
 
+    // This screen is reparented into the window overlay, so it inherits none of
+    // the main window's colours. Without this the buttons, the checkboxes and
+    // the theme dropdown keep the system foreground and draw near-black text on
+    // whatever dark background the theme picked.
+    Kirigami.Theme.inherit: false
+    Kirigami.Theme.backgroundColor: root.theme.bg
+    Kirigami.Theme.textColor: root.theme.text
+    Kirigami.Theme.disabledTextColor: root.theme.text_dim
+    Kirigami.Theme.highlightColor: root.theme.accent
+    Kirigami.Theme.highlightedTextColor: root.theme.text
+    Kirigami.Theme.hoverColor: root.theme.btn_hover
+
     // Read from the about data rather than written down a second time. The
     // version itself is not prose, so only the words around it are translated.
     readonly property string appVersion: aboutData.version
@@ -20,9 +32,6 @@ Item {
                                                "Developer build %1", root.appVersion)
     readonly property string githubUrl: "https://github.com/bitzuka/koutnet"
     readonly property string telegramUrl: "https://t.me/KOutNet"
-
-    // Passed in by the host rather than duplicated here, so the endonym list
-    // stays defined in exactly one place.
 
     signal continueRequested()
 
@@ -215,12 +224,49 @@ Item {
         title: i18nc("@title:window", "About")
         standardButtons: Dialog.Close
 
-        Label {
+        ColumnLayout {
             width: Kirigami.Units.gridUnit * 18
-            wrapMode: Text.Wrap
-            text: aboutData.shortDescription + "\n\n" + root.buildLabel
-                  + "\n" + aboutData.copyrightStatement
-            color: root.theme.text
+            spacing: Kirigami.Units.smallSpacing
+
+            Kirigami.Heading {
+                level: 2
+                text: aboutData.name
+                color: root.theme.text
+            }
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: aboutData.description
+                color: root.theme.text
+            }
+            Label {
+                text: root.buildLabel
+                color: root.theme.text_dim
+            }
+            Label {
+                text: aboutData.copyright
+                color: root.theme.text_dim
+            }
+            Label {
+                text: i18nc("@info %1 is a licence name such as GNU General Public License v3.0 only",
+                            "License: %1", aboutData.license)
+                color: root.theme.text_dim
+            }
+            Label {
+                text: i18nc("@info %1 is a person's name", "Author: %1", aboutData.author)
+                color: root.theme.text_dim
+            }
+            Label {
+                textFormat: Text.RichText
+                text: "<a href=\"" + aboutData.homepage + "\">" + aboutData.homepage + "</a>"
+                linkColor: root.theme.accent
+                color: root.theme.text_dim
+                onLinkActivated: (link) => root.openNamedLink(link)
+
+                HoverHandler {
+                    cursorShape: Qt.PointingHandCursor
+                }
+            }
         }
     }
 }

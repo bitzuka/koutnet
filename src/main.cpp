@@ -7,6 +7,7 @@
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QVariantMap>
 
 #include "core/security/CryptoManager.h"
 #include "network/FileTransferHandler.h"
@@ -181,10 +182,23 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("fileTransferHandler"), fileTransfer);
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), appSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("audioDevices"), audioDevices);
-    // KAboutData is a gadget, so QML reads its properties straight out of the
-    // QVariant. That keeps the version and the licence in one place instead of
-    // hardcoded a second time in the About dialog.
-    engine.rootContext()->setContextProperty(QStringLiteral("aboutData"), QVariant::fromValue(aboutData));
+    // A flat map rather than the KAboutData object itself. The licence name and
+    // the author sit behind lists of KAboutLicense/KAboutPerson that QML would
+    // have to index by hand, and a dialog reading one plain object is easier to
+    // keep honest than one reading a value type through a QVariant.
+    QVariantMap about;
+    about[QStringLiteral("name")] = aboutData.displayName();
+    about[QStringLiteral("version")] = aboutData.version();
+    about[QStringLiteral("description")] = aboutData.shortDescription();
+    about[QStringLiteral("copyright")] = aboutData.copyrightStatement();
+    about[QStringLiteral("homepage")] = aboutData.homepage();
+    // Both lists are filled above, but a missing entry would leave the dialog
+    // showing the word "undefined" rather than nothing.
+    if (!aboutData.licenses().isEmpty())
+        about[QStringLiteral("license")] = aboutData.licenses().constFirst().name(KAboutLicense::FullName);
+    if (!aboutData.authors().isEmpty())
+        about[QStringLiteral("author")] = aboutData.authors().constFirst().name();
+    engine.rootContext()->setContextProperty(QStringLiteral("aboutData"), about);
 
     engine.loadFromModule("koutnet.app", "Main");
 

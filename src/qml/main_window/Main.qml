@@ -206,6 +206,17 @@ Kirigami.ApplicationWindow {
 
     Kirigami.OverlaySheet {
         id: stubSheet
+
+        // Every sheet is reparented into the window overlay, so it does not
+        // inherit the page's colours - see the note on menuBar.
+        Kirigami.Theme.inherit: false
+        Kirigami.Theme.backgroundColor: root.theme.bg2
+        Kirigami.Theme.textColor: root.theme.text
+        Kirigami.Theme.disabledTextColor: root.theme.text_dim
+        Kirigami.Theme.highlightColor: root.theme.accent
+        Kirigami.Theme.highlightedTextColor: root.theme.text
+        Kirigami.Theme.hoverColor: root.theme.btn_hover
+
         Label {
             id: stubBody
             width: Kirigami.Units.gridUnit * 20
@@ -216,6 +227,23 @@ Kirigami.ApplicationWindow {
 
     // Menu bar
     menuBar: MenuBar {
+        // ThemeManager paints the surfaces, so Kirigami has to be told what
+        // colour they came out. A control that sets no text colour of its own
+        // otherwise keeps the system foreground, which is near-black, and every
+        // dark theme drew black menu text on a dark bar because of it.
+        //
+        // It has to be repeated per branch rather than set once on the window:
+        // Kirigami resolves an inherited theme by walking parentItem(), and the
+        // menu bar, the content and the overlay are separate children of the
+        // window's root item.
+        Kirigami.Theme.inherit: false
+        Kirigami.Theme.backgroundColor: root.theme.header_bg
+        Kirigami.Theme.textColor: root.theme.text
+        Kirigami.Theme.disabledTextColor: root.theme.text_dim
+        Kirigami.Theme.highlightColor: root.theme.accent
+        Kirigami.Theme.highlightedTextColor: root.theme.text
+        Kirigami.Theme.hoverColor: root.theme.btn_hover
+
         background: Rectangle { color: root.theme.header_bg }
 
         Menu {
@@ -345,11 +373,17 @@ Kirigami.ApplicationWindow {
     // Covers the whole window until the user clicks Continue, then unloads
     // itself. Parented to the window overlay so it sits above the menu bar and
     // the page content without fighting ApplicationWindow's own layout.
+    //
+    // Negative z, and it matters: every Popup - the welcome screen's own About
+    // dialog, its theme dropdown - is reparented into this same overlay at z 0,
+    // and siblings paint in ascending z. At any z above 0 this Loader covered
+    // them, so both opened behind an opaque welcome screen and looked dead. The
+    // overlay is already above the menu bar, so nothing here needs lifting.
     Loader {
         id: welcomeLoader
         parent: root.overlay
         anchors.fill: parent
-        z: 1000
+        z: -1
         active: appSettings.showWelcome
 
         sourceComponent: WelcomeScreen {
@@ -420,6 +454,16 @@ Kirigami.ApplicationWindow {
         globalToolBarStyle: Kirigami.ApplicationHeaderStyle.None
         title: "KOutNet"
         padding: 0
+
+        // See the note on menuBar - the content is its own branch.
+        Kirigami.Theme.inherit: false
+        Kirigami.Theme.backgroundColor: root.theme.bg
+        Kirigami.Theme.textColor: root.theme.text
+        Kirigami.Theme.disabledTextColor: root.theme.text_dim
+        Kirigami.Theme.highlightColor: root.theme.accent
+        Kirigami.Theme.highlightedTextColor: root.theme.text
+        Kirigami.Theme.hoverColor: root.theme.btn_hover
+
         background: Rectangle { color: root.theme.bg }
 
         RowLayout {
@@ -656,6 +700,16 @@ Kirigami.ApplicationWindow {
         id: yourProfileSheet
         title: i18nc("@title:window", "My profile")
 
+        // Every sheet is reparented into the window overlay, so it does not
+        // inherit the page's colours - see the note on menuBar.
+        Kirigami.Theme.inherit: false
+        Kirigami.Theme.backgroundColor: root.theme.bg2
+        Kirigami.Theme.textColor: root.theme.text
+        Kirigami.Theme.disabledTextColor: root.theme.text_dim
+        Kirigami.Theme.highlightColor: root.theme.accent
+        Kirigami.Theme.highlightedTextColor: root.theme.text
+        Kirigami.Theme.hoverColor: root.theme.btn_hover
+
         YourProfile {
             onStubRequested: (title, body) => root.showStub(title, body)
         }
@@ -666,12 +720,32 @@ Kirigami.ApplicationWindow {
         property var peer: null
         title: otherProfileSheet.peer ? otherProfileSheet.peer.username : ""
 
+        // Every sheet is reparented into the window overlay, so it does not
+        // inherit the page's colours - see the note on menuBar.
+        Kirigami.Theme.inherit: false
+        Kirigami.Theme.backgroundColor: root.theme.bg2
+        Kirigami.Theme.textColor: root.theme.text
+        Kirigami.Theme.disabledTextColor: root.theme.text_dim
+        Kirigami.Theme.highlightColor: root.theme.accent
+        Kirigami.Theme.highlightedTextColor: root.theme.text
+        Kirigami.Theme.hoverColor: root.theme.btn_hover
+
         OtherProfile { peer: otherProfileSheet.peer }
     }
 
     Kirigami.OverlaySheet {
         id: settingsSheet
         title: i18nc("@title:window", "Settings")
+
+        // Every sheet is reparented into the window overlay, so it does not
+        // inherit the page's colours - see the note on menuBar.
+        Kirigami.Theme.inherit: false
+        Kirigami.Theme.backgroundColor: root.theme.bg2
+        Kirigami.Theme.textColor: root.theme.text
+        Kirigami.Theme.disabledTextColor: root.theme.text_dim
+        Kirigami.Theme.highlightColor: root.theme.accent
+        Kirigami.Theme.highlightedTextColor: root.theme.text
+        Kirigami.Theme.hoverColor: root.theme.btn_hover
 
         // Relay and maintainer VDS are the two that route through a relay,
         // so they are the two that need a host and port.
@@ -878,15 +952,26 @@ Kirigami.ApplicationWindow {
     Kirigami.OverlaySheet {
         id: aboutSheet
         title: i18nc("@title:window", "About")
+
+        // Every sheet is reparented into the window overlay, so it does not
+        // inherit the page's colours - see the note on menuBar.
+        Kirigami.Theme.inherit: false
+        Kirigami.Theme.backgroundColor: root.theme.bg2
+        Kirigami.Theme.textColor: root.theme.text
+        Kirigami.Theme.disabledTextColor: root.theme.text_dim
+        Kirigami.Theme.highlightColor: root.theme.accent
+        Kirigami.Theme.highlightedTextColor: root.theme.text
+        Kirigami.Theme.hoverColor: root.theme.btn_hover
+
         // Everything here comes from the KAboutData built in main.cpp, so the
         // dialog cannot drift away from what --version and DrKonqi report.
         ColumnLayout {
+            width: Kirigami.Units.gridUnit * 20
             spacing: Kirigami.Units.smallSpacing
 
-            Label {
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 20
-                wrapMode: Text.WordWrap
-                text: aboutData.shortDescription
+            Kirigami.Heading {
+                level: 2
+                text: aboutData.name
                 color: root.theme.text
             }
             Label {
@@ -894,13 +979,34 @@ Kirigami.ApplicationWindow {
                 color: root.theme.text_dim
             }
             Label {
-                text: aboutData.copyrightStatement
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: aboutData.description
+                color: root.theme.text
+            }
+            Label {
+                text: aboutData.copyright
                 color: root.theme.text_dim
             }
             Label {
-                text: "<a href=\"" + aboutData.homepage + "\">" + aboutData.homepage + "</a>"
-                onLinkActivated: (link) => Qt.openUrlExternally(link)
+                text: i18nc("@info %1 is a licence name such as GNU General Public License v3.0 only",
+                            "License: %1", aboutData.license)
                 color: root.theme.text_dim
+            }
+            Label {
+                text: i18nc("@info %1 is a person's name", "Author: %1", aboutData.author)
+                color: root.theme.text_dim
+            }
+            Label {
+                textFormat: Text.RichText
+                text: "<a href=\"" + aboutData.homepage + "\">" + aboutData.homepage + "</a>"
+                linkColor: root.theme.accent
+                color: root.theme.text_dim
+                onLinkActivated: (link) => Qt.openUrlExternally(link)
+
+                HoverHandler {
+                    cursorShape: Qt.PointingHandCursor
+                }
             }
         }
     }
