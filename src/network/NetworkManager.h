@@ -97,6 +97,14 @@ public:
     // if not given. TODO: persist across restarts once AppSettings lands.
     Q_INVOKABLE void setRelayServer(const QString &host, quint16 tunnelPort, quint16 voicePort = 0);
 
+    // incoming messages
+    // One received datagram, from parsing to whatever handler it belongs to.
+    // Split out of onUdpReadyRead() so the packet path can be driven without a
+    // bound socket: everything below this line is attacker-controlled, and a
+    // test that has to stand up two live UDP sockets to reach it is a test that
+    // does not get written.
+    void handleDatagram(const QString &host, const QByteArray &data);
+
     // outgoing messages
     void sendUdp(QJsonObject payload, const QString &targetIp = QString());
     Q_INVOKABLE void sendChat(const QString &text);
@@ -162,6 +170,9 @@ private:
     void dispatch(const QString &host, QJsonObject msg);
     void handlePresence(const QString &host, QJsonObject msg);
     void decryptMessageText(const QString &fromIp, QJsonObject &msg) const;
+    // Files a socket under an address, deleting whatever it displaces. Both the
+    // inbound and the outbound path can find one already there.
+    void replaceVoiceSocket(const QString &ip, QTcpSocket *sock);
     void onVoiceData(QTcpSocket *sock, const QString &ip);
     void onVoiceDisconnected(QTcpSocket *sock, const QString &ip);
     void startInternetTunnel();

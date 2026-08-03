@@ -74,21 +74,44 @@ void HistoryManager::append(const QString &chatId, const QVariantMap &entry)
         msgs = msgs.mid(msgs.size() - kMaxMessagesPerChat);
 
     m_cache.insert(chatId, msgs);
-
-    if (!m_unreadable.contains(chatId)) {
-        // QSaveFile because this rewrites the whole log every message: a crash
-        // halfway through the old QFile write left the chat truncated
-        QSaveFile f(filePathFor(chatId));
-        if (!f.open(QIODevice::WriteOnly)) {
-            qCWarning(KOUTNET_LOG_CHAT) << "failed to write" << f.fileName() << f.errorString();
-        } else {
-            f.write(QJsonDocument(QJsonArray::fromVariantList(msgs)).toJson(QJsonDocument::Indented));
-            if (!f.commit())
-                qCWarning(KOUTNET_LOG_CHAT) << "commit failed" << f.fileName() << f.errorString();
-        }
-    }
+    writeChatFile(chatId, msgs);
 
     Q_EMIT historyAppended(chatId, entry);
+}
+
+void HistoryManager::replaceAll(const QString &chatId, const QVariantList &entries)
+{
+    if (!m_savingEnabled)
+        return;
+
+    QVariantList msgs = entries;
+    if (msgs.size() > kMaxMessagesPerChat)
+        msgs = msgs.mid(msgs.size() - kMaxMessagesPerChat);
+
+    // load() first, for a chat this process has not read yet: reading the file
+    // is what discovers that it will not parse, and writeChatFile() refuses to
+    // touch one of those. Without this, a damaged log would be overwritten with
+    // whatever the caller happens to be holding.
+    load(chatId);
+    m_cache.insert(chatId, msgs);
+    writeChatFile(chatId, msgs);
+}
+
+void HistoryManager::writeChatFile(const QString &chatId, const QVariantList &msgs)
+{
+    if (m_unreadable.contains(chatId))
+        return;
+
+    // QSaveFile because this rewrites the whole log every message: a crash
+    // halfway through the old QFile write left the chat truncated
+    QSaveFile f(filePathFor(chatId));
+    if (!f.open(QIODevice::WriteOnly)) {
+        qCWarning(KOUTNET_LOG_CHAT) << "failed to write" << f.fileName() << f.errorString();
+        return;
+    }
+    f.write(QJsonDocument(QJsonArray::fromVariantList(msgs)).toJson(QJsonDocument::Indented));
+    if (!f.commit())
+        qCWarning(KOUTNET_LOG_CHAT) << "commit failed" << f.fileName() << f.errorString();
 }
 
 QVariantList HistoryManager::loadCallLog()

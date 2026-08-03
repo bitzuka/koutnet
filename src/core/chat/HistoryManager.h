@@ -37,6 +37,12 @@ public:
 
     Q_INVOKABLE QVariantList load(const QString &chatId);
     Q_INVOKABLE void append(const QString &chatId, const QVariantMap &entry);
+    // Rewrites a chat's whole log. append() is the normal way in; this is for
+    // the changes that alter entries already stored rather than add one - a
+    // read receipt marking earlier messages, for instance. Same rules as
+    // append(): obeys historySavingEnabled, keeps the newest
+    // kMaxMessagesPerChat, and never writes over a file that would not parse.
+    Q_INVOKABLE void replaceAll(const QString &chatId, const QVariantList &entries);
 
     Q_INVOKABLE QVariantList loadCallLog();
     Q_INVOKABLE void addCall(const QVariantMap &entry);
@@ -50,6 +56,8 @@ private:
 
     QString filePathFor(const QString &chatId) const;
     QDir historyDir() const;
+    // The shared write step behind append() and replaceAll().
+    void writeChatFile(const QString &chatId, const QVariantList &msgs);
 
     bool m_savingEnabled = true;
     QHash<QString, QVariantList> m_cache;

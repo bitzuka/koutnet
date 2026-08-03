@@ -12,6 +12,9 @@
 #include <QCryptographicHash>
 #include <QTimer>
 
+#include <algorithm> // nth_element, for the replay cache eviction
+#include <cmath>
+
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/hmac.h>
@@ -27,23 +30,67 @@ double nowEpoch()
     return QDateTime::currentMSecsSinceEpoch() / 1000.0;
 }
 
-// Wallet entry names. The QSettings paths they replaced are spelled out in
-// migrateLegacyKeys().
-QString identityWalletKey()
+// Overwrite a buffer of key material before it is freed. QByteArray and QString
+// only release the block, so a private key, a shared secret or a passphrase
+// stays legible in the heap until something else happens to reuse the page -
+// and a core dump, a swap file or a hibernation image is where it turns up.
+//
+// data() detaches first, which means this only wipes the copy in hand: it is
+// correct for a buffer nothing else holds a reference to, which is what every
+// call site below is. Where a buffer is deliberately handed on to live longer
+// (a session key going into m_sessionKeys) it is moved rather than copied, and
+// wiped from there instead.
+void cleanse(QByteArray &buf)
 {
-    return QStringLiteral("identity_priv_b64");
+    if (!buf.isEmpty())
+        OPENSSL_cleanse(buf.data(), size_t(buf.size()));
 }
 
-QString dhWalletKey()
+void cleanse(QString &str)
 {
-    return QStringLiteral("dh_priv_b64");
+    if (!str.isEmpty())
+        OPENSSL_cleanse(str.data(), size_t(str.size()) * sizeof(QChar));
+}
+
+// Same thing at every exit path of a function, which is the part that gets
+// forgotten - loadStoredKeys() alone returns from five places.
+template <typename T>
+class Wiper
+{
+public:
+    explicit Wiper(T &buf) : m_buf(buf) {}
+    ~Wiper() { cleanse(m_buf); }
+    Wiper(const Wiper &) = delete;
+    Wiper &operator=(const Wiper &) = delete;
+
+private:
+    T &m_buf;
+};
+
+// Wallet entry names. The QSettings paths they replaced are spelled out in
+// migrateLegacyKeys(). An empty scope is the application's own identity, so
+// the names it has always used stay exactly as they were.
+QString identityWalletKey(const QString &scope)
+{
+    return scope.isEmpty() ? QStringLiteral("identity_priv_b64")
+                           : QStringLiteral("identity_priv_b64_") + scope;
+}
+
+QString dhWalletKey(const QString &scope)
+{
+    return scope.isEmpty() ? QStringLiteral("dh_priv_b64")
+                           : QStringLiteral("dh_priv_b64_") + scope;
 }
 
 // Where builds before the wallet kept the same two keys, in clear text.
-QStringList legacyConfigKeys()
+QStringList legacyConfigKeys(const QString &scope)
 {
-    return { QStringLiteral("security/identity_priv_b64"),
-             QStringLiteral("security/dh_priv_b64") };
+    if (scope.isEmpty()) {
+        return { QStringLiteral("security/identity_priv_b64"),
+                 QStringLiteral("security/dh_priv_b64") };
+    }
+    return { QStringLiteral("security/%1_identity_priv_b64").arg(scope),
+             QStringLiteral("security/%1_dh_priv_b64").arg(scope) };
 }
 
 // Where a config-file key that is not the one in use ends up, so that deleting
@@ -66,7 +113,12 @@ QString bytesToFingerprint(const QByteArray &raw)
 
 } // namespace
 
-CryptoManager::CryptoManager(QObject *parent) : QObject(parent)
+CryptoManager::CryptoManager(QObject *parent) : CryptoManager(QString(), parent)
+{
+}
+
+CryptoManager::CryptoManager(const QString &storageScope, QObject *parent)
+    : QObject(parent), m_storageScope(storageScope)
 {
     m_valid = initKeypairs();
     if (!m_valid) {
@@ -81,6 +133,13 @@ CryptoManager::~CryptoManager()
 {
     if (m_identityPriv) EVP_PKEY_free(m_identityPriv);
     if (m_dhPriv) EVP_PKEY_free(m_dhPriv);
+
+    // The session keys and the cached passphrase keys live as long as this
+    // object does, so this is the exit path for both of them.
+    for (auto it = m_sessionKeys.begin(); it != m_sessionKeys.end(); ++it)
+        cleanse(*it);
+    for (auto it = m_passphraseKeyCache.begin(); it != m_passphraseKeyCache.end(); ++it)
+        cleanse(*it);
 }
 
 QByteArray CryptoManager::randomBytes(int n)
@@ -150,6 +209,10 @@ bool CryptoManager::migrateLegacyKeys(QString *outIdentityB64, QString *outDhB64
 {
     QString legacyId;
     QString legacyDh;
+    // Both hold a private key in base64. The caller gets a copy of each and
+    // wipes those in turn.
+    Wiper wipeId(legacyId);
+    Wiper wipeDh(legacyDh);
     {
         // Scoped so the instance that read the plaintext is gone before the one
         // that deletes it exists. Both would share a single in-memory copy of
@@ -158,8 +221,8 @@ bool CryptoManager::migrateLegacyKeys(QString *outIdentityB64, QString *outDhB64
         // QByteArray overload, so the file says @ByteArray(...) - QSettings
         // hands either type back as the same base64 text.
         QSettings settings;
-        legacyId = settings.value(legacyConfigKeys().at(0)).toString();
-        legacyDh = settings.value(legacyConfigKeys().at(1)).toString();
+        legacyId = settings.value(legacyConfigKeys(m_storageScope).at(0)).toString();
+        legacyDh = settings.value(legacyConfigKeys(m_storageScope).at(1)).toString();
     }
     if (legacyId.isEmpty() || legacyDh.isEmpty())
         return false;
@@ -169,8 +232,8 @@ bool CryptoManager::migrateLegacyKeys(QString *outIdentityB64, QString *outDhB64
 
     // Only drop the plaintext copy once the wallet has both halves, otherwise a
     // wallet that is merely unreachable today would cost the user their identity.
-    if (!SecretStore::write(identityWalletKey(), legacyId)
-        || !SecretStore::write(dhWalletKey(), legacyDh)) {
+    if (!SecretStore::write(identityWalletKey(m_storageScope), legacyId)
+        || !SecretStore::write(dhWalletKey(m_storageScope), legacyDh)) {
         qCCritical(KOUTNET_LOG_CRYPTO,
                    "your private keys are still stored in plain text in the config file "
                    "because they could not be moved into KWallet (%s). Start kwalletd and "
@@ -195,7 +258,7 @@ void CryptoManager::dropLegacyPlaintextKeys()
         return;
 
     QString detail;
-    if (SecretStore::purgePlaintextConfigKeys(legacyConfigKeys(), &detail))
+    if (SecretStore::purgePlaintextConfigKeys(legacyConfigKeys(m_storageScope), &detail))
         return;
 
     qCCritical(KOUTNET_LOG_CRYPTO,
@@ -216,27 +279,32 @@ bool CryptoManager::stashSupersededPlaintextKeys()
 {
     QString legacyId;
     QString legacyDh;
+    QString walletId;
+    QString walletDh;
+    // Four private keys in base64 by the end of this function.
+    Wiper wipeId(legacyId);
+    Wiper wipeDh(legacyDh);
+    Wiper wipeWalletId(walletId);
+    Wiper wipeWalletDh(walletDh);
     {
         QSettings settings;
-        legacyId = settings.value(legacyConfigKeys().at(0)).toString();
-        legacyDh = settings.value(legacyConfigKeys().at(1)).toString();
+        legacyId = settings.value(legacyConfigKeys(m_storageScope).at(0)).toString();
+        legacyDh = settings.value(legacyConfigKeys(m_storageScope).at(1)).toString();
     }
     if (legacyId.isEmpty() && legacyDh.isEmpty())
         return true; // nothing in the file, so nothing to preserve or delete
 
     // A read that fails leaves the value empty, which compares as "not the pair
     // in the file" - the safe answer, since that path preserves before deleting.
-    QString walletId;
-    QString walletDh;
-    SecretStore::read(identityWalletKey(), &walletId);
-    SecretStore::read(dhWalletKey(), &walletDh);
+    SecretStore::read(identityWalletKey(m_storageScope), &walletId);
+    SecretStore::read(dhWalletKey(m_storageScope), &walletDh);
     if (legacyId == walletId && legacyDh == walletDh)
         return true; // the wallet already holds exactly this pair
 
     if ((!legacyId.isEmpty()
-         && !SecretStore::write(supersededWalletKey(identityWalletKey()), legacyId))
+         && !SecretStore::write(supersededWalletKey(identityWalletKey(m_storageScope)), legacyId))
         || (!legacyDh.isEmpty()
-            && !SecretStore::write(supersededWalletKey(dhWalletKey()), legacyDh))) {
+            && !SecretStore::write(supersededWalletKey(dhWalletKey(m_storageScope)), legacyDh))) {
         qCCritical(KOUTNET_LOG_CRYPTO,
                    "the config file holds an identity that KWallet does not, and it could "
                    "not be copied into the wallet (%s) - leaving the plaintext alone rather "
@@ -249,7 +317,7 @@ bool CryptoManager::stashSupersededPlaintextKeys()
     qCWarning(KOUTNET_LOG_CRYPTO,
               "the config file held a different identity than the one in use; it was copied "
               "into KWallet as %s before the plaintext was deleted.",
-              qUtf8Printable(supersededWalletKey(identityWalletKey())));
+              qUtf8Printable(supersededWalletKey(identityWalletKey(m_storageScope))));
     return true;
 }
 
@@ -267,8 +335,13 @@ bool CryptoManager::loadStoredKeys()
 {
     QString idB64;
     QString dhB64;
-    if (!SecretStore::read(identityWalletKey(), &idB64)
-        || !SecretStore::read(dhWalletKey(), &dhB64)
+    // Base64 of the two private keys, and below them the raw bytes themselves.
+    // Five returns out of this function, hence the guards rather than a call
+    // per exit.
+    Wiper wipeIdB64(idB64);
+    Wiper wipeDhB64(dhB64);
+    if (!SecretStore::read(identityWalletKey(m_storageScope), &idB64)
+        || !SecretStore::read(dhWalletKey(m_storageScope), &dhB64)
         || idB64.isEmpty() || dhB64.isEmpty()) {
         // nothing in the wallet: either a first run, or an older build that
         // kept the keys in QSettings
@@ -282,8 +355,10 @@ bool CryptoManager::loadStoredKeys()
         dropLegacyPlaintextKeys();
     }
 
-    const QByteArray idRaw = QByteArray::fromBase64(idB64.toLatin1());
-    const QByteArray dhRaw = QByteArray::fromBase64(dhB64.toLatin1());
+    QByteArray idRaw = QByteArray::fromBase64(idB64.toLatin1());
+    QByteArray dhRaw = QByteArray::fromBase64(dhB64.toLatin1());
+    Wiper wipeIdRaw(idRaw);
+    Wiper wipeDhRaw(dhRaw);
 
     // Ed25519/X25519 private keys are always exactly 32 raw bytes - guard
     // against a truncated/corrupted stored entry producing a garbage key.
@@ -328,25 +403,39 @@ bool CryptoManager::generateAndStoreKeys()
     }
     EVP_PKEY_CTX_free(dhCtx);
 
+    // The raw private keys, and then the base64 of each. Both get wiped whichever
+    // way this function ends; the copies KWallet takes are its problem.
     size_t len = 0;
+    QByteArray idRaw;
+    QByteArray dhRaw;
+    QString idB64;
+    QString dhB64;
+    Wiper wipeIdRaw(idRaw);
+    Wiper wipeDhRaw(dhRaw);
+    Wiper wipeIdB64(idB64);
+    Wiper wipeDhB64(dhB64);
+
     if (EVP_PKEY_get_raw_private_key(m_identityPriv, nullptr, &len) != 1 || len == 0)
         return false;
-    QByteArray idRaw(int(len), 0);
+    idRaw.resize(int(len));
     if (EVP_PKEY_get_raw_private_key(m_identityPriv, reinterpret_cast<unsigned char *>(idRaw.data()), &len) != 1)
         return false;
 
     len = 0;
     if (EVP_PKEY_get_raw_private_key(m_dhPriv, nullptr, &len) != 1 || len == 0)
         return false;
-    QByteArray dhRaw(int(len), 0);
+    dhRaw.resize(int(len));
     if (EVP_PKEY_get_raw_private_key(m_dhPriv, reinterpret_cast<unsigned char *>(dhRaw.data()), &len) != 1)
         return false;
+
+    idB64 = QString::fromLatin1(idRaw.toBase64());
+    dhB64 = QString::fromLatin1(dhRaw.toBase64());
 
     // A wallet we cannot reach is not a reason to refuse to run, but it is a
     // reason to say so: the keypair above works for this session and then goes
     // away, so peers will see a new fingerprint next time.
-    if (!SecretStore::write(identityWalletKey(), QString::fromLatin1(idRaw.toBase64()))
-        || !SecretStore::write(dhWalletKey(), QString::fromLatin1(dhRaw.toBase64()))) {
+    if (!SecretStore::write(identityWalletKey(m_storageScope), idB64)
+        || !SecretStore::write(dhWalletKey(m_storageScope), dhB64)) {
         qCCritical(KOUTNET_LOG_CRYPTO,
                    "could not store the identity keys in KWallet (%s). Running with a "
                    "throwaway identity for this session - it is NOT written to disk in "
@@ -387,10 +476,18 @@ bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &d
 
     // Verify: peer's identity key signed their DH key.
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
-    EVP_DigestVerifyInit(mdctx, nullptr, nullptr, nullptr, peerIdPub);
-    const int verifyRc = EVP_DigestVerify(mdctx,
-        reinterpret_cast<const unsigned char *>(peerDhSig.constData()), peerDhSig.size(),
-        reinterpret_cast<const unsigned char *>(peerDhBytes.constData()), peerDhBytes.size());
+    if (!mdctx) {
+        // out of memory, and passing the null on to EVP_DigestVerifyInit would
+        // be a crash rather than a refused handshake
+        EVP_PKEY_free(peerIdPub);
+        return false;
+    }
+    const int verifyRc =
+        EVP_DigestVerifyInit(mdctx, nullptr, nullptr, nullptr, peerIdPub) != 1
+        ? 0
+        : EVP_DigestVerify(mdctx,
+              reinterpret_cast<const unsigned char *>(peerDhSig.constData()), peerDhSig.size(),
+              reinterpret_cast<const unsigned char *>(peerDhBytes.constData()), peerDhBytes.size());
     EVP_MD_CTX_free(mdctx);
     if (verifyRc != 1) {
         EVP_PKEY_free(peerIdPub);
@@ -434,6 +531,10 @@ bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &d
     // built from it would then be the same on every machine
     size_t secretLen = 0;
     QByteArray sharedSecret;
+    // The one buffer here that is worth reading out of a core dump: every
+    // session key with this peer, for as long as neither side regenerates its
+    // keypair, comes out of these bytes.
+    Wiper wipeSecret(sharedSecret);
     bool derived = EVP_PKEY_derive_init(dctx) == 1
                    && EVP_PKEY_derive_set_peer(dctx, peerDhPub) == 1
                    && EVP_PKEY_derive(dctx, nullptr, &secretLen) == 1
@@ -452,13 +553,22 @@ bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &d
         return false;
     }
 
-    const QByteArray sessionKey = hkdfSha256(sharedSecret, QByteArrayLiteral("-v2-session"), kKeyLen);
+    QByteArray sessionKey = hkdfSha256(sharedSecret, QByteArrayLiteral("-v2-session"), kKeyLen);
     if (sessionKey.size() != kKeyLen) {
+        cleanse(sessionKey);
         EVP_PKEY_free(peerIdPub);
         return false;
     }
 
-    m_sessionKeys[peerIp] = sessionKey;
+    // The key this replaces goes first: a repeat handshake with the same peer
+    // would otherwise leave the previous one in the heap unwiped. Moved rather
+    // than copied, so the hash ends up owning the only copy - the destructor is
+    // where that one gets wiped.
+    const auto existing = m_sessionKeys.find(peerIp);
+    if (existing != m_sessionKeys.end())
+        cleanse(*existing);
+
+    m_sessionKeys[peerIp] = std::move(sessionKey);
     m_peerIdPub[peerIp] = peerIdBytes;
     EVP_PKEY_free(peerIdPub);
     return true;
@@ -513,8 +623,11 @@ QByteArray CryptoManager::hkdfSha256(const QByteArray &secret, const QByteArray 
                     && EVP_PKEY_derive(ctx, reinterpret_cast<unsigned char *>(out.data()), &len) == 1;
     EVP_PKEY_CTX_free(ctx);
 
-    if (!ok || len != size_t(outLen))
+    if (!ok || len != size_t(outLen)) {
+        // a partial derive leaves part of a real key in there
+        cleanse(out);
         return {};
+    }
     return out;
 }
 
@@ -591,25 +704,43 @@ bool CryptoManager::gcmDecrypt(const QByteArray &key, const QByteArray &data, QB
 // PBKDF2 passphrase keys (cached)
 QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray &salt) const
 {
-    const QString cacheKey = passphrase + QLatin1Char('|') + QString::fromLatin1(salt.toHex());
-    if (m_passphraseKeyCache.contains(cacheKey))
-        return m_passphraseKeyCache.value(cacheKey);
+    QByteArray pass = passphrase.toUtf8();
+    Wiper wipePass(pass);
+
+    // A hash of the pair, not the pair itself. The cache key used to be the
+    // passphrase with the salt appended, which kept the user's group passphrase
+    // in plain text in this hash for the lifetime of the process - and unlike the
+    // derived key it is the secret the user typed and probably reuses elsewhere.
+    // The salt is fixed length, so salt-then-passphrase is unambiguous.
+    QCryptographicHash tag(QCryptographicHash::Sha256);
+    tag.addData(salt);
+    tag.addData(pass);
+    const QByteArray cacheKey = tag.result();
+
+    const auto cached = m_passphraseKeyCache.constFind(cacheKey);
+    if (cached != m_passphraseKeyCache.constEnd())
+        return *cached;
 
     QByteArray key(kKeyLen, 0);
-    const QByteArray pass = passphrase.toUtf8();
     // an all-zero key would be shared by every peer whose derivation failed
     if (PKCS5_PBKDF2_HMAC(pass.constData(), pass.size(),
             reinterpret_cast<const unsigned char *>(salt.constData()), salt.size(),
             kKdfIters, EVP_sha256(), kKeyLen, reinterpret_cast<unsigned char *>(key.data())) != 1) {
+        cleanse(key);
         return {};
     }
 
     // Cheap unbounded-growth guard: each PBKDF2 derivation is expensive
     // (480k iterations), which is why we cache it - but a long session
     // cycling through many distinct passphrases must not grow this forever.
-    if (m_passphraseKeyCache.size() >= kMaxPassphraseCacheSize)
+    if (m_passphraseKeyCache.size() >= kMaxPassphraseCacheSize) {
+        for (auto it = m_passphraseKeyCache.begin(); it != m_passphraseKeyCache.end(); ++it)
+            cleanse(*it);
         m_passphraseKeyCache.clear();
+    }
 
+    // The caller gets a copy that shares this block, which is why the wipe for
+    // it lives in the destructor rather than here.
     m_passphraseKeyCache[cacheKey] = key;
     return key;
 }
@@ -617,17 +748,22 @@ QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray 
 // Packet HMAC
 QString CryptoManager::signPacket(const QString &peerIp, const QByteArray &payload) const
 {
-    if (!m_sessionKeys.contains(peerIp))
+    // constFind rather than value(): a copy of the session key would be one more
+    // buffer holding it, and one more thing to remember to wipe.
+    const auto key = m_sessionKeys.constFind(peerIp);
+    if (key == m_sessionKeys.constEnd())
         return QString();
 
-    const QByteArray key = m_sessionKeys.value(peerIp);
     unsigned char digest[32];
     unsigned int digestLen = 0;
-    HMAC(EVP_sha256(), key.constData(), key.size(),
+    HMAC(EVP_sha256(), key->constData(), key->size(),
         reinterpret_cast<const unsigned char *>(payload.constData()), payload.size(),
         digest, &digestLen);
 
-    return QString::fromLatin1(QByteArray(reinterpret_cast<char *>(digest), int(digestLen)).toBase64());
+    const QString out =
+        QString::fromLatin1(QByteArray(reinterpret_cast<char *>(digest), int(digestLen)).toBase64());
+    OPENSSL_cleanse(digest, sizeof(digest));
+    return out;
 }
 
 bool CryptoManager::verifyPacket(const QString &peerIp, const QByteArray &payload,
@@ -635,21 +771,21 @@ bool CryptoManager::verifyPacket(const QString &peerIp, const QByteArray &payloa
 {
     // no key means nothing was verified, so the answer is no. deciding which
     // pre-session packets may pass anyway is the caller's job, not ours.
-    if (!m_sessionKeys.contains(peerIp))
+    const auto key = m_sessionKeys.constFind(peerIp);
+    if (key == m_sessionKeys.constEnd())
         return false;
 
-    const QByteArray key = m_sessionKeys.value(peerIp);
     unsigned char expected[32];
     unsigned int expectedLen = 0;
-    HMAC(EVP_sha256(), key.constData(), key.size(),
+    HMAC(EVP_sha256(), key->constData(), key->size(),
         reinterpret_cast<const unsigned char *>(payload.constData()), payload.size(),
         expected, &expectedLen);
 
     const QByteArray given = QByteArray::fromBase64(sigB64.toLatin1());
-    if (given.size() != int(expectedLen))
-        return false;
-
-    return CRYPTO_memcmp(expected, given.constData(), expectedLen) == 0;
+    const bool ok = given.size() == int(expectedLen)
+                    && CRYPTO_memcmp(expected, given.constData(), expectedLen) == 0;
+    OPENSSL_cleanse(expected, sizeof(expected));
+    return ok;
 }
 
 // Replay protection
@@ -659,25 +795,91 @@ bool CryptoManager::checkReplay(const QString &peerIp, const QString &nonceHex, 
     if (std::abs(now - ts) > kReplayWindowSec)
         return false;
 
-    QHash<QString, double> &bucket = m_seenNonces[peerIp];
+    QHash<QString, SeenNonce> &bucket = m_seenNonces[peerIp];
     if (bucket.contains(nonceHex))
         return false;
 
-    bucket[nonceHex] = now;
+    const quint64 seq = ++m_nonceSeq;
+    bucket[nonceHex] = SeenNonce{ now, seq };
+    m_nonceBucketTouched[peerIp] = seq;
 
     for (auto it = bucket.begin(); it != bucket.end();) {
-        if (now - it.value() > kNonceCacheTtlSec)
+        if (now - it.value().ts > kNonceCacheTtlSec)
             it = bucket.erase(it);
         else
             ++it;
     }
+
+    // A peer sending fresh nonces faster than the TTL retires them outruns the
+    // sweep above, so the newest half is kept and the older half goes. Ordered
+    // by arrival and not by the clock, because a flood puts thousands of these
+    // in the same millisecond and every one of them would look equally old.
+    // Forgetting an old nonce means a packet from that far back could be
+    // replayed once, which is the lesser problem: the alternative is a bucket
+    // that grows for as long as the flood lasts.
+    if (bucket.size() > kMaxNoncesPerPeer) {
+        QVector<quint64> seqs;
+        seqs.reserve(bucket.size());
+        for (auto it = bucket.cbegin(); it != bucket.cend(); ++it)
+            seqs.append(it.value().seq);
+        const qsizetype half = seqs.size() / 2;
+        std::nth_element(seqs.begin(), seqs.begin() + half, seqs.end());
+        const quint64 cutoff = seqs.at(half);
+        for (auto it = bucket.begin(); it != bucket.end();) {
+            if (it.value().seq < cutoff) // unique, so exactly the older half goes
+                it = bucket.erase(it);
+            else
+                ++it;
+        }
+    }
+
+    if (m_seenNonces.size() > kMaxNoncePeers)
+        evictOldestNoncePeers();
     return true;
+}
+
+void CryptoManager::evictOldestNoncePeers()
+{
+    // One linear scan per eviction over at most kMaxNoncePeers entries. Under a
+    // flood from spoofed source addresses this runs for every packet, so it does
+    // not sort - it takes the least recently used address and drops it.
+    while (m_seenNonces.size() > kMaxNoncePeers && !m_nonceBucketTouched.isEmpty()) {
+        auto oldest = m_nonceBucketTouched.cbegin();
+        for (auto it = m_nonceBucketTouched.cbegin(); it != m_nonceBucketTouched.cend(); ++it) {
+            if (it.value() < oldest.value())
+                oldest = it;
+        }
+        const QString key = oldest.key();
+        m_nonceBucketTouched.remove(key);
+        m_seenNonces.remove(key);
+    }
+
+    // A bucket with no recorded arrival cannot be ordered against the others, so
+    // if any are left over the cap they go together. Unreachable unless the two
+    // hashes fall out of step.
+    if (m_seenNonces.size() > kMaxNoncePeers) {
+        m_seenNonces.clear();
+        m_nonceBucketTouched.clear();
+    }
 }
 
 // Rate limiting
 bool CryptoManager::checkRate(const QString &peerIp, int maxPerSec)
 {
     const double now = nowEpoch();
+
+    // Keyed on the source address, so a flood from spoofed ones grows this the
+    // same way it grew the replay cache. A window nobody has added to for a
+    // second is empty and worth nothing, so those are what go.
+    if (m_rateCounters.size() > kMaxRatePeers) {
+        for (auto it = m_rateCounters.begin(); it != m_rateCounters.end();) {
+            if (it.value().isEmpty() || now - it.value().constLast() >= 1.0)
+                it = m_rateCounters.erase(it);
+            else
+                ++it;
+        }
+    }
+
     QVector<double> &window = m_rateCounters[peerIp];
 
     QVector<double> kept;
@@ -708,8 +910,10 @@ QString CryptoManager::encrypt(const QString &plaintext, const QString &passphra
     // an empty return says "could not seal this", never "here it is in the
     // clear", so a broken salt or cipher cannot leak the message
     QByteArray wire;
-    if (!peerIp.isEmpty() && m_sessionKeys.contains(peerIp)) {
-        const QByteArray sealed = gcmEncrypt(m_sessionKeys.value(peerIp), data);
+    const auto sessionKey = peerIp.isEmpty() ? m_sessionKeys.constEnd()
+                                             : m_sessionKeys.constFind(peerIp);
+    if (sessionKey != m_sessionKeys.constEnd()) {
+        const QByteArray sealed = gcmEncrypt(*sessionKey, data);
         if (sealed.isEmpty())
             return QString();
         wire.append(char(0x01));
@@ -762,8 +966,10 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
     bool ok = false;
 
     if (type == 0x01) {
-        if (!peerIp.isEmpty() && m_sessionKeys.contains(peerIp))
-            ok = gcmDecrypt(m_sessionKeys.value(peerIp), payload, &plain);
+        const auto sessionKey = peerIp.isEmpty() ? m_sessionKeys.constEnd()
+                                                 : m_sessionKeys.constFind(peerIp);
+        if (sessionKey != m_sessionKeys.constEnd())
+            ok = gcmDecrypt(*sessionKey, payload, &plain);
     } else if (type == 0x02) {
         if (payload.size() > kSaltLen && !passphrase.isEmpty()) {
             const QByteArray salt = payload.left(kSaltLen);
@@ -785,18 +991,20 @@ QByteArray CryptoManager::encryptBytes(const QString &peerIp, const QByteArray &
 {
     // empty means "not encrypted", and the caller has to drop the frame. voice
     // in the clear is not a graceful degradation, it is the bug.
-    if (!m_sessionKeys.contains(peerIp))
+    const auto key = m_sessionKeys.constFind(peerIp);
+    if (key == m_sessionKeys.constEnd())
         return {};
 
-    return gcmEncrypt(m_sessionKeys.value(peerIp), plaintext); // nonce+ciphertext+tag
+    return gcmEncrypt(*key, plaintext); // nonce+ciphertext+tag
 }
 
 bool CryptoManager::decryptBytes(const QString &peerIp, const QByteArray &data, QByteArray *outPlain) const
 {
-    if (!m_sessionKeys.contains(peerIp))
+    const auto key = m_sessionKeys.constFind(peerIp);
+    if (key == m_sessionKeys.constEnd())
         return false; // unkeyed frames are not audio we are willing to play
 
-    return gcmDecrypt(m_sessionKeys.value(peerIp), data, outPlain);
+    return gcmDecrypt(*key, data, outPlain);
 }
 
 } // namespace koutnet

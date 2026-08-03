@@ -22,3 +22,30 @@ ecm_add_test(
 # CryptoManager.cpp includes its logging category header, which is generated
 # into the parent directory's build tree and not into this one.
 target_include_directories(crypto-manager PRIVATE ${KOUTNET_GENERATED_INCLUDE_DIR})
+
+# No sockets bound, no peers contacted and no wallet: the packet path is driven
+# by handing handleDatagram() the bytes a datagram would have carried, so this
+# runs on a machine with no network at all. CryptoManager comes along because a
+# session key is what the signature policy is made of.
+ecm_add_test(
+    NetworkManagerTest.cpp
+    ../network/NetworkManager.cpp
+    ../core/security/CryptoManager.cpp
+    ../core/security/SecretStore.cpp
+    ${KOUTNET_CRYPTO_LOGGING_SRCS}
+    TEST_NAME network-manager
+    NAME_PREFIX koutnet-
+    LINK_LIBRARIES Qt6::Test Qt6::Core Qt6::Network OpenSSL::Crypto KF6::Wallet KF6::I18n
+)
+target_include_directories(network-manager PRIVATE ${KOUTNET_GENERATED_INCLUDE_DIR})
+
+# This one writes real files, so its main() points HOME at a scratch directory
+# before anything else runs: the download location is the one path
+# QStandardPaths test mode does not move out of the user's home.
+ecm_add_test(
+    FileTransferHandlerTest.cpp
+    ../network/FileTransferHandler.cpp
+    TEST_NAME file-transfer-handler
+    NAME_PREFIX koutnet-
+    LINK_LIBRARIES Qt6::Test Qt6::Core KF6::I18n
+)

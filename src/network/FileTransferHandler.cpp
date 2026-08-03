@@ -10,6 +10,7 @@
 #include <QFileInfo>
 #include <QStandardPaths>
 #include <QDateTime>
+#include <QtNumeric> // qIsFinite, on a value that came straight off the wire
 
 namespace koutnet {
 
@@ -21,19 +22,51 @@ FileTransferHandler::FileTransferHandler(QObject *parent) : QObject(parent)
 
 QString FileTransferHandler::sanitizeFilename(const QString &rawName)
 {
-    // QFileInfo::fileName() strips any leading directory components (both
-    // "/" and, on Qt, "\" are treated as separators), which is what stops a
-    // peer sending "../../etc/passwd" or an absolute path from escaping the
-    // destination folder below.
-    QString name = QFileInfo(rawName).fileName();
+    const QString fallback = QStringLiteral("file_%1").arg(QDateTime::currentMSecsSinceEpoch());
 
-    // Guard the remaining edge cases QFileInfo::fileName() doesn't fully
-    // collapse (empty, ".", "..", or a name that somehow round-trips to
-    // nothing useful).
-    if (name.isEmpty() || name == QLatin1String(".") || name == QLatin1String(".."))
-        return QStringLiteral("file_%1").arg(QDateTime::currentMSecsSinceEpoch());
+    // Cut at the last separator of either kind rather than through
+    // QFileInfo::fileName(), which on Unix only knows about "/" - a name like
+    // "..\..\secret" survives that whole, and is a real traversal the day those
+    // bytes are handed to a Windows peer.
+    QString name = rawName;
+    const qsizetype cut = qMax(name.lastIndexOf(QLatin1Char('/')),
+                               name.lastIndexOf(QLatin1Char('\\')));
+    if (cut >= 0)
+        name = name.mid(cut + 1);
+
+    // NULs and control characters go before anything else looks at the string.
+    // Everything below reasons about the QString, while QFile hands the path to
+    // the C API, which stops at the first NUL - so a name carrying one means
+    // the path that was checked is not the path that gets opened.
+    QString clean;
+    clean.reserve(name.size());
+    for (const QChar c : name) {
+        if (c.unicode() >= 0x20 && c.unicode() != 0x7F)
+            clean.append(c);
+    }
+    name = clean;
+
+    // A name of nothing but dots is "." or ".." or a curiosity, and none of the
+    // three is a file the user asked for.
+    if (name.isEmpty() || name.count(QLatin1Char('.')) == name.size())
+        return fallback;
+
+    // The filesystem counts bytes, not characters, and refuses the whole write
+    // when the name is too long - so trim it rather than lose the transfer.
+    while (name.toUtf8().size() > kMaxFilenameBytes && !name.isEmpty())
+        name.chop(1);
+    if (name.isEmpty() || name.count(QLatin1Char('.')) == name.size())
+        return fallback;
 
     return name;
+}
+
+qint64 FileTransferHandler::pendingBufferedBytes() const
+{
+    qint64 total = 0;
+    for (auto it = m_pending.constBegin(); it != m_pending.constEnd(); ++it)
+        total += it.value().receivedBytes;
+    return total;
 }
 
 void FileTransferHandler::onMeta(const QJsonObject &meta)
@@ -42,10 +75,17 @@ void FileTransferHandler::onMeta(const QJsonObject &meta)
     if (tid.isEmpty())
         return;
 
-    const qint64 announcedSize = meta.value(QStringLiteral("size")).toDouble(0.0);
-    if (announcedSize < 0 || announcedSize > kMaxTransferBytes) {
+    // Checked as a double before it becomes a qint64: "size" is whatever the
+    // peer put in the JSON, and narrowing a value the integer cannot hold - 1e300,
+    // or a NaN - is undefined behaviour, not a large number that then fails the
+    // range test below. A missing or non-numeric field is refused outright rather
+    // than read as zero, which is what isDouble() is for.
+    const QJsonValue sizeValue = meta.value(QStringLiteral("size"));
+    const double announced = sizeValue.toDouble(-1.0);
+    if (!sizeValue.isDouble() || !qIsFinite(announced) || announced < 0.0
+        || announced > double(kMaxTransferBytes)) {
         Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
-                                           "The announced size exceeds the limit."));
+                                           "The announced size is not a usable length."));
         return; // no entry created - onChunkMessage will drop its chunks
     }
 

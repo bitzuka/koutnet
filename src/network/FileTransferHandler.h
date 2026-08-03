@@ -26,6 +26,10 @@ public:
     static constexpr int kMaxPendingTransfers = 50;
     // Incomplete transfers older than this are dropped by the prune timer.
     static constexpr qint64 kPendingTransferTtlMs = 10 * 60 * 1000; // 10 min
+    // Filename length cap in UTF-8 bytes, which is the unit the filesystem
+    // counts in. Comfortably under the 255 that ext4 and friends allow, with
+    // room left for the "(2)" a name collision appends.
+    static constexpr int kMaxFilenameBytes = 200;
 
     explicit FileTransferHandler(QObject *parent = nullptr);
 
@@ -34,6 +38,19 @@ public:
 
     // Called when a file_data (chunk) packet arrives.
     void onChunkMessage(const QJsonObject &msg);
+
+    // Turns a peer-supplied name into a bare filename that cannot leave the
+    // destination folder: strips directory components, control characters and
+    // NULs, replaces a name that is nothing but dots, and caps the length.
+    // Public because it is the entire security boundary of this class and
+    // deserves checking on its own, not only through a transfer that happens
+    // to make it as far as the disk.
+    static QString sanitizeFilename(const QString &rawName);
+
+    // What the peers are currently making us hold. A refused transfer has to
+    // bring both back down, which is invisible from outside otherwise.
+    int pendingTransferCount() const { return m_pending.size(); }
+    qint64 pendingBufferedBytes() const;
 
 Q_SIGNALS:
     // Raw-bytes signal - kept for any consumer that wants the data directly
@@ -59,9 +76,6 @@ private:
         qint64 startedAtMs = 0;
     };
 
-    // Strips any directory components and rejects empty/"."/".." results so
-    // a peer-supplied filename can never escape the destination folder.
-    static QString sanitizeFilename(const QString &rawName);
     QString saveToDisk(const QJsonObject &meta, const QByteArray &data) const;
     void pruneStaleTransfers();
 

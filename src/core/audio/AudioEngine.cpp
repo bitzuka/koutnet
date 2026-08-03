@@ -30,13 +30,17 @@ protected:
     qint64 readData(char *data, qint64 maxlen) override
     {
         qint64 written = 0;
+        // Read once for the whole callback: the GUI thread can move the slider
+        // between two iterations, and half a buffer at one gain and half at
+        // another is audible.
+        const qreal volume = m_engine->volume();
         while (written + PeerBuffer::kFrameBytes <= maxlen) {
             QByteArray mixed = m_engine->m_mixer.mix();
-            if (!qFuzzyCompare(m_engine->m_volume, 1.0)) {
+            if (!qFuzzyCompare(volume, 1.0)) {
                 auto *samples = reinterpret_cast<qint16 *>(mixed.data());
                 const int count = mixed.size() / 2;
                 for (int i = 0; i < count; ++i) {
-                    const int scaled = qRound(samples[i] * m_engine->m_volume);
+                    const int scaled = qRound(samples[i] * volume);
                     samples[i] = static_cast<qint16>(std::clamp(scaled, -32768, 32767));
                 }
             }
@@ -177,7 +181,7 @@ void AudioEngine::onCaptureReady()
         const QByteArray raw = m_captureAccum.left(kChunkBytes);
         m_captureAccum.remove(0, kChunkBytes);
 
-        if (m_muted) {
+        if (muted()) {
             if (m_speakLast) {
                 m_speakLast = false;
                 Q_EMIT speaking(false);

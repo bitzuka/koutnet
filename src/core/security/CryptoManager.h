@@ -40,8 +40,24 @@ public:
     // many different group passphrases over a long session grows this hash
     // unboundedly.
     static constexpr int kMaxPassphraseCacheSize = 256;
+    // Caps on the replay cache, in the same spirit. A peer sending a fresh
+    // nonce faster than the TTL sweep retires them grew one bucket without
+    // limit, and a flood from spoofed source addresses grew the number of
+    // buckets without limit - neither needs anything but a UDP socket. Oldest
+    // goes first, so a real peer's recent nonces are the ones that survive.
+    // Worst case is roughly kMaxNoncePeers * kMaxNoncesPerPeer entries.
+    static constexpr int kMaxNoncesPerPeer = 4096;
+    static constexpr int kMaxNoncePeers = 256;
+    // Same again for the rate-limit windows, which are keyed on source address
+    // too and would otherwise be the way around the cap above.
+    static constexpr int kMaxRatePeers = 1024;
 
     explicit CryptoManager(QObject *parent = nullptr);
+    // Same thing with its identity kept under a suffix of its own, in the
+    // wallet and in the config file alike. The application never passes a
+    // scope; it is what lets a test hold two peers in one process without
+    // the second one loading the first one's keypair.
+    explicit CryptoManager(const QString &storageScope, QObject *parent = nullptr);
     ~CryptoManager() override;
 
     // False when keypair generation or loading failed at startup. Check it
@@ -117,7 +133,11 @@ private:
     QByteArray deriveKey(const QString &passphrase, const QByteArray &salt) const;
     static QByteArray hkdfSha256(const QByteArray &secret, const QByteArray &info, int outLen);
     static QByteArray randomBytes(int n);
+    // Drops the least recently used peer buckets until the replay cache is back
+    // inside kMaxNoncePeers. Called only when it is over.
+    void evictOldestNoncePeers();
 
+    const QString m_storageScope;
     bool m_valid = false;
 
     EVP_PKEY *m_identityPriv = nullptr; // Ed25519
@@ -126,13 +146,27 @@ private:
     QByteArray m_identityPubBytes;
     QByteArray m_dhPubSig;
 
+    // One remembered nonce. The timestamp answers "is this old enough to
+    // forget", the sequence number answers "which of these arrived first" -
+    // and a flood fits thousands of nonces into one millisecond, so the clock
+    // cannot answer the second question.
+    struct SeenNonce {
+        double ts = 0.0;
+        quint64 seq = 0;
+    };
+
     QHash<QString, QByteArray> m_sessionKeys;             // peer ip -> 32-byte session key
     QHash<QString, QByteArray> m_peerIdPub;               // peer ip -> raw Ed25519 pubkey
     QHash<QString, QByteArray> m_warnedIdPub;             // peer ip -> key we last warned about
-    QHash<QString, QHash<QString, double>> m_seenNonces;  // peer ip -> nonce -> ts
+    QHash<QString, QHash<QString, SeenNonce>> m_seenNonces; // peer ip -> nonce -> when
+    QHash<QString, quint64> m_nonceBucketTouched;         // peer ip -> its newest seq
+    quint64 m_nonceSeq = 0;                               // arrivals, ever
     QHash<QString, QVector<double>> m_rateCounters;       // peer ip -> recent timestamps
 
-    mutable QHash<QString, QByteArray> m_passphraseKeyCache; // "passphrase|saltHex" -> key
+    // sha256(salt + passphrase) -> key. Keyed on a digest rather than on the
+    // passphrase itself, which used to keep the plaintext alive here for as
+    // long as the process ran. See deriveKey().
+    mutable QHash<QByteArray, QByteArray> m_passphraseKeyCache;
 };
 
 } // namespace koutnet

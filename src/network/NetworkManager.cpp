@@ -278,18 +278,35 @@ void NetworkManager::stop()
     m_running = false;
     m_broadcastTimer.stop();
 
-    for (auto *sock : std::as_const(m_voiceConnections))
-        sock->disconnectFromHost();
+    // disconnect(this) before deleteLater() on all three, the way
+    // setConnectionMode() does it: the teardown handlers would otherwise fire
+    // into maps this function has just cleared. Without the deleteLater() every
+    // socket stayed alive as a child of this object, so a stop()/start() cycle -
+    // switching connection mode, for instance - stranded the whole set each time.
+    for (auto *sock : std::as_const(m_voiceConnections)) {
+        sock->disconnect(this);
+        sock->close();
+        sock->deleteLater();
+    }
     m_voiceConnections.clear();
     m_voiceRxBuffers.clear();
 
-    for (auto *sock : std::as_const(m_pendingVoice))
+    for (auto *sock : std::as_const(m_pendingVoice)) {
+        sock->disconnect(this);
         sock->abort();
+        sock->deleteLater();
+    }
     m_pendingVoice.clear();
 
-    if (m_internetMode && m_relaySocket) {
+    // Not conditional on m_internetMode any more: the socket exists or it does
+    // not, and a mode changed since it was opened is no reason to leave it
+    // behind with its handlers attached.
+    if (m_relaySocket) {
+        m_relaySocket->disconnect(this);
         m_relaySocket->close();
+        m_relaySocket->deleteLater();
         m_relaySocket = nullptr;
+        m_relayConnected = false;
     }
     m_relayBuffer.clear();
     if (m_udp) {
@@ -462,18 +479,23 @@ void NetworkManager::onUdpReadyRead()
         if (host.startsWith(QLatin1String("::ffff:")))
             host = host.mid(7);
 
-        // Attacker-supplied bytes, so say what was wrong with them rather than
-        // treating "not an object" and "not even JSON" as the same thing.
-        QJsonParseError parseErr;
-        const auto doc = QJsonDocument::fromJson(dg.data(), &parseErr);
-        if (parseErr.error != QJsonParseError::NoError || !doc.isObject()) {
-            Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address, %2 the parser message",
-                                       "UDP parse error from %1: %2", host,
-                                       parseErr.errorString()));
-            continue;
-        }
-        dispatch(host, doc.object());
+        handleDatagram(host, dg.data());
     }
+}
+
+void NetworkManager::handleDatagram(const QString &host, const QByteArray &data)
+{
+    // Attacker-supplied bytes, so say what was wrong with them rather than
+    // treating "not an object" and "not even JSON" as the same thing.
+    QJsonParseError parseErr;
+    const auto doc = QJsonDocument::fromJson(data, &parseErr);
+    if (parseErr.error != QJsonParseError::NoError || !doc.isObject()) {
+        Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address, %2 the parser message",
+                                   "UDP parse error from %1: %2", host,
+                                   parseErr.errorString()));
+        return;
+    }
+    dispatch(host, doc.object());
 }
 
 void NetworkManager::dispatch(const QString &host, QJsonObject msg)
@@ -494,22 +516,40 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
             return; // own broadcast echoed back
     }
 
-    // Layer 4 - HMAC verification. Once a session exists with this host, every
-    // packet has to carry a valid _sig; an absent one used to be waved through,
-    // which let anyone spoof a peer we had already authenticated by simply
-    // omitting the field. Before a session exists only the allowlist passes.
-    if (m_crypto && !type.isEmpty()) {
-        if (m_crypto->hasSession(host)) {
-            const QString sig = msg.value(QStringLiteral("_sig")).toString();
-            if (sig.isEmpty() || !m_crypto->verifyPacket(host, signableBytes(msg), sig)) {
-                Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address",
-                                           "HMAC verification failed from %1 - dropping.", host));
-                return;
-            }
-        } else if (!allowedUnsigned(type)) {
+    // Layer 4 - HMAC verification. Everything outside the allowlist needs a
+    // session and a valid _sig; an absent one used to be waved through, which
+    // let anyone spoof a peer we had already authenticated by simply omitting
+    // the field.
+    //
+    // The allowlist is checked first and not only before a session exists.
+    // Presence is a broadcast, so sendUdp() has no single peer to sign it for
+    // and never puts a _sig on one - which meant that as soon as the handshake
+    // in the first presence packet succeeded, every later presence packet from
+    // that peer failed this check, the peer went stale after 25 seconds, and
+    // the session key that caused it kept it away for good. What stands behind
+    // a presence packet is the identity pin in CryptoManager::processHandshake,
+    // not an HMAC.
+    if (m_crypto && !type.isEmpty() && !allowedUnsigned(type)) {
+        if (!m_crypto->hasSession(host)) {
             Q_EMIT errorOccurred(i18nc("@info:status %1 is a message type, %2 a host address",
                                        "Unauthenticated %1 from %2 - dropping.", type, host));
             return;
+        }
+        const QString sig = msg.value(QStringLiteral("_sig")).toString();
+        if (sig.isEmpty() || !m_crypto->verifyPacket(host, signableBytes(msg), sig)) {
+            Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address",
+                                       "HMAC verification failed from %1 - dropping.", host));
+            return;
+        }
+
+        // Layer 5 - replay guard. Only presence used to get one, so a captured
+        // packet of any other type could be resent forever: the nonce and the
+        // timestamp are inside the signature, so replaying the whole thing
+        // verifies as happily as the original did.
+        const QString nonce = msg.value(QStringLiteral("nonce")).toString();
+        if (!nonce.isEmpty()
+            && !m_crypto->checkReplay(host, nonce, msg.value(QStringLiteral("ts")).toDouble())) {
+            return; // replayed or outside the timestamp window
         }
     }
 
@@ -584,8 +624,17 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
             return; // replayed presence packet
 
         // ECDH handshake - derives (or refreshes) the session key with this peer.
-        if (msg.contains(QStringLiteral("dh_pub")))
-            m_crypto->processHandshake(ip, msg);
+        // A refusal for an address we already hold a session for is the
+        // impostor case in CryptoManager::processHandshake: someone claiming a
+        // known peer's address with an identity key of their own. The session
+        // and the pin survive that, but the peer record has to survive it too -
+        // it is where the interface reads the name and the fingerprint it shows
+        // beside the warning, and letting the refused packet rewrite those
+        // hands the spoofer the only part of the takeover the user can see.
+        if (msg.contains(QStringLiteral("dh_pub")) && !m_crypto->processHandshake(ip, msg)
+            && m_crypto->hasSession(ip)) {
+            return;
+        }
     }
 
     const bool isNew = !m_peers.contains(ip);
@@ -607,11 +656,27 @@ void NetworkManager::onNewTcpConnection()
         if (ip.startsWith(QLatin1String("::ffff:")))
             ip = ip.mid(7);
 
-        m_voiceConnections[ip] = sock;
+        // A peer that reconnects arrives here again while the socket from the
+        // last call is still in the map. Assigning over it left that one alive
+        // with its handlers attached - one stranded QTcpSocket per reconnect,
+        // and a disconnect on the old one still reporting the call as ended.
+        replaceVoiceSocket(ip, sock);
         connect(sock, &QTcpSocket::readyRead, this, [this, sock, ip] { onVoiceData(sock, ip); });
         connect(sock, &QTcpSocket::disconnected, this, [this, sock, ip] { onVoiceDisconnected(sock, ip); });
         Q_EMIT voiceConnected(ip);
     }
+}
+
+// Puts a socket in the voice map, seeing off whatever was there for that address.
+void NetworkManager::replaceVoiceSocket(const QString &ip, QTcpSocket *sock)
+{
+    if (auto *previous = m_voiceConnections.value(ip, nullptr); previous && previous != sock) {
+        previous->disconnect(this); // its disconnected() would tear down the new call
+        m_voiceRxBuffers.remove(previous);
+        previous->abort();
+        previous->deleteLater();
+    }
+    m_voiceConnections[ip] = sock;
 }
 
 void NetworkManager::onVoiceData(QTcpSocket *sock, const QString &ip)
@@ -1126,7 +1191,7 @@ bool NetworkManager::connectVoice(const QString &ip)
         if (m_pendingVoice.value(ip) != sock)
             return; // superseded, or the call was already torn down
         m_pendingVoice.remove(ip);
-        m_voiceConnections[ip] = sock;
+        replaceVoiceSocket(ip, sock);
         connect(sock, &QTcpSocket::readyRead, this, [this, sock, ip] { onVoiceData(sock, ip); });
         connect(sock, &QTcpSocket::disconnected, this, [this, sock, ip] { onVoiceDisconnected(sock, ip); });
         Q_EMIT voiceConnected(ip);

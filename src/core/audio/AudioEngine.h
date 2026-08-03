@@ -12,6 +12,8 @@
 #include <QString>
 #include <QIODevice>
 
+#include <atomic>
+
 #include "AudioMixer.h"
 
 class QAudioSource;
@@ -37,11 +39,15 @@ public:
 
     bool running() const { return m_running; }
 
-    void setMuted(bool muted) { m_muted = muted; }
-    bool muted() const { return m_muted; }
+    // Both are written from the GUI thread and read by PlaybackDevice::readData()
+    // on Qt Multimedia's own audio thread, so they are atomic rather than merely
+    // small: a plain qreal is not one store, and a torn read of it would land in
+    // the sample loop as a volume nobody asked for.
+    void setMuted(bool muted) { m_muted.store(muted, std::memory_order_relaxed); }
+    bool muted() const { return m_muted.load(std::memory_order_relaxed); }
 
-    void setVolume(qreal v) { m_volume = v; }
-    qreal volume() const { return m_volume; }
+    void setVolume(qreal v) { m_volume.store(v, std::memory_order_relaxed); }
+    qreal volume() const { return m_volume.load(std::memory_order_relaxed); }
 
     // Empty id means "system default". Read at startCapture() time, so
     // a change made during a call takes effect on the next one rather
@@ -75,11 +81,11 @@ private:
 
     AudioMixer m_mixer;
     bool m_running = false;
-    bool m_muted = false;
+    std::atomic<bool> m_muted = false;
     bool m_vadEnabled = true;
     QString m_inputId;
     QString m_outputId;
-    qreal m_volume = 1.0;
+    std::atomic<qreal> m_volume = 1.0;
 
     QByteArray m_captureAccum; // accumulates partial reads up to kChunkBytes
 

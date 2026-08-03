@@ -218,11 +218,24 @@ void ChatModel::markOwnMessagesRead()
             Q_EMIT dataChanged(idx, idx, {IsReadRole});
         }
     }
-    // Persist read-state by rewriting full history for this chat.
-    if (any && m_history) {
-        for (const auto &m : m_messages)
-            Q_UNUSED(m); // history append-only API; full rewrite deferred to a future pass
+    if (!any || !m_history || m_chatId.isEmpty())
+        return;
+
+    // Persist the read flags. The loop that used to be here had Q_UNUSED(m) for
+    // a body, because there was no way to rewrite an entry already stored - so a
+    // receipt lasted until the next reload and then the ticks came back.
+    // HistoryManager::replaceAll() is that way.
+    //
+    // System messages are skipped rather than written out: appendEntry() never
+    // persisted them, so they are in this list but not in the log, and a rewrite
+    // for an unrelated reason is not the place to start storing them.
+    QVariantList persisted;
+    persisted.reserve(m_messages.size());
+    for (int i = 0; i < m_messages.size(); ++i) {
+        if (!m_messages.at(i).isSystem)
+            persisted.append(m_messages.at(i).toVariantMap());
     }
+    m_history->replaceAll(m_chatId, persisted);
 }
 
 void ChatModel::markAllRead()
