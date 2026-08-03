@@ -3,10 +3,10 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QPointer>
 #include <QQmlEngine>
 #include <QString>
 #include <QVector>
-#include <QPointer>
 
 #include "MessageEntry.h"
 
@@ -51,7 +51,10 @@ public:
     QVariant data(const QModelIndex &index, int role) const override;
     QHash<int, QByteArray> roleNames() const override;
 
-    QString chatId() const { return m_chatId; }
+    QString chatId() const
+    {
+        return m_chatId;
+    }
     void setChatId(const QString &id);
 
     QObject *historyManagerObj() const;

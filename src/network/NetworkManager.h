@@ -3,27 +3,29 @@
 // KOutNet - Network & Audio core
 #pragma once
 
+#include <QHash>
+#include <QHostAddress>
+#include <QJsonObject>
+#include <QMap>
 #include <QObject>
-#include <QUdpSocket>
+#include <QSet>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTimer>
-#include <QHostAddress>
-#include <QJsonObject>
-#include <QSet>
-#include <QMap>
-#include <QHash>
+#include <QUdpSocket>
 #include <QVector>
 
 #include "Protocol.h"
 
-namespace koutnet {
+namespace koutnet
+{
 
 class CryptoManager;
 // TODO: AppSettings (S() equivalent) - core/constructor not yet ported.
 class AppSettings;
 
-class NetworkManager : public QObject {
+class NetworkManager : public QObject
+{
     Q_OBJECT
     // The primary local address changes under us when a VPN adapter comes up,
     // so the status bar needs a notify rather than a one-shot read.
@@ -61,14 +63,26 @@ public:
     bool start();
     void stop();
 
-    Q_INVOKABLE bool isRunning() const { return m_running; }
-    Q_INVOKABLE QString hostIp() const { return m_hostIp; }
-    const QMap<QString, QJsonObject> &peers() const { return m_peers; }
+    Q_INVOKABLE bool isRunning() const
+    {
+        return m_running;
+    }
+    Q_INVOKABLE QString hostIp() const
+    {
+        return m_hostIp;
+    }
+    const QMap<QString, QJsonObject> &peers() const
+    {
+        return m_peers;
+    }
 
     // Safe to call before start(), where it applies on the next one, or
     // while running, where it raises or drops the relay tunnel on the spot.
     Q_INVOKABLE void setConnectionMode(ConnectionMode mode);
-    Q_INVOKABLE ConnectionMode connectionMode() const { return m_mode; }
+    Q_INVOKABLE ConnectionMode connectionMode() const
+    {
+        return m_mode;
+    }
     // True once a relay is actually usable - either a custom one was set via
     // setRelayServer(), or the built-in list (network/Protocol.h) is
     // non-empty. False means Vds mode can be selected but won't connect to
@@ -85,8 +99,7 @@ public:
     // revision is a short digest of everything in the profile,
     // including the images that are too big to broadcast, so a peer
     // can tell it needs to re-fetch without being sent the files.
-    Q_INVOKABLE void setProfile(const QString &handle, const QString &displayName,
-                                const QString &bio, const QString &revision);
+    Q_INVOKABLE void setProfile(const QString &handle, const QString &displayName, const QString &bio, const QString &revision);
 
     // Shared secret for the public chat. Broadcast has no single peer to
     // hold an ECDH session with, so a passphrase everyone knows is the only
@@ -108,22 +121,18 @@ public:
     // outgoing messages
     void sendUdp(QJsonObject payload, const QString &targetIp = QString());
     Q_INVOKABLE void sendPrivate(const QString &text, const QString &toIp);
-    Q_INVOKABLE void sendGroupMessage(const QString &gid, const QString &text,
-                                      const QVector<QString> &members);
+    Q_INVOKABLE void sendGroupMessage(const QString &gid, const QString &text, const QVector<QString> &members);
     Q_INVOKABLE void sendTyping(const QString &chatId, const QString &targetIp = QString());
     Q_INVOKABLE void sendCallRequest(const QString &toIp);
     Q_INVOKABLE void sendCallAccept(const QString &toIp);
     Q_INVOKABLE void sendCallReject(const QString &toIp);
     Q_INVOKABLE void sendCallEnd(const QString &toIp);
-    Q_INVOKABLE void sendReaction(const QString &toIp, const QString &chatId,
-                                  double ts, const QString &emoji, bool added);
-    Q_INVOKABLE void sendMessageEdit(const QString &toIp, const QString &chatId,
-                                     double ts, const QString &newText);
+    Q_INVOKABLE void sendReaction(const QString &toIp, const QString &chatId, double ts, const QString &emoji, bool added);
+    Q_INVOKABLE void sendMessageEdit(const QString &toIp, const QString &chatId, double ts, const QString &newText);
     Q_INVOKABLE void sendMessageDelete(const QString &toIp, const QString &chatId, double ts);
     Q_INVOKABLE void sendReadReceipt(const QString &toIp, const QString &chatId);
     Q_INVOKABLE void sendGroupInvite(const QString &gid, const QString &gname, const QString &toIp);
-    void sendFileInternal(const QString &toIp, const QString &filePath,
-                  const QByteArray &rawBytes = {}, const QString &filename = QStringLiteral("file"));
+    void sendFileInternal(const QString &toIp, const QString &filePath, const QByteArray &rawBytes = {}, const QString &filename = QStringLiteral("file"));
     // QML-facing overload - QML can't supply the QByteArray/filename default
     // args cleanly, so this is the entry point for "attach file" in the UI.
     Q_INVOKABLE void sendFile(const QString &toIp, const QString &filePath);
@@ -148,7 +157,7 @@ Q_SIGNALS:
     void callEnded(QString ip);
     void voiceDataFrom(QString ip, QByteArray raw);
     void fileMeta(QJsonObject meta);
-    void fileChunk(QJsonObject chunk);            // file_data packets -> FileTransferHandler
+    void fileChunk(QJsonObject chunk); // file_data packets -> FileTransferHandler
     void groupInvite(QString groupId, QString name, QString fromIp);
     void errorOccurred(QString message);
     void typing(QString username, QString chatId);
@@ -178,21 +187,20 @@ private:
     // Fires startInternetTunnel() again after the current backoff and doubles
     // it, capped at kRelayReconnectMaxMs.
     void scheduleRelayReconnect();
-    void sendChunksQueued(const QVector<QJsonObject> &chunks,
-                          const QString &toIp, int idx, int batch = 3);
+    void sendChunksQueued(const QVector<QJsonObject> &chunks, const QString &toIp, int idx, int batch = 3);
     void pruneStalePeers();
 
     CryptoManager *m_crypto = nullptr;
 
     QUdpSocket *m_udp = nullptr;
     QTcpServer *m_tcpServer = nullptr;
-    QMap<QString, QTcpSocket *> m_voiceConnections;   // ip -> voice socket
-    QMap<QString, QTcpSocket *> m_pendingVoice;       // ip -> socket still connecting
+    QMap<QString, QTcpSocket *> m_voiceConnections; // ip -> voice socket
+    QMap<QString, QTcpSocket *> m_pendingVoice; // ip -> socket still connecting
     // Partial frames per voice socket. Keyed on the socket rather than the IP
     // because the inbound and outbound socket for one peer are different
     // streams and must not share a buffer.
     QHash<QTcpSocket *, QByteArray> m_voiceRxBuffers;
-    QMap<QString, QJsonObject>  m_peers;              // ip -> peer info
+    QMap<QString, QJsonObject> m_peers; // ip -> peer info
 
     QString m_hostIp;
     QSet<QString> m_localIps;
@@ -207,14 +215,14 @@ private:
     // Relay / tunnel (Vds mode) - TODO: move to network/vds module
     QTcpSocket *m_relaySocket = nullptr;
     bool m_relayConnected = false;
-    QByteArray m_relayBuffer;      // partial frame from the tunnel, see onRelayData()
+    QByteArray m_relayBuffer; // partial frame from the tunnel, see onRelayData()
     ConnectionMode m_mode = ConnectionMode::LanOrVpn;
     QString m_groupPassphrase;
     QString m_profileHandle;
     QString m_profileDisplayName;
     QString m_profileBio;
     QString m_profileRevision;
-    QString m_relayHostOverride;   // set via setRelayServer()
+    QString m_relayHostOverride; // set via setRelayServer()
     quint16 m_relayPortOverride = 0;
     quint16 m_relayVoicePortOverride = 0;
     int m_relayReconnectMs = protocol::kRelayReconnectBaseMs; // grows via backoff, see .cpp

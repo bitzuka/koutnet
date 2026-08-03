@@ -2,26 +2,28 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Network & Audio core
 #include "NetworkManager.h"
-#include "Protocol.h"
 #include "../core/security/CryptoManager.h"
+#include "Protocol.h"
 
 #include <KLocalizedString>
-#include <QNetworkInterface>
-#include <QNetworkDatagram>
-#include <QJsonDocument>
-#include <QJsonArray>
 #include <QDateTime>
-#include <QRandomGenerator>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QNetworkDatagram>
+#include <QNetworkInterface>
+#include <QRandomGenerator>
 
 // TODO: AppSettings exists now, so the unfinished paths below can be wired to
 // it: static peer list, connection mode, relay credentials. The group
 // passphrase and CryptoManager already arrive through the constructor.
 
-namespace koutnet {
+namespace koutnet
+{
 
-namespace {
+namespace
+{
 
 QString localIpFallback()
 {
@@ -92,14 +94,14 @@ QByteArray lengthPrefix(quint32 len)
 // Callers check that at least kFrameHeaderBytes are buffered first.
 quint32 readLengthPrefix(const QByteArray &buf)
 {
-    return (quint32(quint8(buf.at(0))) << 24) | (quint32(quint8(buf.at(1))) << 16)
-        | (quint32(quint8(buf.at(2))) << 8) | quint32(quint8(buf.at(3)));
+    return (quint32(quint8(buf.at(0))) << 24) | (quint32(quint8(buf.at(1))) << 16) | (quint32(quint8(buf.at(2))) << 8) | quint32(quint8(buf.at(3)));
 }
 
 } // namespace
 
 NetworkManager::NetworkManager(CryptoManager *crypto, QObject *parent)
-    : QObject(parent), m_crypto(crypto)
+    : QObject(parent)
+    , m_crypto(crypto)
 {
     m_hostIp = localIpFallback();
 
@@ -121,8 +123,7 @@ void NetworkManager::setRelayServer(const QString &host, quint16 tunnelPort, qui
     m_relayVoicePortOverride = voicePort ? voicePort : quint16(tunnelPort + 1);
 }
 
-void NetworkManager::setProfile(const QString &handle, const QString &displayName,
-                                const QString &bio, const QString &revision)
+void NetworkManager::setProfile(const QString &handle, const QString &displayName, const QString &bio, const QString &revision)
 {
     // Presence goes out on a short timer, so anything in here is paid
     // for repeatedly. A long bio gets cut rather than pushing the
@@ -130,8 +131,7 @@ void NetworkManager::setProfile(const QString &handle, const QString &displayNam
     constexpr int kMaxBioChars = 280;
 
     const QString trimmedBio = bio.left(kMaxBioChars);
-    if (m_profileHandle == handle && m_profileDisplayName == displayName
-        && m_profileBio == trimmedBio && m_profileRevision == revision) {
+    if (m_profileHandle == handle && m_profileDisplayName == displayName && m_profileBio == trimmedBio && m_profileRevision == revision) {
         return;
     }
 
@@ -156,8 +156,7 @@ void NetworkManager::setConnectionMode(ConnectionMode mode)
 {
     // Only the relay-backed modes raise the tunnel. K-Server will have its
     // own transport and does not exist yet.
-    const bool wantRelay = (mode == ConnectionMode::Relay
-                            || mode == ConnectionMode::MaintainerVds);
+    const bool wantRelay = (mode == ConnectionMode::Relay || mode == ConnectionMode::MaintainerVds);
     // Relay and maintainer VDS ride the same tunnel, so moving between those
     // two changes the mode without disturbing the socket.
     const bool relayChanged = (wantRelay != m_internetMode);
@@ -227,17 +226,14 @@ bool NetworkManager::start()
 
     // UDP socket
     m_udp = new QUdpSocket(this);
-    bool bound = m_udp->bind(QHostAddress::AnyIPv4, udpPort,
-                             QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
+    bool bound = m_udp->bind(QHostAddress::AnyIPv4, udpPort, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
     if (!bound) {
-        bound = m_udp->bind(QHostAddress::AnyIPv4, udpPort + 1,
-                            QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
+        bound = m_udp->bind(QHostAddress::AnyIPv4, udpPort + 1, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
     }
     if (!bound) {
         // int(): KLocalizedString has no quint16 substitution overload, so
         // the port has to pick one explicitly.
-        Q_EMIT errorOccurred(i18nc("@info:status %1 is a port number",
-                                   "UDP bind failed on port %1.", int(udpPort)));
+        Q_EMIT errorOccurred(i18nc("@info:status %1 is a port number", "UDP bind failed on port %1.", int(udpPort)));
         return false;
     }
     connect(m_udp, &QUdpSocket::readyRead, this, &NetworkManager::onUdpReadyRead);
@@ -249,8 +245,7 @@ bool NetworkManager::start()
     m_tcpServer = new QTcpServer(this);
     if (!m_tcpServer->listen(QHostAddress::AnyIPv4, tcpPort)) {
         if (!m_tcpServer->listen(QHostAddress::AnyIPv4, 0)) {
-            Q_EMIT errorOccurred(i18nc("@info:status %1 is a port number",
-                                       "TCP listen failed on port %1.", int(tcpPort)));
+            Q_EMIT errorOccurred(i18nc("@info:status %1 is a port number", "TCP listen failed on port %1.", int(tcpPort)));
             return false;
         }
     }
@@ -490,9 +485,7 @@ void NetworkManager::handleDatagram(const QString &host, const QByteArray &data)
     QJsonParseError parseErr;
     const auto doc = QJsonDocument::fromJson(data, &parseErr);
     if (parseErr.error != QJsonParseError::NoError || !doc.isObject()) {
-        Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address, %2 the parser message",
-                                   "UDP parse error from %1: %2", host,
-                                   parseErr.errorString()));
+        Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address, %2 the parser message", "UDP parse error from %1: %2", host, parseErr.errorString()));
         return;
     }
     dispatch(host, doc.object());
@@ -531,14 +524,12 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
     // not an HMAC.
     if (m_crypto && !type.isEmpty() && !allowedUnsigned(type)) {
         if (!m_crypto->hasSession(host)) {
-            Q_EMIT errorOccurred(i18nc("@info:status %1 is a message type, %2 a host address",
-                                       "Unauthenticated %1 from %2 - dropping.", type, host));
+            Q_EMIT errorOccurred(i18nc("@info:status %1 is a message type, %2 a host address", "Unauthenticated %1 from %2 - dropping.", type, host));
             return;
         }
         const QString sig = msg.value(QStringLiteral("_sig")).toString();
         if (sig.isEmpty() || !m_crypto->verifyPacket(host, signableBytes(msg), sig)) {
-            Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address",
-                                       "HMAC verification failed from %1 - dropping.", host));
+            Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address", "HMAC verification failed from %1 - dropping.", host));
             return;
         }
 
@@ -547,16 +538,14 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
         // timestamp are inside the signature, so replaying the whole thing
         // verifies as happily as the original did.
         const QString nonce = msg.value(QStringLiteral("nonce")).toString();
-        if (!nonce.isEmpty()
-            && !m_crypto->checkReplay(host, nonce, msg.value(QStringLiteral("ts")).toDouble())) {
+        if (!nonce.isEmpty() && !m_crypto->checkReplay(host, nonce, msg.value(QStringLiteral("ts")).toDouble())) {
             return; // replayed or outside the timestamp window
         }
     }
 
     if (type == protocol::kMsgPresence) {
         handlePresence(host, msg);
-    } else if (type == protocol::kMsgChat || type == protocol::kMsgGroup
-               || type == protocol::kMsgReaction || type == protocol::kMsgEdit
+    } else if (type == protocol::kMsgChat || type == protocol::kMsgGroup || type == protocol::kMsgReaction || type == protocol::kMsgEdit
                || type == protocol::kMsgDelete || type == protocol::kMsgRead) {
         decryptMessageText(host, msg);
         Q_EMIT message(msg);
@@ -631,8 +620,7 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
         // it is where the interface reads the name and the fingerprint it shows
         // beside the warning, and letting the refused packet rewrite those
         // hands the spoofer the only part of the takeover the user can see.
-        if (msg.contains(QStringLiteral("dh_pub")) && !m_crypto->processHandshake(ip, msg)
-            && m_crypto->hasSession(ip)) {
+        if (msg.contains(QStringLiteral("dh_pub")) && !m_crypto->processHandshake(ip, msg) && m_crypto->hasSession(ip)) {
             return;
         }
     }
@@ -661,8 +649,12 @@ void NetworkManager::onNewTcpConnection()
         // with its handlers attached - one stranded QTcpSocket per reconnect,
         // and a disconnect on the old one still reporting the call as ended.
         replaceVoiceSocket(ip, sock);
-        connect(sock, &QTcpSocket::readyRead, this, [this, sock, ip] { onVoiceData(sock, ip); });
-        connect(sock, &QTcpSocket::disconnected, this, [this, sock, ip] { onVoiceDisconnected(sock, ip); });
+        connect(sock, &QTcpSocket::readyRead, this, [this, sock, ip] {
+            onVoiceData(sock, ip);
+        });
+        connect(sock, &QTcpSocket::disconnected, this, [this, sock, ip] {
+            onVoiceDisconnected(sock, ip);
+        });
         Q_EMIT voiceConnected(ip);
     }
 }
@@ -693,9 +685,8 @@ void NetworkManager::onVoiceData(QTcpSocket *sock, const QString &ip)
             // the length is peer-supplied, so a silly one is either a broken
             // sender or an attempt to make us allocate a gigabyte
             m_voiceRxBuffers.remove(sock);
-            Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address, %2 a byte count",
-                                       "Voice frame from %1 declared %2 bytes - dropping the connection.",
-                                       ip, len));
+            Q_EMIT errorOccurred(
+                i18nc("@info:status %1 is a host address, %2 a byte count", "Voice frame from %1 declared %2 bytes - dropping the connection.", ip, len));
             // abort() on a connected socket emits disconnected(), which is
             // where the teardown lives - doing it here as well would tell the
             // call layer twice.
@@ -793,8 +784,7 @@ void NetworkManager::startInternetTunnel()
     connect(sock, &QTcpSocket::errorOccurred, this, [this, sock](QAbstractSocket::SocketError) {
         if (m_relaySocket != sock || m_relayConnected)
             return; // an established link that drops is disconnected()'s job
-        Q_EMIT errorOccurred(i18nc("@info:status %1 is a socket error message",
-                                   "Tunnel connect failed: %1", sock->errorString()));
+        Q_EMIT errorOccurred(i18nc("@info:status %1 is a socket error message", "Tunnel connect failed: %1", sock->errorString()));
         scheduleRelayReconnect();
     });
 
@@ -816,8 +806,7 @@ void NetworkManager::onRelayData()
         if (len == 0 || len > protocol::kMaxRelayFrameBytes) {
             // the relay is no more trusted than a peer, and a bogus length here
             // would otherwise mean a multi-gigabyte allocation
-            Q_EMIT errorOccurred(i18nc("@info:status %1 is a byte count",
-                                       "Relay frame declared %1 bytes - dropping the tunnel.", len));
+            Q_EMIT errorOccurred(i18nc("@info:status %1 is a byte count", "Relay frame declared %1 bytes - dropping the tunnel.", len));
             m_relayBuffer.clear();
             // the disconnected handler clears the flag and schedules the
             // reconnect, so abort() is all that is needed here
@@ -834,8 +823,7 @@ void NetworkManager::onRelayData()
         QJsonParseError parseErr;
         const auto doc = QJsonDocument::fromJson(frame, &parseErr);
         if (parseErr.error != QJsonParseError::NoError || !doc.isObject()) {
-            Q_EMIT errorOccurred(i18nc("@info:status %1 is the parser message",
-                                       "Relay parse error: %1", parseErr.errorString()));
+            Q_EMIT errorOccurred(i18nc("@info:status %1 is the parser message", "Relay parse error: %1", parseErr.errorString()));
             continue;
         }
         const QJsonObject msg = doc.object();
@@ -846,8 +834,7 @@ void NetworkManager::onRelayData()
         if (host.isEmpty())
             host = msg.value(QStringLiteral("ip")).toString();
         if (host.isEmpty()) {
-            Q_EMIT errorOccurred(i18nc("@info:status",
-                                       "Relay frame with no sender address - dropping."));
+            Q_EMIT errorOccurred(i18nc("@info:status", "Relay frame with no sender address - dropping."));
             continue;
         }
         dispatch(host, msg);
@@ -930,8 +917,7 @@ void NetworkManager::sendPrivate(const QString &text, const QString &toIp)
     }
 }
 
-void NetworkManager::sendGroupMessage(const QString &gid, const QString &text,
-                                      const QVector<QString> &members)
+void NetworkManager::sendGroupMessage(const QString &gid, const QString &text, const QVector<QString> &members)
 {
     // TODO: per-group passphrase, or per-member ECDH fan-out, once GroupManager
     // can store one. For now every group shares the app-wide passphrase, which
@@ -947,8 +933,7 @@ void NetworkManager::sendGroupMessage(const QString &gid, const QString &text,
     if (cipherText == text) {
         // encrypt() hands back the plaintext when it fails, and sending that
         // would leak the message the user thinks is protected
-        Q_EMIT errorOccurred(i18nc("@info:status",
-                                   "Failed to encrypt the group message - not sent."));
+        Q_EMIT errorOccurred(i18nc("@info:status", "Failed to encrypt the group message - not sent."));
         return;
     }
 
@@ -1001,8 +986,7 @@ void NetworkManager::sendCallEnd(const QString &toIp)
     sendUdp(payload, toIp);
 }
 
-void NetworkManager::sendReaction(const QString &toIp, const QString &chatId,
-                                  double ts, const QString &emoji, bool added)
+void NetworkManager::sendReaction(const QString &toIp, const QString &chatId, double ts, const QString &emoji, bool added)
 {
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgReaction;
@@ -1014,8 +998,7 @@ void NetworkManager::sendReaction(const QString &toIp, const QString &chatId,
     sendUdp(payload, toIp);
 }
 
-void NetworkManager::sendMessageEdit(const QString &toIp, const QString &chatId,
-                                     double ts, const QString &newText)
+void NetworkManager::sendMessageEdit(const QString &toIp, const QString &chatId, double ts, const QString &newText)
 {
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgEdit;
@@ -1054,8 +1037,7 @@ void NetworkManager::sendGroupInvite(const QString &gid, const QString &gname, c
     sendUdp(payload, toIp);
 }
 
-void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePath,
-                              const QByteArray &rawBytes, const QString &filename)
+void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePath, const QByteArray &rawBytes, const QString &filename)
 {
     // TODO: encrypt file bytes via CryptoManager::encryptBytes before chunking,
     // same as voice - not wired yet, tracked separately from the E2E pass above.
@@ -1070,8 +1052,7 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
     } else {
         QFile file(filePath);
         if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
-            Q_EMIT errorOccurred(i18nc("@info:status %1 is a file path",
-                                       "File not found: %1", filePath));
+            Q_EMIT errorOccurred(i18nc("@info:status %1 is a file path", "File not found: %1", filePath));
             return;
         }
         data = file.readAll();
@@ -1079,7 +1060,8 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
         ext = QFileInfo(filePath).suffix().toLower();
     }
 
-    static const QSet<QString> kImageExts = {QStringLiteral("png"), QStringLiteral("jpg"), QStringLiteral("jpeg"), QStringLiteral("gif"), QStringLiteral("bmp"), QStringLiteral("webp")};
+    static const QSet<QString> kImageExts =
+        {QStringLiteral("png"), QStringLiteral("jpg"), QStringLiteral("jpeg"), QStringLiteral("gif"), QStringLiteral("bmp"), QStringLiteral("webp")};
     const bool isImage = kImageExts.contains(ext);
     const QString tid = randomHex(8);
 
@@ -1113,8 +1095,7 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
     sendChunksQueued(chunks, toIp, 0);
 }
 
-void NetworkManager::sendChunksQueued(const QVector<QJsonObject> &chunks,
-                                      const QString &toIp, int idx, int batch)
+void NetworkManager::sendChunksQueued(const QVector<QJsonObject> &chunks, const QString &toIp, int idx, int batch)
 {
     if (idx >= chunks.size())
         return;
@@ -1153,8 +1134,7 @@ bool NetworkManager::connectVoice(const QString &ip)
             }
         }
         if (relayHost.isEmpty() || relayPort == 0) {
-            Q_EMIT errorOccurred(i18nc("@info:status",
-                                       "VDS voice relay is not configured - cannot start the call."));
+            Q_EMIT errorOccurred(i18nc("@info:status", "VDS voice relay is not configured - cannot start the call."));
             return false;
         }
     }
@@ -1167,16 +1147,19 @@ bool NetworkManager::connectVoice(const QString &ip)
             return; // superseded, or the call was already torn down
         m_pendingVoice.remove(ip);
         replaceVoiceSocket(ip, sock);
-        connect(sock, &QTcpSocket::readyRead, this, [this, sock, ip] { onVoiceData(sock, ip); });
-        connect(sock, &QTcpSocket::disconnected, this, [this, sock, ip] { onVoiceDisconnected(sock, ip); });
+        connect(sock, &QTcpSocket::readyRead, this, [this, sock, ip] {
+            onVoiceData(sock, ip);
+        });
+        connect(sock, &QTcpSocket::disconnected, this, [this, sock, ip] {
+            onVoiceDisconnected(sock, ip);
+        });
         Q_EMIT voiceConnected(ip);
     });
     connect(sock, &QTcpSocket::errorOccurred, this, [this, sock, ip](QAbstractSocket::SocketError) {
         if (m_pendingVoice.value(ip) != sock)
             return; // already connected, or replaced by a newer attempt
         m_pendingVoice.remove(ip);
-        Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address, %2 a socket error message",
-                                   "Voice connect to %1 failed: %2", ip, sock->errorString()));
+        Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address, %2 a socket error message", "Voice connect to %1 failed: %2", ip, sock->errorString()));
         // whoever started the call listens for this to unwind its own state
         Q_EMIT voiceDisconnected(ip);
         sock->deleteLater();

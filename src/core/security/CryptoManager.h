@@ -8,24 +8,26 @@
 // rate limiting.
 #pragma once
 
+#include <QByteArray>
+#include <QHash>
+#include <QJsonObject>
 #include <QObject>
 #include <QString>
-#include <QByteArray>
-#include <QJsonObject>
-#include <QHash>
 #include <QVector>
 
 typedef struct evp_pkey_st EVP_PKEY;
 
-namespace koutnet {
+namespace koutnet
+{
 
 enum class SecurityLevel {
     Plain, // no encryption at all
-    Psk,   // pre-shared passphrase (PBKDF2 + AES-GCM)
-    E2E,   // ECDH session key established (AES-GCM)
+    Psk, // pre-shared passphrase (PBKDF2 + AES-GCM)
+    E2E, // ECDH session key established (AES-GCM)
 };
 
-class CryptoManager : public QObject {
+class CryptoManager : public QObject
+{
     Q_OBJECT
 
 public:
@@ -63,7 +65,10 @@ public:
     // False when keypair generation or loading failed at startup. Check it
     // before offering any secure feature: nothing below can establish a
     // session without keys, so every call will simply refuse.
-    bool isValid() const { return m_valid; }
+    bool isValid() const
+    {
+        return m_valid;
+    }
 
     // Handshake
     QJsonObject handshakePayload() const;
@@ -72,23 +77,19 @@ public:
 
     QString fingerprint() const;
     QString peerFingerprint(const QString &peerIp) const;
-    SecurityLevel securityLevel(const QString &peerIp, bool encryptionEnabled,
-                                bool hasPassphrase) const;
+    SecurityLevel securityLevel(const QString &peerIp, bool encryptionEnabled, bool hasPassphrase) const;
 
     // Packet HMAC
     QString signPacket(const QString &peerIp, const QByteArray &payload) const;
-    bool verifyPacket(const QString &peerIp, const QByteArray &payload,
-                      const QString &sigB64) const;
+    bool verifyPacket(const QString &peerIp, const QByteArray &payload, const QString &sigB64) const;
 
     // Replay / rate limiting
     bool checkReplay(const QString &peerIp, const QString &nonceHex, double ts);
     bool checkRate(const QString &peerIp, int maxPerSec = 200);
 
     // Message encryption (text, base64-wrapped wire format)
-    QString encrypt(const QString &plaintext, const QString &passphrase = QString(),
-                    const QString &peerIp = QString()) const;
-    QString decrypt(const QString &ciphertext, const QString &passphrase = QString(),
-                    const QString &peerIp = QString()) const;
+    QString encrypt(const QString &plaintext, const QString &passphrase = QString(), const QString &peerIp = QString()) const;
+    QString decrypt(const QString &ciphertext, const QString &passphrase = QString(), const QString &peerIp = QString()) const;
 
     // Raw byte encryption (voice frames - no base64/JSON overhead)
     // Both refuse to work without a session: encryptBytes returns an empty
@@ -103,8 +104,7 @@ Q_SIGNALS:
     // someone is impersonating the peer, or the peer reinstalled and lost its
     // keys. The UI should show both fingerprints and let the user decide
     // (clearing the pin is not implemented yet).
-    void peerIdentityChanged(const QString &peerIp, const QString &oldFingerprint,
-                             const QString &newFingerprint);
+    void peerIdentityChanged(const QString &peerIp, const QString &oldFingerprint, const QString &newFingerprint);
 
     // KWallet has the private keys, but the plaintext copy an older build left
     // in the config file could not be deleted, so it is still readable on disk.
@@ -141,7 +141,7 @@ private:
     bool m_valid = false;
 
     EVP_PKEY *m_identityPriv = nullptr; // Ed25519
-    EVP_PKEY *m_dhPriv = nullptr;       // X25519
+    EVP_PKEY *m_dhPriv = nullptr; // X25519
     QByteArray m_dhPubBytes;
     QByteArray m_identityPubBytes;
     QByteArray m_dhPubSig;
@@ -155,13 +155,13 @@ private:
         quint64 seq = 0;
     };
 
-    QHash<QString, QByteArray> m_sessionKeys;             // peer ip -> 32-byte session key
-    QHash<QString, QByteArray> m_peerIdPub;               // peer ip -> raw Ed25519 pubkey
-    QHash<QString, QByteArray> m_warnedIdPub;             // peer ip -> key we last warned about
+    QHash<QString, QByteArray> m_sessionKeys; // peer ip -> 32-byte session key
+    QHash<QString, QByteArray> m_peerIdPub; // peer ip -> raw Ed25519 pubkey
+    QHash<QString, QByteArray> m_warnedIdPub; // peer ip -> key we last warned about
     QHash<QString, QHash<QString, SeenNonce>> m_seenNonces; // peer ip -> nonce -> when
-    QHash<QString, quint64> m_nonceBucketTouched;         // peer ip -> its newest seq
-    quint64 m_nonceSeq = 0;                               // arrivals, ever
-    QHash<QString, QVector<double>> m_rateCounters;       // peer ip -> recent timestamps
+    QHash<QString, quint64> m_nonceBucketTouched; // peer ip -> its newest seq
+    quint64 m_nonceSeq = 0; // arrivals, ever
+    QHash<QString, QVector<double>> m_rateCounters; // peer ip -> recent timestamps
 
     // sha256(salt + passphrase) -> key. Keyed on a digest rather than on the
     // passphrase itself, which used to keep the plaintext alive here for as

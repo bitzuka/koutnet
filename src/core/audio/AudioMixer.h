@@ -9,17 +9,19 @@
 #include <QString>
 #include <memory>
 
-namespace koutnet {
+namespace koutnet
+{
 
 // One peer's jitter buffer. Packets clump and stall depending on the route
 // they took, so playing each frame the moment it lands stutters. Let a small
 // backlog build up to kTargetFrames first, then drain at a steady pace.
-class PeerBuffer {
+class PeerBuffer
+{
 public:
-    static constexpr int kFrameSamples = 512;              // samples per frame
-    static constexpr int kFrameBytes   = kFrameSamples * 2; // int16
-    static constexpr int kTargetFrames = 6;                 // pre-fill (~192ms @16kHz)
-    static constexpr int kMaxFrames    = 25;                // hard cap  (~800ms)
+    static constexpr int kFrameSamples = 512; // samples per frame
+    static constexpr int kFrameBytes = kFrameSamples * 2; // int16
+    static constexpr int kTargetFrames = 6; // pre-fill (~192ms @16kHz)
+    static constexpr int kMaxFrames = 25; // hard cap  (~800ms)
 
     void push(const QByteArray &data);
     QByteArray pull(); // returns empty QByteArray if not ready (caller treats as silence)
@@ -39,7 +41,8 @@ private:
 // removePeer() run on the GUI thread. Buffers are shared_ptr because
 // removePeer() can free one while the audio thread is reading it, and that
 // race is close to impossible to reproduce on demand.
-class AudioMixer {
+class AudioMixer
+{
 public:
     ~AudioMixer();
 

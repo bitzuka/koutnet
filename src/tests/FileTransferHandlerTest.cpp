@@ -7,7 +7,6 @@
 // claims the whole thing will be. None of it is checkable by hand, because a
 // well-behaved peer never sends any of the interesting cases.
 
-#include <QTest>
 #include <KLocalizedString>
 #include <QDir>
 #include <QFileInfo>
@@ -16,6 +15,7 @@
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTemporaryDir>
+#include <QTest>
 
 #include <limits>
 
@@ -23,12 +23,12 @@
 
 using koutnet::FileTransferHandler;
 
-namespace {
+namespace
+{
 
 QString downloadDir()
 {
-    return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation)
-        + QStringLiteral("/KOutNet");
+    return QStandardPaths::writableLocation(QStandardPaths::DownloadLocation) + QStringLiteral("/KOutNet");
 }
 
 QJsonObject metaFor(const QString &tid, qint64 size, const QString &filename)
@@ -83,13 +83,11 @@ private Q_SLOTS:
         QTest::newRow("tab") << QStringLiteral("re\tport.txt");
         // The one that matters most: every check in this class reasons about a
         // QString, and QFile hands the path to an API that stops at the NUL.
-        QTest::newRow("embedded nul")
-            << (QStringLiteral("safe.txt") + QChar(u'\0') + QStringLiteral("/../../etc/passwd"));
+        QTest::newRow("embedded nul") << (QStringLiteral("safe.txt") + QChar(u'\0') + QStringLiteral("/../../etc/passwd"));
         QTest::newRow("nul then dotdot") << (QStringLiteral("..") + QChar(u'\0'));
         QTest::newRow("nul first") << (QChar(u'\0') + QStringLiteral("hidden"));
         QTest::newRow("very long") << QString(5000, QLatin1Char('a'));
-        QTest::newRow("very long traversal")
-            << (QStringLiteral("../") + QString(5000, QLatin1Char('b')));
+        QTest::newRow("very long traversal") << (QStringLiteral("../") + QString(5000, QLatin1Char('b')));
         QTest::newRow("long multibyte") << QString(2000, QChar(0x00E9));
     }
 
@@ -111,14 +109,12 @@ private Q_SLOTS:
                      "is not necessarily the path that gets opened");
         }
 
-        QVERIFY2(name.toUtf8().size() <= FileTransferHandler::kMaxFilenameBytes,
-                 qPrintable(QStringLiteral("%1 bytes of filename").arg(name.toUtf8().size())));
+        QVERIFY2(name.toUtf8().size() <= FileTransferHandler::kMaxFilenameBytes, qPrintable(QStringLiteral("%1 bytes of filename").arg(name.toUtf8().size())));
 
         // The whole point, stated as the property it has to have.
         const QString base = QDir::cleanPath(downloadDir());
         const QString joined = QDir::cleanPath(base + QLatin1Char('/') + name);
-        QVERIFY2(joined.startsWith(base + QLatin1Char('/')),
-                 qPrintable(QStringLiteral("%1 escapes %2").arg(joined, base)));
+        QVERIFY2(joined.startsWith(base + QLatin1Char('/')), qPrintable(QStringLiteral("%1 escapes %2").arg(joined, base)));
         QCOMPARE(QFileInfo(joined).absolutePath(), base);
     }
 
@@ -167,13 +163,11 @@ private Q_SLOTS:
 
         QTest::newRow("zero") << QJsonValue(0) << true;
         QTest::newRow("small") << QJsonValue(1024) << true;
-        QTest::newRow("at the cap")
-            << QJsonValue(double(FileTransferHandler::kMaxTransferBytes)) << true;
+        QTest::newRow("at the cap") << QJsonValue(double(FileTransferHandler::kMaxTransferBytes)) << true;
 
         QTest::newRow("negative") << QJsonValue(-1) << false;
         QTest::newRow("very negative") << QJsonValue(-1e18) << false;
-        QTest::newRow("over the cap")
-            << QJsonValue(double(FileTransferHandler::kMaxTransferBytes) + 1.0) << false;
+        QTest::newRow("over the cap") << QJsonValue(double(FileTransferHandler::kMaxTransferBytes) + 1.0) << false;
         // Narrowing either of these to qint64 is undefined behaviour, not a
         // large number that then fails a range check.
         QTest::newRow("absurd") << QJsonValue(1e300) << false;
@@ -225,8 +219,7 @@ private Q_SLOTS:
         QCOMPARE(handler.pendingBufferedBytes(), 4);
         handler.onChunkMessage(chunkFor(tid, 0, 2, first));
         QCOMPARE(rejected.count(), 0);
-        QVERIFY2(handler.pendingBufferedBytes() == 4,
-                 "a duplicate of a chunk we already hold was counted twice");
+        QVERIFY2(handler.pendingBufferedBytes() == 4, "a duplicate of a chunk we already hold was counted twice");
 
         handler.onChunkMessage(chunkFor(tid, 1, 2, second));
         QCOMPARE(rejected.count(), 0);
@@ -273,8 +266,7 @@ private Q_SLOTS:
         // Same index, more bytes. Either it is counted, or it is refused; the
         // one thing it may not be is free.
         handler.onChunkMessage(chunkFor(tid, 0, total, QByteArray(4096, 'x')));
-        QVERIFY2(rejected.count() == 1 || handler.pendingBufferedBytes() > total - 1,
-                 "a resent index grew the transfer without being charged for it");
+        QVERIFY2(rejected.count() == 1 || handler.pendingBufferedBytes() > total - 1, "a resent index grew the transfer without being charged for it");
         QCOMPARE(handler.pendingTransferCount(), 0);
         QCOMPARE(handler.pendingBufferedBytes(), 0);
     }
@@ -303,8 +295,7 @@ private Q_SLOTS:
         }
 
         QCOMPARE(rejected.count(), 1);
-        QVERIFY2(qint64(sent) * chunkBytes <= FileTransferHandler::kMaxTransferBytes + chunkBytes,
-                 "more than the cap was accepted before the refusal");
+        QVERIFY2(qint64(sent) * chunkBytes <= FileTransferHandler::kMaxTransferBytes + chunkBytes, "more than the cap was accepted before the refusal");
         QCOMPARE(handler.pendingTransferCount(), 0);
         QCOMPARE(handler.pendingBufferedBytes(), 0);
     }
@@ -342,16 +333,14 @@ private Q_SLOTS:
     void chunksWithoutAMetaAreDropped()
     {
         FileTransferHandler handler;
-        handler.onChunkMessage(chunkFor(QStringLiteral("never-announced"), 0, 1,
-                                        QByteArrayLiteral("data")));
+        handler.onChunkMessage(chunkFor(QStringLiteral("never-announced"), 0, 1, QByteArrayLiteral("data")));
         QCOMPARE(handler.pendingTransferCount(), 0);
 
         QJsonObject oversized;
         oversized[QStringLiteral("tid")] = QStringLiteral("t-refused");
         oversized[QStringLiteral("size")] = 1e300;
         handler.onMeta(oversized);
-        handler.onChunkMessage(chunkFor(QStringLiteral("t-refused"), 0, 1,
-                                        QByteArrayLiteral("data")));
+        handler.onChunkMessage(chunkFor(QStringLiteral("t-refused"), 0, 1, QByteArrayLiteral("data")));
         QCOMPARE(handler.pendingTransferCount(), 0);
         QCOMPARE(handler.pendingBufferedBytes(), 0);
 
@@ -366,8 +355,7 @@ private Q_SLOTS:
         QSignalSpy rejected(&handler, &FileTransferHandler::transferRejected);
 
         for (int i = 0; i < FileTransferHandler::kMaxPendingTransfers + 20; ++i) {
-            handler.onMeta(metaFor(QStringLiteral("t-%1").arg(i), 1024,
-                                   QStringLiteral("f%1.bin").arg(i)));
+            handler.onMeta(metaFor(QStringLiteral("t-%1").arg(i), 1024, QStringLiteral("f%1.bin").arg(i)));
         }
         QCOMPARE(handler.pendingTransferCount(), FileTransferHandler::kMaxPendingTransfers);
         QCOMPARE(rejected.count(), 20);

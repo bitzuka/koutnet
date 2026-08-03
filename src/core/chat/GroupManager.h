@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #pragma once
 
+#include <QHash>
 #include <QObject>
 #include <QQmlEngine>
 #include <QString>
-#include <QHash>
-#include <QVariantMap>
 #include <QVariantList>
+#include <QVariantMap>
 
 // Manages group chat metadata (name, creator, members, created date),
 // persisted as JSON.

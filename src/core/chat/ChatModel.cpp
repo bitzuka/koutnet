@@ -7,7 +7,10 @@
 
 #include <QDateTime>
 
-ChatModel::ChatModel(QObject *parent) : QAbstractListModel(parent) {}
+ChatModel::ChatModel(QObject *parent)
+    : QAbstractListModel(parent)
+{
+}
 
 int ChatModel::rowCount(const QModelIndex &parent) const
 {
@@ -23,23 +26,34 @@ QVariant ChatModel::data(const QModelIndex &index, int role) const
 
     const MessageEntry &m = m_messages.at(index.row());
     switch (role) {
-    case SenderRole:         return m.sender;
-    case TextRole:           return m.text;
-    case IsOwnRole:          return m.isOwn;
-    case ColorRole:          return m.color;
-    case MsgTypeRole:        return m.msgType;
-    case IsSystemRole:       return m.isSystem;
-    case IsEditedRole:       return m.isEdited;
-    case ReplyToTextRole:    return m.replyToText;
-    case MsgIdRole:          return m.msgId;
-    case IsReadRole:         return m.isRead;
-    case IsFileRole:         return m.isFile;
-    case FilePathRole:       return m.filePath;
-    case IsImageRole:        return m.isImage;
+    case SenderRole:
+        return m.sender;
+    case TextRole:
+        return m.text;
+    case IsOwnRole:
+        return m.isOwn;
+    case ColorRole:
+        return m.color;
+    case MsgTypeRole:
+        return m.msgType;
+    case IsSystemRole:
+        return m.isSystem;
+    case IsEditedRole:
+        return m.isEdited;
+    case ReplyToTextRole:
+        return m.replyToText;
+    case MsgIdRole:
+        return m.msgId;
+    case IsReadRole:
+        return m.isRead;
+    case IsFileRole:
+        return m.isFile;
+    case FilePathRole:
+        return m.filePath;
+    case IsImageRole:
+        return m.isImage;
     case ReactionsRole:
-        return m_reactions
-            ? m_reactions->summary(m.chatId.isEmpty() ? QStringLiteral("public") : m.chatId, m.ts)
-            : QVariantList();
+        return m_reactions ? m_reactions->summary(m.chatId.isEmpty() ? QStringLiteral("public") : m.chatId, m.ts) : QVariantList();
     case TimeStringRole:
         return QDateTime::fromSecsSinceEpoch(static_cast<qint64>(m.ts)).toString(QStringLiteral("HH:mm"));
     default:
@@ -50,13 +64,21 @@ QVariant ChatModel::data(const QModelIndex &index, int role) const
 QHash<int, QByteArray> ChatModel::roleNames() const
 {
     return {
-        {SenderRole, "sender"}, {TextRole, "text"}, {IsOwnRole, "isOwn"},
-        {ColorRole, "color"}, {MsgTypeRole, "msgType"},
-        {IsSystemRole, "isSystem"}, {IsEditedRole, "isEdited"},
+        {SenderRole, "sender"},
+        {TextRole, "text"},
+        {IsOwnRole, "isOwn"},
+        {ColorRole, "color"},
+        {MsgTypeRole, "msgType"},
+        {IsSystemRole, "isSystem"},
+        {IsEditedRole, "isEdited"},
         {ReplyToTextRole, "replyToText"},
-        {MsgIdRole, "msgId"}, {IsReadRole, "isRead"}, {ReactionsRole, "reactions"},
-        {TimeStringRole, "timeString"}, {IsFileRole, "isFile"},
-        {FilePathRole, "filePath"}, {IsImageRole, "isImage"},
+        {MsgIdRole, "msgId"},
+        {IsReadRole, "isRead"},
+        {ReactionsRole, "reactions"},
+        {TimeStringRole, "timeString"},
+        {IsFileRole, "isFile"},
+        {FilePathRole, "filePath"},
+        {IsImageRole, "isImage"},
     };
 }
 
@@ -69,41 +91,57 @@ void ChatModel::setChatId(const QString &id)
     reload();
 }
 
-QObject *ChatModel::historyManagerObj() const { return m_history; }
+QObject *ChatModel::historyManagerObj() const
+{
+    return m_history;
+}
 void ChatModel::setHistoryManagerObj(QObject *obj)
 {
     auto *h = qobject_cast<HistoryManager *>(obj);
-    if (m_history == h) return;
+    if (m_history == h)
+        return;
     m_history = h;
     Q_EMIT historyManagerChanged();
     reload();
 }
 
-QObject *ChatModel::reactionStoreObj() const { return m_reactions; }
+QObject *ChatModel::reactionStoreObj() const
+{
+    return m_reactions;
+}
 void ChatModel::setReactionStoreObj(QObject *obj)
 {
     auto *r = qobject_cast<ReactionStore *>(obj);
-    if (m_reactions == r) return;
-    if (m_reactions) disconnect(m_reactions, nullptr, this, nullptr);
+    if (m_reactions == r)
+        return;
+    if (m_reactions)
+        disconnect(m_reactions, nullptr, this, nullptr);
     m_reactions = r;
     if (m_reactions) {
-        connect(m_reactions, &ReactionStore::reactionsChanged, this,
-                [this](const QString &chatId, double ts) {
-                    const QString cid = m_chatId.isEmpty() ? QStringLiteral("public") : m_chatId;
-                    if (chatId != cid) return;
-                    for (int i = 0; i < m_messages.size(); ++i) {
-                        if (m_messages.at(i).ts == ts) { refreshRow(i); break; }
-                    }
-                });
+        connect(m_reactions, &ReactionStore::reactionsChanged, this, [this](const QString &chatId, double ts) {
+            const QString cid = m_chatId.isEmpty() ? QStringLiteral("public") : m_chatId;
+            if (chatId != cid)
+                return;
+            for (int i = 0; i < m_messages.size(); ++i) {
+                if (m_messages.at(i).ts == ts) {
+                    refreshRow(i);
+                    break;
+                }
+            }
+        });
     }
     Q_EMIT reactionStoreChanged();
 }
 
-QObject *ChatModel::unreadManagerObj() const { return m_unread; }
+QObject *ChatModel::unreadManagerObj() const
+{
+    return m_unread;
+}
 void ChatModel::setUnreadManagerObj(QObject *obj)
 {
     auto *u = qobject_cast<UnreadManager *>(obj);
-    if (m_unread == u) return;
+    if (m_unread == u)
+        return;
     m_unread = u;
     Q_EMIT unreadManagerChanged();
 }

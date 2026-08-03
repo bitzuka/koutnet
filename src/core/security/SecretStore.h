@@ -10,7 +10,8 @@
 #include <QString>
 #include <QStringList>
 
-namespace koutnet {
+namespace koutnet
+{
 
 // Thin wrapper over KWallet::Wallet. There is one wallet handle per process
 // because opening it is a blocking round trip to the daemon, and all of our
@@ -20,7 +21,8 @@ namespace koutnet {
 // daemon running, a session that is not KDE, a CI container. That is a hard
 // failure on purpose: a caller that cannot store a secret must refuse to
 // store it, never write it somewhere readable instead.
-class SecretStore {
+class SecretStore
+{
 public:
     static bool isAvailable();
 

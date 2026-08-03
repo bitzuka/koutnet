@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #pragma once
 
+#include <QHash>
 #include <QObject>
 #include <QQmlEngine>
 #include <QString>
-#include <QHash>
 
 // Tracks unread message counts per chat_id.
 // chat_id is either an IP (private chat), "public", or "group_<gid>".
@@ -17,7 +17,10 @@ class UnreadManager : public QObject
     Q_PROPERTY(int total READ total NOTIFY totalChanged)
 
 public:
-    explicit UnreadManager(QObject *parent = nullptr) : QObject(parent) {}
+    explicit UnreadManager(QObject *parent = nullptr)
+        : QObject(parent)
+    {
+    }
 
     static UnreadManager *create(QQmlEngine *, QJSEngine *)
     {

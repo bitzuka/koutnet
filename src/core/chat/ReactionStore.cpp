@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "ReactionStore.h"
 
-#include <QStandardPaths>
-#include <QFile>
-#include <QSaveFile>
+#include "koutnet_chat_debug.h"
+#include <QDebug>
 #include <QDir>
+#include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QJsonArray>
-#include <QDebug>
-#include "koutnet_chat_debug.h"
+#include <QSaveFile>
+#include <QStandardPaths>
 #include <algorithm>
 
-ReactionStore::ReactionStore(QObject *parent) : QObject(parent)
+ReactionStore::ReactionStore(QObject *parent)
+    : QObject(parent)
 {
     m_saveTimer.setSingleShot(true);
     connect(&m_saveTimer, &QTimer::timeout, this, &ReactionStore::save);
@@ -148,8 +149,7 @@ void ReactionStore::load()
         // reactions the user actually made are in there somewhere, so keep the
         // file and refuse to save rather than silently starting from empty
         m_loadFailed = true;
-        qCWarning(KOUTNET_LOG_CHAT) << "refusing to overwrite unreadable" << f.fileName()
-                                    << err.errorString();
+        qCWarning(KOUTNET_LOG_CHAT) << "refusing to overwrite unreadable" << f.fileName() << err.errorString();
         return;
     }
 

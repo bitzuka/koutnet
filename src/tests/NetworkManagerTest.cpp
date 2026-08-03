@@ -10,7 +10,6 @@
 // No sockets are bound and no peers are contacted: handleDatagram() is fed
 // directly, which is the whole reason it exists as a function.
 
-#include <QTest>
 #include <KLocalizedString>
 #include <QDateTime>
 #include <QJsonArray>
@@ -18,6 +17,7 @@
 #include <QJsonObject>
 #include <QSignalSpy>
 #include <QStandardPaths>
+#include <QTest>
 
 #include <limits>
 
@@ -29,7 +29,8 @@ using koutnet::CryptoManager;
 using koutnet::NetworkManager;
 namespace protocol = koutnet::protocol;
 
-namespace {
+namespace
+{
 
 // The address the peer under test claims. TEST-NET-2, so it can never collide
 // with an address this machine actually holds - which would make the packet
@@ -94,7 +95,9 @@ class Harness
 {
 public:
     Harness()
-        : mine(QStringLiteral("nm-self")), peer(QStringLiteral("nm-peer")), net(&mine)
+        : mine(QStringLiteral("nm-self"))
+        , peer(QStringLiteral("nm-peer"))
+        , net(&mine)
     {
     }
 
@@ -103,8 +106,7 @@ public:
     bool establishSession()
     {
         net.handleDatagram(kPeerIp, toDatagram(presenceFrom(peer)));
-        return peer.processHandshake(kSelfLabel, mine.handshakePayload())
-            && mine.hasSession(kPeerIp);
+        return peer.processHandshake(kSelfLabel, mine.handshakePayload()) && mine.hasSession(kPeerIp);
     }
 
     CryptoManager mine;
@@ -134,8 +136,7 @@ private Q_SLOTS:
         QTest::newRow("array not object") << QByteArrayLiteral("[{\"type\":\"chat\"}]");
         QTest::newRow("bare null") << QByteArrayLiteral("null");
         QTest::newRow("bare number") << QByteArrayLiteral("12345");
-        QTest::newRow("nul in the middle")
-            << QByteArray("{\"type\":\"chat\"\x00,\"text\":\"x\"}", 27);
+        QTest::newRow("nul in the middle") << QByteArray("{\"type\":\"chat\"\x00,\"text\":\"x\"}", 27);
 
         // Past whatever the parser's nesting limit is, which is the point: it
         // has to refuse rather than recurse until the stack runs out.
@@ -164,8 +165,7 @@ private Q_SLOTS:
         QTest::newRow("ten megabytes of json") << toDatagram(huge);
 
         // And ten megabytes that is not JSON at all.
-        QTest::newRow("ten megabytes of junk")
-            << (QByteArrayLiteral("{\"type\":") + QByteArray(10 * 1024 * 1024, 'z'));
+        QTest::newRow("ten megabytes of junk") << (QByteArrayLiteral("{\"type\":") + QByteArray(10 * 1024 * 1024, 'z'));
     }
 
     void malformedBytesAreRefused()
@@ -235,13 +235,20 @@ private Q_SLOTS:
         QSignalSpy online(&h.net, &NetworkManager::userOnline);
         QSignalSpy errors(&h.net, &NetworkManager::errorOccurred);
 
-        for (const QLatin1StringView type : { protocol::kMsgChat, protocol::kMsgPrivate,
-                                              protocol::kMsgGroup, protocol::kMsgFileMeta,
-                                              protocol::kMsgFileData, protocol::kMsgTyping,
-                                              protocol::kMsgCallReq, protocol::kMsgCallAccept,
-                                              protocol::kMsgCallEnd, protocol::kMsgGroupInv,
-                                              protocol::kMsgReaction, protocol::kMsgEdit,
-                                              protocol::kMsgDelete, protocol::kMsgRead }) {
+        for (const QLatin1StringView type : {protocol::kMsgChat,
+                                             protocol::kMsgPrivate,
+                                             protocol::kMsgGroup,
+                                             protocol::kMsgFileMeta,
+                                             protocol::kMsgFileData,
+                                             protocol::kMsgTyping,
+                                             protocol::kMsgCallReq,
+                                             protocol::kMsgCallAccept,
+                                             protocol::kMsgCallEnd,
+                                             protocol::kMsgGroupInv,
+                                             protocol::kMsgReaction,
+                                             protocol::kMsgEdit,
+                                             protocol::kMsgDelete,
+                                             protocol::kMsgRead}) {
             QJsonObject o;
             o[QStringLiteral("type")] = QString(type);
             o[QStringLiteral("text")] = QStringLiteral("trust me");
@@ -285,10 +292,10 @@ private Q_SLOTS:
         QCOMPARE(messages.count(), 0);
 
         // Nor is a wrong one, of any length.
-        for (const QString &sig : { QStringLiteral("AAAA"),
-                                    QString::fromLatin1(QByteArray(32, '\0').toBase64()),
-                                    QString::fromLatin1(QByteArray(32, 'x').toBase64()),
-                                    QStringLiteral("!!! not base64 !!!") }) {
+        for (const QString &sig : {QStringLiteral("AAAA"),
+                                   QString::fromLatin1(QByteArray(32, '\0').toBase64()),
+                                   QString::fromLatin1(QByteArray(32, 'x').toBase64()),
+                                   QStringLiteral("!!! not base64 !!!")}) {
             QJsonObject badSig = bare;
             badSig[QStringLiteral("nonce")] = freshNonce();
             badSig[QStringLiteral("_sig")] = sig;
@@ -359,8 +366,7 @@ private Q_SLOTS:
         QVERIFY(h.net.peers().contains(kPeerIp));
 
         QSignalSpy errors(&h.net, &NetworkManager::errorOccurred);
-        const double firstSeen = h.net.peers().value(kPeerIp)
-                                     .value(QStringLiteral("last_seen")).toDouble();
+        const double firstSeen = h.net.peers().value(kPeerIp).value(QStringLiteral("last_seen")).toDouble();
         QVERIFY(firstSeen > 0.0);
 
         // Same peer, same identity, a later broadcast. No _sig, because the
@@ -369,10 +375,8 @@ private Q_SLOTS:
         QVERIFY(!again.contains(QStringLiteral("_sig")));
         h.net.handleDatagram(kPeerIp, toDatagram(again));
 
-        QVERIFY2(errors.isEmpty(),
-                 "presence from an established peer was reported as unauthenticated");
-        QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("username")).toString(),
-                 QStringLiteral("peer-renamed"));
+        QVERIFY2(errors.isEmpty(), "presence from an established peer was reported as unauthenticated");
+        QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("username")).toString(), QStringLiteral("peer-renamed"));
         QVERIFY(h.net.peers().value(kPeerIp).value(QStringLiteral("e2e")).toBool());
     }
 
@@ -384,8 +388,7 @@ private Q_SLOTS:
         const QJsonObject first = presenceFrom(h.peer, QStringLiteral("original"));
         h.net.handleDatagram(kPeerIp, toDatagram(first));
         QCOMPARE(online.count(), 1);
-        QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("username")).toString(),
-                 QStringLiteral("original"));
+        QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("username")).toString(), QStringLiteral("original"));
 
         // Same nonce, edited contents - which is exactly what a captured packet
         // being resent with a tweak looks like.
@@ -394,8 +397,7 @@ private Q_SLOTS:
         h.net.handleDatagram(kPeerIp, toDatagram(replay));
 
         QCOMPARE(online.count(), 1);
-        QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("username")).toString(),
-                 QStringLiteral("original"));
+        QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("username")).toString(), QStringLiteral("original"));
     }
 
     // Signed packets used to get no replay check at all: the nonce and the
@@ -409,8 +411,7 @@ private Q_SLOTS:
         QSignalSpy messages(&h.net, &NetworkManager::message);
         QJsonObject o;
         o[QStringLiteral("type")] = protocol::kMsgChat;
-        o[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("pay the invoice"),
-                                                   QString(), kSelfLabel);
+        o[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("pay the invoice"), QString(), kSelfLabel);
         const QByteArray captured = toDatagram(signedPacket(h.peer, o));
 
         h.net.handleDatagram(kPeerIp, captured);
@@ -448,8 +449,7 @@ private Q_SLOTS:
         QSignalSpy messages(&h.net, &NetworkManager::message);
         QJsonObject o;
         o[QStringLiteral("type")] = protocol::kMsgChat;
-        o[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("on time?"),
-                                                   QString(), kSelfLabel);
+        o[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("on time?"), QString(), kSelfLabel);
         h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o, nowEpoch() + offset)));
 
         QCOMPARE(messages.count(), accepted ? 1 : 0);
@@ -500,8 +500,8 @@ private Q_SLOTS:
         QTest::newRow("nan") << QJsonValue(std::numeric_limits<double>::quiet_NaN());
         QTest::newRow("zero") << QJsonValue(0);
         QTest::newRow("string") << QJsonValue(QStringLiteral("not a timestamp"));
-        QTest::newRow("object") << QJsonValue(QJsonObject{ { QStringLiteral("a"), 1 } });
-        QTest::newRow("array") << QJsonValue(QJsonArray{ 1, 2, 3 });
+        QTest::newRow("object") << QJsonValue(QJsonObject{{QStringLiteral("a"), 1}});
+        QTest::newRow("array") << QJsonValue(QJsonArray{1, 2, 3});
         QTest::newRow("null") << QJsonValue(QJsonValue::Null);
     }
 
@@ -532,10 +532,8 @@ private Q_SLOTS:
         QTest::addColumn<QJsonValue>("allIps");
         QTest::newRow("not an array") << QJsonValue(QStringLiteral("192.0.2.1"));
         QTest::newRow("empty array") << QJsonValue(QJsonArray());
-        QTest::newRow("nested") << QJsonValue(QJsonArray{ QJsonArray{ QStringLiteral("a") } });
-        QTest::newRow("junk entries")
-            << QJsonValue(QJsonArray{ QStringLiteral("not an ip"), 42, QJsonValue::Null,
-                                      QStringLiteral("") });
+        QTest::newRow("nested") << QJsonValue(QJsonArray{QJsonArray{QStringLiteral("a")}});
+        QTest::newRow("junk entries") << QJsonValue(QJsonArray{QStringLiteral("not an ip"), 42, QJsonValue::Null, QStringLiteral("")});
 
         QJsonArray many;
         for (int i = 0; i < 5000; ++i)
@@ -607,10 +605,8 @@ private Q_SLOTS:
         QVERIFY(h.mine.hasSession(kPeerIp));
         // The peer record is what the interface shows next to that warning, so
         // the refused packet may not have rewritten it either.
-        QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("username")).toString(),
-                 QStringLiteral("peer"));
-        QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("id_pub")).toString(),
-                 h.peer.handshakePayload().value(QStringLiteral("id_pub")).toString());
+        QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("username")).toString(), QStringLiteral("peer"));
+        QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("id_pub")).toString(), h.peer.handshakePayload().value(QStringLiteral("id_pub")).toString());
 
         // The session key still belongs to the peer we handshook with, so the
         // impostor cannot sign anything we will accept.
@@ -621,8 +617,7 @@ private Q_SLOTS:
         QJsonObject signedByImpostor = o;
         signedByImpostor[QStringLiteral("nonce")] = freshNonce();
         signedByImpostor[QStringLiteral("ts")] = nowEpoch();
-        signedByImpostor[QStringLiteral("_sig")] =
-            impostor.signPacket(kSelfLabel, signableBytes(signedByImpostor));
+        signedByImpostor[QStringLiteral("_sig")] = impostor.signPacket(kSelfLabel, signableBytes(signedByImpostor));
         h.net.handleDatagram(kPeerIp, toDatagram(signedByImpostor));
         QCOMPARE(messages.count(), 0);
     }
@@ -642,10 +637,8 @@ private Q_SLOTS:
         h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
 
         QCOMPARE(messages.count(), 1);
-        const QString delivered = messages.at(0).at(0).toJsonObject()
-                                      .value(QStringLiteral("text")).toString();
-        QVERIFY2(delivered != QStringLiteral("meet me at seven"),
-                 "an unencrypted body was passed through on a channel with a session key");
+        const QString delivered = messages.at(0).at(0).toJsonObject().value(QStringLiteral("text")).toString();
+        QVERIFY2(delivered != QStringLiteral("meet me at seven"), "an unencrypted body was passed through on a channel with a session key");
     }
 
     void theRateLimitStopsAFlood()

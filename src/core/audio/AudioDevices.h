@@ -18,9 +18,11 @@ class QBuffer;
 class QIODevice;
 class QMediaDevices;
 
-namespace koutnet {
+namespace koutnet
+{
 
-class AudioDevices : public QObject {
+class AudioDevices : public QObject
+{
     Q_OBJECT
     Q_PROPERTY(QVariantList inputs READ inputs NOTIFY devicesChanged)
     Q_PROPERTY(QVariantList outputs READ outputs NOTIFY devicesChanged)
@@ -37,9 +39,18 @@ public:
     QVariantList inputs() const;
     QVariantList outputs() const;
 
-    bool micTestRunning() const { return m_source != nullptr; }
-    bool tonePlaying() const { return m_sink != nullptr; }
-    qreal micLevel() const { return m_level; }
+    bool micTestRunning() const
+    {
+        return m_source != nullptr;
+    }
+    bool tonePlaying() const
+    {
+        return m_sink != nullptr;
+    }
+    qreal micLevel() const
+    {
+        return m_level;
+    }
 
     // An empty id means "whatever the system default is right now".
     Q_INVOKABLE void startMicTest(const QString &deviceId);

@@ -3,27 +3,28 @@
 // KOutNet - Voice call manager (P2P calls, group calls via per-peer jitter buffers)
 #pragma once
 
+#include <QByteArray>
 #include <QObject>
 #include <QSet>
 #include <QString>
-#include <QByteArray>
 #include <functional>
 
-namespace koutnet {
+namespace koutnet
+{
 
 class NetworkManager;
 class CryptoManager;
 class AudioEngine;
 
-class VoiceCallManager : public QObject {
+class VoiceCallManager : public QObject
+{
     Q_OBJECT
 
 public:
     // Same CryptoManager instance NetworkManager holds. Voice frames are
     // encrypted here rather than there, as raw AES-GCM with no JSON or
     // base64 around them, because only this class knows which IPs are live.
-    explicit VoiceCallManager(NetworkManager *net, CryptoManager *crypto,
-                              QObject *parent = nullptr);
+    explicit VoiceCallManager(NetworkManager *net, CryptoManager *crypto, QObject *parent = nullptr);
 
     // Q_INVOKABLE is load-bearing here. Without it a QML call fails at
     // runtime with "is not a function" while the same call from C++ works.
@@ -33,7 +34,10 @@ public:
 
     Q_INVOKABLE void setMute(bool muted);
     Q_INVOKABLE bool toggleMute();
-    bool isMuted() const { return m_muted; }
+    bool isMuted() const
+    {
+        return m_muted;
+    }
 
     Q_INVOKABLE void setVad(bool enabled);
 
@@ -43,7 +47,10 @@ public:
     Q_INVOKABLE void setAudioOutputDevice(const QString &id);
     Q_INVOKABLE void setAudioVolume(qreal volume);
 
-    const QSet<QString> &activeCalls() const { return m_active; }
+    const QSet<QString> &activeCalls() const
+    {
+        return m_active;
+    }
 
     // Speaking-state subscription (forwarded from AudioEngine VAD)
     using SpeakingCallback = std::function<void(bool)>;

@@ -5,16 +5,18 @@
 
 #include <KLocalizedString>
 
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QStandardPaths>
-#include <QDateTime>
 #include <QtNumeric> // qIsFinite, on a value that came straight off the wire
 
-namespace koutnet {
+namespace koutnet
+{
 
-FileTransferHandler::FileTransferHandler(QObject *parent) : QObject(parent)
+FileTransferHandler::FileTransferHandler(QObject *parent)
+    : QObject(parent)
 {
     connect(&m_pruneTimer, &QTimer::timeout, this, &FileTransferHandler::pruneStaleTransfers);
     m_pruneTimer.start(60'000); // sweep once a minute
@@ -29,8 +31,7 @@ QString FileTransferHandler::sanitizeFilename(const QString &rawName)
     // "..\..\secret" survives that whole, and is a real traversal the day those
     // bytes are handed to a Windows peer.
     QString name = rawName;
-    const qsizetype cut = qMax(name.lastIndexOf(QLatin1Char('/')),
-                               name.lastIndexOf(QLatin1Char('\\')));
+    const qsizetype cut = qMax(name.lastIndexOf(QLatin1Char('/')), name.lastIndexOf(QLatin1Char('\\')));
     if (cut >= 0)
         name = name.mid(cut + 1);
 
@@ -82,16 +83,13 @@ void FileTransferHandler::onMeta(const QJsonObject &meta)
     // than read as zero, which is what isDouble() is for.
     const QJsonValue sizeValue = meta.value(QStringLiteral("size"));
     const double announced = sizeValue.toDouble(-1.0);
-    if (!sizeValue.isDouble() || !qIsFinite(announced) || announced < 0.0
-        || announced > double(kMaxTransferBytes)) {
-        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
-                                           "The announced size is not a usable length."));
+    if (!sizeValue.isDouble() || !qIsFinite(announced) || announced < 0.0 || announced > double(kMaxTransferBytes)) {
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The announced size is not a usable length."));
         return; // no entry created - onChunkMessage will drop its chunks
     }
 
     if (!m_pending.contains(tid) && m_pending.size() >= kMaxPendingTransfers) {
-        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
-                                           "Too many concurrent incoming transfers."));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "Too many concurrent incoming transfers."));
         return;
     }
 
@@ -122,8 +120,7 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
     const qint64 maxChunks = (kMaxTransferBytes / 1024) + 1024; // generous upper bound
     if (total > maxChunks) {
         m_pending.remove(tid);
-        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
-                                           "The chunk count exceeds the limit."));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The chunk count exceeds the limit."));
         return;
     }
 
@@ -135,8 +132,7 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
         // a peer resending an index with different bytes is either broken or
         // walking the whole range twice to hide the second pass from the cap
         m_pending.remove(tid);
-        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
-                                           "A chunk was resent with different contents."));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "A chunk was resent with different contents."));
         return;
     }
 
@@ -146,8 +142,7 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
     t.receivedBytes += chunk.size() - (held != t.chunks.constEnd() ? held->size() : 0);
     if (t.receivedBytes > kMaxTransferBytes) {
         m_pending.remove(tid);
-        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
-                                           "The transfer exceeded the size limit."));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The transfer exceeded the size limit."));
         return;
     }
     t.chunks.insert(idx, chunk);
@@ -172,8 +167,7 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
     if (!localPath.isEmpty())
         Q_EMIT fileSaved(t.meta, localPath);
     else
-        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
-                                           "Failed to write the file to disk."));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "Failed to write the file to disk."));
 
     m_pending.remove(tid);
 }
@@ -188,17 +182,14 @@ void FileTransferHandler::pruneStaleTransfers()
     }
     for (const auto &tid : stale) {
         m_pending.remove(tid);
-        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused",
-                                           "The transfer timed out while incomplete."));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The transfer timed out while incomplete."));
     }
 }
 
 QString FileTransferHandler::saveToDisk(const QJsonObject &meta, const QByteArray &data) const
 {
     const QString baseDir = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
-    const QString dirPath = baseDir.isEmpty()
-        ? QString(QDir::homePath() + QStringLiteral("/KOutNet/received"))
-        : QString(baseDir + QStringLiteral("/KOutNet"));
+    const QString dirPath = baseDir.isEmpty() ? QString(QDir::homePath() + QStringLiteral("/KOutNet/received")) : QString(baseDir + QStringLiteral("/KOutNet"));
 
     QDir dir;
     if (!dir.mkpath(dirPath))
@@ -216,8 +207,7 @@ QString FileTransferHandler::saveToDisk(const QJsonObject &meta, const QByteArra
         const QString ext = fi.suffix();
         int n = 1;
         do {
-            candidate = dirPath + QLatin1Char('/') + base + QStringLiteral("(%1)").arg(n)
-                       + (ext.isEmpty() ? QString() : QString(QLatin1Char('.') + ext));
+            candidate = dirPath + QLatin1Char('/') + base + QStringLiteral("(%1)").arg(n) + (ext.isEmpty() ? QString() : QString(QLatin1Char('.') + ext));
             ++n;
         } while (QFileInfo::exists(candidate));
     }

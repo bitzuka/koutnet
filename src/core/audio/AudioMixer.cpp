@@ -7,7 +7,8 @@
 #include <algorithm>
 #include <cstring>
 
-namespace koutnet {
+namespace koutnet
+{
 
 void PeerBuffer::push(const QByteArray &data)
 {

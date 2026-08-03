@@ -3,28 +3,34 @@
 // KOutNet - Real-time voice engine (capture, mix, playback)
 #include "AudioEngine.h"
 
-#include <QAudioSource>
-#include <QAudioSink>
-#include <QMediaDevices>
 #include <QAudioDevice>
+#include <QAudioSink>
+#include <QAudioSource>
+#include <QMediaDevices>
 #include <QtMath>
 #include <algorithm>
-#include <cstring>
 #include <cmath>
+#include <cstring>
 
-namespace koutnet {
+namespace koutnet
+{
 
 // Pull-mode playback device: QAudioSink calls readData() whenever it needs
 // more samples to keep the output buffer full. We hand it freshly mixed
 // frames from AudioMixer on demand - no separate playback thread needed.
-class AudioEngine::PlaybackDevice : public QIODevice {
+class AudioEngine::PlaybackDevice : public QIODevice
+{
 public:
-    explicit PlaybackDevice(AudioEngine *engine) : m_engine(engine)
+    explicit PlaybackDevice(AudioEngine *engine)
+        : m_engine(engine)
     {
         open(QIODevice::ReadOnly | QIODevice::Unbuffered);
     }
 
-    bool isSequential() const override { return true; }
+    bool isSequential() const override
+    {
+        return true;
+    }
 
 protected:
     qint64 readData(char *data, qint64 maxlen) override
@@ -54,7 +60,10 @@ protected:
         return written;
     }
 
-    qint64 writeData(const char *, qint64) override { return -1; }
+    qint64 writeData(const char *, qint64) override
+    {
+        return -1;
+    }
 
 private:
     AudioEngine *m_engine;
@@ -69,15 +78,17 @@ QAudioFormat AudioEngine::format() const
     return fmt;
 }
 
-AudioEngine::AudioEngine(QObject *parent) : QObject(parent) {}
+AudioEngine::AudioEngine(QObject *parent)
+    : QObject(parent)
+{
+}
 
 AudioEngine::~AudioEngine()
 {
     cleanup();
 }
 
-static QAudioDevice pickDevice(const QList<QAudioDevice> &devices,
-                               const QString &id, const QAudioDevice &fallback)
+static QAudioDevice pickDevice(const QList<QAudioDevice> &devices, const QString &id, const QAudioDevice &fallback)
 {
     if (id.isEmpty())
         return fallback;
@@ -96,10 +107,8 @@ bool AudioEngine::startCapture()
     stopAll();
 
     const QAudioFormat fmt = format();
-    const QAudioDevice inDev = pickDevice(QMediaDevices::audioInputs(), m_inputId,
-                                          QMediaDevices::defaultAudioInput());
-    const QAudioDevice outDev = pickDevice(QMediaDevices::audioOutputs(), m_outputId,
-                                           QMediaDevices::defaultAudioOutput());
+    const QAudioDevice inDev = pickDevice(QMediaDevices::audioInputs(), m_inputId, QMediaDevices::defaultAudioInput());
+    const QAudioDevice outDev = pickDevice(QMediaDevices::audioOutputs(), m_outputId, QMediaDevices::defaultAudioOutput());
     if (inDev.isNull() || outDev.isNull())
         return false; // no mic/speaker - voice calls disabled, same as legacy PYAUDIO_AVAILABLE=false path
 

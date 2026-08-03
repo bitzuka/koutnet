@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #pragma once
 
+#include <QHash>
 #include <QObject>
 #include <QQmlEngine>
 #include <QString>
-#include <QHash>
-#include <QVariantMap>
 #include <QStringList>
 #include <QTimer>
+#include <QVariantMap>
 
 // Emoji reactions per message. Key is chat_id + "|||" + ts to three decimal
 // places, value is { emoji: [usernames] }. Saves are debounced through one

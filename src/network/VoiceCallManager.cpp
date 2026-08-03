@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - Voice call manager (P2P calls, group calls via per-peer jitter buffers)
 #include "VoiceCallManager.h"
-#include "NetworkManager.h"
-#include "../core/security/CryptoManager.h"
 #include "../core/audio/AudioEngine.h"
+#include "../core/security/CryptoManager.h"
+#include "NetworkManager.h"
 
-namespace koutnet {
+namespace koutnet
+{
 
 VoiceCallManager::VoiceCallManager(NetworkManager *net, CryptoManager *crypto, QObject *parent)
-    : QObject(parent), m_net(net), m_crypto(crypto)
+    : QObject(parent)
+    , m_net(net)
+    , m_crypto(crypto)
 {
     m_audio = new AudioEngine(this);
 

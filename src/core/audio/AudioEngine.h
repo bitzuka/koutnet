@@ -6,11 +6,11 @@
 // the Qt Multimedia backend drive timing is cheaper on low-RAM machines.
 #pragma once
 
-#include <QObject>
 #include <QAudioFormat>
 #include <QByteArray>
-#include <QString>
 #include <QIODevice>
+#include <QObject>
+#include <QString>
 
 #include <atomic>
 
@@ -19,16 +19,18 @@
 class QAudioSource;
 class QAudioSink;
 
-namespace koutnet {
+namespace koutnet
+{
 
-class AudioEngine : public QObject {
+class AudioEngine : public QObject
+{
     Q_OBJECT
 
 public:
-    static constexpr int kSampleRate  = 16000;
-    static constexpr int kChannels    = 1;
-    static constexpr int kChunkSamples = 512;               // ~32ms @16kHz
-    static constexpr int kChunkBytes   = kChunkSamples * 2; // int16
+    static constexpr int kSampleRate = 16000;
+    static constexpr int kChannels = 1;
+    static constexpr int kChunkSamples = 512; // ~32ms @16kHz
+    static constexpr int kChunkBytes = kChunkSamples * 2; // int16
 
     explicit AudioEngine(QObject *parent = nullptr);
     ~AudioEngine() override;
@@ -37,29 +39,59 @@ public:
     void stopAll();
     void cleanup();
 
-    bool running() const { return m_running; }
+    bool running() const
+    {
+        return m_running;
+    }
 
     // Both are written from the GUI thread and read by PlaybackDevice::readData()
     // on Qt Multimedia's own audio thread, so they are atomic rather than merely
     // small: a plain qreal is not one store, and a torn read of it would land in
     // the sample loop as a volume nobody asked for.
-    void setMuted(bool muted) { m_muted.store(muted, std::memory_order_relaxed); }
-    bool muted() const { return m_muted.load(std::memory_order_relaxed); }
+    void setMuted(bool muted)
+    {
+        m_muted.store(muted, std::memory_order_relaxed);
+    }
+    bool muted() const
+    {
+        return m_muted.load(std::memory_order_relaxed);
+    }
 
-    void setVolume(qreal v) { m_volume.store(v, std::memory_order_relaxed); }
-    qreal volume() const { return m_volume.load(std::memory_order_relaxed); }
+    void setVolume(qreal v)
+    {
+        m_volume.store(v, std::memory_order_relaxed);
+    }
+    qreal volume() const
+    {
+        return m_volume.load(std::memory_order_relaxed);
+    }
 
     // Empty id means "system default". Read at startCapture() time, so
     // a change made during a call takes effect on the next one rather
     // than tearing down a live stream mid-sentence.
-    void setInputDeviceId(const QString &id) { m_inputId = id; }
-    void setOutputDeviceId(const QString &id) { m_outputId = id; }
+    void setInputDeviceId(const QString &id)
+    {
+        m_inputId = id;
+    }
+    void setOutputDeviceId(const QString &id)
+    {
+        m_outputId = id;
+    }
 
-    void setVadEnabled(bool enabled) { m_vadEnabled = enabled; }
-    bool vadEnabled() const { return m_vadEnabled; }
+    void setVadEnabled(bool enabled)
+    {
+        m_vadEnabled = enabled;
+    }
+    bool vadEnabled() const
+    {
+        return m_vadEnabled;
+    }
 
     void pushPeerAudio(const QString &ip, const QByteArray &data);
-    AudioMixer &mixer() { return m_mixer; }
+    AudioMixer &mixer()
+    {
+        return m_mixer;
+    }
 
 Q_SIGNALS:
     void audioCaptured(QByteArray raw);
@@ -76,7 +108,7 @@ private:
 
     QAudioSource *m_source = nullptr;
     QAudioSink *m_sink = nullptr;
-    QIODevice *m_captureDevice = nullptr;     // owned by m_source
+    QIODevice *m_captureDevice = nullptr; // owned by m_source
     PlaybackDevice *m_playbackDevice = nullptr;
 
     AudioMixer m_mixer;

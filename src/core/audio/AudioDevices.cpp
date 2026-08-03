@@ -21,8 +21,10 @@
 namespace QtAudio = QAudio;
 #endif
 
-namespace koutnet {
-namespace {
+namespace koutnet
+{
+namespace
+{
 
 constexpr int kProbeRate = 48000;
 constexpr int kToneHz = 440;
@@ -43,8 +45,7 @@ QVariantList describe(const QList<QAudioDevice> &devices)
 
 // Falls back to the system default when the saved device is gone, which is the
 // normal case for a USB headset that was unplugged since the setting was made.
-QAudioDevice pick(const QList<QAudioDevice> &devices, const QString &id,
-                  const QAudioDevice &fallback)
+QAudioDevice pick(const QList<QAudioDevice> &devices, const QString &id, const QAudioDevice &fallback)
 {
     if (id.isEmpty())
         return fallback;
@@ -104,8 +105,7 @@ QByteArray makeTone(const QAudioFormat &fmt)
     const bool isFloat = (fmt.sampleFormat() == QAudioFormat::Float);
 
     QByteArray out;
-    out.resize(qsizetype(frames) * channels * (isFloat ? qsizetype(sizeof(float))
-                                                       : qsizetype(sizeof(qint16))));
+    out.resize(qsizetype(frames) * channels * (isFloat ? qsizetype(sizeof(float)) : qsizetype(sizeof(qint16))));
     auto *asFloat = reinterpret_cast<float *>(out.data());
     auto *asInt = reinterpret_cast<qint16 *>(out.data());
 
@@ -132,12 +132,11 @@ QByteArray makeTone(const QAudioFormat &fmt)
 } // namespace
 
 AudioDevices::AudioDevices(QObject *parent)
-    : QObject(parent), m_devices(new QMediaDevices(this))
+    : QObject(parent)
+    , m_devices(new QMediaDevices(this))
 {
-    connect(m_devices, &QMediaDevices::audioInputsChanged,
-            this, &AudioDevices::devicesChanged);
-    connect(m_devices, &QMediaDevices::audioOutputsChanged,
-            this, &AudioDevices::devicesChanged);
+    connect(m_devices, &QMediaDevices::audioInputsChanged, this, &AudioDevices::devicesChanged);
+    connect(m_devices, &QMediaDevices::audioOutputsChanged, this, &AudioDevices::devicesChanged);
 }
 
 AudioDevices::~AudioDevices()
@@ -169,8 +168,7 @@ void AudioDevices::startMicTest(const QString &deviceId)
     if (m_source)
         stopMicTest();
 
-    const QAudioDevice device = pick(QMediaDevices::audioInputs(), deviceId,
-                                     QMediaDevices::defaultAudioInput());
+    const QAudioDevice device = pick(QMediaDevices::audioInputs(), deviceId, QMediaDevices::defaultAudioInput());
     if (device.isNull()) {
         Q_EMIT error(i18nc("@info:status", "No audio input device available."));
         return;
@@ -180,8 +178,7 @@ void AudioDevices::startMicTest(const QString &deviceId)
     if (!device.isFormatSupported(fmt)) {
         // The message to the user cannot name a format without turning into
         // noise, and the format is the only useful part of a bug report here.
-        qCWarning(KOUTNET_LOG_AUDIO) << "input device" << device.description()
-                                     << "rejects" << fmt;
+        qCWarning(KOUTNET_LOG_AUDIO) << "input device" << device.description() << "rejects" << fmt;
         Q_EMIT error(i18nc("@info:status", "The input device rejects every format we can read."));
         return;
     }
@@ -231,8 +228,7 @@ void AudioDevices::playTestTone(const QString &deviceId)
     if (m_sink)
         stopTestTone();
 
-    const QAudioDevice device = pick(QMediaDevices::audioOutputs(), deviceId,
-                                     QMediaDevices::defaultAudioOutput());
+    const QAudioDevice device = pick(QMediaDevices::audioOutputs(), deviceId, QMediaDevices::defaultAudioOutput());
     if (device.isNull()) {
         Q_EMIT error(i18nc("@info:status", "No audio output device available."));
         return;

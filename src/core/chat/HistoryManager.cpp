@@ -2,16 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "HistoryManager.h"
 
-#include <QStandardPaths>
-#include <QFile>
-#include <QSaveFile>
-#include <QJsonDocument>
-#include <QJsonArray>
-#include <QRegularExpression>
-#include <QDebug>
 #include "koutnet_chat_debug.h"
+#include <QDebug>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QRegularExpression>
+#include <QSaveFile>
+#include <QStandardPaths>
 
-HistoryManager::HistoryManager(QObject *parent) : QObject(parent)
+HistoryManager::HistoryManager(QObject *parent)
+    : QObject(parent)
 {
     historyDir().mkpath(QStringLiteral("."));
 }
@@ -55,8 +56,7 @@ QVariantList HistoryManager::load(const QString &chatId)
             // whatever is in there is still the user's log, so keep the chat
             // usable in memory but never write over the file again
             m_unreadable.insert(chatId);
-            qCWarning(KOUTNET_LOG_CHAT) << "refusing to overwrite unreadable" << f.fileName()
-                                        << err.errorString();
+            qCWarning(KOUTNET_LOG_CHAT) << "refusing to overwrite unreadable" << f.fileName() << err.errorString();
         }
     }
     m_cache.insert(chatId, result);

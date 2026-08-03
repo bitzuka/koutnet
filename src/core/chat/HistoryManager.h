@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #pragma once
 
+#include <QDir>
+#include <QHash>
 #include <QObject>
 #include <QQmlEngine>
+#include <QSet>
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
-#include <QHash>
-#include <QSet>
-#include <QDir>
 
 // Chat history on disk as JSON, one file per chat_id, with an in-memory
 // cache. Exposed to QML as a singleton.
@@ -21,8 +21,7 @@ class HistoryManager : public QObject
     Q_OBJECT
     QML_ELEMENT
     QML_SINGLETON
-    Q_PROPERTY(bool historySavingEnabled READ historySavingEnabled
-               WRITE setHistorySavingEnabled NOTIFY historySavingEnabledChanged)
+    Q_PROPERTY(bool historySavingEnabled READ historySavingEnabled WRITE setHistorySavingEnabled NOTIFY historySavingEnabledChanged)
 
 public:
     explicit HistoryManager(QObject *parent = nullptr);
@@ -32,7 +31,10 @@ public:
         return new HistoryManager;
     }
 
-    bool historySavingEnabled() const { return m_savingEnabled; }
+    bool historySavingEnabled() const
+    {
+        return m_savingEnabled;
+    }
     void setHistorySavingEnabled(bool enabled);
 
     Q_INVOKABLE QVariantList load(const QString &chatId);

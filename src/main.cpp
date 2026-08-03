@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - application entry point
 #include <QCommandLineParser>
-#include <QGuiApplication>
 #include <QCryptographicHash>
+#include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 
 #include "core/security/CryptoManager.h"
+#include "network/FileTransferHandler.h"
 #include "network/NetworkManager.h"
 #include "network/VoiceCallManager.h"
-#include "network/FileTransferHandler.h"
 #include <KAboutData>
 #include <KLocalizedQmlContext>
 #include <KLocalizedString>
 
-#include "core/constructor/AppSettings.h"
 #include "core/audio/AudioDevices.h"
+#include "core/constructor/AppSettings.h"
 #include "koutnet-version.h"
 #include "koutnet_app_debug.h"
 #include "koutnet_crypto_debug.h"
@@ -37,9 +37,7 @@ int main(int argc, char *argv[])
                          i18nc("@info:whatsthis", "P2P encrypted messenger for LAN, VPN and relay"),
                          KAboutLicense::GPL_V3,
                          i18nc("@info:credit", "Copyright 2026 bitzuka"));
-    aboutData.addAuthor(i18nc("@info:credit", "bitzuka"),
-                        i18nc("@info:credit", "Author and maintainer"),
-                        QStringLiteral("bitzuka.koutnet@gmail.com"));
+    aboutData.addAuthor(i18nc("@info:credit", "bitzuka"), i18nc("@info:credit", "Author and maintainer"), QStringLiteral("bitzuka.koutnet@gmail.com"));
     aboutData.setHomepage(QStringLiteral("https://github.com/bitzuka/koutnet"));
     // DrKonqi offers to file a report at this address after a crash, so it has
     // to be a tracker that exists. The KDE product is created together with the
@@ -47,8 +45,7 @@ int main(int argc, char *argv[])
     aboutData.setBugAddress(QByteArrayLiteral("https://bugs.kde.org/enter_bug.cgi?product=koutnet"));
     // Filled in per catalog by whoever translates it, which is why these two
     // strings are placeholders rather than prose.
-    aboutData.setTranslator(i18nc("NAME OF TRANSLATORS", "Your names"),
-                            i18nc("EMAIL OF TRANSLATORS", "Your emails"));
+    aboutData.setTranslator(i18nc("NAME OF TRANSLATORS", "Your names"), i18nc("EMAIL OF TRANSLATORS", "Your emails"));
     aboutData.setDesktopFileName(QStringLiteral("io.github.bitzuka.KOutNet"));
     KAboutData::setApplicationData(aboutData);
 
@@ -89,8 +86,7 @@ int main(int argc, char *argv[])
     // single-sourced. See core/security/CryptoManager.h.
     auto *crypto = new koutnet::CryptoManager(&app);
     if (!crypto->isValid()) {
-        qCCritical(KOUTNET_LOG_CRYPTO,
-                   "cryptographic identity failed to initialize - aborting startup");
+        qCCritical(KOUTNET_LOG_CRYPTO, "cryptographic identity failed to initialize - aborting startup");
         return 1;
     }
 
@@ -103,39 +99,30 @@ int main(int argc, char *argv[])
 
     // Apply persisted connection settings before start() - see AppSettings.
     network->setRelayServer(appSettings->relayHost(), quint16(appSettings->relayPort()));
-    network->setConnectionMode(
-        static_cast<koutnet::NetworkManager::ConnectionMode>(appSettings->connectionMode()));
+    network->setConnectionMode(static_cast<koutnet::NetworkManager::ConnectionMode>(appSettings->connectionMode()));
     auto *voice = new koutnet::VoiceCallManager(network, crypto, &app);
     auto *fileTransfer = new koutnet::FileTransferHandler(&app);
     // One digest over the whole profile, images included. Peers compare
     // it to decide whether anything changed; the files themselves are
     // not in presence, only this.
     const auto publishProfile = [network, appSettings]() {
-        const QString material = appSettings->displayName() + QChar(0x1f)
-            + appSettings->bio() + QChar(0x1f)
-            + appSettings->avatarPath() + QChar(0x1f)
-            + appSettings->bannerPath() + QChar(0x1f)
-            + appSettings->profileBackgroundPath() + QChar(0x1f)
-            + appSettings->nameBadgePath();
-        const QString revision = QString::fromLatin1(
-            QCryptographicHash::hash(material.toUtf8(),
-                                     QCryptographicHash::Sha256).toHex().left(12));
-        network->setProfile(appSettings->username(), appSettings->displayName(),
-                            appSettings->bio(), revision);
+        const QString material = appSettings->displayName() + QChar(0x1f) + appSettings->bio() + QChar(0x1f) + appSettings->avatarPath() + QChar(0x1f)
+            + appSettings->bannerPath() + QChar(0x1f) + appSettings->profileBackgroundPath() + QChar(0x1f) + appSettings->nameBadgePath();
+        const QString revision = QString::fromLatin1(QCryptographicHash::hash(material.toUtf8(), QCryptographicHash::Sha256).toHex().left(12));
+        network->setProfile(appSettings->username(), appSettings->displayName(), appSettings->bio(), revision);
     };
     publishProfile();
     network->setGroupPassphrase(appSettings->groupPassphrase());
-    QObject::connect(appSettings, &koutnet::AppSettings::groupPassphraseChanged, network,
-                     [network, appSettings]() {
-                         network->setGroupPassphrase(appSettings->groupPassphrase());
-                     });
-    for (auto signal : { &koutnet::AppSettings::usernameChanged,
-                         &koutnet::AppSettings::displayNameChanged,
-                         &koutnet::AppSettings::bioChanged,
-                         &koutnet::AppSettings::avatarPathChanged,
-                         &koutnet::AppSettings::bannerPathChanged,
-                         &koutnet::AppSettings::profileBackgroundPathChanged,
-                         &koutnet::AppSettings::nameBadgePathChanged }) {
+    QObject::connect(appSettings, &koutnet::AppSettings::groupPassphraseChanged, network, [network, appSettings]() {
+        network->setGroupPassphrase(appSettings->groupPassphrase());
+    });
+    for (auto signal : {&koutnet::AppSettings::usernameChanged,
+                        &koutnet::AppSettings::displayNameChanged,
+                        &koutnet::AppSettings::bioChanged,
+                        &koutnet::AppSettings::avatarPathChanged,
+                        &koutnet::AppSettings::bannerPathChanged,
+                        &koutnet::AppSettings::profileBackgroundPathChanged,
+                        &koutnet::AppSettings::nameBadgePathChanged}) {
         QObject::connect(appSettings, signal, network, publishProfile);
     }
 
@@ -148,21 +135,24 @@ int main(int argc, char *argv[])
     voice->setAudioVolume(appSettings->audioVolume() / 100.0);
     voice->setMute(appSettings->micMuted());
     voice->setVad(appSettings->vadEnabled());
-    QObject::connect(appSettings, &koutnet::AppSettings::audioInputIdChanged, voice,
-                     [voice, appSettings]() { voice->setAudioInputDevice(appSettings->audioInputId()); });
-    QObject::connect(appSettings, &koutnet::AppSettings::audioOutputIdChanged, voice,
-                     [voice, appSettings]() { voice->setAudioOutputDevice(appSettings->audioOutputId()); });
-    QObject::connect(appSettings, &koutnet::AppSettings::audioVolumeChanged, voice,
-                     [voice, appSettings]() { voice->setAudioVolume(appSettings->audioVolume() / 100.0); });
-    QObject::connect(appSettings, &koutnet::AppSettings::micMutedChanged, voice,
-                     [voice, appSettings]() { voice->setMute(appSettings->micMuted()); });
-    QObject::connect(appSettings, &koutnet::AppSettings::vadEnabledChanged, voice,
-                     [voice, appSettings]() { voice->setVad(appSettings->vadEnabled()); });
+    QObject::connect(appSettings, &koutnet::AppSettings::audioInputIdChanged, voice, [voice, appSettings]() {
+        voice->setAudioInputDevice(appSettings->audioInputId());
+    });
+    QObject::connect(appSettings, &koutnet::AppSettings::audioOutputIdChanged, voice, [voice, appSettings]() {
+        voice->setAudioOutputDevice(appSettings->audioOutputId());
+    });
+    QObject::connect(appSettings, &koutnet::AppSettings::audioVolumeChanged, voice, [voice, appSettings]() {
+        voice->setAudioVolume(appSettings->audioVolume() / 100.0);
+    });
+    QObject::connect(appSettings, &koutnet::AppSettings::micMutedChanged, voice, [voice, appSettings]() {
+        voice->setMute(appSettings->micMuted());
+    });
+    QObject::connect(appSettings, &koutnet::AppSettings::vadEnabledChanged, voice, [voice, appSettings]() {
+        voice->setVad(appSettings->vadEnabled());
+    });
 
-    QObject::connect(network, &koutnet::NetworkManager::fileMeta,
-                     fileTransfer, &koutnet::FileTransferHandler::onMeta);
-    QObject::connect(network, &koutnet::NetworkManager::fileChunk,
-                     fileTransfer, &koutnet::FileTransferHandler::onChunkMessage);
+    QObject::connect(network, &koutnet::NetworkManager::fileMeta, fileTransfer, &koutnet::FileTransferHandler::onMeta);
+    QObject::connect(network, &koutnet::NetworkManager::fileChunk, fileTransfer, &koutnet::FileTransferHandler::onChunkMessage);
 
     if (!network->start())
         qCWarning(KOUTNET_LOG_NETWORK, "failed to start network layer");
@@ -177,8 +167,12 @@ int main(int argc, char *argv[])
     // default qrc:/qt/qml, which is the only root the engine adds by itself.
     engine.addImportPath(QStringLiteral(":/"));
     QObject::connect(
-        &engine, &QQmlApplicationEngine::objectCreationFailed,
-        &app, []() { QCoreApplication::exit(-1); },
+        &engine,
+        &QQmlApplicationEngine::objectCreationFailed,
+        &app,
+        []() {
+            QCoreApplication::exit(-1);
+        },
         Qt::QueuedConnection);
 
     engine.rootContext()->setContextProperty(QStringLiteral("cryptoManager"), crypto);
@@ -190,8 +184,7 @@ int main(int argc, char *argv[])
     // KAboutData is a gadget, so QML reads its properties straight out of the
     // QVariant. That keeps the version and the licence in one place instead of
     // hardcoded a second time in the About dialog.
-    engine.rootContext()->setContextProperty(QStringLiteral("aboutData"),
-                                             QVariant::fromValue(aboutData));
+    engine.rootContext()->setContextProperty(QStringLiteral("aboutData"), QVariant::fromValue(aboutData));
 
     engine.loadFromModule("koutnet.app", "Main");
 

@@ -4,7 +4,6 @@
 // A passphrase round trip is easy to check by hand; a replay window off by
 // one second, or a tag that is not actually verified, is not.
 
-#include <QTest>
 #include <KLocalizedString>
 #include <QDateTime>
 #include <QFile>
@@ -12,6 +11,7 @@
 #include <QSettings>
 #include <QSignalSpy>
 #include <QStandardPaths>
+#include <QTest>
 
 #include <openssl/evp.h>
 
@@ -20,7 +20,8 @@
 
 using koutnet::CryptoManager;
 
-namespace {
+namespace
+{
 const QString kPass = QStringLiteral("correct horse battery staple");
 const QString kPeer = QStringLiteral("192.0.2.10");
 // The two addresses each side of a session believes the other one lives at.
@@ -63,8 +64,7 @@ public:
         if (EVP_PKEY_get_raw_public_key(m_priv, nullptr, &len) != 1 || len == 0)
             return false;
         m_pub.resize(int(len));
-        return EVP_PKEY_get_raw_public_key(m_priv,
-                   reinterpret_cast<unsigned char *>(m_pub.data()), &len) == 1;
+        return EVP_PKEY_get_raw_public_key(m_priv, reinterpret_cast<unsigned char *>(m_pub.data()), &len) == 1;
     }
 
     QByteArray sign(const QByteArray &data) const
@@ -75,14 +75,15 @@ public:
         QByteArray sig;
         size_t sigLen = 0;
         bool ok = EVP_DigestSignInit(mdctx, nullptr, nullptr, nullptr, m_priv) == 1
-                  && EVP_DigestSign(mdctx, nullptr, &sigLen,
-                         reinterpret_cast<const unsigned char *>(data.constData()),
-                         data.size()) == 1;
+            && EVP_DigestSign(mdctx, nullptr, &sigLen, reinterpret_cast<const unsigned char *>(data.constData()), data.size()) == 1;
         if (ok) {
             sig.resize(int(sigLen));
-            ok = EVP_DigestSign(mdctx, reinterpret_cast<unsigned char *>(sig.data()), &sigLen,
-                     reinterpret_cast<const unsigned char *>(data.constData()),
-                     data.size()) == 1;
+            ok = EVP_DigestSign(mdctx,
+                                reinterpret_cast<unsigned char *>(sig.data()),
+                                &sigLen,
+                                reinterpret_cast<const unsigned char *>(data.constData()),
+                                data.size())
+                == 1;
         }
         EVP_MD_CTX_free(mdctx);
         return ok ? sig.left(int(sigLen)) : QByteArray();
@@ -98,7 +99,10 @@ public:
         return o;
     }
 
-    QByteArray publicKey() const { return m_pub; }
+    QByteArray publicKey() const
+    {
+        return m_pub;
+    }
 
 private:
     EVP_PKEY *m_priv = nullptr;
@@ -114,9 +118,10 @@ private Q_SLOTS:
     void keysLoad()
     {
         CryptoManager crypto;
-        QVERIFY2(crypto.isValid(), "no keypair, every other test would pass "
-                                   "trivially because the code falls through "
-                                   "to plaintext");
+        QVERIFY2(crypto.isValid(),
+                 "no keypair, every other test would pass "
+                 "trivially because the code falls through "
+                 "to plaintext");
         QVERIFY(!crypto.fingerprint().isEmpty());
     }
 
@@ -127,8 +132,7 @@ private Q_SLOTS:
     // that is the form the deletion has to cope with.
     void plaintextKeysLeaveTheConfigFile()
     {
-        const QStringList keys = { QStringLiteral("security/identity_priv_b64"),
-                                   QStringLiteral("security/dh_priv_b64") };
+        const QStringList keys = {QStringLiteral("security/identity_priv_b64"), QStringLiteral("security/dh_priv_b64")};
         QString path;
         {
             QSettings settings;
@@ -140,8 +144,7 @@ private Q_SLOTS:
         }
 
         QString detail;
-        QVERIFY2(koutnet::SecretStore::purgePlaintextConfigKeys(keys, &detail),
-                 qUtf8Printable(detail));
+        QVERIFY2(koutnet::SecretStore::purgePlaintextConfigKeys(keys, &detail), qUtf8Printable(detail));
 
         QFile file(path);
         QVERIFY(file.open(QIODevice::ReadOnly));
@@ -203,8 +206,7 @@ private Q_SLOTS:
         const QString marker = QStringLiteral("KNC1:");
         QVERIFY(sealed.startsWith(marker));
 
-        const QByteArray body = QByteArray::fromBase64(
-            sealed.mid(marker.length()).toLatin1());
+        const QByteArray body = QByteArray::fromBase64(sealed.mid(marker.length()).toLatin1());
         QVERIFY(body.size() > 64);
 
         // Salt, nonce and tag all live in there, so hit each region once.
@@ -215,8 +217,7 @@ private Q_SLOTS:
             QVERIFY(broken != body);
 
             const QString rebuilt = marker + QString::fromLatin1(broken.toBase64());
-            QVERIFY2(crypto.decrypt(rebuilt, kPass) != plain,
-                     qPrintable(QStringLiteral("a flipped bit at byte %1 was accepted").arg(at)));
+            QVERIFY2(crypto.decrypt(rebuilt, kPass) != plain, qPrintable(QStringLiteral("a flipped bit at byte %1 was accepted").arg(at)));
         }
     }
 
@@ -258,12 +259,9 @@ private Q_SLOTS:
         const double now = QDateTime::currentMSecsSinceEpoch() / 1000.0;
         const double window = CryptoManager::kReplayWindowSec;
 
-        QVERIFY2(crypto.checkReplay(kPeer, QStringLiteral("n1"), now - window + 2.0),
-                 "a packet inside the window was refused");
-        QVERIFY2(!crypto.checkReplay(kPeer, QStringLiteral("n2"), now - window - 2.0),
-                 "a packet older than the window was accepted");
-        QVERIFY2(!crypto.checkReplay(kPeer, QStringLiteral("n3"), now + window + 2.0),
-                 "a packet from the future was accepted");
+        QVERIFY2(crypto.checkReplay(kPeer, QStringLiteral("n1"), now - window + 2.0), "a packet inside the window was refused");
+        QVERIFY2(!crypto.checkReplay(kPeer, QStringLiteral("n2"), now - window - 2.0), "a packet older than the window was accepted");
+        QVERIFY2(!crypto.checkReplay(kPeer, QStringLiteral("n3"), now + window + 2.0), "a packet from the future was accepted");
     }
 
     // The replay cache is keyed on the source address and grew without limit in
@@ -402,13 +400,10 @@ private Q_SLOTS:
                  "the peer could not verify a signature made with the session key "
                  "both sides derived");
 
-        QVERIFY2(!b.verifyPacket(kIpA, payload + QByteArrayLiteral(" "), sig),
-                 "an edited payload verified against the original signature");
+        QVERIFY2(!b.verifyPacket(kIpA, payload + QByteArrayLiteral(" "), sig), "an edited payload verified against the original signature");
         QVERIFY2(!b.verifyPacket(kIpA, QByteArrayLiteral("{}"), sig), "a swapped payload verified");
-        QVERIFY2(!b.verifyPacket(kIpA, payload, QStringLiteral("AAAA")),
-                 "a truncated signature verified");
-        QVERIFY2(!b.verifyPacket(QStringLiteral("198.51.100.9"), payload, sig),
-                 "a signature verified against a peer we hold no session with");
+        QVERIFY2(!b.verifyPacket(kIpA, payload, QStringLiteral("AAAA")), "a truncated signature verified");
+        QVERIFY2(!b.verifyPacket(QStringLiteral("198.51.100.9"), payload, sig), "a signature verified against a peer we hold no session with");
 
         // A third host with a session of its own holds a different key, so its
         // signature over the same bytes must not pass as the first peer's.
@@ -417,8 +412,7 @@ private Q_SLOTS:
         const QString foreignSig = c.signPacket(kIpA, payload);
         QVERIFY(!foreignSig.isEmpty());
         QVERIFY2(foreignSig != sig, "two different peers derived the same session key with A");
-        QVERIFY2(!b.verifyPacket(kIpA, payload, foreignSig),
-                 "a third party's signature was accepted as the peer's");
+        QVERIFY2(!b.verifyPacket(kIpA, payload, foreignSig), "a third party's signature was accepted as the peer's");
     }
 
     // Trust on first use. Presence is unauthenticated, so without the pin any
@@ -435,8 +429,7 @@ private Q_SLOTS:
         QVERIFY(spy.isValid());
 
         CryptoManager impostor(QStringLiteral("peer-evil"));
-        QVERIFY2(!a.processHandshake(kIpB, impostor.handshakePayload()),
-                 "a second identity claiming the same address was accepted");
+        QVERIFY2(!a.processHandshake(kIpB, impostor.handshakePayload()), "a second identity claiming the same address was accepted");
 
         QCOMPARE(spy.count(), 1);
         const QList<QVariant> args = spy.at(0);
@@ -468,12 +461,10 @@ private Q_SLOTS:
         CryptoManager donor(QStringLiteral("peer-donor"));
         const QJsonObject good = donor.handshakePayload();
 
-        for (const QString &field : { QStringLiteral("dh_pub"), QStringLiteral("id_pub"),
-                                      QStringLiteral("dh_pub_sig") }) {
+        for (const QString &field : {QStringLiteral("dh_pub"), QStringLiteral("id_pub"), QStringLiteral("dh_pub_sig")}) {
             QJsonObject missing = good;
             missing.remove(field);
-            QTest::newRow(qPrintable(QStringLiteral("missing %1").arg(field)))
-                << missing;
+            QTest::newRow(qPrintable(QStringLiteral("missing %1").arg(field))) << missing;
 
             QJsonObject blank = good;
             blank[field] = QString();
@@ -518,12 +509,9 @@ private Q_SLOTS:
         // The four low-order points, little-endian as X25519 encodes them. Each
         // one drives the shared secret to zero regardless of our private key.
         QTest::newRow("u = 0") << QByteArray(32, '\0');
-        QTest::newRow("u = 1")
-            << QByteArray::fromHex("0100000000000000000000000000000000000000000000000000000000000000");
-        QTest::newRow("order 8")
-            << QByteArray::fromHex("e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800");
-        QTest::newRow("u = p - 1")
-            << QByteArray::fromHex("ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f");
+        QTest::newRow("u = 1") << QByteArray::fromHex("0100000000000000000000000000000000000000000000000000000000000000");
+        QTest::newRow("order 8") << QByteArray::fromHex("e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800");
+        QTest::newRow("u = p - 1") << QByteArray::fromHex("ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f");
         // Not 32 bytes at all, so the key never gets built in the first place.
         QTest::newRow("too short") << QByteArray(16, '\0');
         QTest::newRow("too long") << QByteArray(64, '\0');
@@ -541,8 +529,7 @@ private Q_SLOTS:
         // refusal below is the derive check and not the signature check.
         QVERIFY(!payload.value(QStringLiteral("dh_pub_sig")).toString().isEmpty());
 
-        QVERIFY2(!crypto.processHandshake(kIpB, payload),
-                 "a degenerate DH public key produced a session");
+        QVERIFY2(!crypto.processHandshake(kIpB, payload), "a degenerate DH public key produced a session");
         QVERIFY(!crypto.hasSession(kIpB));
     }
 };

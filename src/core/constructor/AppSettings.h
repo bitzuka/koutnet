@@ -13,9 +13,11 @@
 
 class QTimer;
 
-namespace koutnet {
+namespace koutnet
+{
 
-class AppSettings : public KOutNetSettings {
+class AppSettings : public KOutNetSettings
+{
     Q_OBJECT
     // Deliberately not an entry in the kcfg: a passphrase in a config file is
     // a passphrase every process of this user can read. SecretStore owns it,
@@ -30,7 +32,10 @@ public:
     // Empty is not "send in the clear": NetworkManager::sendGroupMessage()
     // refuses to send at all, because a user who never set one has no reason
     // to expect their group messages on the wire in plain text.
-    QString groupPassphrase() const { return m_groupPassphrase; }
+    QString groupPassphrase() const
+    {
+        return m_groupPassphrase;
+    }
     void setGroupPassphrase(const QString &passphrase);
 
 Q_SIGNALS:

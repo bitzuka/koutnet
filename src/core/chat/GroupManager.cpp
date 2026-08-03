@@ -2,19 +2,20 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "GroupManager.h"
 
-#include <QStandardPaths>
-#include <QFile>
-#include <QSaveFile>
+#include "koutnet_chat_debug.h"
+#include <QDateTime>
+#include <QDebug>
 #include <QDir>
+#include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QJsonArray>
-#include <QDateTime>
 #include <QRandomGenerator>
-#include <QDebug>
-#include "koutnet_chat_debug.h"
+#include <QSaveFile>
+#include <QStandardPaths>
 
-GroupManager::GroupManager(QObject *parent) : QObject(parent)
+GroupManager::GroupManager(QObject *parent)
+    : QObject(parent)
 {
     load();
 }
@@ -29,10 +30,10 @@ QString GroupManager::filePath() const
 QString GroupManager::createGroup(const QString &name, const QString &creatorIp)
 {
     const QString gid = QStringLiteral("g_%1_%2")
-        .arg(QDateTime::currentSecsSinceEpoch())
-        // two groups created in the same second must not collide, so this is
-        // wider than the old 4 digits and comes from the system generator
-        .arg(QRandomGenerator::system()->generate(), 8, 16, QLatin1Char('0'));
+                            .arg(QDateTime::currentSecsSinceEpoch())
+                            // two groups created in the same second must not collide, so this is
+                            // wider than the old 4 digits and comes from the system generator
+                            .arg(QRandomGenerator::system()->generate(), 8, 16, QLatin1Char('0'));
 
     QVariantMap g;
     g[QStringLiteral("name")] = name;
@@ -124,8 +125,7 @@ void GroupManager::load()
         // a truncated or hand-edited file is still the user's group list, so
         // block saving rather than replacing it with whatever we managed to read
         m_loadFailed = true;
-        qCWarning(KOUTNET_LOG_CHAT) << "refusing to overwrite unreadable" << f.fileName()
-                                    << err.errorString();
+        qCWarning(KOUTNET_LOG_CHAT) << "refusing to overwrite unreadable" << f.fileName() << err.errorString();
         return;
     }
     const QJsonObject root = doc.object();

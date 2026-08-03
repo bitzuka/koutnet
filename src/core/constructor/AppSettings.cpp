@@ -11,9 +11,11 @@
 #include <QSettings>
 #include <QTimer>
 
-namespace koutnet {
+namespace koutnet
+{
 
-namespace {
+namespace
+{
 
 // Wallet entry for the shared group-chat passphrase, formerly the QSettings
 // key "app/group_passphrase".
@@ -25,7 +27,7 @@ QString passphraseWalletKey()
 // Where older builds kept the same passphrase, in clear text.
 QStringList legacyConfigKeys()
 {
-    return { QStringLiteral("app/group_passphrase") };
+    return {QStringLiteral("app/group_passphrase")};
 }
 
 // The single group the kcfg writes to, needed here for the two keys the
@@ -45,14 +47,17 @@ constexpr int kSaveDelayMs = 1000;
 
 } // namespace
 
-AppSettings::AppSettings(QObject *parent) : KOutNetSettings()
+AppSettings::AppSettings(QObject *parent)
+    : KOutNetSettings()
 {
     setParent(parent);
 
     m_saveTimer = new QTimer(this);
     m_saveTimer->setSingleShot(true);
     m_saveTimer->setInterval(kSaveDelayMs);
-    connect(m_saveTimer, &QTimer::timeout, this, [this]() { save(); });
+    connect(m_saveTimer, &QTimer::timeout, this, [this]() {
+        save();
+    });
 
     // First, because it is the only step that still edits the file through
     // QSettings, and the last writer of any given run has to be KConfig.
@@ -201,12 +206,10 @@ void AppSettings::setGroupPassphrase(const QString &passphrase)
     // A passphrase that cannot go into the wallet still applies to this
     // session, but it is not written anywhere - there is no acceptable
     // second-best place for it.
-    const bool stored = passphrase.isEmpty() ? SecretStore::remove(passphraseWalletKey())
-                                             : SecretStore::write(passphraseWalletKey(), passphrase);
+    const bool stored = passphrase.isEmpty() ? SecretStore::remove(passphraseWalletKey()) : SecretStore::write(passphraseWalletKey(), passphrase);
     if (!stored) {
         Q_EMIT secretStoreUnavailable(SecretStore::lastError());
-        qCCritical(KOUTNET_LOG_CRYPTO, "the group passphrase was not saved (%s)",
-                   qUtf8Printable(SecretStore::lastError()));
+        qCCritical(KOUTNET_LOG_CRYPTO, "the group passphrase was not saved (%s)", qUtf8Printable(SecretStore::lastError()));
     }
     Q_EMIT groupPassphraseChanged();
 }

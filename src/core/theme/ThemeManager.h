@@ -5,8 +5,8 @@
 #include <QObject>
 #include <QQmlEngine>
 #include <QString>
-#include <QVariantMap>
 #include <QStringList>
+#include <QVariantMap>
 
 // Named colour palettes. Exposes the active one to QML as a QVariantMap and
 // persists the choice.
@@ -31,7 +31,10 @@ public:
         return new ThemeManager;
     }
 
-    QString currentTheme() const { return m_current; }
+    QString currentTheme() const
+    {
+        return m_current;
+    }
     void setTheme(const QString &name);
 
     QVariantMap colors() const;

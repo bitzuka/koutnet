@@ -7,23 +7,25 @@
 
 #include <KLocalizedString>
 
-#include <QSettings>
-#include <QDateTime>
 #include <QCryptographicHash>
+#include <QDateTime>
+#include <QSettings>
 #include <QTimer>
 
 #include <algorithm> // nth_element, for the replay cache eviction
 #include <cmath>
 
+#include <openssl/crypto.h>
 #include <openssl/evp.h>
-#include <openssl/rand.h>
 #include <openssl/hmac.h>
 #include <openssl/kdf.h>
-#include <openssl/crypto.h>
+#include <openssl/rand.h>
 
-namespace koutnet {
+namespace koutnet
+{
 
-namespace {
+namespace
+{
 
 double nowEpoch()
 {
@@ -54,12 +56,18 @@ void cleanse(QString &str)
 
 // Same thing at every exit path of a function, which is the part that gets
 // forgotten - loadStoredKeys() alone returns from five places.
-template <typename T>
+template<typename T>
 class Wiper
 {
 public:
-    explicit Wiper(T &buf) : m_buf(buf) {}
-    ~Wiper() { cleanse(m_buf); }
+    explicit Wiper(T &buf)
+        : m_buf(buf)
+    {
+    }
+    ~Wiper()
+    {
+        cleanse(m_buf);
+    }
     Wiper(const Wiper &) = delete;
     Wiper &operator=(const Wiper &) = delete;
 
@@ -72,25 +80,21 @@ private:
 // the names it has always used stay exactly as they were.
 QString identityWalletKey(const QString &scope)
 {
-    return scope.isEmpty() ? QStringLiteral("identity_priv_b64")
-                           : QStringLiteral("identity_priv_b64_") + scope;
+    return scope.isEmpty() ? QStringLiteral("identity_priv_b64") : QStringLiteral("identity_priv_b64_") + scope;
 }
 
 QString dhWalletKey(const QString &scope)
 {
-    return scope.isEmpty() ? QStringLiteral("dh_priv_b64")
-                           : QStringLiteral("dh_priv_b64_") + scope;
+    return scope.isEmpty() ? QStringLiteral("dh_priv_b64") : QStringLiteral("dh_priv_b64_") + scope;
 }
 
 // Where builds before the wallet kept the same two keys, in clear text.
 QStringList legacyConfigKeys(const QString &scope)
 {
     if (scope.isEmpty()) {
-        return { QStringLiteral("security/identity_priv_b64"),
-                 QStringLiteral("security/dh_priv_b64") };
+        return {QStringLiteral("security/identity_priv_b64"), QStringLiteral("security/dh_priv_b64")};
     }
-    return { QStringLiteral("security/%1_identity_priv_b64").arg(scope),
-             QStringLiteral("security/%1_dh_priv_b64").arg(scope) };
+    return {QStringLiteral("security/%1_identity_priv_b64").arg(scope), QStringLiteral("security/%1_dh_priv_b64").arg(scope)};
 }
 
 // Where a config-file key that is not the one in use ends up, so that deleting
@@ -105,7 +109,8 @@ QString bytesToFingerprint(const QByteArray &raw)
     const QByteArray h = QCryptographicHash::hash(raw, QCryptographicHash::Sha256).toHex();
     QString out;
     for (int i = 0; i < 24; i += 4) {
-        if (i) out += QLatin1Char(' ');
+        if (i)
+            out += QLatin1Char(' ');
         out += QString::fromLatin1(h.mid(i, 4)).toUpper();
     }
     return out;
@@ -113,12 +118,14 @@ QString bytesToFingerprint(const QByteArray &raw)
 
 } // namespace
 
-CryptoManager::CryptoManager(QObject *parent) : CryptoManager(QString(), parent)
+CryptoManager::CryptoManager(QObject *parent)
+    : CryptoManager(QString(), parent)
 {
 }
 
 CryptoManager::CryptoManager(const QString &storageScope, QObject *parent)
-    : QObject(parent), m_storageScope(storageScope)
+    : QObject(parent)
+    , m_storageScope(storageScope)
 {
     m_valid = initKeypairs();
     if (!m_valid) {
@@ -131,8 +138,10 @@ CryptoManager::CryptoManager(const QString &storageScope, QObject *parent)
 
 CryptoManager::~CryptoManager()
 {
-    if (m_identityPriv) EVP_PKEY_free(m_identityPriv);
-    if (m_dhPriv) EVP_PKEY_free(m_dhPriv);
+    if (m_identityPriv)
+        EVP_PKEY_free(m_identityPriv);
+    if (m_dhPriv)
+        EVP_PKEY_free(m_dhPriv);
 
     // The session keys and the cached passphrase keys live as long as this
     // object does, so this is the exit path for both of them.
@@ -184,17 +193,18 @@ bool CryptoManager::initKeypairs()
     bool ok = EVP_DigestSignInit(mdctx, nullptr, nullptr, nullptr, m_identityPriv) == 1;
 
     size_t sigLen = 0;
-    if (ok && EVP_DigestSign(mdctx, nullptr, &sigLen,
-                             reinterpret_cast<const unsigned char *>(m_dhPubBytes.constData()),
-                             m_dhPubBytes.size()) != 1) {
+    if (ok && EVP_DigestSign(mdctx, nullptr, &sigLen, reinterpret_cast<const unsigned char *>(m_dhPubBytes.constData()), m_dhPubBytes.size()) != 1) {
         ok = false;
     }
 
     if (ok) {
         m_dhPubSig.resize(int(sigLen));
-        if (EVP_DigestSign(mdctx, reinterpret_cast<unsigned char *>(m_dhPubSig.data()), &sigLen,
+        if (EVP_DigestSign(mdctx,
+                           reinterpret_cast<unsigned char *>(m_dhPubSig.data()),
+                           &sigLen,
                            reinterpret_cast<const unsigned char *>(m_dhPubBytes.constData()),
-                           m_dhPubBytes.size()) != 1) {
+                           m_dhPubBytes.size())
+            != 1) {
             ok = false;
         } else {
             m_dhPubSig.resize(int(sigLen));
@@ -232,8 +242,7 @@ bool CryptoManager::migrateLegacyKeys(QString *outIdentityB64, QString *outDhB64
 
     // Only drop the plaintext copy once the wallet has both halves, otherwise a
     // wallet that is merely unreachable today would cost the user their identity.
-    if (!SecretStore::write(identityWalletKey(m_storageScope), legacyId)
-        || !SecretStore::write(dhWalletKey(m_storageScope), legacyDh)) {
+    if (!SecretStore::write(identityWalletKey(m_storageScope), legacyId) || !SecretStore::write(dhWalletKey(m_storageScope), legacyDh)) {
         qCCritical(KOUTNET_LOG_CRYPTO,
                    "your private keys are still stored in plain text in the config file "
                    "because they could not be moved into KWallet (%s). Start kwalletd and "
@@ -301,10 +310,8 @@ bool CryptoManager::stashSupersededPlaintextKeys()
     if (legacyId == walletId && legacyDh == walletDh)
         return true; // the wallet already holds exactly this pair
 
-    if ((!legacyId.isEmpty()
-         && !SecretStore::write(supersededWalletKey(identityWalletKey(m_storageScope)), legacyId))
-        || (!legacyDh.isEmpty()
-            && !SecretStore::write(supersededWalletKey(dhWalletKey(m_storageScope)), legacyDh))) {
+    if ((!legacyId.isEmpty() && !SecretStore::write(supersededWalletKey(identityWalletKey(m_storageScope)), legacyId))
+        || (!legacyDh.isEmpty() && !SecretStore::write(supersededWalletKey(dhWalletKey(m_storageScope)), legacyDh))) {
         qCCritical(KOUTNET_LOG_CRYPTO,
                    "the config file holds an identity that KWallet does not, and it could "
                    "not be copied into the wallet (%s) - leaving the plaintext alone rather "
@@ -340,9 +347,8 @@ bool CryptoManager::loadStoredKeys()
     // per exit.
     Wiper wipeIdB64(idB64);
     Wiper wipeDhB64(dhB64);
-    if (!SecretStore::read(identityWalletKey(m_storageScope), &idB64)
-        || !SecretStore::read(dhWalletKey(m_storageScope), &dhB64)
-        || idB64.isEmpty() || dhB64.isEmpty()) {
+    if (!SecretStore::read(identityWalletKey(m_storageScope), &idB64) || !SecretStore::read(dhWalletKey(m_storageScope), &dhB64) || idB64.isEmpty()
+        || dhB64.isEmpty()) {
         // nothing in the wallet: either a first run, or an older build that
         // kept the keys in QSettings
         if (!migrateLegacyKeys(&idB64, &dhB64))
@@ -365,14 +371,18 @@ bool CryptoManager::loadStoredKeys()
     if (idRaw.size() != 32 || dhRaw.size() != 32)
         return false;
 
-    m_identityPriv = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr,
-        reinterpret_cast<const unsigned char *>(idRaw.constData()), idRaw.size());
-    m_dhPriv = EVP_PKEY_new_raw_private_key(EVP_PKEY_X25519, nullptr,
-        reinterpret_cast<const unsigned char *>(dhRaw.constData()), dhRaw.size());
+    m_identityPriv = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr, reinterpret_cast<const unsigned char *>(idRaw.constData()), idRaw.size());
+    m_dhPriv = EVP_PKEY_new_raw_private_key(EVP_PKEY_X25519, nullptr, reinterpret_cast<const unsigned char *>(dhRaw.constData()), dhRaw.size());
 
     if (!m_identityPriv || !m_dhPriv) {
-        if (m_identityPriv) { EVP_PKEY_free(m_identityPriv); m_identityPriv = nullptr; }
-        if (m_dhPriv) { EVP_PKEY_free(m_dhPriv); m_dhPriv = nullptr; }
+        if (m_identityPriv) {
+            EVP_PKEY_free(m_identityPriv);
+            m_identityPriv = nullptr;
+        }
+        if (m_dhPriv) {
+            EVP_PKEY_free(m_dhPriv);
+            m_dhPriv = nullptr;
+        }
         return false;
     }
     return true;
@@ -434,8 +444,7 @@ bool CryptoManager::generateAndStoreKeys()
     // A wallet we cannot reach is not a reason to refuse to run, but it is a
     // reason to say so: the keypair above works for this session and then goes
     // away, so peers will see a new fingerprint next time.
-    if (!SecretStore::write(identityWalletKey(m_storageScope), idB64)
-        || !SecretStore::write(dhWalletKey(m_storageScope), dhB64)) {
+    if (!SecretStore::write(identityWalletKey(m_storageScope), idB64) || !SecretStore::write(dhWalletKey(m_storageScope), dhB64)) {
         qCCritical(KOUTNET_LOG_CRYPTO,
                    "could not store the identity keys in KWallet (%s). Running with a "
                    "throwaway identity for this session - it is NOT written to disk in "
@@ -469,8 +478,8 @@ bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &d
     if (peerDhBytes.isEmpty() || peerIdBytes.isEmpty() || peerDhSig.isEmpty())
         return false;
 
-    EVP_PKEY *peerIdPub = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr,
-        reinterpret_cast<const unsigned char *>(peerIdBytes.constData()), peerIdBytes.size());
+    EVP_PKEY *peerIdPub =
+        EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr, reinterpret_cast<const unsigned char *>(peerIdBytes.constData()), peerIdBytes.size());
     if (!peerIdPub)
         return false;
 
@@ -482,12 +491,13 @@ bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &d
         EVP_PKEY_free(peerIdPub);
         return false;
     }
-    const int verifyRc =
-        EVP_DigestVerifyInit(mdctx, nullptr, nullptr, nullptr, peerIdPub) != 1
+    const int verifyRc = EVP_DigestVerifyInit(mdctx, nullptr, nullptr, nullptr, peerIdPub) != 1
         ? 0
         : EVP_DigestVerify(mdctx,
-              reinterpret_cast<const unsigned char *>(peerDhSig.constData()), peerDhSig.size(),
-              reinterpret_cast<const unsigned char *>(peerDhBytes.constData()), peerDhBytes.size());
+                           reinterpret_cast<const unsigned char *>(peerDhSig.constData()),
+                           peerDhSig.size(),
+                           reinterpret_cast<const unsigned char *>(peerDhBytes.constData()),
+                           peerDhBytes.size());
     EVP_MD_CTX_free(mdctx);
     if (verifyRc != 1) {
         EVP_PKEY_free(peerIdPub);
@@ -506,15 +516,14 @@ bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &d
         // key instead of on every packet
         if (m_warnedIdPub.value(peerIp) != peerIdBytes) {
             m_warnedIdPub[peerIp] = peerIdBytes;
-            Q_EMIT peerIdentityChanged(peerIp, bytesToFingerprint(*pinned),
-                                       bytesToFingerprint(peerIdBytes));
+            Q_EMIT peerIdentityChanged(peerIp, bytesToFingerprint(*pinned), bytesToFingerprint(peerIdBytes));
         }
         EVP_PKEY_free(peerIdPub);
         return false; // the session we already had stays live and usable
     }
 
-    EVP_PKEY *peerDhPub = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, nullptr,
-        reinterpret_cast<const unsigned char *>(peerDhBytes.constData()), peerDhBytes.size());
+    EVP_PKEY *peerDhPub =
+        EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, nullptr, reinterpret_cast<const unsigned char *>(peerDhBytes.constData()), peerDhBytes.size());
     if (!peerDhPub) {
         EVP_PKEY_free(peerIdPub);
         return false;
@@ -535,10 +544,8 @@ bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &d
     // session key with this peer, for as long as neither side regenerates its
     // keypair, comes out of these bytes.
     Wiper wipeSecret(sharedSecret);
-    bool derived = EVP_PKEY_derive_init(dctx) == 1
-                   && EVP_PKEY_derive_set_peer(dctx, peerDhPub) == 1
-                   && EVP_PKEY_derive(dctx, nullptr, &secretLen) == 1
-                   && secretLen > 0;
+    bool derived =
+        EVP_PKEY_derive_init(dctx) == 1 && EVP_PKEY_derive_set_peer(dctx, peerDhPub) == 1 && EVP_PKEY_derive(dctx, nullptr, &secretLen) == 1 && secretLen > 0;
     if (derived) {
         sharedSecret.resize(int(secretLen));
         derived = EVP_PKEY_derive(dctx, reinterpret_cast<unsigned char *>(sharedSecret.data()), &secretLen) == 1;
@@ -591,8 +598,7 @@ QString CryptoManager::peerFingerprint(const QString &peerIp) const
     return bytesToFingerprint(m_peerIdPub.value(peerIp));
 }
 
-SecurityLevel CryptoManager::securityLevel(const QString &peerIp, bool encryptionEnabled,
-                                           bool hasPassphrase) const
+SecurityLevel CryptoManager::securityLevel(const QString &peerIp, bool encryptionEnabled, bool hasPassphrase) const
 {
     if (!peerIp.isEmpty() && m_sessionKeys.contains(peerIp))
         return SecurityLevel::E2E;
@@ -615,12 +621,11 @@ QByteArray CryptoManager::hkdfSha256(const QByteArray &secret, const QByteArray 
     size_t len = size_t(outLen);
     // an unchecked failure here returns all zeroes, which downstream code
     // cannot tell apart from a real key
-    const bool ok = EVP_PKEY_derive_init(ctx) == 1
-                    && EVP_PKEY_CTX_set_hkdf_md(ctx, EVP_sha256()) == 1
-                    && EVP_PKEY_CTX_set1_hkdf_salt(ctx, reinterpret_cast<const unsigned char *>(zeroSalt.constData()), zeroSalt.size()) == 1
-                    && EVP_PKEY_CTX_set1_hkdf_key(ctx, reinterpret_cast<const unsigned char *>(secret.constData()), secret.size()) == 1
-                    && EVP_PKEY_CTX_add1_hkdf_info(ctx, reinterpret_cast<const unsigned char *>(info.constData()), info.size()) == 1
-                    && EVP_PKEY_derive(ctx, reinterpret_cast<unsigned char *>(out.data()), &len) == 1;
+    const bool ok = EVP_PKEY_derive_init(ctx) == 1 && EVP_PKEY_CTX_set_hkdf_md(ctx, EVP_sha256()) == 1
+        && EVP_PKEY_CTX_set1_hkdf_salt(ctx, reinterpret_cast<const unsigned char *>(zeroSalt.constData()), zeroSalt.size()) == 1
+        && EVP_PKEY_CTX_set1_hkdf_key(ctx, reinterpret_cast<const unsigned char *>(secret.constData()), secret.size()) == 1
+        && EVP_PKEY_CTX_add1_hkdf_info(ctx, reinterpret_cast<const unsigned char *>(info.constData()), info.size()) == 1
+        && EVP_PKEY_derive(ctx, reinterpret_cast<unsigned char *>(out.data()), &len) == 1;
     EVP_PKEY_CTX_free(ctx);
 
     if (!ok || len != size_t(outLen)) {
@@ -648,14 +653,21 @@ QByteArray CryptoManager::gcmEncrypt(const QByteArray &key, const QByteArray &pl
     int outLen = 0;
     int finalLen = 0;
     const bool ok = EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) == 1
-                    && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, kNonceLen, nullptr) == 1
-                    && EVP_EncryptInit_ex(ctx, nullptr, nullptr,
-                           reinterpret_cast<const unsigned char *>(key.constData()),
-                           reinterpret_cast<const unsigned char *>(nonce.constData())) == 1
-                    && EVP_EncryptUpdate(ctx, reinterpret_cast<unsigned char *>(ciphertext.data()), &outLen,
-                           reinterpret_cast<const unsigned char *>(plaintext.constData()), plaintext.size()) == 1
-                    && EVP_EncryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(ciphertext.data()) + outLen, &finalLen) == 1
-                    && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, kTagLen, tag.data()) == 1;
+        && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, kNonceLen, nullptr) == 1
+        && EVP_EncryptInit_ex(ctx,
+                              nullptr,
+                              nullptr,
+                              reinterpret_cast<const unsigned char *>(key.constData()),
+                              reinterpret_cast<const unsigned char *>(nonce.constData()))
+            == 1
+        && EVP_EncryptUpdate(ctx,
+                             reinterpret_cast<unsigned char *>(ciphertext.data()),
+                             &outLen,
+                             reinterpret_cast<const unsigned char *>(plaintext.constData()),
+                             plaintext.size())
+            == 1
+        && EVP_EncryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(ciphertext.data()) + outLen, &finalLen) == 1
+        && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, kTagLen, tag.data()) == 1;
     EVP_CIPHER_CTX_free(ctx);
 
     if (!ok)
@@ -683,15 +695,21 @@ bool CryptoManager::gcmDecrypt(const QByteArray &key, const QByteArray &data, QB
     // a skipped setup step means the tag is never actually checked, so setup
     // failures have to be as fatal as a tag mismatch
     const bool ok = EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) == 1
-                    && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, kNonceLen, nullptr) == 1
-                    && EVP_DecryptInit_ex(ctx, nullptr, nullptr,
-                           reinterpret_cast<const unsigned char *>(key.constData()),
-                           reinterpret_cast<const unsigned char *>(nonce.constData())) == 1
-                    && EVP_DecryptUpdate(ctx, reinterpret_cast<unsigned char *>(plaintext.data()), &outLen,
-                           reinterpret_cast<const unsigned char *>(ciphertext.constData()), ciphertext.size()) == 1
-                    && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, kTagLen,
-                           const_cast<char *>(tag.constData())) == 1
-                    && EVP_DecryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(plaintext.data()) + outLen, &finalLen) == 1;
+        && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, kNonceLen, nullptr) == 1
+        && EVP_DecryptInit_ex(ctx,
+                              nullptr,
+                              nullptr,
+                              reinterpret_cast<const unsigned char *>(key.constData()),
+                              reinterpret_cast<const unsigned char *>(nonce.constData()))
+            == 1
+        && EVP_DecryptUpdate(ctx,
+                             reinterpret_cast<unsigned char *>(plaintext.data()),
+                             &outLen,
+                             reinterpret_cast<const unsigned char *>(ciphertext.constData()),
+                             ciphertext.size())
+            == 1
+        && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, kTagLen, const_cast<char *>(tag.constData())) == 1
+        && EVP_DecryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(plaintext.data()) + outLen, &finalLen) == 1;
     EVP_CIPHER_CTX_free(ctx);
 
     if (!ok)
@@ -723,9 +741,15 @@ QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray 
 
     QByteArray key(kKeyLen, 0);
     // an all-zero key would be shared by every peer whose derivation failed
-    if (PKCS5_PBKDF2_HMAC(pass.constData(), pass.size(),
-            reinterpret_cast<const unsigned char *>(salt.constData()), salt.size(),
-            kKdfIters, EVP_sha256(), kKeyLen, reinterpret_cast<unsigned char *>(key.data())) != 1) {
+    if (PKCS5_PBKDF2_HMAC(pass.constData(),
+                          pass.size(),
+                          reinterpret_cast<const unsigned char *>(salt.constData()),
+                          salt.size(),
+                          kKdfIters,
+                          EVP_sha256(),
+                          kKeyLen,
+                          reinterpret_cast<unsigned char *>(key.data()))
+        != 1) {
         cleanse(key);
         return {};
     }
@@ -756,18 +780,14 @@ QString CryptoManager::signPacket(const QString &peerIp, const QByteArray &paylo
 
     unsigned char digest[32];
     unsigned int digestLen = 0;
-    HMAC(EVP_sha256(), key->constData(), key->size(),
-        reinterpret_cast<const unsigned char *>(payload.constData()), payload.size(),
-        digest, &digestLen);
+    HMAC(EVP_sha256(), key->constData(), key->size(), reinterpret_cast<const unsigned char *>(payload.constData()), payload.size(), digest, &digestLen);
 
-    const QString out =
-        QString::fromLatin1(QByteArray(reinterpret_cast<char *>(digest), int(digestLen)).toBase64());
+    const QString out = QString::fromLatin1(QByteArray(reinterpret_cast<char *>(digest), int(digestLen)).toBase64());
     OPENSSL_cleanse(digest, sizeof(digest));
     return out;
 }
 
-bool CryptoManager::verifyPacket(const QString &peerIp, const QByteArray &payload,
-                                 const QString &sigB64) const
+bool CryptoManager::verifyPacket(const QString &peerIp, const QByteArray &payload, const QString &sigB64) const
 {
     // no key means nothing was verified, so the answer is no. deciding which
     // pre-session packets may pass anyway is the caller's job, not ours.
@@ -777,13 +797,10 @@ bool CryptoManager::verifyPacket(const QString &peerIp, const QByteArray &payloa
 
     unsigned char expected[32];
     unsigned int expectedLen = 0;
-    HMAC(EVP_sha256(), key->constData(), key->size(),
-        reinterpret_cast<const unsigned char *>(payload.constData()), payload.size(),
-        expected, &expectedLen);
+    HMAC(EVP_sha256(), key->constData(), key->size(), reinterpret_cast<const unsigned char *>(payload.constData()), payload.size(), expected, &expectedLen);
 
     const QByteArray given = QByteArray::fromBase64(sigB64.toLatin1());
-    const bool ok = given.size() == int(expectedLen)
-                    && CRYPTO_memcmp(expected, given.constData(), expectedLen) == 0;
+    const bool ok = given.size() == int(expectedLen) && CRYPTO_memcmp(expected, given.constData(), expectedLen) == 0;
     OPENSSL_cleanse(expected, sizeof(expected));
     return ok;
 }
@@ -800,7 +817,7 @@ bool CryptoManager::checkReplay(const QString &peerIp, const QString &nonceHex, 
         return false;
 
     const quint64 seq = ++m_nonceSeq;
-    bucket[nonceHex] = SeenNonce{ now, seq };
+    bucket[nonceHex] = SeenNonce{now, seq};
     m_nonceBucketTouched[peerIp] = seq;
 
     for (auto it = bucket.begin(); it != bucket.end();) {
@@ -902,16 +919,14 @@ bool CryptoManager::checkRate(const QString &peerIp, int maxPerSec)
 //   type[1] + payload
 //   0x01 = AES-GCM with ECDH session key  (payload = nonce+ciphertext+tag)
 //   0x02 = AES-GCM with PBKDF2 passphrase key (payload = salt[32]+nonce+ciphertext+tag)
-QString CryptoManager::encrypt(const QString &plaintext, const QString &passphrase,
-                               const QString &peerIp) const
+QString CryptoManager::encrypt(const QString &plaintext, const QString &passphrase, const QString &peerIp) const
 {
     const QByteArray data = plaintext.toUtf8();
 
     // an empty return says "could not seal this", never "here it is in the
     // clear", so a broken salt or cipher cannot leak the message
     QByteArray wire;
-    const auto sessionKey = peerIp.isEmpty() ? m_sessionKeys.constEnd()
-                                             : m_sessionKeys.constFind(peerIp);
+    const auto sessionKey = peerIp.isEmpty() ? m_sessionKeys.constEnd() : m_sessionKeys.constFind(peerIp);
     if (sessionKey != m_sessionKeys.constEnd()) {
         const QByteArray sealed = gcmEncrypt(*sessionKey, data);
         if (sealed.isEmpty())
@@ -938,26 +953,22 @@ QString CryptoManager::encrypt(const QString &plaintext, const QString &passphra
     return QStringLiteral("KNC1:") + QString::fromLatin1(wire.toBase64());
 }
 
-QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphrase,
-                               const QString &peerIp) const
+QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphrase, const QString &peerIp) const
 {
     // whether this text was supposed to arrive sealed is decided by the keys
     // we hold, not by anything the sender put in the packet. otherwise
     // stripping the tag is all it takes to downgrade a session to cleartext.
-    const bool expectSealed = (!peerIp.isEmpty() && m_sessionKeys.contains(peerIp))
-                              || !passphrase.isEmpty();
+    const bool expectSealed = (!peerIp.isEmpty() && m_sessionKeys.contains(peerIp)) || !passphrase.isEmpty();
 
     if (!ciphertext.startsWith(QStringLiteral("KNC1:"))) {
         if (expectSealed)
-            return i18nc("@info shown in place of a message body",
-                         "[decrypt error: cleartext on a keyed channel]");
+            return i18nc("@info shown in place of a message body", "[decrypt error: cleartext on a keyed channel]");
         return ciphertext; // no key on this channel anyway - pass through
     }
 
     const QByteArray wire = QByteArray::fromBase64(ciphertext.mid(5).toLatin1());
     if (wire.isEmpty())
-        return i18nc("@info shown in place of a message body",
-                     "[decrypt error: empty packet]");
+        return i18nc("@info shown in place of a message body", "[decrypt error: empty packet]");
 
     const quint8 type = static_cast<quint8>(wire.at(0));
     const QByteArray payload = wire.mid(1);
@@ -966,8 +977,7 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
     bool ok = false;
 
     if (type == 0x01) {
-        const auto sessionKey = peerIp.isEmpty() ? m_sessionKeys.constEnd()
-                                                 : m_sessionKeys.constFind(peerIp);
+        const auto sessionKey = peerIp.isEmpty() ? m_sessionKeys.constEnd() : m_sessionKeys.constFind(peerIp);
         if (sessionKey != m_sessionKeys.constEnd())
             ok = gcmDecrypt(*sessionKey, payload, &plain);
     } else if (type == 0x02) {
@@ -980,8 +990,7 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
     }
 
     if (!ok)
-        return i18nc("@info shown in place of a message body",
-                     "[decrypt error: invalid key or tampered packet]");
+        return i18nc("@info shown in place of a message body", "[decrypt error: invalid key or tampered packet]");
 
     return QString::fromUtf8(plain);
 }

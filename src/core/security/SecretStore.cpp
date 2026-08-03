@@ -8,9 +8,11 @@
 
 #include <KWallet>
 
-namespace koutnet {
+namespace koutnet
+{
 
-namespace {
+namespace
+{
 
 QString g_lastError;
 
@@ -31,8 +33,7 @@ KWallet::Wallet *openFolder()
         delete wallet;
         // Synchronous on purpose: the identity keys are needed before the first
         // window appears, so there is nothing useful to do while waiting.
-        wallet = KWallet::Wallet::openWallet(KWallet::Wallet::LocalWallet(), 0,
-                                            KWallet::Wallet::Synchronous);
+        wallet = KWallet::Wallet::openWallet(KWallet::Wallet::LocalWallet(), 0, KWallet::Wallet::Synchronous);
     }
 
     if (!wallet || !wallet->isOpen()) {
@@ -132,8 +133,9 @@ bool SecretStore::purgePlaintextConfigKeys(const QStringList &keys, QString *out
     if (removedAny) {
         settings.sync();
         if (settings.status() != QSettings::NoError) {
-            syncFailure = QStringLiteral(" (writing it failed - check its owner and "
-                                         "permissions)");
+            syncFailure = QStringLiteral(
+                " (writing it failed - check its owner and "
+                "permissions)");
         }
     }
 
@@ -146,8 +148,10 @@ bool SecretStore::purgePlaintextConfigKeys(const QStringList &keys, QString *out
         if (!verify.contains(key))
             continue;
         if (outDetail) {
-            *outDetail = QStringLiteral("%1 is still readable through a config file that "
-                                        "is not %2").arg(key, path);
+            *outDetail = QStringLiteral(
+                             "%1 is still readable through a config file that "
+                             "is not %2")
+                             .arg(key, path);
         }
         return false;
     }
@@ -173,8 +177,7 @@ bool SecretStore::purgePlaintextConfigKeys(const QStringList &keys, QString *out
         if (!contents.contains(leaf))
             continue;
         if (outDetail) {
-            *outDetail = QStringLiteral("%1 still contains %2%3")
-                             .arg(path, QString::fromUtf8(leaf), syncFailure);
+            *outDetail = QStringLiteral("%1 still contains %2%3").arg(path, QString::fromUtf8(leaf), syncFailure);
         }
         return false;
     }

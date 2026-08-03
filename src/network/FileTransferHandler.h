@@ -3,16 +3,18 @@
 // KOutNet - Reassembles chunked file transfers received over UDP
 #pragma once
 
-#include <QObject>
-#include <QJsonObject>
 #include <QByteArray>
-#include <QMap>
 #include <QHash>
+#include <QJsonObject>
+#include <QMap>
+#include <QObject>
 #include <QTimer>
 
-namespace koutnet {
+namespace koutnet
+{
 
-class FileTransferHandler : public QObject {
+class FileTransferHandler : public QObject
+{
     Q_OBJECT
 
 public:
@@ -49,7 +51,10 @@ public:
 
     // What the peers are currently making us hold. A refused transfer has to
     // bring both back down, which is invisible from outside otherwise.
-    int pendingTransferCount() const { return m_pending.size(); }
+    int pendingTransferCount() const
+    {
+        return m_pending.size();
+    }
     qint64 pendingBufferedBytes() const;
 
 Q_SIGNALS:
