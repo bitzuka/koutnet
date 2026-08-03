@@ -66,19 +66,32 @@ private Q_SLOTS:
 
     // The point of AES-GCM. A flipped bit has to be refused outright rather
     // than decrypted into something that merely looks wrong.
+    //
+    // The flip goes into the decoded bytes, not into the base64 text. Base64
+    // carries spare bits in places, so editing a character there can leave
+    // the bytes untouched and the test would then be measuring nothing.
     void tamperedCipherTextFails()
     {
         CryptoManager crypto;
         const QString plain = QStringLiteral("balance: 100");
-        QString sealed = crypto.encrypt(plain, kPass);
-        QVERIFY(sealed.length() > 8);
+        const QString sealed = crypto.encrypt(plain, kPass);
+        const QString marker = QStringLiteral("KNC1:");
+        QVERIFY(sealed.startsWith(marker));
 
-        for (qsizetype at : {qsizetype(4), sealed.length() / 2, sealed.length() - 3}) {
-            QString broken = sealed;
-            const QChar c = broken.at(at);
-            broken[at] = (c == QLatin1Char('A')) ? QLatin1Char('B') : QLatin1Char('A');
-            QVERIFY2(crypto.decrypt(broken, kPass) != plain,
-                     qPrintable(QStringLiteral("tampering at %1 went through").arg(at)));
+        const QByteArray body = QByteArray::fromBase64(
+            sealed.mid(marker.length()).toLatin1());
+        QVERIFY(body.size() > 64);
+
+        // Salt, nonce and tag all live in there, so hit each region once.
+        for (qsizetype at : {qsizetype(2), body.size() / 2, body.size() - 2}) {
+            QByteArray broken = body;
+            broken[at] = char(broken.at(at) ^ 0x01);
+            QCOMPARE(broken.size(), body.size());
+            QVERIFY(broken != body);
+
+            const QString rebuilt = marker + QString::fromLatin1(broken.toBase64());
+            QVERIFY2(crypto.decrypt(rebuilt, kPass) != plain,
+                     qPrintable(QStringLiteral("a flipped bit at byte %1 was accepted").arg(at)));
         }
     }
 
