@@ -14,7 +14,7 @@ SPDX-License-Identifier = "GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL"
 # Messages.sh; the .po files carry their headers in gettext syntax, which
 # reuse does not read.
 [[annotations]]
-path = ["po/**.po", "po/**.pot"]
+path = ["po/**/*.po", "po/*.pot"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 bitzuka <bitzuka.koutnet@gmail.com>"
 SPDX-License-Identifier = "GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL"
