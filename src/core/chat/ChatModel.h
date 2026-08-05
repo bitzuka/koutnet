@@ -24,6 +24,10 @@ class ChatModel : public QAbstractListModel
     Q_PROPERTY(QObject *historyManager READ historyManagerObj WRITE setHistoryManagerObj NOTIFY historyManagerChanged)
     Q_PROPERTY(QObject *reactionStore READ reactionStoreObj WRITE setReactionStoreObj NOTIFY reactionStoreChanged)
     Q_PROPERTY(QObject *unreadManager READ unreadManagerObj WRITE setUnreadManagerObj NOTIFY unreadManagerChanged)
+    // Mirrors UnreadManager's count for this chat. The timeline's "jump to
+    // unread" needs both the number and a change signal, and reaching into the
+    // manager from QML gives it neither.
+    Q_PROPERTY(int unreadCount READ unreadCount NOTIFY unreadCountChanged)
 
 public:
     enum Roles {
@@ -35,6 +39,8 @@ public:
         IsSystemRole,
         IsEditedRole,
         ReplyToTextRole,
+        ReplyToSenderRole,
+        ReplyToIdRole,
         MsgIdRole,
         IsReadRole,
         ReactionsRole,
@@ -42,8 +48,25 @@ public:
         IsFileRole,
         FilePathRole,
         IsImageRole,
+        // The raw stamp behind TimeStringRole. The date separator and the
+        // "sent at" tooltip both need the instant, not the "HH:mm" of it.
+        StampSecsRole,
+        // Whether this message opens a run rather than continuing one. Worked
+        // out here because it is a statement about the row before this one, and
+        // a delegate cannot see its neighbour without reaching back into the
+        // model by index - which goes wrong the moment the list is filtered or
+        // reordered.
+        ShowAuthorRole,
+        // Whether this message is the first of its calendar day, which is where
+        // the date separator goes. Same reason as above.
+        ShowDayRole,
     };
     Q_ENUM(Roles)
+
+    // A pause longer than this breaks a run even when the sender has not
+    // changed: five minutes on, a message is a new thought and wants its own
+    // header and its own time.
+    static constexpr double kRunGapSecs = 300.0;
 
     explicit ChatModel(QObject *parent = nullptr);
 
@@ -64,7 +87,13 @@ public:
     QObject *unreadManagerObj() const;
     void setUnreadManagerObj(QObject *obj);
 
-    Q_INVOKABLE void sendMessage(const QString &text, const QString &replyToText = QString());
+    Q_INVOKABLE void sendMessage(const QString &text,
+                                 const QString &replyToText = QString(),
+                                 const QString &replyToSender = QString(),
+                                 const QString &replyToId = QString());
+    // Where a message with this id sits, or -1. What the quote above a reply is
+    // clicked to reach.
+    Q_INVOKABLE int rowForMsgId(const QString &msgId) const;
     Q_INVOKABLE void sendFile(const QString &filePath, bool isImage);
     Q_INVOKABLE void receiveMessage(const QString &text, const QString &sender = QString());
     Q_INVOKABLE void receiveFile(const QString &filePath, bool isImage, const QString &sender = QString());
@@ -76,7 +105,15 @@ public:
     Q_INVOKABLE void markOwnMessagesRead();
     Q_INVOKABLE void markAllRead();
 
+    int unreadCount() const;
+    // Row of the oldest message the user has not read, or -1 when there is
+    // none. Counted back from the end, because the unread tally is kept by
+    // UnreadManager and the messages themselves carry no incoming read flag.
+    Q_INVOKABLE int firstUnreadRow() const;
+
 Q_SIGNALS:
+    void unreadCountChanged();
+
     // A message joined this chat, in either direction. The conversation list is
     // built from this rather than from HistoryManager::historyAppended, because
     // that one is silent when history saving is off and the sidebar still has to
@@ -92,6 +129,10 @@ private:
     void reload();
     void appendEntry(MessageEntry e, bool persist);
     void refreshRow(int row);
+    // Both read m_messages[row - 1], so both are only ever called with a row
+    // this model actually holds.
+    bool startsRun(int row) const;
+    bool startsDay(int row) const;
 
     QString m_chatId;
     QVector<MessageEntry> m_messages;

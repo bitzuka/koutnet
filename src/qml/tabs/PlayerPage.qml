@@ -293,7 +293,7 @@ Kirigami.Page {
                         model: playlist
                         spacing: Math.round(Kirigami.Units.smallSpacing / 2)
 
-                        delegate: ItemDelegate {
+                        delegate: QQC2.ItemDelegate {
                             required property int index
                             required property string url
                             required property bool video

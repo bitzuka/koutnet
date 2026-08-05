@@ -83,20 +83,24 @@ QVariantList ReactionStore::summary(const QString &chatId, double ts) const
     const QString key = makeKey(chatId, ts);
     const auto &emojiMap = m_data.value(key);
 
-    QVector<QPair<QString, int>> pairs;
+    QVector<QPair<QString, QStringList>> pairs;
     for (auto it = emojiMap.constBegin(); it != emojiMap.constEnd(); ++it) {
         if (!it.value().isEmpty())
-            pairs.append({it.key(), it.value().size()});
+            pairs.append({it.key(), it.value()});
     }
     std::sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) {
-        return a.second > b.second;
+        return a.second.size() > b.second.size();
     });
 
     QVariantList out;
     for (const auto &p : pairs) {
         QVariantMap m;
         m[QStringLiteral("emoji")] = p.first;
-        m[QStringLiteral("count")] = p.second;
+        m[QStringLiteral("count")] = p.second.size();
+        // Who, and not only how many. A pill with a number on it says the
+        // uninteresting half; the interesting half is whose reaction it is, and
+        // whether one of them is yours.
+        m[QStringLiteral("users")] = p.second;
         out.append(m);
     }
     return out;

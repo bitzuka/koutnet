@@ -152,9 +152,27 @@ qt_add_qml_module(KOutNet
         qml/Brand.qml
         qml/main_window/Main.qml
         qml/main_window/ChatListPage.qml
+        qml/main_window/ChatSection.qml
         qml/main_window/ContactDelegate.qml
+        qml/main_window/AccountRow.qml
         qml/main_window/ChatPage.qml
         qml/main_window/NewChatPage.qml
+        qml/shell/ConnectionRail.qml
+        qml/shell/ModeButton.qml
+        qml/timeline/MessageTimeline.qml
+        qml/timeline/MessageDelegate.qml
+        qml/timeline/MessageActions.qml
+        qml/timeline/DateSeparator.qml
+        qml/timeline/SystemMessage.qml
+        qml/timeline/ReplyQuote.qml
+        qml/timeline/ReactionFlow.qml
+        qml/timeline/AttachmentBlock.qml
+        qml/timeline/DeliveryMark.qml
+        qml/timeline/TypingIndicator.qml
+        qml/composer/Composer.qml
+        qml/composer/EmojiPicker.qml
+        qml/composer/ReactionPicker.qml
+        qml/peer/PeerInfoPage.qml
         qml/settings/SettingsPage.qml
         qml/settings/AboutPage.qml
         qml/tabs/NotesPage.qml

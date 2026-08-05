@@ -42,6 +42,10 @@ QVariant ChatModel::data(const QModelIndex &index, int role) const
         return m.isEdited;
     case ReplyToTextRole:
         return m.replyToText;
+    case ReplyToSenderRole:
+        return m.replyToSender;
+    case ReplyToIdRole:
+        return m.replyToId;
     case MsgIdRole:
         return m.msgId;
     case IsReadRole:
@@ -56,9 +60,45 @@ QVariant ChatModel::data(const QModelIndex &index, int role) const
         return m_reactions ? m_reactions->summary(m.chatId.isEmpty() ? QStringLiteral("public") : m.chatId, m.ts) : QVariantList();
     case TimeStringRole:
         return QDateTime::fromSecsSinceEpoch(static_cast<qint64>(m.ts)).toString(QStringLiteral("HH:mm"));
+    case StampSecsRole:
+        return m.ts;
+    case ShowAuthorRole:
+        return startsRun(index.row());
+    case ShowDayRole:
+        return startsDay(index.row());
     default:
         return {};
     }
+}
+
+bool ChatModel::startsRun(int row) const
+{
+    const MessageEntry &m = m_messages.at(row);
+    // A system line is nobody's message and never carries a header.
+    if (m.isSystem)
+        return false;
+    if (row == 0)
+        return true;
+
+    const MessageEntry &prev = m_messages.at(row - 1);
+    // A run that a system line interrupted has to start again, or the message
+    // under the notice looks like it came before it.
+    if (prev.isSystem)
+        return true;
+    if (prev.isOwn != m.isOwn || prev.sender != m.sender)
+        return true;
+    if (m.ts - prev.ts > kRunGapSecs)
+        return true;
+    return startsDay(row);
+}
+
+bool ChatModel::startsDay(int row) const
+{
+    if (row == 0)
+        return true;
+    const QDate today = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(m_messages.at(row).ts)).date();
+    const QDate before = QDateTime::fromSecsSinceEpoch(static_cast<qint64>(m_messages.at(row - 1).ts)).date();
+    return today != before;
 }
 
 QHash<int, QByteArray> ChatModel::roleNames() const
@@ -72,6 +112,8 @@ QHash<int, QByteArray> ChatModel::roleNames() const
         {IsSystemRole, "isSystem"},
         {IsEditedRole, "isEdited"},
         {ReplyToTextRole, "replyToText"},
+        {ReplyToSenderRole, "replyToSender"},
+        {ReplyToIdRole, "replyToId"},
         {MsgIdRole, "msgId"},
         {IsReadRole, "isRead"},
         {ReactionsRole, "reactions"},
@@ -79,6 +121,9 @@ QHash<int, QByteArray> ChatModel::roleNames() const
         {IsFileRole, "isFile"},
         {FilePathRole, "filePath"},
         {IsImageRole, "isImage"},
+        {StampSecsRole, "stampSecs"},
+        {ShowAuthorRole, "showAuthor"},
+        {ShowDayRole, "showDay"},
     };
 }
 
@@ -89,6 +134,7 @@ void ChatModel::setChatId(const QString &id)
     m_chatId = id;
     Q_EMIT chatIdChanged();
     reload();
+    Q_EMIT unreadCountChanged();
 }
 
 QObject *ChatModel::historyManagerObj() const
@@ -142,8 +188,44 @@ void ChatModel::setUnreadManagerObj(QObject *obj)
     auto *u = qobject_cast<UnreadManager *>(obj);
     if (m_unread == u)
         return;
+    if (m_unread)
+        disconnect(m_unread, nullptr, this, nullptr);
     m_unread = u;
+    if (m_unread) {
+        connect(m_unread, &UnreadManager::unreadChanged, this, [this](const QString &chatId, int) {
+            if (chatId == m_chatId)
+                Q_EMIT unreadCountChanged();
+        });
+    }
     Q_EMIT unreadManagerChanged();
+    Q_EMIT unreadCountChanged();
+}
+
+int ChatModel::unreadCount() const
+{
+    if (!m_unread || m_chatId.isEmpty())
+        return 0;
+    return m_unread->get(m_chatId);
+}
+
+int ChatModel::firstUnreadRow() const
+{
+    int remaining = unreadCount();
+    if (remaining <= 0)
+        return -1;
+
+    // Own messages and system lines were never counted into the tally, so they
+    // are skipped rather than consumed - counting them would land the marker
+    // some way past the message the user has actually not read.
+    int row = -1;
+    for (int i = m_messages.size() - 1; i >= 0 && remaining > 0; --i) {
+        const MessageEntry &m = m_messages.at(i);
+        if (m.isOwn || m.isSystem)
+            continue;
+        row = i;
+        --remaining;
+    }
+    return row;
 }
 
 void ChatModel::reload()
@@ -182,7 +264,7 @@ void ChatModel::appendEntry(MessageEntry e, bool persist)
         Q_EMIT messageAdded(m_chatId, e.text, e.isOwn, e.ts);
 }
 
-void ChatModel::sendMessage(const QString &text, const QString &replyToText)
+void ChatModel::sendMessage(const QString &text, const QString &replyToText, const QString &replyToSender, const QString &replyToId)
 {
     if (text.trimmed().isEmpty())
         return;
@@ -191,7 +273,20 @@ void ChatModel::sendMessage(const QString &text, const QString &replyToText)
     e.ts = QDateTime::currentMSecsSinceEpoch() / 1000.0;
     e.isOwn = true;
     e.replyToText = replyToText;
+    e.replyToSender = replyToSender;
+    e.replyToId = replyToId;
     appendEntry(e, true);
+}
+
+int ChatModel::rowForMsgId(const QString &msgId) const
+{
+    if (msgId.isEmpty())
+        return -1;
+    for (int i = 0; i < m_messages.size(); ++i) {
+        if (m_messages.at(i).msgId == msgId)
+            return i;
+    }
+    return -1;
 }
 
 void ChatModel::sendFile(const QString &filePath, bool isImage)

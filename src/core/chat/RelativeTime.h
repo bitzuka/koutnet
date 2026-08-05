@@ -51,6 +51,12 @@ public:
     // The time against a conversation row: clock time today, then day or date.
     Q_INVOKABLE QString chatStamp(double whenSecs, qint64 nowSecs) const;
 
+    // The label on the chip between two days of a conversation. Never a clock
+    // time - a separator reading "14:32" would answer a question nobody asked -
+    // so this is formatRelativeDate() on its own, in the long form, because the
+    // chip has room for a date and "Tue" is not one.
+    Q_INVOKABLE QString daySeparator(double whenSecs, qint64 nowSecs) const;
+
 Q_SIGNALS:
     void nowChanged();
 

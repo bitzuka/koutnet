@@ -14,6 +14,8 @@ MessageEntry MessageEntry::fromJson(const QJsonObject &o)
     e.isSystem = o.value(QStringLiteral("is_system")).toBool();
     e.isEdited = o.value(QStringLiteral("is_edited")).toBool();
     e.replyToText = o.value(QStringLiteral("reply_to_text")).toString();
+    e.replyToSender = o.value(QStringLiteral("reply_to_sender")).toString();
+    e.replyToId = o.value(QStringLiteral("reply_to_id")).toString();
     e.chatId = o.value(QStringLiteral("chat_id")).toString();
     e.msgId = o.value(QStringLiteral("msg_id")).toString();
     e.isFile = o.value(QStringLiteral("is_file")).toBool();
@@ -36,6 +38,8 @@ QJsonObject MessageEntry::toJson() const
     o[QStringLiteral("is_system")] = isSystem;
     o[QStringLiteral("is_edited")] = isEdited;
     o[QStringLiteral("reply_to_text")] = replyToText;
+    o[QStringLiteral("reply_to_sender")] = replyToSender;
+    o[QStringLiteral("reply_to_id")] = replyToId;
     o[QStringLiteral("chat_id")] = chatId;
     o[QStringLiteral("msg_id")] = msgId;
     o[QStringLiteral("is_file")] = isFile;

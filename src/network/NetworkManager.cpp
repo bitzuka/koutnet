@@ -600,7 +600,7 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
     } else if (type == protocol::kMsgGroupInv) {
         Q_EMIT groupInvite(msg.value(QStringLiteral("gid")).toString(), msg.value(QStringLiteral("gname")).toString(), host);
     } else if (type == protocol::kMsgTyping) {
-        Q_EMIT typing(msg.value(QStringLiteral("username")).toString(), msg.value(QStringLiteral("chat_id")).toString(QStringLiteral("public")));
+        Q_EMIT typing(msg.value(QStringLiteral("username")).toString(), msg.value(QStringLiteral("chat_id")).toString(QStringLiteral("public")), host);
     }
 }
 

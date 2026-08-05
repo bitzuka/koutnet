@@ -17,6 +17,13 @@ struct MessageEntry {
     bool isSystem = false;
     bool isEdited = false;
     QString replyToText;
+    // Who wrote the message being answered, and its msgId. The quote used to be
+    // the text alone, which is enough to draw a grey line above a message and
+    // nothing else: it cannot say whose words those were, and it cannot be
+    // followed back to them. Both are empty on a message that answers nothing,
+    // and replyToId is empty for a quote that predates these fields.
+    QString replyToSender;
+    QString replyToId;
     QString chatId;
     QString msgId;
 

@@ -2,14 +2,19 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - application window
 //
-// The shell is two columns of a Kirigami.PageRow: the conversation list, then
-// the conversation. That is the whole of the layout. It used to be a RowLayout
-// with an animated Layout.preferredWidth and a hand-drawn hamburger over the
-// top; PageRow already collapses to one column on a narrow window and hands out
-// its own back button, which is what that was reaching for.
+// The shell is up to three columns of a Kirigami.PageRow: the conversation list
+// with the connection rail down its edge, the conversation, and - when it is
+// asked for - who is on the other end of it. That is the whole of the layout.
+// PageRow folds to one column on a narrow window and hands out its own back
+// button, which is what the animated Layout.preferredWidth and the hand-drawn
+// hamburger that used to be here were reaching for.
+//
+// The third column is pushed and popped rather than always present. An
+// information panel that cannot be put away is a panel that is in the way, and
+// pushing it is also what gets it the folding for free.
 //
 // Everything that is not a conversation - settings, profiles, notes, the call
-// log, the player - goes on pageStack.layers, so it covers both columns and
+// log, the player - goes on pageStack.layers, so it covers every column and
 // comes back with the back button rather than as a modal sheet.
 import QtQuick
 import QtQuick.Layouts
@@ -45,6 +50,25 @@ Kirigami.ApplicationWindow {
     property string currentPeerIp: ""
     readonly property string kSelfChatId: "__self__"
     property bool micMuted: false
+
+    // Whether the open conversation is scrolled to its newest message. A read
+    // receipt is a claim that somebody read something, so it is only sent for a
+    // message that was actually on the screen.
+    property bool chatAtBottom: true
+
+    // Who is typing, and until when. The peer sends a notice every few seconds
+    // while it writes and nothing at all when it stops, so the timer is what
+    // ends the state - waiting for a "stopped typing" that a lost datagram can
+    // swallow leaves the dots up forever.
+    property string typingChatId: ""
+
+    Timer {
+        id: typingTimeout
+        // Comfortably longer than the composer's own notice interval, so a
+        // steady writer never flickers.
+        interval: 6000
+        onTriggered: root.typingChatId = ""
+    }
 
     property var chatModels: ({})
 
@@ -261,6 +285,20 @@ Kirigami.ApplicationWindow {
         pageStack.currentIndex = 1
     }
 
+    // The peer column, which is the third one when it is there at all. Its
+    // contents are bound to currentPeerIp rather than passed in, so switching
+    // conversation with it open re-points it instead of leaving the last peer up.
+    readonly property bool peerInfoOpen: pageStack.depth > 2
+
+    function togglePeerInfo() {
+        if (root.peerInfoOpen) {
+            pageStack.pop()
+            return
+        }
+        pageStack.push(peerInfoComponent)
+        pageStack.currentIndex = pageStack.depth - 1
+    }
+
     // Everything that used to open a modal "not wired up yet" sheet says it here
     // instead. An InlineMessage in the window footer reports the same thing
     // without taking the window away from whoever was using it.
@@ -449,12 +487,26 @@ Kirigami.ApplicationWindow {
             // that grows into "last seen just now" for a peer that has gone.
             chatList.setPresence(ip, false, 0, "")
         }
+        // The peer is writing. from_ip is what files it under a conversation;
+        // the username in the packet is a string the peer chose for itself and
+        // two of them can say the same thing.
+        function onTyping(username, chatId, fromIp) {
+            if (fromIp.length === 0)
+                return
+            root.typingChatId = fromIp
+            typingTimeout.restart()
+        }
         function onMessage(msg) {
             if (msg.type === "private") {
                 root.modelForPeer(msg.from_ip).receiveMessage(msg.text, msg.from_ip)
-                // Reading it is what the peer is waiting to hear about, and the
-                // chat being open already is the case that never sent anything.
-                if (msg.from_ip === root.currentPeerIp)
+                // The message that was being typed has arrived.
+                if (root.typingChatId === msg.from_ip)
+                    root.typingChatId = ""
+                // Reading it is what the peer is waiting to hear about - but
+                // only if it was really read. A message that landed below the
+                // fold of a conversation somebody scrolled up out of has not
+                // been, and the receipt for it would be this client's own lie.
+                if (msg.from_ip === root.currentPeerIp && root.chatAtBottom)
                     root.markChatRead(msg.from_ip)
             } else if (msg.type === "read") {
                 // from_ip has been rewritten by dispatch() to the address this
@@ -510,7 +562,7 @@ Kirigami.ApplicationWindow {
             const fromIp = meta.from_ip
             if (!fromIp) return
             root.modelForPeer(fromIp).receiveFile(localPath, root.looksLikeImage(localPath), fromIp)
-            if (fromIp === root.currentPeerIp)
+            if (fromIp === root.currentPeerIp && root.chatAtBottom)
                 root.markChatRead(fromIp)
         }
     }
@@ -540,13 +592,26 @@ Kirigami.ApplicationWindow {
         ChatListPage {
             selectedChatId: root.currentPeerIp
             favoritesChatId: root.kSelfChatId
+            connectionMode: appSettings.connectionMode
             model: chatList
             onChatActivated: (chatId) => root.openChat(chatId)
             onNewChatRequested: root.showLayer(newChatPageComponent)
+            onProfileRequested: root.showLayer(yourProfileComponent)
+            onSettingsRequested: root.showLayer(settingsPageComponent)
             onForgetRequested: (chatId) => {
                 chatList.removeChat(chatId)
                 if (root.currentPeerIp === chatId)
                     root.currentPeerIp = ""
+            }
+            // The rail picks a mode; applying it is the same two calls the
+            // settings page makes, because switching mode raises or drops the
+            // relay tunnel and half of that is not a state to be in.
+            onConnectionModeRequested: (mode) => {
+                if (!networkManager.modeAvailable(mode))
+                    return
+                appSettings.connectionMode = mode
+                networkManager.setRelayServer(appSettings.relayHost, appSettings.relayPort, 0)
+                networkManager.setConnectionMode(mode)
             }
         }
     }
@@ -560,28 +625,53 @@ Kirigami.ApplicationWindow {
             peerIp: root.currentPeerIp
             peerInfo: root.currentPeerIp.length > 0 ? root.peerInfoFor(root.currentPeerIp) : null
             messagesModel: root.currentPeerIp.length > 0 ? root.modelForPeer(root.currentPeerIp) : null
+            peerTyping: root.typingChatId.length > 0 && root.typingChatId === root.currentPeerIp
+
+            onAtBottomChanged: root.chatAtBottom = atBottom
+            Component.onCompleted: root.chatAtBottom = atBottom
 
             onCallRequested: {
                 if (!isSelfChat)
                     root.startOutgoingCall(peerIp)
             }
-            onSendRequested: function(text) {
+            onSendRequested: function(text, replyExcerpt, replyAuthor, replyId) {
                 if (!isSelfChat)
                     networkManager.sendPrivate(text, peerIp)
-                messagesModel.sendMessage(text)
+                // The quote is stored with the message but not put on the wire:
+                // the protocol has no reply field, so sending one would only
+                // teach the peer to ignore it.
+                messagesModel.sendMessage(text, replyExcerpt, replyAuthor, replyId)
             }
             onAttachRequested: function(localFilePath) {
                 if (!isSelfChat)
                     networkManager.sendFile(peerIp, localFilePath)
                 messagesModel.sendFile(localFilePath, root.looksLikeImage(localFilePath))
             }
+            onTypingNotice: {
+                if (!isSelfChat)
+                    networkManager.sendTyping(peerIp, peerIp)
+            }
+            onReadReached: root.markChatRead(peerIp)
             onProfileRequested: root.showLayer(otherProfileComponent, { peer: root.peerInfoFor(peerIp) })
+            onInfoRequested: root.togglePeerInfo()
             onNewChatRequested: root.showLayer(newChatPageComponent)
             onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
             onForwardRequested: root.notify(i18nc("@info", "Forwarding messages is not implemented yet."),
                                            Kirigami.MessageType.Information)
             onDeleteRequested: root.notify(i18nc("@info", "Deleting messages is not implemented yet."),
                                            Kirigami.MessageType.Information)
+            onEditRequested: root.notify(i18nc("@info", "Editing a message you have already sent is not implemented yet."),
+                                         Kirigami.MessageType.Information)
+        }
+    }
+
+    Component {
+        id: peerInfoComponent
+
+        PeerInfoPage {
+            peer: root.currentPeerIp.length > 0 ? root.peerInfoFor(root.currentPeerIp) : null
+            onProfileRequested: root.showLayer(otherProfileComponent,
+                                               { peer: root.peerInfoFor(root.currentPeerIp) })
         }
     }
 

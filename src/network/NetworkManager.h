@@ -177,7 +177,11 @@ Q_SIGNALS:
     void fileChunk(QJsonObject chunk); // file_data packets -> FileTransferHandler
     void groupInvite(QString groupId, QString name, QString fromIp);
     void errorOccurred(QString message);
-    void typing(QString username, QString chatId);
+    // fromIp is the address the packet arrived on, which is the key the
+    // interface files a conversation under. Without it a typing notice can only
+    // be matched to a chat by the username in it, and a username is a string a
+    // peer chooses for itself - two of them can say the same thing.
+    void typing(QString username, QString chatId, QString fromIp);
     void voiceConnected(QString ip);
     void voiceDisconnected(QString ip);
 

@@ -106,3 +106,16 @@ QString RelativeTime::chatStamp(double whenSecs, qint64 nowSecs) const
     // locale, which hand-written code here would not.
     return KFormat().formatRelativeDate(when.date(), QLocale::ShortFormat);
 }
+
+QString RelativeTime::daySeparator(double whenSecs, qint64 nowSecs) const
+{
+    const auto stamp = static_cast<qint64>(whenSecs);
+    if (stamp <= 0)
+        return {};
+
+    // nowSecs is taken and not read. The argument is what makes a caller's
+    // binding depend on now(), so the newest chip rewrites itself from "Today"
+    // to "Yesterday" at midnight with the window left open.
+    Q_UNUSED(nowSecs)
+    return KFormat().formatRelativeDate(QDateTime::fromSecsSinceEpoch(stamp).date(), QLocale::LongFormat);
+}

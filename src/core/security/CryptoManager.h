@@ -92,11 +92,15 @@ public:
     QString ownIdentityId() const;
     // Empty when this address has never carried a verified handshake. Callers
     // treat that as "no idea who this is", not as "not to be trusted".
-    QString identityForAddress(const QString &address) const;
+    // Q_INVOKABLE from here down on the four the peer drawer reads. This object
+    // has been a QML context property since main.cpp went in, but nothing on it
+    // was callable, so the drawer could not ask who it was talking to without a
+    // pass-through on NetworkManager - a second name for the same answer.
+    Q_INVOKABLE QString identityForAddress(const QString &address) const;
     // Newest first, capped at kMaxPeerAddresses. Only addresses datagrams have
     // actually arrived from are in here; what a peer advertises about itself is
     // not evidence of anything and stays out.
-    QStringList addressesFor(const QString &peerId) const;
+    Q_INVOKABLE QStringList addressesFor(const QString &peerId) const;
 
     // Handshake
     // Refused: malformed, or the Ed25519 signature over dh_pub did not check
@@ -113,10 +117,10 @@ public:
     // includes the AddressTaken case - the caller needs to know who showed up.
     HandshakeOutcome processHandshakeFrom(const QString &observedAddress, const QJsonObject &data, QString *outPeerId = nullptr);
     bool processHandshake(const QString &observedAddress, const QJsonObject &data);
-    bool hasSession(const QString &peerRef) const;
+    Q_INVOKABLE bool hasSession(const QString &peerRef) const;
 
     QString fingerprint() const;
-    QString peerFingerprint(const QString &peerRef) const;
+    Q_INVOKABLE QString peerFingerprint(const QString &peerRef) const;
     SecurityLevel securityLevel(const QString &peerRef, bool encryptionEnabled, bool hasPassphrase) const;
 
     // Packet HMAC
