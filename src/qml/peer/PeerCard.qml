@@ -4,7 +4,6 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
-import org.kde.kirigamiaddons.components as Components
 import koutnet.app
 
 // A peer at a glance, hung off whatever was clicked to ask for it.
@@ -14,10 +13,11 @@ import koutnet.app
 // to be wanted next. PeerInfoPage is still where the fingerprint, the operating
 // system and the addresses live, and the card has a way through to it.
 //
-// The shape is a banner strip, the avatar hanging off its lower edge, the name,
-// the handle under it, a rule, a block of details, then the actions. It used to
-// be a row and a column of labels, which said the same things in the order a
-// data structure has them rather than the order somebody reads them in.
+// The shape is qml/profile/ProfileHeader.qml at card size - banner, the avatar
+// hanging off its lower-left, the name, the handle, the status, the presence -
+// then what is only ever true of somebody else, then the actions. The account
+// card beside it is the same component with your own identity in it, which is
+// what makes the two read as one design rather than as two.
 //
 // The popup itself has no padding, because the banner is full bleed and a padded
 // popup cannot do that. Every child below sets its own margins instead.
@@ -87,188 +87,57 @@ QQC2.Popup {
     contentItem: ColumnLayout {
         spacing: 0
 
-        // The banner, and the avatar hanging off it. One Item because the
-        // overlap is what makes the shape, and an overlap cannot be expressed
-        // between two layout children.
-        Item {
+        ProfileHeader {
             Layout.fillWidth: true
-            // The banner, plus the part of the avatar that hangs below it. That
-            // part is what is left after the overlap, not the overlap itself.
-            implicitHeight: bannerStrip.height + avatar.height * (1 - kAvatarOverhang)
 
-            // How much of the avatar sits over the banner rather than below it.
-            // The same fraction as the profile header, so the card and the page
-            // read as the same design.
-            readonly property real kAvatarOverhang: 0.45
+            compact: true
+            // The card's own background is rounded and the banner is full bleed,
+            // so the strip has to round its own top corners or it squares the
+            // card off.
+            topCornerRadius: Kirigami.Units.cornerRadius
 
-            // Only the top corners are rounded: the bottom edge of this strip is
-            // in the middle of the card, and rounding it would cut a notch out
-            // of the card's own background. ShadowedRectangle is what allows a
-            // per-corner radius - a plain Rectangle has the one radius property.
-            Kirigami.ShadowedRectangle {
-                id: bannerStrip
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: Kirigami.Units.gridUnit * 4
-                corners.topLeftRadius: Kirigami.Units.cornerRadius
-                corners.topRightRadius: Kirigami.Units.cornerRadius
-                corners.bottomLeftRadius: 0
-                corners.bottomRightRadius: 0
-                // The brand colour, which is the one thing this application says
-                // about colour, and the card is where it is worth saying.
-                color: Brand.accent
-            }
-
-            // The ring that lifts the avatar off the banner. A sibling declared
-            // before the avatar rather than a child of it with a negative z:
-            // Avatar has no border of its own, and going through its children
-            // would be relying on where it paints its own circle.
-            Rectangle {
-                anchors.centerIn: avatar
-                width: avatar.width + Kirigami.Units.smallSpacing * 2
-                height: width
-                radius: width / 2
-                color: Kirigami.Theme.backgroundColor
-            }
-
-            Components.Avatar {
-                id: avatar
-                width: Kirigami.Units.gridUnit * 3.5
-                height: width
-                anchors.left: parent.left
-                anchors.leftMargin: Kirigami.Units.largeSpacing
-                anchors.top: bannerStrip.bottom
-                anchors.topMargin: -height * parent.kAvatarOverhang
-                name: root.shownName
-            }
-        }
-
-        // Name, handle and presence.
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.leftMargin: Kirigami.Units.largeSpacing
-            Layout.rightMargin: Kirigami.Units.largeSpacing
-            Layout.topMargin: Kirigami.Units.smallSpacing
-            spacing: 0
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Kirigami.Units.smallSpacing
-
-                Kirigami.Heading {
-                    Layout.fillWidth: true
-                    level: 3
-                    // Bold on top of the heading level, because the handle right
-                    // underneath is the same family and the weight is what
-                    // separates them at a glance.
-                    font.bold: true
-                    text: root.shownName
-                    textFormat: Text.PlainText
-                    elide: Text.ElideRight
-                }
-
-                // The peer's custom status, if it published one.
-                QQC2.Label {
-                    visible: root.statusEmoji.length > 0
-                    text: root.statusEmoji
-                    textFormat: Text.PlainText
-                    font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.3)
-                }
-            }
-
-            QQC2.Label {
-                Layout.fillWidth: true
-                visible: root.handle.length > 0
-                text: i18nc("@info a peer's handle, %1 is the user name", "@%1", root.handle)
-                textFormat: Text.PlainText
-                elide: Text.ElideRight
-                color: Kirigami.Theme.disabledTextColor
-            }
+            displayName: root.shownName
+            handle: root.handle
+            online: root.online
+            lastSeenSecs: root.peer ? (root.peer.lastSeen || 0) : 0
+            statusEmoji: root.statusEmoji
         }
 
         Kirigami.Separator {
             Layout.fillWidth: true
             Layout.leftMargin: Kirigami.Units.largeSpacing
             Layout.rightMargin: Kirigami.Units.largeSpacing
-            Layout.topMargin: Kirigami.Units.largeSpacing
         }
 
-        // The detail block. A dimmed caption over a value, twice, which is the
-        // shape that reads as a fact rather than as another line of the same
-        // paragraph.
-        ColumnLayout {
+        // Whether there is a session, which is the one fact about a peer worth a
+        // whole line of its own before the actions.
+        ProfileBlock {
             Layout.fillWidth: true
             Layout.leftMargin: Kirigami.Units.largeSpacing
             Layout.rightMargin: Kirigami.Units.largeSpacing
             Layout.topMargin: Kirigami.Units.largeSpacing
-            spacing: Kirigami.Units.largeSpacing
+            visible: root.peer !== null
 
-            ColumnLayout {
+            label: i18nc("@label:textbox caption over whether the session is encrypted", "Session")
+
+            RowLayout {
                 Layout.fillWidth: true
-                spacing: 0
+                spacing: Kirigami.Units.smallSpacing
+
+                Kirigami.Icon {
+                    Layout.alignment: Qt.AlignVCenter
+                    implicitWidth: Kirigami.Units.iconSizes.small
+                    implicitHeight: Kirigami.Units.iconSizes.small
+                    source: (root.peer && root.peer.e2e) ? "security-high" : "security-low"
+                }
 
                 QQC2.Label {
-                    text: i18nc("@label:textbox caption over the peer's reachability", "Status")
-                    font: Kirigami.Theme.smallFont
-                    color: Kirigami.Theme.disabledTextColor
-                }
-
-                RowLayout {
                     Layout.fillWidth: true
-                    spacing: Kirigami.Units.smallSpacing
-
-                    Rectangle {
-                        Layout.alignment: Qt.AlignVCenter
-                        width: Math.round(Kirigami.Units.iconSizes.small * 0.5)
-                        height: width
-                        radius: width / 2
-                        color: root.online ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.disabledTextColor
-                    }
-
-                    // RelativeTime.now is read so this ages on its own while the
-                    // card sits open and nothing arrives.
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        text: root.peer
-                            ? RelativeTime.presenceLabel(root.online, root.peer.lastSeen || 0, RelativeTime.now)
-                            : ""
-                        textFormat: Text.PlainText
-                        elide: Text.ElideRight
-                    }
-                }
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                visible: root.peer !== null
-                spacing: 0
-
-                QQC2.Label {
-                    text: i18nc("@label:textbox caption over whether the session is encrypted", "Session")
-                    font: Kirigami.Theme.smallFont
-                    color: Kirigami.Theme.disabledTextColor
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: Kirigami.Units.smallSpacing
-
-                    Kirigami.Icon {
-                        Layout.alignment: Qt.AlignVCenter
-                        implicitWidth: Kirigami.Units.iconSizes.small
-                        implicitHeight: Kirigami.Units.iconSizes.small
-                        source: (root.peer && root.peer.e2e) ? "security-high" : "security-low"
-                    }
-
-                    QQC2.Label {
-                        Layout.fillWidth: true
-                        text: (root.peer && root.peer.e2e)
-                            ? i18nc("@info:status the session is end to end encrypted", "End to end encrypted")
-                            : i18nc("@info:status", "No session")
-                        textFormat: Text.PlainText
-                        elide: Text.ElideRight
-                    }
+                    text: (root.peer && root.peer.e2e)
+                        ? i18nc("@info:status the session is end to end encrypted", "End to end encrypted")
+                        : i18nc("@info:status", "No session")
+                    textFormat: Text.PlainText
+                    elide: Text.ElideRight
                 }
             }
         }

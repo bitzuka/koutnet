@@ -354,6 +354,20 @@ Kirigami.ApplicationWindow {
         peerCard.openAt(anchorItem, root.peerInfoFor(chatId))
     }
 
+    // Your own card, which is the peer card with your identity in it. Declared
+    // beside that one and for the same reason: openAt() reparents it, so it must
+    // not live inside anything that can be destroyed under it.
+    AccountCard {
+        id: accountCard
+
+        onEditProfileRequested: root.showLayer(settingsPageComponent)
+        onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
+    }
+
+    function showAccountCard(anchorItem) {
+        accountCard.openAt(anchorItem)
+    }
+
     IncomingCallDialog {
         id: incomingCall
 
@@ -433,8 +447,8 @@ Kirigami.ApplicationWindow {
     //
     // Kirigami.Page already draws an opaque background, so that holds by itself
     // for every page and every layer. It stops holding the moment one of them
-    // replaces the background with something of its own, which is what put this
-    // picture behind the whole of the profile page - see YourProfile.
+    // replaces the background with something of its own, which is what once put
+    // this picture behind the whole of the profile page.
     //
     // z is negative so this sits under the page row, which is the window's other
     // child and has no z of its own.
@@ -538,10 +552,14 @@ Kirigami.ApplicationWindow {
                 onTriggered: root.endAllCalls()
             },
             Kirigami.Action { separator: true },
+            // The profile is the first section of the settings page rather than
+            // a page of its own - see SettingsPage - so this and the entry below
+            // it open the same layer. Both are kept: "My profile" is what
+            // somebody looking for their own name reaches for.
             Kirigami.Action {
                 text: i18nc("@action:inmenu", "My profile")
                 icon.name: "user-identity"
-                onTriggered: root.showLayer(yourProfileComponent)
+                onTriggered: root.showLayer(settingsPageComponent)
             },
             Kirigami.Action {
                 text: i18nc("@action:inmenu", "Settings")
@@ -601,21 +619,27 @@ Kirigami.ApplicationWindow {
         // A peer count is the first thing to go when the window is deliberately
         // small: it is the least of what is on the screen and it costs a whole
         // row.
+        //
+        // It also goes when there is nobody to count, which is the strip of
+        // empty grey that used to sit under every page in the application. A
+        // toolbar with an invisible label in it is not an empty toolbar: the
+        // desktop style gives its background an implicit height of forty pixels
+        // whatever is inside it, so hiding the only label left forty pixels of
+        // nothing being held at the bottom of the window. Hiding the bar itself
+        // takes the footer layout to zero, and a zero-height footer is no footer.
         QQC2.ToolBar {
             Layout.fillWidth: true
-            visible: !root.compact
+            visible: !root.compact && peersModel.count > 0
             position: QQC2.ToolBar.Footer
 
             contentItem: RowLayout {
                 spacing: Kirigami.Units.largeSpacing
 
-                // Nothing at all until there is somebody to count. The empty
-                // case used to say it was searching, which is true of every
-                // second the application is running and so worth saying in none
-                // of them.
+                // The empty case used to say it was searching, which is true of
+                // every second the application is running and so worth saying in
+                // none of them.
                 QQC2.Label {
                     Layout.fillWidth: true
-                    visible: peersModel.count > 0
                     elide: Text.ElideRight
                     font: Kirigami.Theme.smallFont
                     color: Kirigami.Theme.disabledTextColor
@@ -927,7 +951,7 @@ Kirigami.ApplicationWindow {
         onDeafenToggled: root.toggleDeafen()
         onPeerCardRequested: (chatId, anchorItem) => root.showPeerCard(chatId, anchorItem)
         onNewChatRequested: root.showLayer(newChatPageComponent)
-        onProfileRequested: root.showLayer(yourProfileComponent)
+        onProfileRequested: (anchorItem) => root.showAccountCard(anchorItem)
         onSettingsRequested: root.showLayer(settingsPageComponent)
         onForgetRequested: (chatId) => {
             chatList.removeChat(chatId)
@@ -1001,7 +1025,7 @@ Kirigami.ApplicationWindow {
         onProfileRequested: root.showLayer(otherProfileComponent, { peer: root.peerInfoFor(peerIp) })
         onInfoRequested: root.togglePeerInfo()
         onPeerCardRequested: (anchorItem) => root.showPeerCard(peerIp, anchorItem)
-        onOwnProfileRequested: root.showLayer(yourProfileComponent)
+        onOwnProfileRequested: (anchorItem) => root.showAccountCard(anchorItem)
         onNewChatRequested: root.showLayer(newChatPageComponent)
         onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
         onForwardRequested: root.notify(i18nc("@info", "Forwarding messages is not implemented yet."),
@@ -1043,14 +1067,6 @@ Kirigami.ApplicationWindow {
     Component { id: callLogPageComponent; CallLogPage {} }
     Component { id: playerPageComponent; PlayerPage {} }
     Component { id: otherProfileComponent; OtherProfile {} }
-
-    Component {
-        id: yourProfileComponent
-
-        YourProfile {
-            onNotImplemented: (text) => root.notify(text, Kirigami.MessageType.Information)
-        }
-    }
 
     Component {
         id: newChatPageComponent

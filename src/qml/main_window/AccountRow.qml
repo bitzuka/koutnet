@@ -24,7 +24,9 @@ QQC2.ToolBar {
     property bool micMuted: false
     property bool deafened: false
 
-    signal profileRequested()
+    // The row itself travels with the request: the account card is anchored to
+    // it, and only this file knows which item that is.
+    signal profileRequested(Item anchorItem)
     signal settingsRequested()
     signal micToggled()
     signal deafenToggled()
@@ -55,7 +57,9 @@ QQC2.ToolBar {
             // it up while doing so.
             Accessible.name: i18nc("@action:button open your own profile", "My profile")
 
-            onClicked: root.profileRequested()
+            // The card is hung off the whole row rather than off this button, so
+            // it lines up with the column edge instead of with the avatar.
+            onClicked: root.profileRequested(root)
 
             contentItem: RowLayout {
                 spacing: Kirigami.Units.largeSpacing

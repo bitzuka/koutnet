@@ -38,8 +38,9 @@ Kirigami.Page {
     // The header identity, clicked. The window owns the card; this only says
     // which item to hang it off.
     signal peerCardRequested(Item anchorItem)
-    // Your own face in the timeline, clicked. The window holds the profile page.
-    signal ownProfileRequested()
+    // Your own face in the timeline, clicked. The window holds the account card,
+    // and the item it is hung off belongs to a delegate, so nothing may keep it.
+    signal ownProfileRequested(Item anchorItem)
     signal newChatRequested()
     signal forwardRequested(int row)
     // Raised after the change has already been made to this page's own model.
@@ -401,7 +402,7 @@ Kirigami.Page {
 
         onAvatarActivated: (own, anchorItem) => {
             if (own)
-                root.ownProfileRequested()
+                root.ownProfileRequested(anchorItem)
             else
                 root.peerCardRequested(anchorItem)
         }
