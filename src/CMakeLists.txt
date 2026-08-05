@@ -129,6 +129,8 @@ qt_add_executable(KOutNet
     core/chat/GroupManager.h
     core/chat/ChatModel.cpp
     core/chat/ChatModel.h
+    core/chat/ReversedChatModel.cpp
+    core/chat/ReversedChatModel.h
     core/chat/ChatListModel.cpp
     core/chat/ChatListModel.h
     core/chat/RelativeTime.cpp

@@ -4,14 +4,28 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as Components
+import koutnet.app
 
 // The conversation itself: the list, the two ways back to where you were, and
 // the line that says the other side is writing.
 //
-// Top to bottom rather than a bottom-to-top view with an inverted model. The
-// model is a plain append-only list, and it would have to be turned inside out
-// to buy a first paint that is already at the newest message;
-// positionViewAtEnd() buys the same thing for one call.
+// Bottom to top, over a model turned round - see core/chat/ReversedChatModel.h
+// for why the reversal is a proxy and not a change to ChatModel. Three attempts
+// were made to keep this list the natural way up and put the view at the end of
+// it with positionViewAtEnd(), and all three failed the same way: the rows above
+// the fold have never been built, so QQuickListView works out where they are
+// from an average row height, and a conversation of one-word replies and
+// pictures has no average worth having. That estimate is what originY and
+// contentHeight are made of, it is corrected every time a real row comes into
+// existence, and everything anchored to it moves when it is - the flick bounds
+// (the tug, and the yank on a fast scroll) and the scrollbar's own idea of where
+// it is (the drag that scrolled to a blank page).
+//
+// Laid out bottom to top the guess sits at the far end instead. The end the view
+// rests against is the newest message, which is built and measured, so the
+// position the reader is at is exact and stays exact; the error accumulates off
+// the top where nothing is looking at it. A new message is an insert at row 0,
+// which is the end that does not move.
 Item {
     id: root
 
@@ -22,8 +36,24 @@ Item {
     property string selfDisplayName: ""
     property string selfAvatarSource: ""
 
+    // Row 0 is the newest message. Rows crossing this boundary in either
+    // direction go through toSourceRow()/fromSourceRow(); every signal this item
+    // raises carries a ChatModel row, so nothing above it has to know the list
+    // is upside down.
+    ReversedChatModel {
+        id: reversed
+        sourceModel: root.messagesModel
+    }
+
     // How far the view still has to travel before the newest message is on
     // screen. Negative once the whole conversation fits.
+    //
+    // The same arithmetic as before the reversal, and deliberately so: the
+    // newest message is still at the far end of contentY, it is only a different
+    // row that lives there now. What did change is that this is no longer a
+    // guess. originY and contentHeight are each estimated, but their sum is the
+    // position of row 0 and row 0 is a real built item, so the two errors cancel
+    // and the distance comes out exact.
     //
     // Written out rather than taken from atYEnd, which compares floats: contentY
     // settles on -643.2 against a height of 643 and the view never admits to
@@ -65,6 +95,7 @@ Item {
 
     readonly property int unreadCount: root.messagesModel ? root.messagesModel.unreadCount : 0
 
+    // Every row in these is a ChatModel row and not a view row.
     signal replyRequested(int row, string author, string excerpt, string msgId)
     signal editRequested(int row, string body)
     signal reactRequested(int row)
@@ -84,22 +115,38 @@ Item {
     // column width is the measure now.
     readonly property real messageWidth: messagesList.width - Kirigami.Units.largeSpacing * 2
 
+    // Row 0 is the newest, so the way back to it is the beginning of the view.
     function scrollToEnd() {
-        messagesList.positionViewAtEnd()
+        messagesList.positionViewAtBeginning()
     }
 
+    // Takes a ChatModel row.
     function jumpToRow(row) {
         if (row < 0 || !root.messagesModel)
             return
-        messagesList.positionViewAtIndex(row, ListView.Center)
-        flashTarget.row = row
+        const idx = root.messagesModel.index(row, 0)
+        root.jumpTo(row, root.messagesModel.data(idx, ChatModel.MsgIdRole) || "")
+    }
+
+    function jumpTo(sourceRow, msgId) {
+        const target = reversed.fromSourceRow(sourceRow)
+        if (target < 0)
+            return
+        // By index and not by contentY. An index is the one way of asking for a
+        // position that does not go through the estimate: the view builds the
+        // row and then places itself against the real thing.
+        messagesList.positionViewAtIndex(target, ListView.Center)
+        flashTarget.msgId = msgId
         flashTimer.restart()
     }
 
     function jumpToMessage(msgId) {
         if (!root.messagesModel)
             return
-        root.jumpToRow(root.messagesModel.rowForMsgId(msgId))
+        const row = root.messagesModel.rowForMsgId(msgId)
+        if (row < 0)
+            return
+        root.jumpTo(row, msgId)
     }
 
     function jumpToFirstUnread() {
@@ -108,18 +155,42 @@ Item {
         root.jumpToRow(root.messagesModel.firstUnreadRow())
     }
 
-    // Which row the last jump landed on, and for how long. Held here rather
+    // Which message the last jump landed on, and for how long. Held here rather
     // than on the delegate because a delegate that scrolls out of view is
     // recycled and would forget.
+    //
+    // By id and not by row: reversed, every row number shifts by one the moment
+    // a message arrives, and the flash would walk down to the message underneath.
     QtObject {
         id: flashTarget
-        property int row: -1
+        property string msgId: ""
     }
 
     Timer {
         id: flashTimer
         interval: Kirigami.Units.humanMoment
-        onTriggered: flashTarget.row = -1
+        onTriggered: flashTarget.msgId = ""
+    }
+
+    Timer {
+        id: emptyViewGuard
+        interval: 50
+        onTriggered: {
+            if (messagesList.count === 0)
+                return
+            // A conversation shorter than the window sits against the bottom
+            // with empty space over it, and the middle of the view is in that
+            // space. There is no estimate to get wrong here and nothing to fix.
+            if (messagesList.contentHeight <= messagesList.height)
+                return
+            if (messagesList.indexAt(messagesList.width / 2,
+                                     messagesList.contentY + messagesList.height / 2) >= 0)
+                return
+            // Flickable's own clamp, because it asks the view where the ends
+            // are - which bottom to top is not where the arithmetic in this
+            // file would put them.
+            messagesList.returnToBounds()
+        }
     }
 
     ListView {
@@ -127,7 +198,9 @@ Item {
 
         anchors.fill: parent
         clip: true
-        model: root.messagesModel
+        model: reversed
+        // Row 0 at the bottom. See the note at the top of this file.
+        verticalLayoutDirection: ListView.BottomToTop
         spacing: 0
         topMargin: Kirigami.Units.smallSpacing
         bottomMargin: Kirigami.Units.smallSpacing
@@ -148,25 +221,10 @@ Item {
 
         // The wheel, taken off the Flickable and given to Kirigami's handler -
         // which is the same one qqc2-desktop-style hangs on every other
-        // scrollable thing in the application, so the timeline now scrolls the
-        // way the rest of the desktop does.
-        //
-        // Two attempts at this were spent on the wrong half of the problem. The
-        // first drove the view by hand and clamped contentY against
-        // Math.max(0, contentHeight - height): contentY is measured from
-        // originY, the view has two margins the sum did not count, and
-        // contentHeight is only an estimate from the average row height while
-        // the rows above have never been built - which for a list holding both
-        // one-word replies and images is nowhere near the real total. The second
-        // deleted that clamp and handed the wheel back to the Flickable, which
-        // turns a notch into a flick: momentum then carries contentY past the
-        // end of the same estimate, the view has no items where it has landed,
-        // and the reader is looking at nothing until the jump button calls
-        // positionViewAtEnd() and recomputes the position from an index.
-        //
-        // WheelHandler::scrollFlickable does the clamp against originY, both
-        // margins and contentHeight; blockTargetWheel keeps the Flickable's
-        // flick path out of it entirely, so there is no momentum left to
+        // scrollable thing in the application, so the timeline scrolls the way
+        // the rest of the desktop does. scrollFlickable() clamps against
+        // originY, both margins and contentHeight; blockTargetWheel keeps the
+        // Flickable's flick path out of it, so there is no momentum left to
         // overshoot with; and it rounds to device pixels. Dragging still flicks,
         // which is what a touchscreen wants.
         Kirigami.WheelHandler {
@@ -184,12 +242,36 @@ Item {
             }
         }
 
-        // Following the conversation only while the reader is already at the
-        // end of it. Yanking somebody down out of the message they are reading
+        // Following the conversation only while the reader is already at the end
+        // of it. Yanking somebody down out of the message they are reading
         // because a new one arrived is the behaviour this replaces.
+        //
+        // Deferred by a frame so the row that has just been inserted has been
+        // built and measured before the view is asked to sit against it.
         onCountChanged: if (root.followTail)
-            Qt.callLater(messagesList.positionViewAtEnd)
-        Component.onCompleted: messagesList.positionViewAtEnd()
+            Qt.callLater(messagesList.positionViewAtBeginning)
+
+        // Nothing on completion. A bottom-to-top view already opens on row 0,
+        // and the positionViewAtEnd() that used to be here was the largest
+        // single source of the drift it was meant to hide: it releases every
+        // built row and re-derives the origin from whatever is visible
+        // afterwards - once at startup, and again on every message that arrived.
+
+        // The net under the scrollbar.
+        //
+        // A drag on the scrollbar writes contentY straight from originY and
+        // contentHeight, and those are still guesses about rows the reader has
+        // never scrolled far enough to build. A long drag can put the viewport
+        // where the list has no items at all, and there is no way back from a
+        // blank page but the jump button. Bottom to top makes that rare rather
+        // than impossible: the guess stops being corrected under the reader, but
+        // it is still a guess.
+        //
+        // Tested by asking whether anything is under the middle of the view -
+        // the complaint itself rather than a theory about it - and only once the
+        // view has stopped, because a frame with nothing on it in the middle of
+        // a refill is ordinary and must not be pounced on.
+        onContentYChanged: emptyViewGuard.restart()
 
         delegate: MessageDelegate {
             id: messageRow
@@ -200,13 +282,17 @@ Item {
             peerName: root.peerName
             selfDisplayName: root.selfDisplayName
             selfAvatarSource: root.selfAvatarSource
-            flashing: flashTarget.row === messageRow.index
+            flashing: flashTarget.msgId.length > 0 && flashTarget.msgId === messageRow.msgId
 
-            onReplyRequested: (row, author, excerpt, msgId) => root.replyRequested(row, author, excerpt, msgId)
-            onEditRequested: (row, body) => root.editRequested(row, body)
-            onReactRequested: (row) => root.reactRequested(row)
-            onMenuRequested: (row, author, body, msgId) => root.menuRequested(row, author, body, msgId)
-            onReactionToggled: (row, emoji) => root.reactionToggled(row, emoji)
+            // index on a delegate is a view row. Everything past this point
+            // speaks ChatModel rows, so this is where the two are told apart.
+            onReplyRequested: (row, author, excerpt, msgId) =>
+                root.replyRequested(reversed.toSourceRow(row), author, excerpt, msgId)
+            onEditRequested: (row, body) => root.editRequested(reversed.toSourceRow(row), body)
+            onReactRequested: (row) => root.reactRequested(reversed.toSourceRow(row))
+            onMenuRequested: (row, author, body, msgId) =>
+                root.menuRequested(reversed.toSourceRow(row), author, body, msgId)
+            onReactionToggled: (row, emoji) => root.reactionToggled(reversed.toSourceRow(row), emoji)
             onJumpRequested: (msgId) => root.jumpToMessage(msgId)
             onImageActivated: (path) => root.imageActivated(path)
             onFileActivated: (path) => root.fileActivated(path)

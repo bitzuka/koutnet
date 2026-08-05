@@ -49,3 +49,16 @@ ecm_add_test(
     NAME_PREFIX koutnet-
     LINK_LIBRARIES Qt6::Test Qt6::Core KF6::I18n
 )
+
+# The reversing proxy is arithmetic over model signals with no window anywhere
+# near it, so it is the one part of the timeline that can be tested at all - and
+# an off-by-one in it is a conversation whose messages are all signed by the
+# wrong person, which nothing reports. Qt6::Qml is here for the QML_ELEMENT
+# marker in the header and QAbstractItemModelTester comes from Qt6::Test.
+ecm_add_test(
+    ReversedChatModelTest.cpp
+    ../core/chat/ReversedChatModel.cpp
+    TEST_NAME reversed-chat-model
+    NAME_PREFIX koutnet-
+    LINK_LIBRARIES Qt6::Test Qt6::Core Qt6::Qml
+)
