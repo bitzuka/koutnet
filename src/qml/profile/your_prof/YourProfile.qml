@@ -5,24 +5,17 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
-import org.kde.kirigamiaddons.components as Components
 import org.kde.kirigamiaddons.formcard as FormCard
 import koutnet.app
 
-// Own-profile page. The banner, the big round avatar and the name row are kept -
-// that shape is the point of the screen - but everything under them that used to
-// be an editable field floating on a Rectangle is now a FormCard section that
-// only appears while editing.
+// Own-profile page. The identity block at the top is ProfileHeader, shared with
+// the peer's page; everything under it that used to be an editable field
+// floating on a Rectangle is a FormCard section that only appears while editing.
 //
 // Local and Global differ only in the body. Local is this device's identity and
 // always usable; Global needs a K-Server that does not exist yet, so an
 // unregistered Global identity gets a registration prompt instead of a body.
 // Avatar, banner, name and about are device-local either way.
-//
-// The circular avatar used to be an Image behind a MultiEffect with a Rectangle
-// as its mask texture, because clip on a rounded Rectangle only clips to the
-// bounding box. Components.Avatar does that properly and also draws the initials
-// fallback, so all of it is gone.
 Kirigami.ScrollablePage {
     id: root
 
@@ -110,6 +103,15 @@ Kirigami.ScrollablePage {
                             "Images (*.png *.jpg *.jpeg *.webp *.gif)")]
         onAccepted: appSettings.profileBackgroundPath = selectedFile
     }
+
+    // The same panel the composer writes messages with, which is where the emoji
+    // data and the search already are. A picker of its own here would be a second
+    // copy of both.
+    EmojiPopup {
+        id: statusSheet
+        onPicked: (emoji) => appSettings.statusEmoji = emoji
+    }
+
     FileDialog {
         id: badgeDialog
         title: i18nc("@title:window", "Choose name badge")
@@ -121,108 +123,30 @@ Kirigami.ScrollablePage {
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 
-        // Banner, with the avatar hanging off its bottom edge.
-        Item {
+        // Banner, avatar, name, handle, presence and status - see
+        // qml/profile/ProfileHeader.qml, which the peer's page uses too. The two
+        // picker buttons are only offered here, and only while editing.
+        //
+        // online is hardcoded true because this is the local identity: the
+        // process is running, which is the only sense in which "am I reachable"
+        // has an answer this end can give. What the user says they are is the
+        // status emoji and the presence setting, which are separate.
+        ProfileHeader {
             Layout.fillWidth: true
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 9 + avatarFrame.height * 0.4
 
-            Rectangle {
-                id: banner
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: Kirigami.Units.gridUnit * 9
-                color: Kirigami.Theme.alternateBackgroundColor
-                clip: true
+            displayName: root.shownName
+            handle: appSettings.username
+            online: true
+            statusEmoji: appSettings.statusEmoji
+            avatarSource: appSettings.avatarPath
+            bannerSource: appSettings.bannerPath
+            badgeSource: appSettings.nameBadgePath
+            editable: root.editMode
+            statusEditable: true
 
-                LoopingImage {
-                    anchors.fill: parent
-                    source: appSettings.bannerPath
-                    visible: appSettings.bannerPath.length > 0
-                }
-            }
-
-            QQC2.ToolButton {
-                anchors.right: banner.right
-                anchors.bottom: banner.bottom
-                anchors.margins: Kirigami.Units.smallSpacing
-                display: QQC2.AbstractButton.IconOnly
-                icon.name: "document-edit"
-                text: i18nc("@info:tooltip", "Change banner")
-                QQC2.ToolTip.visible: hovered
-                QQC2.ToolTip.text: text
-                onClicked: bannerDialog.open()
-            }
-
-            Item {
-                id: avatarFrame
-                width: Kirigami.Units.gridUnit * 6
-                height: width
-                anchors.left: parent.left
-                anchors.leftMargin: Kirigami.Units.largeSpacing
-                anchors.top: banner.bottom
-                anchors.topMargin: -height * 0.4
-
-                Components.Avatar {
-                    anchors.fill: parent
-                    name: root.shownName
-                    source: appSettings.avatarPath
-                }
-
-                QQC2.ToolButton {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    display: QQC2.AbstractButton.IconOnly
-                    icon.name: "document-edit"
-                    text: i18nc("@info:tooltip", "Change avatar")
-                    QQC2.ToolTip.visible: hovered
-                    QQC2.ToolTip.text: text
-                    onClicked: avatarDialog.open()
-                }
-            }
-        }
-
-        // Name row.
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.leftMargin: Kirigami.Units.largeSpacing
-            Layout.rightMargin: Kirigami.Units.largeSpacing
-            spacing: Kirigami.Units.smallSpacing
-            visible: root.profileUsable
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 0
-
-                RowLayout {
-                    spacing: Kirigami.Units.smallSpacing
-
-                    Kirigami.Heading {
-                        level: 1
-                        text: root.shownName
-                        elide: Text.ElideRight
-                    }
-
-                    Image {
-                        source: appSettings.nameBadgePath
-                        visible: appSettings.nameBadgePath.length > 0
-                        Layout.preferredWidth: Kirigami.Units.iconSizes.small
-                        Layout.preferredHeight: Kirigami.Units.iconSizes.small
-                        fillMode: Image.PreserveAspectFit
-                    }
-                }
-
-                QQC2.Label {
-                    text: i18nc("@info the peer's handle, %1 is the username", "@%1", appSettings.username)
-                    color: Kirigami.Theme.disabledTextColor
-                }
-
-                QQC2.Label {
-                    text: i18nc("@info:status your own presence", "online")
-                    font: Kirigami.Theme.smallFont
-                    color: Kirigami.Theme.positiveTextColor
-                }
-            }
+            onAvatarPickRequested: avatarDialog.open()
+            onBannerPickRequested: bannerDialog.open()
+            onStatusPickRequested: statusSheet.open()
         }
 
         // Everything editable, in one place, only while editing. This used to be
@@ -248,7 +172,33 @@ Kirigami.ScrollablePage {
                 onEditingFinished: appSettings.username = text
             }
 
-            FormCard.FormDelegateSeparator { above: usernameField; below: badgeButton }
+            FormCard.FormDelegateSeparator { above: usernameField; below: statusButton }
+
+            // The header carries the same picker, because a status is changed far
+            // more often than a display name and should not need edit mode. This
+            // one is here for the clear button beside it, which has nowhere
+            // sensible to sit on the header itself.
+            FormCard.FormButtonDelegate {
+                id: statusButton
+                text: i18nc("@action:button", "Status emoji")
+                description: appSettings.statusEmoji.length > 0
+                    ? appSettings.statusEmoji
+                    : i18nc("@info:placeholder no custom status is set", "None")
+                icon.name: "face-smile"
+                onClicked: statusSheet.open()
+            }
+
+            FormCard.FormDelegateSeparator { above: statusButton; below: clearStatusButton }
+
+            FormCard.FormButtonDelegate {
+                id: clearStatusButton
+                text: i18nc("@action:button remove the custom status emoji", "Clear status emoji")
+                icon.name: "edit-clear"
+                enabled: appSettings.statusEmoji.length > 0
+                onClicked: appSettings.statusEmoji = ""
+            }
+
+            FormCard.FormDelegateSeparator { above: clearStatusButton; below: badgeButton }
 
             FormCard.FormButtonDelegate {
                 id: badgeButton

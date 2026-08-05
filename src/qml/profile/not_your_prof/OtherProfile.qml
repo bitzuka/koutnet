@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
-import org.kde.kirigamiaddons.components as Components
 import org.kde.kirigamiaddons.formcard as FormCard
 import koutnet.app
 
-// A peer's profile. Same shape as YourProfile so the two read as one screen in
-// two states, minus every control that writes: no pickers, no edit mode, no
-// account switch.
+// A peer's profile. Literally the same header as YourProfile, so the two read as
+// one screen in two states, minus every control that writes: no pickers, no edit
+// mode, no account switch.
 //
 // Everything here arrives in the presence packet, which carries the handle,
 // display name and a capped bio. Avatar, banner and background are files and stay
@@ -42,70 +40,22 @@ Kirigami.ScrollablePage {
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 
-        // Banner, with the avatar hanging off its bottom edge. No picture behind it
-        // yet, for the reason at the top of this file.
-        Item {
+        // Banner, avatar, name, handle, presence and status, all of it shared
+        // with the own-profile page - see qml/profile/ProfileHeader.qml. Nothing
+        // is editable here: none of it belongs to this end.
+        //
+        // The avatar and banner sources stay empty for the reason at the top of
+        // this file: they are files, and files are not in a broadcast that
+        // repeats on a timer. The header falls back to the initials and the brand
+        // colour, which is what those slots are for.
+        ProfileHeader {
             Layout.fillWidth: true
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 9 + avatarFrame.height * 0.4
 
-            Rectangle {
-                id: banner
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: Kirigami.Units.gridUnit * 9
-                color: Kirigami.Theme.alternateBackgroundColor
-            }
-
-            Components.Avatar {
-                id: avatarFrame
-                width: Kirigami.Units.gridUnit * 6
-                height: width
-                anchors.left: parent.left
-                anchors.leftMargin: Kirigami.Units.largeSpacing
-                anchors.top: banner.bottom
-                anchors.topMargin: -height * 0.4
-                name: root.shownName
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.leftMargin: Kirigami.Units.largeSpacing
-            Layout.rightMargin: Kirigami.Units.largeSpacing
-            spacing: Kirigami.Units.smallSpacing
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 0
-
-                Kirigami.Heading {
-                    Layout.fillWidth: true
-                    level: 1
-                    text: root.shownName
-                    elide: Text.ElideRight
-                }
-
-                QQC2.Label {
-                    text: root.peer
-                        ? i18nc("@info the peer's handle, %1 is the username", "@%1", root.peer.username || root.unknownPeerName)
-                        : ""
-                    color: Kirigami.Theme.disabledTextColor
-                }
-
-                // RelativeTime.now is read so this ages on its own while the page
-                // sits open and nothing arrives.
-                QQC2.Label {
-                    text: root.peer
-                        ? RelativeTime.presenceLabel(root.peer.online === true,
-                                                     root.peer.lastSeen || 0,
-                                                     RelativeTime.now)
-                        : ""
-                    font: Kirigami.Theme.smallFont
-                    color: (root.peer && root.peer.online === true)
-                        ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.disabledTextColor
-                }
-            }
+            displayName: root.shownName
+            handle: root.peer ? (root.peer.username || "") : ""
+            online: root.peer ? root.peer.online === true : false
+            lastSeenSecs: root.peer ? (root.peer.lastSeen || 0) : 0
+            statusEmoji: root.peer ? (root.peer.statusEmoji || "") : ""
         }
 
         FormCard.FormHeader {
