@@ -3,6 +3,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
+import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.formcard as FormCard
 import koutnet.app
@@ -43,6 +44,14 @@ FormCard.FormCardPage {
     // Leaving the mic open after the page closes would hold the device against
     // the next call.
     Component.onDestruction: audioDevices.stopMicTest()
+
+    FileDialog {
+        id: wallpaperDialog
+        title: i18nc("@title:window", "Choose a wallpaper")
+        nameFilters: [i18nc("@item:inlistbox file dialog filter, keep the glob patterns",
+                            "Images (*.png *.jpg *.jpeg *.webp)")]
+        onAccepted: appSettings.wallpaperPath = selectedFile
+    }
 
     FormCard.FormHeader {
         title: i18nc("@title:group", "Identity")
@@ -85,6 +94,140 @@ FormCard.FormCardPage {
             ]
             currentIndex: ColorSchemeSelector.mode
             onActivated: (index) => ColorSchemeSelector.mode = index
+        }
+
+        FormCard.FormDelegateSeparator { above: schemeCombo; below: wallpaperButton }
+
+        // Local decoration and nothing else: the picture is never put on the
+        // wire, and no peer is told it exists. Said here as well as in the kcfg
+        // because it is the sort of thing a user of an encrypted messenger is
+        // entitled to be told without reading the source.
+        FormCard.FormButtonDelegate {
+            id: wallpaperButton
+            text: i18nc("@action:button", "Wallpaper")
+            description: appSettings.wallpaperPath.length > 0
+                ? appSettings.wallpaperPath
+                : i18nc("@info:whatsthis", "A picture behind the interface. Stays on this device and is never sent to anyone.")
+            icon.name: "preferences-desktop-wallpaper"
+            onClicked: wallpaperDialog.open()
+        }
+
+        FormCard.FormDelegateSeparator { above: wallpaperButton; below: wallpaperOpacityDelegate }
+
+        // A slider rather than a spin box, because this is a value that is judged
+        // by looking at the result and not by typing a number. There is no slider
+        // among the form delegates at the version this targets, so it is an
+        // AbstractFormDelegate with one in it - the same shape as the microphone
+        // meter below, which keeps the row's height and padding.
+        FormCard.AbstractFormDelegate {
+            id: wallpaperOpacityDelegate
+            background: null
+            enabled: appSettings.wallpaperPath.length > 0
+
+            contentItem: ColumnLayout {
+                spacing: Kirigami.Units.smallSpacing
+
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    text: i18nc("@label:slider how much of the wallpaper shows through", "Wallpaper opacity")
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.largeSpacing
+
+                    QQC2.Slider {
+                        id: opacitySlider
+                        Layout.fillWidth: true
+                        from: 0
+                        to: 100
+                        stepSize: 1
+                        value: appSettings.wallpaperOpacity
+                        // moved rather than valueChanged: the latter also fires
+                        // while the binding above is settling, which writes the
+                        // setting back over itself on every page open.
+                        onMoved: appSettings.wallpaperOpacity = Math.round(opacitySlider.value)
+                    }
+
+                    QQC2.Label {
+                        text: i18nc("@info:status a percentage, %1 is a number", "%1%", appSettings.wallpaperOpacity)
+                        color: Kirigami.Theme.disabledTextColor
+                    }
+                }
+
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: i18nc("@info:whatsthis", "The interface stays readable: a veil over the picture keeps its strength even at the top of the range.")
+                    font: Kirigami.Theme.smallFont
+                    color: Kirigami.Theme.disabledTextColor
+                }
+            }
+        }
+
+        FormCard.FormDelegateSeparator { above: wallpaperOpacityDelegate; below: clearWallpaperButton }
+
+        FormCard.FormButtonDelegate {
+            id: clearWallpaperButton
+            text: i18nc("@action:button", "Remove wallpaper")
+            icon.name: "edit-clear"
+            enabled: appSettings.wallpaperPath.length > 0
+            onClicked: appSettings.wallpaperPath = ""
+        }
+
+        FormCard.FormDelegateSeparator { above: clearWallpaperButton; below: compactDelegate }
+
+        FormCard.FormSwitchDelegate {
+            id: compactDelegate
+            text: i18nc("@option:check", "Compact mode")
+            description: i18nc("@info:whatsthis", "A reduced layout for a narrow window: the conversation list and the conversation only, with tighter rows.")
+            checked: appSettings.compactMode
+            onToggled: appSettings.compactMode = compactDelegate.checked
+        }
+    }
+
+    FormCard.FormHeader {
+        title: i18nc("@title:group the system tray icon and notifications", "Tray and notifications")
+    }
+
+    FormCard.FormCard {
+        FormCard.FormSwitchDelegate {
+            id: trayDelegate
+            text: i18nc("@option:check", "Show an icon in the system tray")
+            // Registering a status notifier item is a D-Bus name claim, and
+            // dropping it while the window was hidden would leave no way back to
+            // it, so the switch is read at start rather than applied live. Said
+            // out loud, because a switch that appears to do nothing is worse than
+            // one that admits when it takes effect.
+            description: i18nc("@info:whatsthis", "Takes effect the next time KOutNet starts.")
+            checked: appSettings.trayEnabled
+            onToggled: appSettings.trayEnabled = trayDelegate.checked
+        }
+
+        FormCard.FormDelegateSeparator { above: trayDelegate; below: minimizeDelegate }
+
+        FormCard.FormSwitchDelegate {
+            id: minimizeDelegate
+            text: i18nc("@option:check", "Close to the tray instead of quitting")
+            enabled: appSettings.trayEnabled
+            checked: appSettings.minimizeToTray
+            onToggled: appSettings.minimizeToTray = minimizeDelegate.checked
+        }
+
+        FormCard.FormDelegateSeparator { above: minimizeDelegate; below: awayDelegate }
+
+        // What separates "the window is behind something" from "nobody is there",
+        // which is what decides whether an arriving message gets a popup, a
+        // sound, or both. The three cases themselves are switches in System
+        // Settings, next to every other application's, rather than here.
+        FormCard.FormSpinBoxDelegate {
+            id: awayDelegate
+            label: i18nc("@label:spinbox minutes of no input before counting as away", "Count as away after (minutes)")
+            from: 1
+            to: 240
+            stepSize: 1
+            value: appSettings.awayAfterMinutes
+            onValueChanged: appSettings.awayAfterMinutes = awayDelegate.value
         }
     }
 
