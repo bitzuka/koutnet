@@ -152,3 +152,11 @@ A few things worth knowing before sending a patch:
 ## License
 
 GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL. Full texts are in `LICENSES/`.
+
+## Borrowed code
+
+The emoji picker, the emoji tables and the message text handler come from
+[NeoChat](https://invent.kde.org/network/neochat), as does the notification
+plumbing. Their authors are credited in the SPDX headers of the files
+concerned, and each of those files says which NeoChat file it came from.
+Writing any of it a second time would have been work for its own sake.

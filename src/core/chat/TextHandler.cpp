@@ -68,7 +68,7 @@ QString TextHandler::linkifyUrls(QString stringIn, int elideAt)
         // says where the link goes, and it is at the front.
         const int head = elideAt * 2 / 3;
         const int tail = elideAt - head;
-        return url.left(head) + QString::fromUtf8("\xe2\x80\xa6") + url.right(tail);
+        return QString(url.left(head) + QString::fromUtf8("\xe2\x80\xa6") + url.right(tail));
     };
 
     QRegularExpressionMatch match;
