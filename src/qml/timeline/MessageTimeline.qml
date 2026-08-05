@@ -9,10 +9,9 @@ import org.kde.kirigamiaddons.components as Components
 // the line that says the other side is writing.
 //
 // Top to bottom rather than a bottom-to-top view with an inverted model. The
-// model is a plain append-only list and the wheel handling below reads
-// contentY directly; both would have to be turned inside out to buy a first
-// paint that is already at the newest message, and positionViewAtEnd() buys the
-// same thing for one call.
+// model is a plain append-only list, and it would have to be turned inside out
+// to buy a first paint that is already at the newest message;
+// positionViewAtEnd() buys the same thing for one call.
 Item {
     id: root
 
@@ -39,11 +38,12 @@ Item {
     signal fileActivated(string path)
     signal readReached()
 
-    // How wide a message is allowed to be. A line of text past about ninety
-    // characters is measurably harder to read, and a maximised window is
-    // otherwise three times that.
-    readonly property real messageWidth: Math.min(messagesList.width - Kirigami.Units.largeSpacing * 2,
-                                                  Kirigami.Units.gridUnit * 46)
+    // How wide a message is. There used to be a cap of 46 grid units here, on
+    // the reading-length argument, but with the column finally filling the
+    // window it read as the conversation floating in the middle of the screen
+    // with a margin either side rather than as a comfortable measure. The
+    // column width is the measure now.
+    readonly property real messageWidth: messagesList.width - Kirigami.Units.largeSpacing * 2
 
     function scrollToEnd() {
         messagesList.positionViewAtEnd()
@@ -98,55 +98,38 @@ Item {
 
         QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
 
-        // On Wayland libinput reports wheel notches with a non-null pixelDelta,
-        // and Flickable's built-in handling reads that as trackpad-style direct
-        // movement: no flick, no deceleration. Accepting the event here and
-        // driving flick() ourselves keeps the wheel inertial whatever the
-        // compositor reports.
-        flickDeceleration: 400
-        maximumFlickVelocity: 10000
         boundsBehavior: Flickable.StopAtBounds
-        pixelAligned: false
 
+        // Delegates are expensive to build - rich text, reactions, an
+        // attachment - so a screenful either side is kept alive rather than
+        // destroyed at the edge and rebuilt on the way back. Without it every
+        // wheel notch pays for a fresh TextHandler.toRichText() and a fresh
+        // text layout on each row that comes into view.
+        cacheBuffer: Math.round(messagesList.height * 2)
+
+        // Only Ctrl+wheel is taken. Plain scrolling is left to the ListView.
+        //
+        // What used to be here drove the view by hand: flick() for a wheel and a
+        // direct write to contentY for a trackpad. The direct write clamped
+        // against Math.max(0, contentHeight - height), and all three of those are
+        // the wrong numbers. contentY is measured from originY, not from zero;
+        // the view has a topMargin and a bottomMargin the clamp did not count;
+        // and contentHeight on a list whose delegates have not all been built is
+        // an estimate from the average row height, which for a timeline holding
+        // both one-word replies and images is nowhere near the real total. On
+        // Wayland a mouse notch arrives with a non-null pixelDelta, so that is
+        // the branch a plain wheel took - which is why scrolling up parked
+        // contentY outside the range the view actually holds items for and left
+        // the reader looking at nothing until positionViewAtEnd() recomputed it.
         WheelHandler {
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-            // A burst of notches should build more speed than one isolated
-            // click, so track the gap since the last wheel event and how many
-            // have arrived in the streak.
-            property real lastWheelTime: 0
-            property int streakCount: 0
+            acceptedModifiers: Qt.ControlModifier
 
+            // Ctrl+wheel zooms the chat text rather than scrolling, which is the
+            // browser and editor convention.
             onWheel: (event) => {
-                const now = Date.now()
-                if (now - lastWheelTime > 250)
-                    streakCount = 0
-                streakCount = Math.min(streakCount + 1, 8)
-                lastWheelTime = now
-
-                // Ctrl+wheel zooms the chat text rather than scrolling, which is
-                // the browser and editor convention.
-                if (event.modifiers & Qt.ControlModifier) {
-                    root.fontScale = Math.max(0.7, Math.min(2.0,
-                        root.fontScale + (event.angleDelta.y > 0 ? 0.05 : -0.05)))
-                    event.accepted = true
-                    return
-                }
-
-                // Shift+wheel: fast scroll, several messages per notch.
-                const shiftBoost = (event.modifiers & Qt.ShiftModifier) ? 3 : 1
-                const streakBoost = 1 + streakCount * 0.15
-
-                if (event.pixelDelta.y !== 0) {
-                    // Trackpad panning on Wayland reports pixelDelta with
-                    // angleDelta at zero. Moving 1:1 feels right without
-                    // inertia; the streak boost still applies.
-                    const maxY = Math.max(0, messagesList.contentHeight - messagesList.height)
-                    const delta = event.pixelDelta.y * shiftBoost * streakBoost
-                    messagesList.contentY = Math.max(0, Math.min(maxY, messagesList.contentY - delta))
-                } else {
-                    messagesList.flick(0, event.angleDelta.y * 5 * shiftBoost * streakBoost)
-                }
-                event.accepted = true
+                root.fontScale = Math.max(0.7, Math.min(2.0,
+                    root.fontScale + (event.angleDelta.y > 0 ? 0.05 : -0.05)))
             }
         }
 

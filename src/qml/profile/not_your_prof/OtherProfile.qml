@@ -24,8 +24,15 @@ Kirigami.ScrollablePage {
 
     readonly property string shownName: peer
         ? (peer.displayName && peer.displayName.length > 0 ? peer.displayName
-                                                           : (peer.username || peer.ip))
+                                                           : (peer.username || root.unknownPeerName))
         : ""
+
+    readonly property string unknownPeerName: i18nc("@info a peer that has published no name of its own", "Unknown peer")
+
+    // The address is behind this rather than on the page. It is the one thing
+    // here that says where somebody physically is, and a profile is read with
+    // other people looking at the screen.
+    property bool technicalShown: false
 
     title: root.shownName
 
@@ -81,7 +88,7 @@ Kirigami.ScrollablePage {
 
                 QQC2.Label {
                     text: root.peer
-                        ? i18nc("@info the peer's handle, %1 is the username", "@%1", root.peer.username || root.peer.ip)
+                        ? i18nc("@info the peer's handle, %1 is the username", "@%1", root.peer.username || root.unknownPeerName)
                         : ""
                     color: Kirigami.Theme.disabledTextColor
                 }
@@ -134,8 +141,16 @@ Kirigami.ScrollablePage {
 
             FormCard.FormDelegateSeparator { above: systemDelegate; below: addressDelegate }
 
-            FormCard.FormTextDelegate {
+            FormCard.FormSwitchDelegate {
                 id: addressDelegate
+                icon.name: "documentinfo"
+                text: i18nc("@option:check reveal the peer's network address", "Show technical details")
+                checked: root.technicalShown
+                onToggled: root.technicalShown = checked
+            }
+
+            FormCard.FormTextDelegate {
+                visible: root.technicalShown
                 icon.name: "network-wired"
                 text: i18nc("@label network address of the peer", "Address")
                 description: root.peer ? (root.peer.ip || "") : ""

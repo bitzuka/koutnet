@@ -31,6 +31,11 @@ Kirigami.Page {
     // AppSettings.connectionMode, mirrored so the rail has something to draw.
     property int connectionMode: 0
 
+    // Mirrored from the window so the account row can draw them; the window is
+    // what owns the call these actually act on.
+    property bool micMuted: false
+    property bool deafened: false
+
     property bool favoritesExpanded: true
     property bool directExpanded: true
 
@@ -40,6 +45,11 @@ Kirigami.Page {
     signal profileRequested()
     signal settingsRequested()
     signal connectionModeRequested(int mode)
+    signal micToggled()
+    signal deafenToggled()
+    // The row that was clicked travels with the request: the card is anchored to
+    // it, and only this page knows which delegate it was.
+    signal peerCardRequested(string chatId, Item anchorItem)
 
     readonly property string favoritesName: i18nc("@item conversation list, chat with yourself", "Favorites")
 
@@ -229,6 +239,7 @@ Kirigami.Page {
 
                     onClicked: root.chatActivated(model.chatId)
                     onPressAndHold: chatRow.openRowMenu()
+                    onAvatarClicked: (anchorItem) => root.peerCardRequested(model.chatId, anchorItem)
 
                     TapHandler {
                         acceptedButtons: Qt.RightButton
@@ -240,7 +251,12 @@ Kirigami.Page {
     }
 
     footer: AccountRow {
+        micMuted: root.micMuted
+        deafened: root.deafened
+
         onProfileRequested: root.profileRequested()
         onSettingsRequested: root.settingsRequested()
+        onMicToggled: root.micToggled()
+        onDeafenToggled: root.deafenToggled()
     }
 }

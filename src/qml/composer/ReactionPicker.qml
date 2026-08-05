@@ -53,6 +53,8 @@ QQC2.Popup {
             model: root.quickEmojis.concat(root.customEmojis)
 
             delegate: QQC2.ToolButton {
+                id: pick
+
                 required property var modelData
 
                 implicitWidth: Kirigami.Units.gridUnit * 2
@@ -62,13 +64,45 @@ QQC2.Popup {
                 // plain one is the character itself.
                 readonly property bool isPicture: typeof modelData === "string" && modelData.indexOf("img:") === 0
 
-                text: isPicture ? "" : modelData
-                icon.source: isPicture ? modelData.substring(4) : ""
-                display: isPicture ? QQC2.AbstractButton.IconOnly : QQC2.AbstractButton.TextOnly
+                // Accessible.name and the tooltip carry the character, since the
+                // button itself has no text to read out any more.
+                Accessible.name: pick.isPicture
+                    ? i18nc("@info:whatsthis a picture the user added as a reaction", "Custom reaction")
+                    : pick.modelData
 
                 onClicked: {
-                    root.chosen(root.targetRow, modelData)
+                    root.chosen(root.targetRow, pick.modelData)
                     root.close()
+                }
+
+                // A contentItem of its own rather than the button's own label.
+                // The default one draws the character in the interface font at
+                // the interface size, and a desktop UI font has no emoji in it -
+                // so the six choices came out as nothing at all in a row of
+                // empty buttons. This is the treatment the composer's picker
+                // already uses; see EmojiDelegate.qml.
+                contentItem: Item {
+                    QQC2.Label {
+                        anchors.fill: parent
+                        visible: !pick.isPicture
+                        text: pick.isPicture ? "" : pick.modelData
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        font.family: "emoji"
+                        font.pixelSize: Math.round(height - Kirigami.Units.largeSpacing)
+                        elide: Text.ElideNone
+                        wrapMode: Text.NoWrap
+                        textFormat: Text.PlainText
+                        color: Kirigami.Theme.textColor
+                    }
+
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        width: Kirigami.Units.iconSizes.smallMedium
+                        height: width
+                        visible: pick.isPicture
+                        source: pick.isPicture ? pick.modelData.substring(4) : ""
+                    }
                 }
             }
         }

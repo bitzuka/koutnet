@@ -5,8 +5,7 @@
 // Adapted from NeoChat's src/chatbar/EmojiTonesPicker.qml.
 //
 // The skin tones of one emoji, on a strip that opens over the grid when the key
-// is held down. Kirigami.Units.cornerRadius is replaced by smallSpacing here:
-// this project declares a Kirigami 6.0 floor and that property arrived later.
+// is held down.
 import QtQuick
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
@@ -36,7 +35,7 @@ QQC2.Popup {
     onOpened: x = Math.min(parent.mapFromGlobal(QQC2.Overlay.overlay.width - root.width, 0).x, -(width - parent.width) / 2)
     background: Kirigami.ShadowedRectangle {
         color: Kirigami.Theme.backgroundColor
-        radius: Kirigami.Units.smallSpacing
+        radius: Kirigami.Units.cornerRadius
         shadow {
             size: Kirigami.Units.largeSpacing
             color: Qt.rgba(0.0, 0.0, 0.0, 0.3)

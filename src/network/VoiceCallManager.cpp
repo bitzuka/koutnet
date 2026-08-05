@@ -83,7 +83,24 @@ void VoiceCallManager::hangupAll()
 void VoiceCallManager::setMute(bool muted)
 {
     m_muted = muted;
-    m_audio->setMuted(muted);
+    // Deafened outranks the mute flag: while it is on the microphone stays
+    // shut whatever this was set to.
+    m_audio->setMuted(muted || m_deafened);
+}
+
+void VoiceCallManager::setDeafen(bool deafened)
+{
+    m_deafened = deafened;
+    m_audio->setDeafened(deafened);
+    // Coming back out of it restores the mute the user had chosen, which is
+    // why m_muted was never overwritten on the way in.
+    m_audio->setMuted(m_muted || deafened);
+}
+
+bool VoiceCallManager::toggleDeafen()
+{
+    setDeafen(!m_deafened);
+    return m_deafened;
 }
 
 bool VoiceCallManager::toggleMute()

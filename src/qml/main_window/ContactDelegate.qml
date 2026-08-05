@@ -39,6 +39,10 @@ Delegates.RoundedItemDelegate {
     // reachability and no last-message line to show.
     property bool showPresence: true
 
+    // The avatar answers separately from the row: clicking a face asks who
+    // this is, clicking the row opens the conversation.
+    signal avatarClicked(Item anchorItem)
+
     text: root.displayName
     // The base class ties this to the view's current item. Selection here means
     // which conversation is open, which the view knows nothing about.
@@ -48,9 +52,23 @@ Delegates.RoundedItemDelegate {
         spacing: Kirigami.Units.smallSpacing
 
         Item {
+            id: avatarSlot
+
             implicitWidth: Kirigami.Units.iconSizes.medium
             implicitHeight: Kirigami.Units.iconSizes.medium
             Layout.alignment: Qt.AlignVCenter
+
+            // Taken before the delegate's own tap handling, so the card opens
+            // instead of the conversation. The card is hung off this item.
+            TapHandler {
+                acceptedButtons: Qt.LeftButton
+                gesturePolicy: TapHandler.ReleaseWithinBounds
+                onTapped: root.avatarClicked(avatarSlot)
+            }
+
+            HoverHandler {
+                cursorShape: Qt.PointingHandCursor
+            }
 
             Components.Avatar {
                 anchors.fill: parent

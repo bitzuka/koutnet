@@ -39,6 +39,16 @@ public:
         return m_muted;
     }
 
+    // Deafen silences incoming audio and implies mute. The two are held apart
+    // rather than folded into one flag so that un-deafening puts the
+    // microphone back the way the user left it instead of simply opening it.
+    Q_INVOKABLE void setDeafen(bool deafened);
+    Q_INVOKABLE bool toggleDeafen();
+    bool isDeafened() const
+    {
+        return m_deafened;
+    }
+
     Q_INVOKABLE void setVad(bool enabled);
 
     // Settings-dialog passthroughs. The engine itself stays private;
@@ -72,6 +82,7 @@ private:
     AudioEngine *m_audio = nullptr;
     QSet<QString> m_active;
     bool m_muted = false;
+    bool m_deafened = false;
     QVector<SpeakingCallback> m_speakingCallbacks;
 };
 

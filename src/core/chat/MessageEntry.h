@@ -35,6 +35,12 @@ struct MessageEntry {
     // Read receipt for own outgoing messages
     bool isRead = false;
 
+    // True between an outgoing message appearing in the timeline and its
+    // datagram being written. Deliberately absent from toJson() and
+    // toVariantMap(): anything reloaded from the log was sent long ago, and a
+    // "sending" state that survived a restart would never resolve.
+    bool pending = false;
+
     MessageEntry() = default;
 
     static MessageEntry fromJson(const QJsonObject &o);

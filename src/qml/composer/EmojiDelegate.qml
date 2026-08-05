@@ -4,10 +4,8 @@
 //
 // Adapted from NeoChat's src/chatbar/EmojiDelegate.qml.
 //
-// Two things are gone: the Image half, which drew Matrix custom emoji and
-// stickers from an mxc:// URI, and Kirigami.Units.cornerRadius, which this
-// project cannot use because it declares a Kirigami 6.0 floor and that property
-// arrived later. smallSpacing is the radius instead.
+// One thing is gone: the Image half, which drew Matrix custom emoji and
+// stickers from an mxc:// URI.
 import QtQuick
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
@@ -54,10 +52,10 @@ QQC2.ItemDelegate {
     background: Rectangle {
         Kirigami.Theme.colorSet: Kirigami.Theme.ColorSet.View
         color: root.checked ? Kirigami.Theme.highlightColor : Kirigami.Theme.backgroundColor
-        radius: Kirigami.Units.smallSpacing
+        radius: Kirigami.Units.cornerRadius
 
         Rectangle {
-            radius: Kirigami.Units.smallSpacing
+            radius: Kirigami.Units.cornerRadius
             anchors.fill: parent
             color: Kirigami.Theme.highlightColor
             opacity: root.hovered && !root.pressed ? 0.2 : 0

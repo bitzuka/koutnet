@@ -43,6 +43,9 @@ public:
         ReplyToIdRole,
         MsgIdRole,
         IsReadRole,
+        // Whether an outgoing message is still between the timeline and the
+        // socket. Transient and never loaded from the log; see MessageEntry.
+        IsPendingRole,
         ReactionsRole,
         TimeStringRole,
         IsFileRole,
@@ -87,14 +90,19 @@ public:
     QObject *unreadManagerObj() const;
     void setUnreadManagerObj(QObject *obj);
 
-    Q_INVOKABLE void sendMessage(const QString &text,
-                                 const QString &replyToText = QString(),
-                                 const QString &replyToSender = QString(),
-                                 const QString &replyToId = QString());
+    // Both return the stamp of the row they appended, which is what the
+    // caller hands back to markSent() once the datagram is actually written.
+    // Zero means nothing was appended.
+    Q_INVOKABLE double
+    sendMessage(const QString &text, const QString &replyToText = QString(), const QString &replyToSender = QString(), const QString &replyToId = QString());
     // Where a message with this id sits, or -1. What the quote above a reply is
     // clicked to reach.
     Q_INVOKABLE int rowForMsgId(const QString &msgId) const;
-    Q_INVOKABLE void sendFile(const QString &filePath, bool isImage);
+    Q_INVOKABLE double sendFile(const QString &filePath, bool isImage);
+    // Resolves the hourglass to one tick. UDP has nothing to confirm a
+    // delivery with, so "sent" here means only that this end wrote the
+    // datagram - which is the most an outgoing mark is entitled to claim.
+    Q_INVOKABLE void markSent(double stamp);
     Q_INVOKABLE void receiveMessage(const QString &text, const QString &sender = QString());
     Q_INVOKABLE void receiveFile(const QString &filePath, bool isImage, const QString &sender = QString());
     Q_INVOKABLE void appendSystemMessage(const QString &text);

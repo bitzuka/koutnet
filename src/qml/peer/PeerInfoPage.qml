@@ -25,7 +25,10 @@ Kirigami.ScrollablePage {
 
     property bool encryptionExpanded: true
     property bool systemExpanded: true
-    property bool addressExpanded: true
+    // Folded away to begin with, unlike the sections above it. The addresses
+    // are the one thing on this page that says where somebody is, and it should
+    // take a deliberate click rather than being on screen by default.
+    property bool addressExpanded: false
     property bool aboutExpanded: true
 
     signal profileRequested()
@@ -34,7 +37,8 @@ Kirigami.ScrollablePage {
     readonly property string shownName: root.peer
         ? (root.peer.displayName && root.peer.displayName.length > 0
             ? root.peer.displayName
-            : (root.peer.username || root.peer.ip || ""))
+            : (root.peer.username
+                || i18nc("@info a peer that has published no name of its own", "Unknown peer")))
         : ""
 
     // Re-read whenever anything could have changed them. These are function

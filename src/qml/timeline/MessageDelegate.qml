@@ -39,6 +39,7 @@ Item {
     required property string replyToId
     required property string msgId
     required property bool isRead
+    required property bool isPending
     required property var reactions
     required property string timeString
     required property double stampSecs
@@ -282,27 +283,37 @@ Item {
                         }
                     }
 
-                    ReplyQuote {
+                    // The quote, the attachment and the reactions are loaded
+                    // rather than declared. Most messages are a line of text
+                    // with none of the three, and building all three for every
+                    // row is most of what a fast scroll was paying for.
+                    Loader {
                         Layout.fillWidth: true
-                        visible: root.hasReply
-                        Layout.preferredHeight: visible ? -1 : 0
-                        author: root.replyToSender
-                        excerpt: root.replyToText
-                        targetId: root.replyToId
-                        onJumpRequested: (msgId) => root.jumpRequested(msgId)
+                        active: root.hasReply
+                        visible: active
+
+                        sourceComponent: ReplyQuote {
+                            author: root.replyToSender
+                            excerpt: root.replyToText
+                            targetId: root.replyToId
+                            onJumpRequested: (msgId) => root.jumpRequested(msgId)
+                        }
                     }
 
-                    AttachmentBlock {
+                    Loader {
                         Layout.fillWidth: true
-                        visible: root.isFile
-                        Layout.preferredHeight: visible ? -1 : 0
-                        filePath: root.filePath
-                        fileName: root.text
-                        isImage: root.isImage
-                        maxImageWidth: Math.min(Kirigami.Units.gridUnit * 18,
-                                                root.contentWidth - root.gutterWidth - Kirigami.Units.largeSpacing * 2)
-                        onImageActivated: (path) => root.imageActivated(path)
-                        onFileActivated: (path) => root.fileActivated(path)
+                        active: root.isFile
+                        visible: active
+
+                        sourceComponent: AttachmentBlock {
+                            filePath: root.filePath
+                            fileName: root.text
+                            isImage: root.isImage
+                            maxImageWidth: Math.min(Kirigami.Units.gridUnit * 18,
+                                                    root.contentWidth - root.gutterWidth - Kirigami.Units.largeSpacing * 2)
+                            onImageActivated: (path) => root.imageActivated(path)
+                            onFileActivated: (path) => root.fileActivated(path)
+                        }
                     }
 
                     // Plain Label rather than SelectableLabel: that one takes the
@@ -345,14 +356,17 @@ Item {
                         }
                     }
 
-                    ReactionFlow {
+                    Loader {
                         Layout.fillWidth: true
-                        visible: root.reactions.length > 0
-                        Layout.preferredHeight: visible ? -1 : 0
-                        reactions: root.reactions
-                        selfName: root.selfName
-                        onToggled: (emoji) => root.reactionToggled(root.index, emoji)
-                        onAddRequested: root.reactRequested(root.index)
+                        active: root.reactions.length > 0
+                        visible: active
+
+                        sourceComponent: ReactionFlow {
+                            reactions: root.reactions
+                            selfName: root.selfName
+                            onToggled: (emoji) => root.reactionToggled(root.index, emoji)
+                            onAddRequested: root.reactRequested(root.index)
+                        }
                     }
                 }
 
@@ -375,27 +389,47 @@ Item {
                     DeliveryMark {
                         visible: root.isOwn
                         read: root.isRead
+                        pending: root.isPending
                     }
                 }
             }
 
             // The hover strip, straddling the top edge at the trailing side.
-            MessageActions {
+            //
+            // Loaded on hover and thrown away after. It is four buttons, four
+            // tooltips and a shadowed rectangle, and it used to be built for
+            // every message in the view whether or not anybody went near it.
+            //
+            // The strip hangs half above this message, so the pointer reaching
+            // for it has already left the body: keeping it loaded on
+            // bodyHover alone would pull it out from under the click. The strip
+            // reports its own hover into stripHovered instead. Assigned rather
+            // than bound, because a binding from active back through item to
+            // active is a loop and QML says so at every frame.
+            Loader {
                 id: hoverActions
+
+                property bool stripHovered: false
 
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.top
                 z: 1
-                hoverEnabled: true
-                // Kept up while the pointer is on the strip itself, or reaching
-                // for it would dismiss it on the way.
-                visible: bodyHover.hovered || hoverActions.hovered
-                canEdit: root.isOwn && !root.isFile
+                active: bodyHover.hovered || hoverActions.stripHovered
 
-                onReactRequested: root.reactRequested(root.index)
-                onReplyRequested: root.replyRequested(root.index, root.authorName, root.text, root.msgId)
-                onEditRequested: root.editRequested(root.index, root.text)
-                onMenuRequested: root.menuRequested(root.index, root.authorName, root.text, root.msgId)
+                sourceComponent: MessageActions {
+                    hoverEnabled: true
+                    canEdit: root.isOwn && !root.isFile
+
+                    onHoveredChanged: hoverActions.stripHovered = hovered
+                    // Or a strip unloaded while the pointer was still on it
+                    // would leave the flag up and the next one stuck open.
+                    Component.onDestruction: hoverActions.stripHovered = false
+
+                    onReactRequested: root.reactRequested(root.index)
+                    onReplyRequested: root.replyRequested(root.index, root.authorName, root.text, root.msgId)
+                    onEditRequested: root.editRequested(root.index, root.text)
+                    onMenuRequested: root.menuRequested(root.index, root.authorName, root.text, root.msgId)
+                }
             }
 
             TapHandler {

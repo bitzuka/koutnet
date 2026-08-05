@@ -50,6 +50,8 @@ QVariant ChatModel::data(const QModelIndex &index, int role) const
         return m.msgId;
     case IsReadRole:
         return m.isRead;
+    case IsPendingRole:
+        return m.pending;
     case IsFileRole:
         return m.isFile;
     case FilePathRole:
@@ -116,6 +118,7 @@ QHash<int, QByteArray> ChatModel::roleNames() const
         {ReplyToIdRole, "replyToId"},
         {MsgIdRole, "msgId"},
         {IsReadRole, "isRead"},
+        {IsPendingRole, "isPending"},
         {ReactionsRole, "reactions"},
         {TimeStringRole, "timeString"},
         {IsFileRole, "isFile"},
@@ -264,18 +267,20 @@ void ChatModel::appendEntry(MessageEntry e, bool persist)
         Q_EMIT messageAdded(m_chatId, e.text, e.isOwn, e.ts);
 }
 
-void ChatModel::sendMessage(const QString &text, const QString &replyToText, const QString &replyToSender, const QString &replyToId)
+double ChatModel::sendMessage(const QString &text, const QString &replyToText, const QString &replyToSender, const QString &replyToId)
 {
     if (text.trimmed().isEmpty())
-        return;
+        return 0.0;
     MessageEntry e;
     e.text = text;
     e.ts = QDateTime::currentMSecsSinceEpoch() / 1000.0;
     e.isOwn = true;
+    e.pending = true;
     e.replyToText = replyToText;
     e.replyToSender = replyToSender;
     e.replyToId = replyToId;
     appendEntry(e, true);
+    return e.ts;
 }
 
 int ChatModel::rowForMsgId(const QString &msgId) const
@@ -289,16 +294,28 @@ int ChatModel::rowForMsgId(const QString &msgId) const
     return -1;
 }
 
-void ChatModel::sendFile(const QString &filePath, bool isImage)
+double ChatModel::sendFile(const QString &filePath, bool isImage)
 {
     MessageEntry e;
     e.text = filePath.section(QLatin1Char('/'), -1);
     e.ts = QDateTime::currentMSecsSinceEpoch() / 1000.0;
     e.isOwn = true;
+    e.pending = true;
     e.isFile = true;
     e.filePath = filePath;
     e.isImage = isImage;
     appendEntry(e, true);
+    return e.ts;
+}
+
+void ChatModel::markSent(double stamp)
+{
+    const int row = rowForStamp(stamp);
+    if (row < 0 || !m_messages.at(row).pending)
+        return;
+    m_messages[row].pending = false;
+    const QModelIndex idx = index(row);
+    Q_EMIT dataChanged(idx, idx, {IsPendingRole});
 }
 
 void ChatModel::receiveMessage(const QString &text, const QString &sender)
@@ -347,9 +364,12 @@ void ChatModel::markOwnMessagesRead()
     for (int i = 0; i < m_messages.size(); ++i) {
         if (m_messages[i].isOwn && !m_messages[i].isRead) {
             m_messages[i].isRead = true;
+            // A receipt is proof the datagram arrived, so anything still
+            // showing an hourglass here has plainly got past this machine.
+            m_messages[i].pending = false;
             any = true;
             const QModelIndex idx = index(i);
-            Q_EMIT dataChanged(idx, idx, {IsReadRole});
+            Q_EMIT dataChanged(idx, idx, {IsReadRole, IsPendingRole});
         }
     }
     if (!any)

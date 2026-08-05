@@ -7,26 +7,35 @@ import org.kde.kirigami as Kirigami
 // What is known about an outgoing message, which is less than most messengers
 // imply.
 //
-// A tick used to go up the moment the message was handed to the socket, which
-// over UDP says nothing: the receiver may have dropped it, and that is exactly
-// what it looked like when it did. So there are two states and not three. The
-// arrow means the datagram left this machine. The pair of ticks means the peer
-// sent back a signed read receipt, which is the only thing here anybody else
-// has vouched for.
+// Three states. The hourglass is the gap between the message appearing in the
+// timeline and the datagram actually being written - short, local, and the only
+// honest thing "sending" can mean here. One tick means the datagram left this
+// machine, which over UDP is the end of what this side can observe: nothing
+// comes back to say it arrived. Two ticks means the peer returned a signed read
+// receipt, which is the one state here that somebody else has vouched for.
+//
+// Glyphs rather than Breeze icons: breeze-icons has dialog-ok for a single tick
+// and nothing that reads as a pair, and one drawn icon beside one drawn
+// character would look worse than two characters.
 QQC2.Label {
     id: root
 
     required property bool read
+    // Still in flight. Never true alongside read: a receipt cannot arrive
+    // before the datagram it is about has been written.
+    required property bool pending
 
     // Escapes rather than the characters themselves, so this file stays ASCII.
-    text: root.read ? "\u2713\u2713" : "\u2191"
+    text: root.pending ? "\u231B" : (root.read ? "\u2713\u2713" : "\u2713")
     textFormat: Text.PlainText
     font: Kirigami.Theme.smallFont
     color: root.read ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
 
-    Accessible.name: root.read
-        ? i18nc("@info:whatsthis state of an outgoing message", "Read by the recipient")
-        : i18nc("@info:whatsthis state of an outgoing message", "Sent, delivery not confirmed")
+    Accessible.name: root.pending
+        ? i18nc("@info:whatsthis state of an outgoing message", "Sending")
+        : (root.read
+            ? i18nc("@info:whatsthis state of an outgoing message", "Read by the recipient")
+            : i18nc("@info:whatsthis state of an outgoing message", "Sent, delivery not confirmed"))
 
     HoverHandler {
         id: markHover
@@ -34,7 +43,9 @@ QQC2.Label {
 
     QQC2.ToolTip.visible: markHover.hovered
     QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-    QQC2.ToolTip.text: root.read
-        ? i18nc("@info:tooltip state of an outgoing message", "Read by the recipient")
-        : i18nc("@info:tooltip state of an outgoing message", "Sent - delivery not confirmed")
+    QQC2.ToolTip.text: root.pending
+        ? i18nc("@info:tooltip state of an outgoing message", "Sending")
+        : (root.read
+            ? i18nc("@info:tooltip state of an outgoing message", "Read by the recipient")
+            : i18nc("@info:tooltip state of an outgoing message", "Sent - delivery not confirmed"))
 }

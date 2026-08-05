@@ -12,6 +12,14 @@
 
 namespace
 {
+// What a conversation is called when the peer has never published a name. The
+// chat is keyed on the address, but the address is not something to print in a
+// list somebody leaves open on a second monitor.
+QString unknownPeerName()
+{
+    return i18nc("@info a peer that has published no name of its own", "Unknown peer");
+}
+
 // How long a preview line is allowed to be before it is cut. The row elides
 // what it draws anyway; this is about not carrying a whole pasted essay in the
 // index file for every chat.
@@ -58,9 +66,9 @@ QVariant ChatListModel::data(const QModelIndex &index, int role) const
     case ChatIdRole:
         return e.chatId;
     case DisplayNameRole:
-        return e.displayName.isEmpty() ? e.chatId : e.displayName;
+        return e.displayName.isEmpty() ? unknownPeerName() : e.displayName;
     case AvatarLetterRole: {
-        const QString name = e.displayName.isEmpty() ? e.chatId : e.displayName;
+        const QString name = e.displayName.isEmpty() ? unknownPeerName() : e.displayName;
         return name.isEmpty() ? QStringLiteral("?") : name.left(1).toUpper();
     }
     case PreviewRole:
@@ -161,7 +169,7 @@ QVariantMap ChatListModel::chatInfo(const QString &chatId) const
     const Entry &e = m_rows.at(row);
     QVariantMap m;
     m[QStringLiteral("chatId")] = e.chatId;
-    m[QStringLiteral("displayName")] = e.displayName.isEmpty() ? e.chatId : e.displayName;
+    m[QStringLiteral("displayName")] = e.displayName.isEmpty() ? unknownPeerName() : e.displayName;
     m[QStringLiteral("preview")] = e.preview;
     m[QStringLiteral("stampSecs")] = e.lastActivity;
     m[QStringLiteral("lastSeenSecs")] = e.lastSeen;

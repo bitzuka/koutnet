@@ -57,6 +57,17 @@ public:
         return m_muted.load(std::memory_order_relaxed);
     }
 
+    // Deafened means nothing from the network reaches the speakers. Read on
+    // the audio thread like the two above, so it is atomic for the same reason.
+    void setDeafened(bool deafened)
+    {
+        m_deafened.store(deafened, std::memory_order_relaxed);
+    }
+    bool deafened() const
+    {
+        return m_deafened.load(std::memory_order_relaxed);
+    }
+
     void setVolume(qreal v)
     {
         m_volume.store(v, std::memory_order_relaxed);
@@ -114,6 +125,7 @@ private:
     AudioMixer m_mixer;
     bool m_running = false;
     std::atomic<bool> m_muted = false;
+    std::atomic<bool> m_deafened = false;
     bool m_vadEnabled = true;
     QString m_inputId;
     QString m_outputId;

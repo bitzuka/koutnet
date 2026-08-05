@@ -35,6 +35,21 @@ public:
 protected:
     qint64 readData(char *data, qint64 maxlen) override
     {
+        // Deafened is answered here rather than by dropping frames on the way
+        // in, so it silences whatever is already sitting in the jitter buffers
+        // as well as what has not arrived yet. The buffers are still drained
+        // below, or un-deafening would play back the seconds that went past
+        // while nobody was listening.
+        if (m_engine->deafened()) {
+            qint64 dropped = 0;
+            while (dropped + PeerBuffer::kFrameBytes <= maxlen) {
+                m_engine->m_mixer.mix();
+                dropped += PeerBuffer::kFrameBytes;
+            }
+            std::memset(data, 0, maxlen);
+            return maxlen;
+        }
+
         qint64 written = 0;
         // Read once for the whole callback: the GUI thread can move the slider
         // between two iterations, and half a buffer at one gain and half at

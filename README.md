@@ -63,14 +63,16 @@ as unsupported until somebody says otherwise.
 
 - **Qt 6.4+**: Core, Gui, Quick, QuickControls2, QuickDialogs2, Multimedia,
   Network. Test as well, if you build the test suite.
-- **KDE Frameworks 6.0+**: I18n, I18nQml, Kirigami, Wallet, CoreAddons,
+- **KDE Frameworks 6.8+**: I18n, I18nQml, Kirigami, Wallet, CoreAddons,
   Config. ColorScheme as well, from 6.6, for the dark/light/system setting.
+  The floor is 6.8 rather than 6.0 because `Kirigami.Units.cornerRadius`, which
+  the timeline and the pickers round their corners with, was added in 6.8.
 - **kirigami-addons 1.8+**: FormCard for the settings and about pages, the list
   delegates for the conversation rows, the maximize component for the image
   viewer and the convergent context menu for the per-message menu. CMake fails
   at configure time with the package name if it is missing.
 - **OpenSSL** (libcrypto).
-- **extra-cmake-modules** 6.0+ and CMake 3.21+.
+- **extra-cmake-modules** 6.8+ and CMake 3.21+.
 
 On Debian or Ubuntu, roughly:
 

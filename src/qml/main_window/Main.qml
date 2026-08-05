@@ -50,6 +50,21 @@ Kirigami.ApplicationWindow {
     property string currentPeerIp: ""
     readonly property string kSelfChatId: "__self__"
     property bool micMuted: false
+    // Deafen silences what comes in as well as what goes out, so it implies
+    // mute. The engine is told about both separately - see
+    // VoiceCallManager::setDeafen - because un-deafening has to put the
+    // microphone back the way the user left it, not simply unmute it.
+    property bool deafened: false
+
+    function toggleMic() {
+        root.micMuted = !root.micMuted
+        voiceCallManager.setMute(root.micMuted)
+    }
+
+    function toggleDeafen() {
+        root.deafened = !root.deafened
+        voiceCallManager.setDeafen(root.deafened)
+    }
 
     // Whether the open conversation is scrolled to its newest message. A read
     // receipt is a claim that somebody read something, so it is only sent for a
@@ -165,12 +180,12 @@ Kirigami.ApplicationWindow {
             if (p.ip === ip) {
                 return {
                     ip: ip,
-                    username: p.username || ip,
+                    username: p.username || root.unknownPeerName,
                     displayName: p.display_name || "",
                     bio: p.bio || "",
                     os: p.os || "",
                     e2e: p.e2e === true,
-                    avatarLetter: (p.username || ip).charAt(0).toUpperCase(),
+                    avatarLetter: (p.username || root.unknownPeerName).charAt(0).toUpperCase(),
                     isFavorites: false,
                     // Being in peersModel is what reachable means: userOffline
                     // takes a peer out of it as soon as NetworkManager stops
@@ -190,10 +205,10 @@ Kirigami.ApplicationWindow {
         const known = chatList.chatInfo(ip)
         return {
             ip: ip,
-            username: known.displayName || ip,
+            username: known.displayName || root.unknownPeerName,
             os: "",
             e2e: false,
-            avatarLetter: (known.displayName || ip).charAt(0).toUpperCase(),
+            avatarLetter: (known.displayName || root.unknownPeerName).charAt(0).toUpperCase(),
             isFavorites: false,
             online: false,
             lastSeen: known.lastSeenSecs || 0
@@ -205,23 +220,33 @@ Kirigami.ApplicationWindow {
     property var outgoingCallWindow: null
     property var activeCallWindow: null
 
-    // The friendly name if the peer publishes one, then the handle, then the bare
-    // address. Same order the conversation list files a chat under, so opening a
-    // chat and hearing presence from it do not disagree about what to call it.
+    // The friendly name if the peer publishes one, then the handle, and then
+    // nothing. It used to fall through to the bare address, which put an IP in
+    // the window title, in every notification and in the conversation list.
+    // Same order the conversation list files a chat under, so opening a chat and
+    // hearing presence from it do not disagree about what to call it.
     function peerDisplayName(ip) {
         for (let i = 0; i < peersModel.count; ++i) {
             const p = peersModel.get(i)
             if (p.ip === ip)
-                return p.display_name || p.username || ip
+                return p.display_name || p.username || ""
         }
-        return ip
+        return ""
+    }
+
+    // What to actually draw for a peer that has published no name. The address
+    // is what this client routes on, but it is not what it should say out loud.
+    readonly property string unknownPeerName: i18nc("@info a peer that has published no name of its own", "Unknown peer")
+
+    function peerLabel(ip) {
+        return root.peerDisplayName(ip) || root.unknownPeerName
     }
 
     function startOutgoingCall(ip) {
         if (root.outgoingCallWindow) return
         networkManager.sendCallRequest(ip)
         const win = outgoingCallComponent.createObject(
-            root, { peerName: root.peerDisplayName(ip), peerIp: ip })
+            root, { peerName: root.peerLabel(ip), peerIp: ip })
         win.cancelled.connect(function() {
             networkManager.sendCallEnd(ip)
             root.outgoingCallWindow = null
@@ -258,6 +283,27 @@ Kirigami.ApplicationWindow {
     // internal resource layout written into three string literals.
     Component { id: outgoingCallComponent; OutgoingCallWindow {} }
     Component { id: activeCallComponent; ActiveCallWindow {} }
+
+    // One card, moved to whatever was clicked, rather than one per row. It is
+    // reparented by openAt(), so it must not be declared inside anything that
+    // gets destroyed under it - a delegate, for instance.
+    PeerCard {
+        id: peerCard
+
+        onMessageRequested: (chatId) => root.openChat(chatId)
+        onCallRequested: (chatId) => root.startOutgoingCall(chatId)
+        onDetailsRequested: (chatId) => {
+            root.openChat(chatId)
+            if (!root.peerInfoOpen)
+                root.togglePeerInfo()
+        }
+    }
+
+    function showPeerCard(chatId, anchorItem) {
+        if (chatId.length === 0 || chatId === root.kSelfChatId)
+            return
+        peerCard.openAt(anchorItem, root.peerInfoFor(chatId))
+    }
 
     IncomingCallDialog {
         id: incomingCall
@@ -373,11 +419,19 @@ Kirigami.ApplicationWindow {
                 text: root.micMuted
                     ? i18nc("@action:inmenu let your microphone be heard again", "Unmute microphone")
                     : i18nc("@action:inmenu silence your own microphone", "Mute microphone")
-                icon.name: root.micMuted ? "microphone-sensitivity-muted" : "audio-input-microphone"
-                onTriggered: {
-                    root.micMuted = !root.micMuted
-                    voiceCallManager.setMute(root.micMuted)
-                }
+                icon.name: (root.micMuted || root.deafened) ? "microphone-sensitivity-muted" : "audio-input-microphone"
+                // Deafened already holds the microphone down, so offering to
+                // unmute it while it cannot be heard either way would be a
+                // control that does nothing.
+                enabled: !root.deafened
+                onTriggered: root.toggleMic()
+            },
+            Kirigami.Action {
+                text: root.deafened
+                    ? i18nc("@action:inmenu start hearing calls again", "Undeafen")
+                    : i18nc("@action:inmenu stop hearing calls, and stop being heard", "Deafen")
+                icon.name: root.deafened ? "audio-volume-muted" : "audio-volume-high"
+                onTriggered: root.toggleDeafen()
             },
             Kirigami.Action {
                 text: i18nc("@action:inmenu hang up every call in progress", "End all calls")
@@ -450,24 +504,10 @@ Kirigami.ApplicationWindow {
                         : i18nc("@info:status", "Searching for peers...")
                 }
 
-                QQC2.Label {
-                    font: Kirigami.Theme.smallFont
-                    color: Kirigami.Theme.disabledTextColor
-                    text: i18nc("@info:status %1 is this host's address", "IP: %1", networkManager.hostIp || "?")
-                }
-
-                QQC2.ToolButton {
-                    display: QQC2.AbstractButton.IconOnly
-                    icon.name: root.micMuted ? "microphone-sensitivity-muted" : "audio-input-microphone"
-                    text: root.micMuted ? i18nc("@info:status", "Microphone off")
-                                        : i18nc("@info:status", "Microphone on")
-                    QQC2.ToolTip.visible: hovered
-                    QQC2.ToolTip.text: text
-                    onClicked: {
-                        root.micMuted = !root.micMuted
-                        voiceCallManager.setMute(root.micMuted)
-                    }
-                }
+                // No address here. This used to print the host's own IP in the
+                // corner of every screenshot, and the microphone button that
+                // sat beside it now lives next to the account row, which is
+                // where somebody reaches for it.
             }
         }
     }
@@ -505,7 +545,7 @@ Kirigami.ApplicationWindow {
                 // decides that, because whether the application is active is a
                 // question about the process rather than about this window.
                 notificationManager.notifyMessage(msg.from_ip,
-                                                  root.peerDisplayName(msg.from_ip),
+                                                  root.peerLabel(msg.from_ip),
                                                   msg.text)
                 // The message that was being typed has arrived.
                 if (root.typingChatId === msg.from_ip)
@@ -589,8 +629,10 @@ Kirigami.ApplicationWindow {
         function onReplyRequested(chatId, text) {
             if (text.trim().length === 0)
                 return
+            const replyModel = root.modelForPeer(chatId)
+            const replyStamp = replyModel.sendMessage(text)
             networkManager.sendPrivate(text, chatId)
-            root.modelForPeer(chatId).sendMessage(text)
+            replyModel.markSent(replyStamp)
         }
         function onCallAnswerRequested(ip) {
             root.show()
@@ -598,7 +640,7 @@ Kirigami.ApplicationWindow {
             root.requestActivate()
             networkManager.sendCallAccept(ip)
             voiceCallManager.call(ip)
-            root.openActiveCall(root.peerDisplayName(ip), ip)
+            root.openActiveCall(root.peerLabel(ip), ip)
             incomingCall.callRejected()
         }
         function onCallRejectRequested(ip) {
@@ -634,9 +676,13 @@ Kirigami.ApplicationWindow {
         return /\.(png|jpg|jpeg|gif|bmp|webp)$/i.test(path)
     }
 
-    // Two columns, always both present. The list keeps the default column width
-    // and the conversation, being last, fills what is left; PageRow folds to one
-    // column by itself once the window is narrower than two of them.
+    // Two columns, always both present. defaultColumnWidth is what every column
+    // gets unless it says otherwise, and "otherwise" is
+    // Kirigami.ColumnView.fillWidth on the conversation - set on ChatPage below.
+    // Being last is not enough on its own, which is what left the conversation
+    // seventeen grid units wide with the rest of a full-screen window empty
+    // beside it. PageRow folds to one column by itself once the window is
+    // narrower than two of them.
     //
     // Handed the two page objects rather than two Components on purpose.
     // PageRow.initPage() instantiates a Component with
@@ -666,7 +712,13 @@ Kirigami.ApplicationWindow {
         favoritesChatId: root.kSelfChatId
         connectionMode: appSettings.connectionMode
         model: chatList
+        micMuted: root.micMuted
+        deafened: root.deafened
+
         onChatActivated: (chatId) => root.openChat(chatId)
+        onMicToggled: root.toggleMic()
+        onDeafenToggled: root.toggleDeafen()
+        onPeerCardRequested: (chatId, anchorItem) => root.showPeerCard(chatId, anchorItem)
         onNewChatRequested: root.showLayer(newChatPageComponent)
         onProfileRequested: root.showLayer(yourProfileComponent)
         onSettingsRequested: root.showLayer(settingsPageComponent)
@@ -692,6 +744,11 @@ Kirigami.ApplicationWindow {
 
         readonly property bool isSelfChat: peerIp === root.kSelfChatId
 
+        // The column that grows. Without this the conversation is handed
+        // defaultColumnWidth like the list beside it - see the note above
+        // pageStack.initialPage.
+        Kirigami.ColumnView.fillWidth: true
+
         peerIp: root.currentPeerIp
         peerInfo: root.currentPeerIp.length > 0 ? root.peerInfoFor(root.currentPeerIp) : null
         messagesModel: root.currentPeerIp.length > 0 ? root.modelForPeer(root.currentPeerIp) : null
@@ -706,18 +763,25 @@ Kirigami.ApplicationWindow {
             if (!isSelfChat)
                 root.startOutgoingCall(peerIp)
         }
+        // The row goes in first and the datagram second, which is the order
+        // the hourglass needs: appending after the write would leave nothing
+        // on screen to be in flight. markSent() is what turns it into a tick.
         onSendRequested: function(text, replyExcerpt, replyAuthor, replyId) {
-            if (!isSelfChat)
-                networkManager.sendPrivate(text, peerIp)
             // The quote is stored with the message but not put on the wire:
             // the protocol has no reply field, so sending one would only
             // teach the peer to ignore it.
-            messagesModel.sendMessage(text, replyExcerpt, replyAuthor, replyId)
+            const stamp = messagesModel.sendMessage(text, replyExcerpt, replyAuthor, replyId)
+            if (stamp === 0)
+                return
+            if (!isSelfChat)
+                networkManager.sendPrivate(text, peerIp)
+            messagesModel.markSent(stamp)
         }
         onAttachRequested: function(localFilePath) {
+            const stamp = messagesModel.sendFile(localFilePath, root.looksLikeImage(localFilePath))
             if (!isSelfChat)
                 networkManager.sendFile(peerIp, localFilePath)
-            messagesModel.sendFile(localFilePath, root.looksLikeImage(localFilePath))
+            messagesModel.markSent(stamp)
         }
         onTypingNotice: {
             if (!isSelfChat)
@@ -726,6 +790,7 @@ Kirigami.ApplicationWindow {
         onReadReached: root.markChatRead(peerIp)
         onProfileRequested: root.showLayer(otherProfileComponent, { peer: root.peerInfoFor(peerIp) })
         onInfoRequested: root.togglePeerInfo()
+        onPeerCardRequested: (anchorItem) => root.showPeerCard(peerIp, anchorItem)
         onNewChatRequested: root.showLayer(newChatPageComponent)
         onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
         onForwardRequested: root.notify(i18nc("@info", "Forwarding messages is not implemented yet."),

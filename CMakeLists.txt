@@ -10,7 +10,9 @@ cmake_minimum_required(VERSION 3.21)
 project(KOutNet VERSION 0.1 LANGUAGES CXX)
 
 set(QT_MIN_VERSION 6.4)
-set(KF_MIN_VERSION 6.0)
+# 6.8 and not 6.0 because Kirigami.Units.cornerRadius, which the timeline and
+# the pickers round their corners with, was added in 6.8.
+set(KF_MIN_VERSION 6.8)
 
 find_package(ECM ${KF_MIN_VERSION} REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})

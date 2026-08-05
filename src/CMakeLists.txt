@@ -188,6 +188,7 @@ qt_add_qml_module(KOutNet
         qml/composer/EmojiDelegate.qml
         qml/composer/EmojiTonesPicker.qml
         qml/composer/ReactionPicker.qml
+        qml/peer/PeerCard.qml
         qml/peer/PeerInfoPage.qml
         qml/settings/SettingsPage.qml
         qml/settings/AboutPage.qml

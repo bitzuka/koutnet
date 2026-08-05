@@ -33,6 +33,9 @@ Kirigami.Page {
     signal callRequested()
     signal profileRequested()
     signal infoRequested()
+    // The header identity, clicked. The window owns the card; this only says
+    // which item to hang it off.
+    signal peerCardRequested(Item anchorItem)
     signal newChatRequested()
     signal forwardRequested(int row)
     // Raised after the change has already been made to this page's own model.
@@ -60,7 +63,11 @@ Kirigami.Page {
     property string viewerSource: ""
     property string viewerCaption: ""
 
-    title: root.peerInfo ? (root.peerInfo.username || root.peerIp) : i18nc("@title", "Chat")
+    // Never the address. peerInfoFor() already substitutes a name for a peer
+    // that has published none, so the fallback here is only for having no peer.
+    title: root.peerInfo
+        ? (root.peerInfo.username || i18nc("@title a peer that has published no name of its own", "Unknown peer"))
+        : i18nc("@title", "Chat")
     padding: 0
 
     // See the note on Kirigami.Theme in Main.qml.
@@ -86,11 +93,24 @@ Kirigami.Page {
             spacing: 0
 
             Kirigami.Heading {
+                id: headerName
+
                 Layout.fillWidth: true
                 level: 4
                 elide: Text.ElideRight
                 textFormat: Text.PlainText
                 text: root.title
+
+                HoverHandler {
+                    enabled: !root.isFavorites
+                    cursorShape: Qt.PointingHandCursor
+                }
+
+                TapHandler {
+                    enabled: !root.isFavorites
+                    acceptedButtons: Qt.LeftButton
+                    onTapped: root.peerCardRequested(headerName)
+                }
             }
 
             // Reachability is the flag; the stamp is only what it falls back to.
