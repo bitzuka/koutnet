@@ -33,7 +33,6 @@
   <!-- Names the gettext domain, so the store front ends pick up the
        translated name and summary out of koutnet.mo. -->
   <translation type="gettext">koutnet</translation>
-  <project_group>KDE</project_group>
 
   <categories>
     <category>Network</category>
@@ -60,13 +59,10 @@
   </content_rating>
 
   <!-- The developer id is the author, not the application: reusing the
-       component id here made bitzuka and KOutNet look like the same entity.
-       developer_name is the pre-AppStream-1.0 spelling, kept for the older
-       front ends that still read it. -->
+       component id here made bitzuka and KOutNet look like the same entity. -->
   <developer id="io.github.bitzuka.dev">
     <name>bitzuka</name>
   </developer>
-  <developer_name>bitzuka</developer_name>
 
   <releases>
     <release version="0.1" type="development" date="2026-08-03">
