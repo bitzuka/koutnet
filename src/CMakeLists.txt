@@ -19,6 +19,42 @@ if(NOT TARGET KF6::I18nQml)
     message(FATAL_ERROR "KF6::I18nQml is missing; QML strings cannot be translated without it")
 endif()
 
+# Dark, light and follow-the-desktop are KColorSchemeManager's job. Asked for
+# separately from the block above because the three calls used are instance(),
+# indexForSchemeId() and activateScheme(), and the first two only exist from 6.6
+# - a 6.0 that satisfied KF_MIN_VERSION would configure and then fail to
+# compile.
+find_package(KF6ColorScheme 6.6 CONFIG)
+set_package_properties(KF6ColorScheme PROPERTIES
+    TYPE REQUIRED
+    PURPOSE "Dark, light and follow-the-system colour schemes"
+)
+if(NOT KF6ColorScheme_FOUND)
+    message(FATAL_ERROR
+        "KF6ColorScheme 6.6 or newer was not found. It ships with KDE Frameworks 6 "
+        "(package names: kcolorscheme, kf6-kcolorscheme, libkf6colorscheme-dev).")
+endif()
+
+# kirigami-addons carries components this interface is built out of and has no
+# fallback for: FormCard for the settings and about pages, Delegates for the
+# conversation rows, AlbumMaximizeComponent for the image viewer and
+# ConvergentContextMenu for the per-message menu. Those are QML modules, so a
+# missing one surfaces as a runtime error in whichever window needs it first,
+# which is a miserable way to find out. Hence the explicit check here.
+#
+# 1.8.0 rather than any version: ConvergentContextMenu does not exist before it.
+find_package(KF6KirigamiAddons 1.8.0 CONFIG)
+set_package_properties(KF6KirigamiAddons PROPERTIES
+    TYPE REQUIRED
+    PURPOSE "FormCard pages, list delegates, the image viewer and the convergent context menu"
+)
+if(NOT KF6KirigamiAddons_FOUND)
+    message(FATAL_ERROR
+        "KF6KirigamiAddons 1.8.0 or newer was not found. Install kirigami-addons "
+        "(package names: kirigami-addons, kf6-kirigami-addons, libkf6kirigamiaddons-dev) "
+        "and configure again.")
+endif()
+
 qt_standard_project_setup(REQUIRES 6.4)
 
 # One category per subsystem, so a bug report can be asked for
@@ -93,8 +129,8 @@ qt_add_executable(KOutNet
     core/chat/ChatListModel.h
     core/chat/RelativeTime.cpp
     core/chat/RelativeTime.h
-    core/theme/ThemeManager.cpp
-    core/theme/ThemeManager.h
+    core/theme/ColorSchemeSelector.cpp
+    core/theme/ColorSchemeSelector.h
     network/NetworkManager.cpp
     network/NetworkManager.h
     network/Protocol.h
@@ -104,17 +140,27 @@ qt_add_executable(KOutNet
     network/FileTransferHandler.h
 )
 
+# The one brand colour is a QML singleton rather than a C++ one: it holds a
+# single constant and nothing outside QML ever reads it. Has to be marked before
+# qt_add_qml_module, which is where the type registration is generated.
+set_source_files_properties(qml/Brand.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+
 qt_add_qml_module(KOutNet
     URI koutnet.app
     VERSION 1.0
     QML_FILES
+        qml/Brand.qml
         qml/main_window/Main.qml
+        qml/main_window/ChatListPage.qml
         qml/main_window/ContactDelegate.qml
         qml/main_window/ChatPage.qml
-        qml/tabs/NotesTab.qml
-        qml/tabs/CallsTab.qml
-        qml/tabs/PlayerTab.qml
-        qml/tabs/WnsTab.qml
+        qml/main_window/NewChatPage.qml
+        qml/settings/SettingsPage.qml
+        qml/settings/AboutPage.qml
+        qml/tabs/NotesPage.qml
+        qml/tabs/CallLogPage.qml
+        qml/tabs/PlayerPage.qml
+        qml/tabs/KeenlyPage.qml
         qml/profile/your_prof/YourProfile.qml
         qml/profile/not_your_prof/OtherProfile.qml
         qml/call/OutgoingCallWindow.qml
@@ -139,6 +185,7 @@ target_link_libraries(KOutNet PRIVATE
     Qt6::Multimedia
     Qt6::Network
     OpenSSL::Crypto
+    KF6::ColorScheme
     KF6::ConfigCore
     KF6::ConfigGui
     KF6::CoreAddons

@@ -38,9 +38,12 @@ as unsupported until somebody says otherwise.
   talking at once does not turn into noise.
 - **File transfer.** Chunked at 60000 bytes over UDP, reassembled with a size
   cap, a concurrency cap and a TTL on incomplete transfers.
-- **The rest of the window.** A notes tab, a media player tab, themes, and a
-  layout that collapses below 480px. Every user-visible string goes through
-  ki18n; the catalogs are in `po/`.
+- **The rest of the window.** A notes page, a media player, and a two-column
+  layout that folds to one column on a narrow window. The interface is Kirigami
+  and kirigami-addons throughout, so it takes its colours from the Plasma colour
+  scheme; the only choice the app makes for itself is dark, light or follow the
+  desktop. Every user-visible string goes through ki18n; the catalogs are in
+  `po/`.
 
 ## What does not work yet
 
@@ -53,15 +56,19 @@ as unsupported until somebody says otherwise.
 - **Per-group keys.** Every group currently shares the one app-wide
   passphrase. Per-group keys, or an ECDH fan-out per member, are the plan.
 - **Keenly**, the internal-network browser. The file is still in the tree
-  (`src/qml/tabs/WnsTab.qml`) but the tab is not in the window, because there
-  is nothing behind it yet.
+  (`src/qml/tabs/KeenlyPage.qml`) but it is not in the global drawer, because
+  there is nothing behind it yet.
 
 ## Dependencies
 
 - **Qt 6.4+**: Core, Gui, Quick, QuickControls2, QuickDialogs2, Multimedia,
   Network. Test as well, if you build the test suite.
 - **KDE Frameworks 6.0+**: I18n, I18nQml, Kirigami, Wallet, CoreAddons,
-  Config.
+  Config. ColorScheme as well, from 6.6, for the dark/light/system setting.
+- **kirigami-addons 1.8+**: FormCard for the settings and about pages, the list
+  delegates for the conversation rows, the maximize component for the image
+  viewer and the convergent context menu for the per-message menu. CMake fails
+  at configure time with the package name if it is missing.
 - **OpenSSL** (libcrypto).
 - **extra-cmake-modules** 6.0+ and CMake 3.21+.
 
@@ -69,8 +76,8 @@ On Debian or Ubuntu, roughly:
 
 ```
 qt6-base-dev qt6-declarative-dev qt6-multimedia-dev libkf6config-dev
-libkf6coreaddons-dev libkf6i18n-dev libkf6kirigami-dev libkf6wallet-dev
-extra-cmake-modules libssl-dev
+libkf6coreaddons-dev libkf6i18n-dev libkf6kirigami-dev libkf6kirigamiaddons-dev
+libkf6colorscheme-dev libkf6wallet-dev extra-cmake-modules libssl-dev
 ```
 
 Distro packages tend to lag behind what `.kde-ci.yml` asks for, so an older

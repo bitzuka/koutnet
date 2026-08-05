@@ -1,39 +1,36 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
+import org.kde.kirigamiaddons.formcard as FormCard
 import koutnet.app
 
-// Startup screen, shown in place of the old 2.2 second splash. It does not
-// decide its own lifetime: the hosting Window listens for continueRequested
-// and hides itself.
-Item {
+// Startup screen, shown in place of the old 2.2 second splash. It does not decide
+// its own lifetime: the window pushes it as a layer and pops it when
+// continueRequested arrives.
+//
+// A FormCardPage rather than an Item pinned over the window overlay. The old one
+// had to fight the overlay's z-order to keep its own dialogs visible, and the two
+// options on it were a checkbox and a combo box floating on a bare Rectangle.
+FormCard.FormCardPage {
     id: root
-    readonly property var theme: ThemeManager.colors
-
-    // This screen is reparented into the window overlay, so it inherits none of
-    // the main window's colours. Without this the buttons, the checkboxes and
-    // the theme dropdown keep the system foreground and draw near-black text on
-    // whatever dark background the theme picked.
-    Kirigami.Theme.inherit: false
-    Kirigami.Theme.backgroundColor: root.theme.bg
-    Kirigami.Theme.textColor: root.theme.text
-    Kirigami.Theme.disabledTextColor: root.theme.text_dim
-    Kirigami.Theme.highlightColor: root.theme.accent
-    Kirigami.Theme.highlightedTextColor: root.theme.text
-    Kirigami.Theme.hoverColor: root.theme.btn_hover
-
-    // Read from the about data rather than written down a second time. The
-    // version itself is not prose, so only the words around it are translated.
-    readonly property string appVersion: aboutData.version
-    readonly property string buildLabel: i18nc("@info:status %1 is the version number",
-                                               "Developer build %1", root.appVersion)
-    readonly property string githubUrl: "https://github.com/bitzuka/koutnet"
-    readonly property string telegramUrl: "https://t.me/KOutNet"
 
     signal continueRequested()
+    signal aboutRequested()
+
+    title: i18nc("@title:window", "Welcome to KOutNet")
+
+    // See the note on Kirigami.Theme in Main.qml.
+    Kirigami.Theme.highlightColor: Brand.accent
+
+    // Read from the about data rather than written down a second time. The version
+    // itself is not prose, so only the words around it are translated.
+    readonly property string buildLabel: i18nc("@info:status %1 is the version number",
+                                               "Developer build %1", aboutData.version)
+    readonly property string githubUrl: "https://github.com/bitzuka/koutnet"
+    readonly property string telegramUrl: "https://t.me/KOutNet"
 
     // Translated strings carry <a href="github"> instead of a full URL, so a
     // translator editing the sentence cannot break where the link points.
@@ -46,23 +43,16 @@ Item {
             Qt.openUrlExternally(link)
     }
 
-    Rectangle {
-        anchors.fill: parent
-        color: root.theme.bg
-    }
-
     ColumnLayout {
-        id: hero
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.top: parent.top
-        anchors.topMargin: Kirigami.Units.gridUnit * 2
-        width: Kirigami.Units.gridUnit * 15
+        Layout.fillWidth: true
+        Layout.topMargin: Kirigami.Units.gridUnit * 2
+        Layout.bottomMargin: Kirigami.Units.gridUnit
         spacing: Kirigami.Units.smallSpacing
 
         Image {
             Layout.alignment: Qt.AlignHCenter
             // Relative to this file inside the QML module resource tree, so it
-            // resolves the same whether the app runs from a build dir or an
+            // resolves the same whether the app runs from a build directory or an
             // installed prefix.
             source: "../../assets/512-apps-io.github.bitzuka.KOutNet.png"
             sourceSize.height: Kirigami.Units.gridUnit * 6
@@ -72,200 +62,97 @@ Item {
         Kirigami.Heading {
             Layout.alignment: Qt.AlignHCenter
             level: 1
-            text: "KOutNet"
-            color: root.theme.text
+            text: aboutData.name
         }
 
-        Label {
+        QQC2.Label {
             Layout.alignment: Qt.AlignHCenter
-            Layout.bottomMargin: Kirigami.Units.largeSpacing
             text: root.buildLabel
-            color: root.theme.text_dim
-        }
-
-        Button {
-            Layout.fillWidth: true
-            text: i18nc("@action:button", "About")
-            onClicked: aboutDialog.open()
-        }
-
-        ComboBox {
-            id: themePick
-            Layout.fillWidth: true
-            model: ThemeManager.availableThemes
-            displayText: ThemeManager.themeLabel(ThemeManager.currentTheme)
-            currentIndex: model.indexOf(ThemeManager.currentTheme)
-            delegate: ItemDelegate {
-                width: themePick.width
-                text: ThemeManager.themeLabel(modelData)
-            }
-            onActivated: ThemeManager.currentTheme = model[currentIndex]
-        }
-
-        ColumnLayout {
-            Layout.topMargin: Kirigami.Units.smallSpacing
-            spacing: 0
-
-            CheckBox {
-                text: i18nc("@option:check", "Check for updates at startup")
-                checked: appSettings.checkUpdatesOnStart
-                onToggled: appSettings.checkUpdatesOnStart = checked
-            }
-            // The flag persists, but nothing consumes it yet, so say so
-            // rather than implying the app will actually look for updates.
-            Label {
-                Layout.leftMargin: Kirigami.Units.gridUnit * 2
-                text: i18nc("@info:status this option does nothing yet", "In development")
-                font.pixelSize: 11
-                color: root.theme.text_dim
-            }
+            color: Kirigami.Theme.disabledTextColor
         }
     }
 
-    RowLayout {
-        id: columns
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: footer.top
-        anchors.margins: Kirigami.Units.gridUnit * 2
-        anchors.bottomMargin: Kirigami.Units.largeSpacing
-        spacing: Kirigami.Units.gridUnit * 2
-
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignTop
-            spacing: Kirigami.Units.smallSpacing
-
-            Kirigami.Heading {
-                level: 4
-                text: i18nc("@title", "Community")
-                color: root.theme.text
-            }
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                text: i18nc("@info", "Join like-minded KOutNet people in our community:")
-                color: root.theme.text_dim
-            }
-            RowLayout {
-                spacing: Kirigami.Units.largeSpacing
-                Label {
-                    text: i18nc("@label the Telegram chat platform", "Telegram:")
-                    font.bold: true
-                    color: root.theme.text
-                }
-                Label {
-                    text: '<a href="telegram">@KOutNet</a>'
-                    textFormat: Text.RichText
-                    linkColor: root.theme.accent
-                    color: root.theme.text_dim
-                    onLinkActivated: (link) => root.openNamedLink(link)
-
-                    HoverHandler {
-                        cursorShape: Qt.PointingHandCursor
-                    }
-                }
-            }
+    FormCard.FormCard {
+        FormCard.FormComboBoxDelegate {
+            id: schemeCombo
+            text: i18nc("@label:listbox", "Colour scheme")
+            // Same three options and the same index order as the settings page:
+            // the index is a ColorSchemeSelector.Mode.
+            model: [
+                i18nc("@item:inlistbox colour scheme", "Follow the system"),
+                i18nc("@item:inlistbox colour scheme", "Light"),
+                i18nc("@item:inlistbox colour scheme", "Dark"),
+            ]
+            currentIndex: ColorSchemeSelector.mode
+            onActivated: (index) => ColorSchemeSelector.mode = index
         }
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignTop
-            spacing: Kirigami.Units.smallSpacing
+        FormCard.FormDelegateSeparator { above: schemeCombo; below: updatesDelegate }
 
-            Kirigami.Heading {
-                level: 4
-                text: i18nc("@title", "Contribute")
-                color: root.theme.text
-            }
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                textFormat: Text.RichText
-                text: i18nc("@info", "Want to help make KOutNet better? Visit our <a href=\"github\">GitHub page</a>. Report bugs or contribute code, anyone can do it.")
-                linkColor: root.theme.accent
-                color: root.theme.text_dim
-                onLinkActivated: (link) => root.openNamedLink(link)
+        FormCard.FormSwitchDelegate {
+            id: updatesDelegate
+            text: i18nc("@option:check", "Check for updates at startup")
+            // The flag persists, but nothing consumes it yet, so say so rather
+            // than implying the app will actually look for updates.
+            description: i18nc("@info:status this option does nothing yet", "In development")
+            checked: appSettings.checkUpdatesOnStart
+            onToggled: appSettings.checkUpdatesOnStart = updatesDelegate.checked
+        }
 
-                HoverHandler {
-                    cursorShape: Qt.PointingHandCursor
-                }
-            }
+        FormCard.FormDelegateSeparator { above: updatesDelegate; below: welcomeDelegate }
+
+        FormCard.FormSwitchDelegate {
+            id: welcomeDelegate
+            text: i18nc("@option:check", "Show this screen at startup")
+            checked: appSettings.showWelcome
+            onToggled: appSettings.showWelcome = welcomeDelegate.checked
+        }
+
+        FormCard.FormDelegateSeparator { above: welcomeDelegate; below: aboutDelegate }
+
+        FormCard.FormButtonDelegate {
+            id: aboutDelegate
+            text: i18nc("@action:button", "About KOutNet")
+            icon.name: "help-about"
+            onClicked: root.aboutRequested()
         }
     }
 
-    RowLayout {
-        id: footer
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.margins: Kirigami.Units.gridUnit
-        spacing: Kirigami.Units.largeSpacing
+    FormCard.FormHeader {
+        title: i18nc("@title:group", "Community")
+    }
 
-        CheckBox {
-            text: i18nc("@option:check", "Do not show this again")
-            checked: !appSettings.showWelcome
-            onToggled: appSettings.showWelcome = !checked
+    FormCard.FormCard {
+        FormCard.FormTextDelegate {
+            id: telegramDelegate
+            text: i18nc("@label the Telegram chat platform", "Telegram")
+            description: i18nc("@info", "Join like-minded KOutNet people in our community: <a href=\"telegram\">@KOutNet</a>")
+            onLinkActivated: (link) => root.openNamedLink(link)
         }
 
-        Item { Layout.fillWidth: true }
+        FormCard.FormDelegateSeparator { above: telegramDelegate; below: contributeDelegate }
 
-        Button {
-            text: i18nc("@action:button", "Continue")
-            highlighted: true
-            onClicked: root.continueRequested()
+        FormCard.FormTextDelegate {
+            id: contributeDelegate
+            text: i18nc("@label", "Contribute")
+            description: i18nc("@info", "Want to help make KOutNet better? Visit our <a href=\"github\">GitHub page</a>. Report bugs or contribute code, anyone can do it.")
+            onLinkActivated: (link) => root.openNamedLink(link)
         }
     }
 
-    Dialog {
-        id: aboutDialog
-        anchors.centerIn: parent
-        modal: true
-        title: i18nc("@title:window", "About")
-        standardButtons: Dialog.Close
+    footer: QQC2.ToolBar {
+        position: QQC2.ToolBar.Footer
 
-        ColumnLayout {
-            width: Kirigami.Units.gridUnit * 18
+        contentItem: RowLayout {
             spacing: Kirigami.Units.smallSpacing
 
-            Kirigami.Heading {
-                level: 2
-                text: aboutData.name
-                color: root.theme.text
-            }
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                text: aboutData.description
-                color: root.theme.text
-            }
-            Label {
-                text: root.buildLabel
-                color: root.theme.text_dim
-            }
-            Label {
-                text: aboutData.copyright
-                color: root.theme.text_dim
-            }
-            Label {
-                text: i18nc("@info %1 is a licence name such as GNU General Public License v3.0 only",
-                            "License: %1", aboutData.license)
-                color: root.theme.text_dim
-            }
-            Label {
-                text: i18nc("@info %1 is a person's name", "Author: %1", aboutData.author)
-                color: root.theme.text_dim
-            }
-            Label {
-                textFormat: Text.RichText
-                text: "<a href=\"" + aboutData.homepage + "\">" + aboutData.homepage + "</a>"
-                linkColor: root.theme.accent
-                color: root.theme.text_dim
-                onLinkActivated: (link) => root.openNamedLink(link)
+            Item { Layout.fillWidth: true }
 
-                HoverHandler {
-                    cursorShape: Qt.PointingHandCursor
-                }
+            QQC2.Button {
+                text: i18nc("@action:button", "Continue")
+                icon.name: "go-next"
+                highlighted: true
+                onClicked: root.continueRequested()
             }
         }
     }

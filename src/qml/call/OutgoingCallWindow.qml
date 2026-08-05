@@ -2,218 +2,173 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Window
+import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
+import org.kde.kirigamiaddons.components as Components
 import koutnet.app
 
-// Frameless "Calling..." overlay with pulsing rings around the avatar.
-// Port of legacy OutgoingCallWindow (paintEvent rings -> QML animated
-// Rectangles; much cheaper than manual repainting).
-Window {
+// "Calling..." window. The pulsing rings are kept - they are the one piece of
+// decoration here that says something, namely that it is still trying.
+//
+// It used to be a FramelessWindowHint window centred on Screen with a MouseArea
+// that moved it by hand, which is the window manager's job and got no snapping, no
+// keyboard move, no taskbar entry and no compositor shadow. It is an ordinary
+// window now.
+Kirigami.ApplicationWindow {
     id: root
-    width: 340
-    height: 520
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
-    color: "transparent"
 
     property string peerName: ""
     property string peerIp: ""
     property int elapsedSeconds: 0
 
-    readonly property var theme: ThemeManager.colors
-
     signal cancelled()
 
-    // The trailing dots are animated, so the label is one msgid with the run
-    // of dots as a placeholder instead of a concatenation.
+    title: i18nc("@title:window %1 is the name of the person being called", "Calling %1", root.peerName)
+    width: Kirigami.Units.gridUnit * 20
+    height: Kirigami.Units.gridUnit * 26
+    minimumWidth: Kirigami.Units.gridUnit * 16
+    minimumHeight: Kirigami.Units.gridUnit * 20
+    visible: true
+
+    // See the note on Kirigami.Theme in Main.qml. A separate window is a separate
+    // theme chain, so the accent has to be named again here.
+    Kirigami.Theme.inherit: false
+    Kirigami.Theme.highlightColor: Brand.accent
+
+    // The trailing dots are animated, so the label is one msgid with the run of
+    // dots as a placeholder instead of a concatenation.
     function callingLabel(dots) {
         return i18nc("@info:status waiting for the peer to pick up, %1 is a run of dots",
                      "Calling%1", ".".repeat(dots))
     }
 
-    Component.onCompleted: {
-        x = Screen.width / 2 - width / 2
-        y = Screen.height / 2 - height / 2
+    // Twice a second, because the dots are what it is really driving; the elapsed
+    // count below divides back down to seconds.
+    Timer {
+        interval: 500
+        running: true
+        repeat: true
+        onTriggered: {
+            statusLabel.dotCount = (statusLabel.dotCount + 1) % 4
+            root.elapsedSeconds += 1
+        }
     }
 
-    Rectangle {
-        id: card
-        anchors.fill: parent
-        radius: 24
-        border.color: root.theme.border
-        border.width: 1
-        gradient: Gradient {
-            orientation: Gradient.Vertical
-            GradientStop { position: 0.0; color: root.theme.bg3 }
-            GradientStop { position: 1.0; color: root.theme.bg }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            property point dragOrigin
-            onPressed: dragOrigin = Qt.point(mouseX, mouseY)
-            onPositionChanged: {
-                if (pressed) {
-                    root.x += mouseX - dragOrigin.x
-                    root.y += mouseY - dragOrigin.y
-                }
-            }
-        }
+    pageStack.initialPage: Kirigami.Page {
+        // Nothing to put in a toolbar: the window title says who is being called
+        // and the only action is the button at the bottom.
+        globalToolBarStyle: Kirigami.ApplicationHeaderStyle.None
 
         ColumnLayout {
-            anchors.fill: parent
-            anchors.topMargin: 50
-            anchors.bottomMargin: 40
-            anchors.leftMargin: 30
-            anchors.rightMargin: 30
-            spacing: 0
+            anchors.centerIn: parent
+            width: Math.min(parent.width, Kirigami.Units.gridUnit * 18)
+            spacing: Kirigami.Units.largeSpacing
 
-            // Avatar with pulse rings
             Item {
                 Layout.alignment: Qt.AlignHCenter
-                width: 140
-                height: 140
+                implicitWidth: Kirigami.Units.gridUnit * 12
+                implicitHeight: implicitWidth
 
+                // Three rings out of phase, each fading as it grows. Much cheaper
+                // than the paintEvent this was ported from, and the colour is the
+                // accent rather than a palette entry.
                 Repeater {
-                    model: [1.0, 1.4, 1.8]
+                    model: 3
+
                     delegate: Rectangle {
+                        id: ring
+
+                        required property int index
+
                         anchors.centerIn: parent
+                        width: avatar.width
+                        height: width
                         radius: width / 2
                         color: "transparent"
                         border.width: 2
-                        border.color: Qt.rgba(
-                            Qt.color(root.theme.accent).r,
-                            Qt.color(root.theme.accent).g,
-                            Qt.color(root.theme.accent).b,
-                            0.0)
+                        border.color: Kirigami.Theme.highlightColor
+                        opacity: 0
 
-                        width: 140
-                        height: 140
+                        SequentialAnimation {
+                            running: true
+                            loops: Animation.Infinite
 
-                        SequentialAnimation on width {
-                            loop: Animation.Infinite
-                            NumberAnimation { from: 140; to: 140 + modelData * 60; duration: 1400; easing.type: Easing.OutQuad }
-                            PauseAnimation { duration: 0 }
-                        }
-                        SequentialAnimation on height {
-                            loop: Animation.Infinite
-                            NumberAnimation { from: 140; to: 140 + modelData * 60; duration: 1400; easing.type: Easing.OutQuad }
-                        }
-                        SequentialAnimation on border.color {
-                            loop: Animation.Infinite
-                            ColorAnimation {
-                                from: Qt.rgba(Qt.color(root.theme.accent).r, Qt.color(root.theme.accent).g, Qt.color(root.theme.accent).b, 0.5)
-                                to: Qt.rgba(Qt.color(root.theme.accent).r, Qt.color(root.theme.accent).g, Qt.color(root.theme.accent).b, 0.0)
-                                duration: 1400
+                            PauseAnimation { duration: ring.index * 400 }
+
+                            ParallelAnimation {
+                                NumberAnimation {
+                                    target: ring
+                                    property: "width"
+                                    from: avatar.width
+                                    to: avatar.width * 1.8
+                                    duration: 1400
+                                    easing.type: Easing.OutQuad
+                                }
+                                NumberAnimation {
+                                    target: ring
+                                    property: "opacity"
+                                    from: 0.5
+                                    to: 0
+                                    duration: 1400
+                                }
                             }
                         }
                     }
                 }
 
-                Rectangle {
-                    id: avatarCircle
+                Components.Avatar {
+                    id: avatar
                     anchors.centerIn: parent
-                    width: 120
-                    height: 120
-                    radius: 60
-                    color: root.theme.item_sel
-                    Label {
-                        anchors.centerIn: parent
-                        text: root.peerName.length > 0 ? root.peerName.charAt(0).toUpperCase() : "?"
-                        font.pixelSize: 48
-                        font.bold: true
-                        color: "white"
-                    }
+                    width: Kirigami.Units.gridUnit * 8
+                    height: width
+                    name: root.peerName
                 }
             }
 
-            Item { Layout.preferredHeight: 24 }
-
-            Label {
-                Layout.alignment: Qt.AlignHCenter
+            Kirigami.Heading {
+                Layout.fillWidth: true
+                level: 1
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
                 text: root.peerName
-                font.pixelSize: 22
-                font.bold: true
-                color: root.theme.text
             }
 
-            Item { Layout.preferredHeight: 10 }
-
-            Label {
+            QQC2.Label {
                 id: statusLabel
-                Layout.alignment: Qt.AlignHCenter
-                text: root.callingLabel(0)
-                font.pixelSize: 14
-                color: root.theme.text_dim
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                color: Kirigami.Theme.disabledTextColor
 
                 property int dotCount: 0
-                Timer {
-                    interval: 500
-                    running: true
-                    repeat: true
-                    onTriggered: {
-                        statusLabel.dotCount = (statusLabel.dotCount + 1) % 4
-                        statusLabel.text = root.callingLabel(statusLabel.dotCount)
-                        root.elapsedSeconds += 1
-                    }
-                }
+
+                text: root.callingLabel(statusLabel.dotCount)
             }
 
-            Item { Layout.preferredHeight: 6 }
-
-            Label {
-                Layout.alignment: Qt.AlignHCenter
+            QQC2.Label {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
                 text: {
-                    const m = Math.floor(root.elapsedSeconds / 2 / 60)
-                    const s = Math.floor(root.elapsedSeconds / 2 % 60)
+                    const total = Math.floor(root.elapsedSeconds / 2)
+                    const m = Math.floor(total / 60)
+                    const s = total % 60
                     return m + ":" + (s < 10 ? "0" + s : s)
                 }
-                font.family: "monospace"
-                font.pixelSize: 12
-                color: root.theme.accent
+                font: Kirigami.Theme.fixedWidthFont
+                color: Kirigami.Theme.highlightColor
             }
 
-            Item { Layout.fillHeight: true }
-
-            ColumnLayout {
+            QQC2.Button {
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 4
-
-                Rectangle {
-                    Layout.alignment: Qt.AlignHCenter
-                    width: 72
-                    height: 72
-                    radius: 36
-                    color: cancelMouse.pressed ? "#C62828" : (cancelMouse.containsMouse ? "#EF5350" : "#E53935")
-
-                    Label {
-                        anchors.centerIn: parent
-                        icon.name: "call-stop"
-                        font.pixelSize: 28
-                    }
-
-                    MouseArea {
-                        id: cancelMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: {
-                            root.cancelled()
-                            root.close()
-                        }
-                    }
-                }
-
-                Label {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: i18nc("@action:button abandon the outgoing call", "Cancel")
-                    font.pixelSize: 10
-                    color: root.theme.text_dim
+                Layout.topMargin: Kirigami.Units.gridUnit
+                text: i18nc("@action:button abandon the outgoing call", "Cancel")
+                // Breeze already draws call-stop in red, so the button does not
+                // need a colour of its own on top of it.
+                icon.name: "call-stop"
+                onClicked: {
+                    root.cancelled()
+                    root.close()
                 }
             }
         }
-    }
-
-    function callAccepted() {
-        statusLabel.text = i18nc("@info:status", "Connecting...")
     }
 }

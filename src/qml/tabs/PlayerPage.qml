@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import QtQuick.Window
@@ -19,9 +19,18 @@ import koutnet.app
 // gets out of the way; music has no picture to show, so it spends the space
 // on the track and the queue instead. The transport bar is shared and does
 // not move between them.
-Item {
+//
+// The layout inside is deliberately left as it was: it is a media player, it works,
+// and the colours it asked the palette table for map onto Kirigami.Theme one for
+// one. Only the root type, the colours and the fixed radii have changed.
+Kirigami.Page {
     id: root
-    readonly property var theme: ThemeManager.colors
+
+    title: "Violla"
+    padding: 0
+
+    // See the note on Kirigami.Theme in Main.qml.
+    Kirigami.Theme.highlightColor: Brand.accent
 
     property int current: -1
     property int priorVisibility: Window.Windowed
@@ -142,8 +151,6 @@ Item {
         onActivated: root.toggleFullScreen()
     }
 
-    Rectangle { anchors.fill: parent; color: root.theme.bg }
-
     ColumnLayout {
         anchors.fill: parent
         spacing: 0
@@ -181,22 +188,22 @@ Item {
                         spacing: Kirigami.Units.largeSpacing
 
                         // Cover art needs an image provider on the C++ side to
-                        // get a QImage out of the tags, so for now the slot is
-                        // held by the theme accent and an icon.
+                        // get a QImage out of the tags, so for now the slot is a
+                        // plate and a generic icon.
                         Rectangle {
                             Layout.alignment: Qt.AlignHCenter
                             Layout.preferredWidth: Kirigami.Units.gridUnit * 11
                             Layout.preferredHeight: width
-                            radius: 12
-                            color: root.theme.bg3
-                            border.color: root.theme.border
+                            radius: Kirigami.Units.cornerRadius
+                            color: Kirigami.Theme.alternateBackgroundColor
+                            border.color: Kirigami.Theme.disabledTextColor
 
                             Kirigami.Icon {
                                 anchors.centerIn: parent
                                 width: parent.width * 0.4
                                 height: width
                                 source: "audio-x-generic"
-                                color: root.theme.text_dim
+                                color: Kirigami.Theme.disabledTextColor
                             }
                         }
 
@@ -205,18 +212,18 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             elide: Text.ElideRight
                             level: 2
-                            color: root.theme.text
+                            color: Kirigami.Theme.textColor
                             text: root.current < 0
                                 ? "Violla"
                                 : root.metaText(MediaMetaData.Title,
                                                 root.nameOf(playlist.get(root.current).url))
                         }
 
-                        Label {
+                        QQC2.Label {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
                             elide: Text.ElideRight
-                            color: root.theme.text_dim
+                            color: Kirigami.Theme.disabledTextColor
                             visible: root.current >= 0
                             text: i18nc("@info:status %1 is the album artist, %2 the album title",
                                         "%1 - %2",
@@ -226,11 +233,11 @@ Item {
                                                       i18nc("@info:status", "Unknown album")))
                         }
 
-                        Label {
+                        QQC2.Label {
                             Layout.fillWidth: true
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.Wrap
-                            color: root.theme.text_dim
+                            color: Kirigami.Theme.disabledTextColor
                             visible: root.current < 0
                             text: i18nc("@info", "Open a file to start playback")
                         }
@@ -242,7 +249,7 @@ Item {
                 Layout.preferredWidth: Kirigami.Units.gridUnit * 14
                 Layout.fillHeight: true
                 visible: root.playlistOpen && !root.fullScreen
-                color: root.theme.bg2
+                color: Kirigami.Theme.alternateBackgroundColor
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -255,9 +262,9 @@ Item {
                             Layout.fillWidth: true
                             level: 5
                             text: i18nc("@title playlist panel", "Playlist")
-                            color: root.theme.text
+                            color: Kirigami.Theme.textColor
                         }
-                        ToolButton {
+                        QQC2.ToolButton {
                             icon.name: "edit-clear-all"
                             enabled: playlist.count > 0
                             onClicked: {
@@ -266,17 +273,17 @@ Item {
                                 playlist.clear()
                                 root.current = -1
                             }
-                            ToolTip.visible: hovered
-                            ToolTip.text: i18nc("@info:tooltip", "Clear playlist")
+                            QQC2.ToolTip.visible: hovered
+                            QQC2.ToolTip.text: i18nc("@info:tooltip", "Clear playlist")
                         }
                     }
 
-                    Label {
+                    QQC2.Label {
                         Layout.fillWidth: true
                         visible: playlist.count === 0
                         wrapMode: Text.Wrap
                         text: i18nc("@info", "Nothing queued yet")
-                        color: root.theme.text_dim
+                        color: Kirigami.Theme.disabledTextColor
                     }
 
                     ListView {
@@ -284,7 +291,7 @@ Item {
                         Layout.fillHeight: true
                         clip: true
                         model: playlist
-                        spacing: 2
+                        spacing: Math.round(Kirigami.Units.smallSpacing / 2)
 
                         delegate: ItemDelegate {
                             required property int index
@@ -307,7 +314,9 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: transport.implicitHeight + Kirigami.Units.largeSpacing
-            color: root.cinema ? "#101010" : root.theme.bg2
+            // Cinema keeps a near-black bar so the transport does not glow next to
+            // the picture; every other surface follows the colour scheme.
+            color: root.cinema ? "#101010" : Kirigami.Theme.alternateBackgroundColor
 
             RowLayout {
                 id: transport
@@ -315,12 +324,12 @@ Item {
                 anchors.margins: Kirigami.Units.smallSpacing
                 spacing: Kirigami.Units.smallSpacing
 
-                ToolButton {
+                QQC2.ToolButton {
                     icon.name: "media-skip-backward"
                     enabled: playlist.count > 1
                     onClicked: root.step(-1)
                 }
-                ToolButton {
+                QQC2.ToolButton {
                     icon.name: player.playbackState === MediaPlayer.PlayingState
                         ? "media-playback-pause" : "media-playback-start"
                     enabled: playlist.count > 0
@@ -333,22 +342,22 @@ Item {
                             player.play()
                     }
                 }
-                ToolButton {
+                QQC2.ToolButton {
                     icon.name: "media-playback-stop"
                     enabled: player.playbackState !== MediaPlayer.StoppedState
                     onClicked: player.stop()
                 }
-                ToolButton {
+                QQC2.ToolButton {
                     icon.name: "media-skip-forward"
                     enabled: playlist.count > 1
                     onClicked: root.step(1)
                 }
 
-                Label {
+                QQC2.Label {
                     text: root.clockOf(player.position)
-                    color: root.theme.text_dim
+                    color: Kirigami.Theme.disabledTextColor
                 }
-                Slider {
+                QQC2.Slider {
                     Layout.fillWidth: true
                     enabled: player.seekable
                     from: 0
@@ -358,17 +367,17 @@ Item {
                     value: pressed ? value : player.position
                     onMoved: player.position = value
                 }
-                Label {
+                QQC2.Label {
                     text: root.clockOf(player.duration)
-                    color: root.theme.text_dim
+                    color: Kirigami.Theme.disabledTextColor
                 }
 
-                ToolButton {
+                QQC2.ToolButton {
                     id: muteButton
                     checkable: true
                     icon.name: checked ? "audio-volume-muted" : "audio-volume-high"
                 }
-                Slider {
+                QQC2.Slider {
                     id: volumeSlider
                     Layout.preferredWidth: Kirigami.Units.gridUnit * 5
                     from: 0
@@ -376,36 +385,36 @@ Item {
                     value: 0.8
                 }
 
-                ToolButton {
+                QQC2.ToolButton {
                     icon.name: "document-open"
                     onClicked: openDialog.open()
-                    ToolTip.visible: hovered
-                    ToolTip.text: i18nc("@info:tooltip", "Open files")
+                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.text: i18nc("@info:tooltip", "Open files")
                 }
-                ToolButton {
+                QQC2.ToolButton {
                     icon.name: "view-media-playlist"
                     checkable: true
                     checked: root.playlistOpen
                     onToggled: root.playlistOpen = checked
-                    ToolTip.visible: hovered
-                    ToolTip.text: i18nc("@info:tooltip show the playlist panel", "Playlist")
+                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.text: i18nc("@info:tooltip show the playlist panel", "Playlist")
                 }
-                ToolButton {
+                QQC2.ToolButton {
                     icon.name: root.fullScreen ? "view-restore" : "view-fullscreen"
                     visible: root.cinema
                     onClicked: root.toggleFullScreen()
-                    ToolTip.visible: hovered
-                    ToolTip.text: i18nc("@info:tooltip video player", "Fullscreen")
+                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.text: i18nc("@info:tooltip video player", "Fullscreen")
                 }
             }
         }
 
-        Label {
+        QQC2.Label {
             Layout.fillWidth: true
             Layout.margins: Kirigami.Units.smallSpacing
             visible: player.error !== MediaPlayer.NoError
             wrapMode: Text.Wrap
-            color: "#ff6b6b"
+            color: Kirigami.Theme.negativeTextColor
             text: player.errorString
         }
     }

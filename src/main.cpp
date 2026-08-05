@@ -14,6 +14,7 @@
 #include "network/NetworkManager.h"
 #include "network/VoiceCallManager.h"
 #include <KAboutData>
+#include <KColorSchemeManager>
 #include <KLocalizedQmlContext>
 #include <KLocalizedString>
 
@@ -157,6 +158,13 @@ int main(int argc, char *argv[])
 
     if (!network->start())
         qCWarning(KOUTNET_LOG_NETWORK, "failed to start network layer");
+
+    // Touching the manager here is what restores the dark/light choice from the
+    // last run: it does that in its own constructor, and the QML singleton that
+    // exposes the setting is only built when the settings page is first opened.
+    // Without this line the application would come up in the desktop's scheme
+    // until the user went looking for the option again.
+    KColorSchemeManager::instance();
 
     QQmlApplicationEngine engine;
 

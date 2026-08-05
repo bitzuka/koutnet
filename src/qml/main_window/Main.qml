@@ -1,43 +1,49 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// KOutNet - Main application window
+// KOutNet - application window
+//
+// The shell is two columns of a Kirigami.PageRow: the conversation list, then
+// the conversation. That is the whole of the layout. It used to be a RowLayout
+// with an animated Layout.preferredWidth and a hand-drawn hamburger over the
+// top; PageRow already collapses to one column on a narrow window and hands out
+// its own back button, which is what that was reaching for.
+//
+// Everything that is not a conversation - settings, profiles, notes, the call
+// log, the player - goes on pageStack.layers, so it covers both columns and
+// comes back with the back button rather than as a modal sheet.
 import QtQuick
-import QtQuick.Window
 import QtQuick.Layouts
-import QtQuick.Controls
+import QtQuick.Window
+import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
 Kirigami.ApplicationWindow {
     id: root
 
-    title: welcomeLoader.active ? i18nc("@title:window", "Welcome to KOutNet") : "KOutNet"
-    width: 1000
-    height: 650
-    minimumWidth: 480
-    minimumHeight: 360
-    visible: true
+    title: i18nc("@title:window", "KOutNet")
+    width: Kirigami.Units.gridUnit * 55
+    height: Kirigami.Units.gridUnit * 36
+    // Narrow enough that the page row folds to a single column, which is the
+    // layout being tested when it does.
+    minimumWidth: Kirigami.Units.gridUnit * 20
+    minimumHeight: Kirigami.Units.gridUnit * 18
 
-    readonly property var theme: ThemeManager.colors
+    // The one thing this application says about colour. Everything else comes
+    // from the Plasma colour scheme through Kirigami.Theme.
+    //
+    // It has to be repeated on a few other items rather than set once here:
+    // Kirigami resolves a theme by walking up the parent chain, and anything
+    // that sets Kirigami.Theme.inherit false - every ScrollablePage, every
+    // FormCard, everything reparented into the window overlay - starts a chain
+    // of its own. Each of those is marked with a pointer back to this comment.
+    Kirigami.Theme.inherit: false
+    Kirigami.Theme.highlightColor: Brand.accent
 
-    // Prepends a "system default" row so an empty saved device id still
-    // selects something instead of leaving the combo blank.
-    function deviceList(devices) {
-        var out = [{ id: "", description: i18nc("@item:inlistbox audio device", "System default") }]
-        for (var i = 0; i < devices.length; ++i)
-            out.push(devices[i])
-        return out
-    }
-
+    // Empty means no conversation is open, which the chat page draws as a
+    // placeholder rather than an empty bubble list.
     property string currentPeerIp: ""
-    readonly property bool compactMode: width < 480
     readonly property string kSelfChatId: "__self__"
-
-    // Overlay sidebar: fixed width, slides over the content on X rather
-    // than resizing a Layout column. Animating Layout.preferredWidth
-    // instead reflows the whole content column every frame, text included.
-    property bool sidebarOpen: true
-    property string contactSearchText: ""
     property bool micMuted: false
 
     property var chatModels: ({})
@@ -98,8 +104,8 @@ Kirigami.ApplicationWindow {
     }
 
     // Who is reachable right now, straight off the presence broadcasts. This is a
-    // scanner and is no longer what the sidebar draws - it is the source for
-    // reachability, for the profile sheet, and for the peer picker below.
+    // scanner and is not what the sidebar draws - it is the source for
+    // reachability, for the profile page, and for the peer picker in New chat.
     ListModel { id: peersModel }
 
     // What the sidebar draws: the conversations the user actually has. Survives
@@ -168,9 +174,9 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // Call windows (Outgoing / Incoming / Active)
+    // Call windows. The incoming one is declared below instead: answering a call
+    // is a question with two answers, which is a dialog rather than a window.
     property var outgoingCallWindow: null
-    property var incomingCallDialog: null
     property var activeCallWindow: null
 
     // The friendly name if the peer publishes one, then the handle, then the bare
@@ -188,30 +194,13 @@ Kirigami.ApplicationWindow {
     function startOutgoingCall(ip) {
         if (root.outgoingCallWindow) return
         networkManager.sendCallRequest(ip)
-        const comp = Qt.createComponent("qrc:/koutnet/app/qml/call/OutgoingCallWindow.qml")
-        const win = comp.createObject(root, { peerName: root.peerDisplayName(ip), peerIp: ip })
+        const win = outgoingCallComponent.createObject(
+            root, { peerName: root.peerDisplayName(ip), peerIp: ip })
         win.cancelled.connect(function() {
             networkManager.sendCallEnd(ip)
             root.outgoingCallWindow = null
         })
         root.outgoingCallWindow = win
-    }
-
-    function showIncomingCall(username, ip) {
-        if (root.incomingCallDialog) return
-        const comp = Qt.createComponent("qrc:/koutnet/app/qml/call/IncomingCallDialog.qml")
-        const dlg = comp.createObject(root, { callerName: username, callerIp: ip })
-        dlg.accepted.connect(function() {
-            networkManager.sendCallAccept(ip)
-            voiceCallManager.call(ip)
-            root.openActiveCall(username, ip)
-            root.incomingCallDialog = null
-        })
-        dlg.rejected.connect(function() {
-            networkManager.sendCallReject(ip)
-            root.incomingCallDialog = null
-        })
-        root.incomingCallDialog = dlg
     }
 
     function openActiveCall(username, ip) {
@@ -220,8 +209,7 @@ Kirigami.ApplicationWindow {
             root.outgoingCallWindow = null
         }
         if (root.activeCallWindow) return
-        const comp = Qt.createComponent("qrc:/koutnet/app/qml/call/ActiveCallWindow.qml")
-        const win = comp.createObject(root, { peerName: username, peerIp: ip })
+        const win = activeCallComponent.createObject(root, { peerName: username, peerIp: ip })
         win.hangup.connect(function() {
             networkManager.sendCallEnd(ip)
             voiceCallManager.hangup(ip)
@@ -233,219 +221,214 @@ Kirigami.ApplicationWindow {
         root.activeCallWindow = win
     }
 
+    function endAllCalls() {
+        voiceCallManager.hangupAll()
+        if (root.activeCallWindow) { root.activeCallWindow.close(); root.activeCallWindow = null }
+        if (root.outgoingCallWindow) { root.outgoingCallWindow.close(); root.outgoingCallWindow = null }
+    }
+
+    // Referenced by type rather than by resource path. The old
+    // Qt.createComponent("qrc:/koutnet/app/qml/call/...") had the module's
+    // internal resource layout written into three string literals.
+    Component { id: outgoingCallComponent; OutgoingCallWindow {} }
+    Component { id: activeCallComponent; ActiveCallWindow {} }
+
+    IncomingCallDialog {
+        id: incomingCall
+
+        onAnswered: {
+            networkManager.sendCallAccept(incomingCall.callerIp)
+            voiceCallManager.call(incomingCall.callerIp)
+            root.openActiveCall(incomingCall.callerName, incomingCall.callerIp)
+        }
+        onDeclined: networkManager.sendCallReject(incomingCall.callerIp)
+    }
+
     onCurrentPeerIpChanged: {
         if (currentPeerIp.length > 0 && currentPeerIp !== kSelfChatId) {
             // Opening a chat is starting one, as far as the list is concerned.
             chatList.openChat(currentPeerIp, root.peerDisplayName(currentPeerIp))
             root.markChatRead(currentPeerIp)
         }
-        // Telegram-style: picking a chat auto-hides the overlay sidebar.
-        if (currentPeerIp.length > 0)
-            root.sidebarOpen = false
+    }
+
+    // Opens a conversation and makes sure it is the column being looked at, which
+    // on a narrow window means the list slides out of the way.
+    function openChat(chatId) {
+        root.currentPeerIp = chatId
+        while (pageStack.layers.depth > 1)
+            pageStack.layers.pop()
+        pageStack.currentIndex = 1
+    }
+
+    // Everything that used to open a modal "not wired up yet" sheet says it here
+    // instead. An InlineMessage in the window footer reports the same thing
+    // without taking the window away from whoever was using it.
+    function notify(text, type) {
+        notification.text = text
+        notification.type = type
+        notification.visible = true
+    }
+
+    function reportError(text) {
+        root.notify(text, Kirigami.MessageType.Error)
+    }
+
+    // Layers are one deep by design: a drawer entry replaces whatever layer is
+    // showing instead of stacking a second copy of it behind the first.
+    function showLayer(page, properties) {
+        while (pageStack.layers.depth > 1)
+            pageStack.layers.pop()
+        pageStack.layers.push(page, properties)
     }
 
     Shortcut {
-        sequence: "F11"
-        onActivated: root.visibility = (root.visibility === Window.FullScreen)
-            ? Window.Windowed : Window.FullScreen
+        sequence: StandardKey.FullScreen
+        onActivated: root.toggleFullScreen()
     }
 
-    Shortcut {
-        sequence: "Tab"
-        onActivated: root.sidebarOpen = !root.sidebarOpen
+    function toggleFullScreen() {
+        root.visibility = (root.visibility === Window.FullScreen) ? Window.Windowed : Window.FullScreen
     }
 
-    // Generic "not wired up yet" info sheet
-    function showStub(titleText, bodyText) {
-        stubSheet.title = titleText
-        stubBody.text = bodyText
-        stubSheet.open()
-    }
+    globalDrawer: Kirigami.GlobalDrawer {
+        title: i18nc("@title:window", "KOutNet")
+        titleIcon: "io.github.bitzuka.KOutNet"
+        // A drawer that stays put would eat a third of a narrow window, and the
+        // two columns behind it are the content.
+        modal: true
 
-    Kirigami.OverlaySheet {
-        id: stubSheet
-
-        // Every sheet is reparented into the window overlay, so it does not
-        // inherit the page's colours - see the note on menuBar.
-        Kirigami.Theme.inherit: false
-        Kirigami.Theme.backgroundColor: root.theme.bg2
-        Kirigami.Theme.textColor: root.theme.text
-        Kirigami.Theme.disabledTextColor: root.theme.text_dim
-        Kirigami.Theme.highlightColor: root.theme.accent
-        Kirigami.Theme.highlightedTextColor: root.theme.text
-        Kirigami.Theme.hoverColor: root.theme.btn_hover
-
-        Label {
-            id: stubBody
-            width: Kirigami.Units.gridUnit * 20
-            wrapMode: Text.WordWrap
-            color: root.theme.text
-        }
-    }
-
-    // Menu bar
-    menuBar: MenuBar {
-        // ThemeManager paints the surfaces, so Kirigami has to be told what
-        // colour they came out. A control that sets no text colour of its own
-        // otherwise keeps the system foreground, which is near-black, and every
-        // dark theme drew black menu text on a dark bar because of it.
-        //
-        // It has to be repeated per branch rather than set once on the window:
-        // Kirigami resolves an inherited theme by walking parentItem(), and the
-        // menu bar, the content and the overlay are separate children of the
-        // window's root item.
-        Kirigami.Theme.inherit: false
-        Kirigami.Theme.backgroundColor: root.theme.header_bg
-        Kirigami.Theme.textColor: root.theme.text
-        Kirigami.Theme.disabledTextColor: root.theme.text_dim
-        Kirigami.Theme.highlightColor: root.theme.accent
-        Kirigami.Theme.highlightedTextColor: root.theme.text
-        Kirigami.Theme.hoverColor: root.theme.btn_hover
-
-        background: Rectangle { color: root.theme.header_bg }
-
-        Menu {
-            title: i18nc("@title:menu", "File")
-            MenuItem {
-                text: i18nc("@action:inmenu", "My profile")
-                onTriggered: yourProfileSheet.open()
-            }
-            MenuItem { text: i18nc("@action:inmenu", "Settings"); onTriggered: settingsSheet.open() }
-            MenuSeparator {}
-            MenuItem { text: i18nc("@action:inmenu", "Quit"); onTriggered: Qt.quit() }
-        }
-
-        Menu {
-            title: i18nc("@title:menu", "View")
-
-            Menu {
-                title: i18nc("@title:menu", "Themes")
-                Repeater {
-                    model: ThemeManager.availableThemes
-                    MenuItem {
-                        text: ThemeManager.themeLabel(modelData)
-                        onTriggered: ThemeManager.currentTheme = modelData
-                    }
+        actions: [
+            Kirigami.Action {
+                text: i18nc("@action:inmenu the list of conversations", "Chats")
+                icon.name: "dialog-messages"
+                onTriggered: {
+                    while (root.pageStack.layers.depth > 1)
+                        root.pageStack.layers.pop()
+                    root.pageStack.currentIndex = 0
                 }
-            }
-
-            MenuSeparator {}
-
-            MenuItem {
+            },
+            Kirigami.Action {
+                text: i18nc("@action:inmenu", "Notes")
+                icon.name: "note"
+                onTriggered: root.showLayer(notesPageComponent)
+            },
+            Kirigami.Action {
+                text: i18nc("@action:inmenu the log of past calls", "Call log")
+                icon.name: "call-start"
+                onTriggered: root.showLayer(callLogPageComponent)
+            },
+            Kirigami.Action {
+                // Violla is the name of the player, not a word to translate.
                 text: "Violla"
-                onTriggered: tabStrip.currentIndex = 3
-            }
-
-            MenuSeparator {}
-
-            MenuItem {
-                text: i18nc("@action:inmenu toggle window fullscreen, %1 is the shortcut",
-                            "Fullscreen (%1)", "F11")
-                onTriggered: root.visibility = (root.visibility === Window.FullScreen)
-                    ? Window.Windowed : Window.FullScreen
-            }
-
-            MenuSeparator {}
-
-        }
-
-        Menu {
-            title: i18nc("@title:menu", "Calls")
-            MenuItem {
-                text: i18nc("@action:inmenu", "Mute microphone")
-                checkable: true
-                checked: root.micMuted
+                icon.name: "multimedia-player"
+                onTriggered: root.showLayer(playerPageComponent)
+            },
+            Kirigami.Action { separator: true },
+            // Not checkable on purpose: triggering a checkable action writes its
+            // own checked property, which drops the binding to micMuted, and the
+            // footer button would stop agreeing with the drawer. The label carries
+            // the state instead.
+            Kirigami.Action {
+                text: root.micMuted
+                    ? i18nc("@action:inmenu let your microphone be heard again", "Unmute microphone")
+                    : i18nc("@action:inmenu silence your own microphone", "Mute microphone")
+                icon.name: root.micMuted ? "microphone-sensitivity-muted" : "audio-input-microphone"
                 onTriggered: {
                     root.micMuted = !root.micMuted
                     voiceCallManager.setMute(root.micMuted)
                 }
+            },
+            Kirigami.Action {
+                text: i18nc("@action:inmenu hang up every call in progress", "End all calls")
+                icon.name: "call-stop"
+                enabled: root.activeCallWindow !== null || root.outgoingCallWindow !== null
+                onTriggered: root.endAllCalls()
+            },
+            Kirigami.Action { separator: true },
+            Kirigami.Action {
+                text: i18nc("@action:inmenu", "My profile")
+                icon.name: "user-identity"
+                onTriggered: root.showLayer(yourProfileComponent)
+            },
+            Kirigami.Action {
+                text: i18nc("@action:inmenu", "Settings")
+                icon.name: "settings-configure"
+                shortcut: StandardKey.Preferences
+                onTriggered: root.showLayer(settingsPageComponent)
+            },
+            Kirigami.Action {
+                text: i18nc("@action:inmenu", "About KOutNet")
+                icon.name: "help-about"
+                onTriggered: root.showLayer(aboutPageComponent)
+            },
+            Kirigami.Action {
+                text: root.visibility === Window.FullScreen
+                    ? i18nc("@action:inmenu leave full screen", "Exit full screen")
+                    : i18nc("@action:inmenu", "Full screen")
+                icon.name: root.visibility === Window.FullScreen ? "view-restore" : "view-fullscreen"
+                onTriggered: root.toggleFullScreen()
+            },
+            Kirigami.Action {
+                text: i18nc("@action:inmenu", "Quit")
+                icon.name: "application-exit"
+                shortcut: StandardKey.Quit
+                onTriggered: Qt.quit()
             }
-            MenuItem {
-                text: i18nc("@action:inmenu", "End all calls")
-                onTriggered: {
-                    voiceCallManager.hangupAll()
-                    if (root.activeCallWindow) { root.activeCallWindow.close(); root.activeCallWindow = null }
-                    if (root.outgoingCallWindow) { root.outgoingCallWindow.close(); root.outgoingCallWindow = null }
-                }
-            }
-        }
-
-        Menu {
-            title: i18nc("@title:menu", "Help")
-            MenuItem { text: i18nc("@action:inmenu", "About"); onTriggered: aboutSheet.open() }
-            MenuItem {
-                text: i18nc("@action:inmenu", "Tutorial")
-                onTriggered: root.showStub(i18nc("@title:window", "Tutorial"),
-                                           i18nc("@info", "The interactive tutorial has not been ported yet."))
-            }
-        }
+        ]
     }
 
-    // Status bar
-    footer: Rectangle {
-        implicitHeight: 26
-        color: root.theme.header_bg
+    // Status strip plus whatever the network last had to say. Two items in one
+    // footer because the window has one footer slot; the message hides itself
+    // when there is nothing to report, so the strip is normally all that shows.
+    footer: ColumnLayout {
+        spacing: 0
 
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: Kirigami.Units.smallSpacing
-            anchors.rightMargin: Kirigami.Units.smallSpacing
-            spacing: Kirigami.Units.largeSpacing
+        Kirigami.InlineMessage {
+            id: notification
+            Layout.fillWidth: true
+            position: Kirigami.InlineMessage.Position.Footer
+            showCloseButton: true
+            visible: false
+            type: Kirigami.MessageType.Information
+        }
 
-            Label {
-                text: i18nc("@info:status", "Searching for peers...")
-                color: root.theme.text_dim
-                font.pointSize: Kirigami.Theme.smallFont.pointSize
-                Layout.fillWidth: true
-            }
+        QQC2.ToolBar {
+            Layout.fillWidth: true
+            position: QQC2.ToolBar.Footer
 
-            Label {
-                text: i18nc("@info:status %1 is this host's address", "IP: %1",
-                            networkManager.hostIp || "?")
-                color: root.theme.text_dim
-                font.pointSize: Kirigami.Theme.smallFont.pointSize
-            }
+            contentItem: RowLayout {
+                spacing: Kirigami.Units.largeSpacing
 
-            Label {
-                text: root.micMuted ? i18nc("@info:status", "Microphone off")
-                                    : i18nc("@info:status", "Microphone on")
-                color: root.micMuted ? "#FF8080" : "#80FF80"
-                font.pointSize: Kirigami.Theme.smallFont.pointSize
-                MouseArea {
-                    anchors.fill: parent
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    font: Kirigami.Theme.smallFont
+                    color: Kirigami.Theme.disabledTextColor
+                    text: peersModel.count > 0
+                        ? i18ncp("@info:status %1 is a number of peers", "%1 peer on the network", "%1 peers on the network", peersModel.count)
+                        : i18nc("@info:status", "Searching for peers...")
+                }
+
+                QQC2.Label {
+                    font: Kirigami.Theme.smallFont
+                    color: Kirigami.Theme.disabledTextColor
+                    text: i18nc("@info:status %1 is this host's address", "IP: %1", networkManager.hostIp || "?")
+                }
+
+                QQC2.ToolButton {
+                    display: QQC2.AbstractButton.IconOnly
+                    icon.name: root.micMuted ? "microphone-sensitivity-muted" : "audio-input-microphone"
+                    text: root.micMuted ? i18nc("@info:status", "Microphone off")
+                                        : i18nc("@info:status", "Microphone on")
+                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.text: text
                     onClicked: {
                         root.micMuted = !root.micMuted
                         voiceCallManager.setMute(root.micMuted)
                     }
                 }
             }
-
-            Label {
-                text: i18nc("@info:status no call is in progress", "No calls")
-                color: root.theme.text_dim
-                font.pointSize: Kirigami.Theme.smallFont.pointSize
-            }
-        }
-    }
-
-    // Covers the whole window until the user clicks Continue, then unloads
-    // itself. Parented to the window overlay so it sits above the menu bar and
-    // the page content without fighting ApplicationWindow's own layout.
-    //
-    // Negative z, and it matters: every Popup - the welcome screen's own About
-    // dialog, its theme dropdown - is reparented into this same overlay at z 0,
-    // and siblings paint in ascending z. At any z above 0 this Loader covered
-    // them, so both opened behind an opaque welcome screen and looked dead. The
-    // overlay is already above the menu bar, so nothing here needs lifting.
-    Loader {
-        id: welcomeLoader
-        parent: root.overlay
-        anchors.fill: parent
-        z: -1
-        active: appSettings.showWelcome
-
-        sourceComponent: WelcomeScreen {
-            onContinueRequested: welcomeLoader.active = false
         }
     }
 
@@ -480,7 +463,11 @@ Kirigami.ApplicationWindow {
                 root.modelForPeer(msg.from_ip).markOwnMessagesRead()
             }
         }
-        function onCallRequest(username, ip) { root.showIncomingCall(username, ip) }
+        function onCallRequest(username, ip) {
+            incomingCall.callerName = username
+            incomingCall.callerIp = ip
+            incomingCall.open()
+        }
         function onCallAccepted(username, ip) {
             voiceCallManager.call(ip)
             root.openActiveCall(username, ip)
@@ -494,732 +481,86 @@ Kirigami.ApplicationWindow {
         function onCallEnded(ip) {
             if (root.outgoingCallWindow) { root.outgoingCallWindow.close(); root.outgoingCallWindow = null }
             if (root.activeCallWindow) { root.activeCallWindow.close(); root.activeCallWindow = null }
+            // The caller giving up has to take the question away as well. The old
+            // dialog had a callRejected() for this that nothing ever called, so an
+            // abandoned call left the prompt sitting there.
+            incomingCall.callRejected()
             voiceCallManager.hangup(ip)
         }
         // These used to go nowhere, so a bind failure or a dropped tunnel
         // looked exactly like an idle network.
         function onErrorOccurred(message) {
-            root.showStub(i18nc("@title:window", "Network error"), message)
+            root.reportError(message)
         }
     }
 
     Connections {
         target: audioDevices
         function onError(message) {
-            root.showStub(i18nc("@title:window", "Audio error"), message)
+            root.reportError(message)
         }
     }
 
     Connections {
         target: fileTransferHandler
         function onTransferRejected(tid, reason) {
-            root.showStub(i18nc("@title:window", "File transfer failed"), reason)
+            root.reportError(reason)
         }
         function onFileSaved(meta, localPath) {
             const fromIp = meta.from_ip
             if (!fromIp) return
-            const lower = localPath.toLowerCase()
-            const isImage = lower.endsWith(".png") || lower.endsWith(".jpg")
-                            || lower.endsWith(".jpeg") || lower.endsWith(".gif")
-                            || lower.endsWith(".bmp") || lower.endsWith(".webp")
-            root.modelForPeer(fromIp).receiveFile(localPath, isImage, fromIp)
+            root.modelForPeer(fromIp).receiveFile(localPath, root.looksLikeImage(localPath), fromIp)
             if (fromIp === root.currentPeerIp)
                 root.markChatRead(fromIp)
         }
     }
 
-    pageStack.initialPage: mainPage
-
-    Kirigami.Page {
-        id: mainPage
-        globalToolBarStyle: Kirigami.ApplicationHeaderStyle.None
-        title: "KOutNet"
-        padding: 0
-
-        // See the note on menuBar - the content is its own branch.
-        Kirigami.Theme.inherit: false
-        Kirigami.Theme.backgroundColor: root.theme.bg
-        Kirigami.Theme.textColor: root.theme.text
-        Kirigami.Theme.disabledTextColor: root.theme.text_dim
-        Kirigami.Theme.highlightColor: root.theme.accent
-        Kirigami.Theme.highlightedTextColor: root.theme.text
-        Kirigami.Theme.hoverColor: root.theme.btn_hover
-
-        background: Rectangle { color: root.theme.bg }
-
-        RowLayout {
-            anchors.fill: parent
-            spacing: 0
-
-            // Sidebar (pushing)
-            ColumnLayout {
-                Layout.preferredWidth: root.sidebarOpen ? 280 : 0
-                Layout.minimumWidth: 0
-                Layout.maximumWidth: 320
-                Layout.fillHeight: true
-                clip: true
-                spacing: 0
-
-                Behavior on Layout.preferredWidth {
-                    NumberAnimation { duration: 150; easing.type: Easing.InOutQuad }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    color: root.theme.bg2
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        spacing: 0
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Layout.margins: Kirigami.Units.smallSpacing
-                            Layout.leftMargin: Kirigami.Units.smallSpacing + 36
-
-                            Kirigami.Heading {
-                                text: i18nc("@title sidebar section, the list of conversations", "Chats")
-                                level: 1
-                                font.bold: true
-                                font.weight: Font.Black
-                                color: root.theme.text
-                            }
-                            Item { Layout.fillWidth: true }
-
-                            ToolButton {
-                                icon.name: "list-add"
-                                display: AbstractButton.IconOnly
-                                text: i18nc("@action:button start a conversation with a peer that is not in the list yet", "New chat")
-                                ToolTip.visible: hovered
-                                ToolTip.text: text
-                                onClicked: newChatSheet.open()
-                            }
-                        }
-
-                        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.theme.border }
-
-                        ContactDelegate {
-                            Layout.fillWidth: true
-                            displayName: i18nc("@item conversation list, chat with yourself", "Favorites")
-                            iconName: "bookmarks"
-                            showPresence: false
-                            selected: root.currentPeerIp === root.kSelfChatId
-                            onClicked: root.currentPeerIp = root.kSelfChatId
-                        }
-
-                        TextField {
-                            id: searchField
-                            Layout.fillWidth: true
-                            Layout.margins: Kirigami.Units.smallSpacing
-                            placeholderText: i18nc("@info:placeholder filter the conversation list", "Search")
-                            text: root.contactSearchText
-                            color: root.theme.text
-                            placeholderTextColor: root.theme.text_dim
-                            selectionColor: root.theme.accent
-                            leftPadding: 10
-                            rightPadding: 10
-                            onTextChanged: root.contactSearchText = text
-
-                            background: Rectangle {
-                                radius: 6
-                                color: root.theme.bg3
-                                border.width: 1
-                                border.color: searchField.activeFocus ? root.theme.accent : root.theme.border
-                            }
-                        }
-
-                        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.theme.border }
-
-                        ListView {
-                            id: chatsList
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            model: chatList
-                            clip: true
-                            // The model reorders rows as messages arrive, so the
-                            // list has somewhere to animate them to.
-                            move: Transition {
-                                NumberAnimation { properties: "y"; duration: Kirigami.Units.shortDuration }
-                            }
-                            displaced: Transition {
-                                NumberAnimation { properties: "y"; duration: Kirigami.Units.shortDuration }
-                            }
-
-                            Kirigami.PlaceholderMessage {
-                                anchors.centerIn: parent
-                                width: parent.width - Kirigami.Units.largeSpacing * 2
-                                visible: chatsList.count === 0
-                                text: i18nc("@info there are no conversations yet", "No chats yet")
-                                explanation: i18nc("@info", "Start one from the button at the top of this list, or wait for someone to write to you.")
-                                helpfulAction: Kirigami.Action {
-                                    text: i18nc("@action:button start a conversation", "New chat")
-                                    icon.name: "list-add"
-                                    onTriggered: newChatSheet.open()
-                                }
-                            }
-
-                            delegate: ContactDelegate {
-                                width: chatsList.width
-                                // Searching matches the name and the address: an
-                                // unnamed peer only has the second one.
-                                readonly property bool matchesSearch:
-                                    root.contactSearchText.length === 0
-                                    || model.displayName.toLowerCase().indexOf(root.contactSearchText.toLowerCase()) !== -1
-                                    || model.chatId.toLowerCase().indexOf(root.contactSearchText.toLowerCase()) !== -1
-                                visible: matchesSearch
-                                height: visible ? implicitHeight : 0
-
-                                displayName: model.displayName
-                                preview: model.preview
-                                stampSecs: model.stampSecs
-                                lastSeenSecs: model.lastSeenSecs
-                                unreadCount: model.unreadCount
-                                online: model.online
-                                selected: model.chatId === root.currentPeerIp
-                                onClicked: root.currentPeerIp = model.chatId
-                            }
-                        }
-                    }
-                }
-            }
-
-            Rectangle {
-                Layout.fillHeight: true
-                implicitWidth: 1
-                color: root.theme.border
-                visible: root.sidebarOpen
-            }
-
-            // Right: content + tabs
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 0
-
-                Rectangle {
-                    id: tabStrip
-                    Layout.fillWidth: true
-                    implicitHeight: 32
-                    color: root.theme.header_bg
-
-                    property int currentIndex: 0
-                    // Keenly (WnsTab.qml) is not in here on purpose - see the
-                    // comment at the top of that file. It stays out of the tab
-                    // strip until it renders something.
-                    readonly property var tabLabels: [
-                        i18nc("@title:tab", "Chat"),
-                        i18nc("@title:tab", "Notes"),
-                        i18nc("@title:tab call log", "Calls"),
-                        "Violla",
-                    ]
-
-                    RowLayout {
-                        anchors.fill: parent
-                        spacing: 0
-
-                        Item { Layout.preferredWidth: root.sidebarOpen ? 4 : 40; Layout.fillHeight: true }
-
-                        Repeater {
-                            model: tabStrip.tabLabels
-
-                            delegate: Rectangle {
-                                Layout.fillHeight: true
-                                Layout.preferredWidth: tabLabel.implicitWidth + 24
-                                color: tabStrip.currentIndex === index
-                                    ? root.theme.bg
-                                    : (tabMouse.containsMouse ? root.theme.btn_hover : root.theme.header_bg)
-
-                                Text {
-                                    id: tabLabel
-                                    anchors.centerIn: parent
-                                    text: modelData
-                                    color: tabStrip.currentIndex === index ? root.theme.accent : root.theme.text_dim
-                                    font.bold: tabStrip.currentIndex === index
-                                }
-
-                                Rectangle {
-                                    visible: tabStrip.currentIndex === index
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.bottom: parent.bottom
-                                    height: 2
-                                    color: root.theme.accent
-                                }
-
-                                MouseArea {
-                                    id: tabMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onClicked: tabStrip.currentIndex = index
-                                }
-                            }
-                        }
-
-                        Item { Layout.fillWidth: true }
-                    }
-                }
-
-                StackLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    currentIndex: tabStrip.currentIndex
-
-                    Loader {
-                        visible: !root.compactMode || root.currentPeerIp.length > 0
-                        sourceComponent: root.currentPeerIp.length > 0 ? chatComponent : placeholderComponent
-                    }
-                    NotesTab {}
-                    CallsTab {}
-                    PlayerTab {}
-                }
-            }
-        }
-
-        // Hamburger toggle - top-left, inside sidebar when open, over content when closed
-        Rectangle {
-            id: collapseButton
-            width: 32
-            height: 32
-            radius: 4
-            color: hamburgerMouse.containsMouse ? root.theme.btn_hover : "transparent"
-            anchors.top: parent.top
-            anchors.left: parent.left
-            anchors.topMargin: 4
-            anchors.leftMargin: root.sidebarOpen ? 4 : 4
-            z: 30
-
-            Column {
-                anchors.centerIn: parent
-                spacing: 3
-                Repeater {
-                    model: 3
-                    Rectangle { width: 16; height: 2; radius: 1; color: root.theme.text }
-                }
-            }
-
-            MouseArea {
-                id: hamburgerMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                onClicked: root.sidebarOpen = !root.sidebarOpen
-            }
-        }
+    // The two places that guess at a file being a picture used to carry the same
+    // six extensions each. They still guess, but only once.
+    function looksLikeImage(path) {
+        return /\.(png|jpg|jpeg|gif|bmp|webp)$/i.test(path)
     }
 
-    Kirigami.OverlaySheet {
-        id: yourProfileSheet
-        title: i18nc("@title:window", "My profile")
+    // Two columns, always both present. The list keeps the default column width
+    // and the conversation, being last, fills what is left; PageRow folds to one
+    // column by itself once the window is narrower than two of them.
+    pageStack.initialPage: [chatListPageComponent, chatPageComponent]
+    pageStack.defaultColumnWidth: Kirigami.Units.gridUnit * 17
+    pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.ToolBar
+    pageStack.globalToolBar.showNavigationButtons: Kirigami.ApplicationHeaderStyle.ShowBackButton
 
-        // Every sheet is reparented into the window overlay, so it does not
-        // inherit the page's colours - see the note on menuBar.
-        Kirigami.Theme.inherit: false
-        Kirigami.Theme.backgroundColor: root.theme.bg2
-        Kirigami.Theme.textColor: root.theme.text
-        Kirigami.Theme.disabledTextColor: root.theme.text_dim
-        Kirigami.Theme.highlightColor: root.theme.accent
-        Kirigami.Theme.highlightedTextColor: root.theme.text
-        Kirigami.Theme.hoverColor: root.theme.btn_hover
-
-        YourProfile {
-            onStubRequested: (title, body) => root.showStub(title, body)
-        }
+    Component.onCompleted: {
+        if (appSettings.showWelcome)
+            pageStack.layers.push(welcomeComponent)
     }
 
-    Kirigami.OverlaySheet {
-        id: otherProfileSheet
-        property var peer: null
-        title: otherProfileSheet.peer ? otherProfileSheet.peer.username : ""
+    Component {
+        id: chatListPageComponent
 
-        // Every sheet is reparented into the window overlay, so it does not
-        // inherit the page's colours - see the note on menuBar.
-        Kirigami.Theme.inherit: false
-        Kirigami.Theme.backgroundColor: root.theme.bg2
-        Kirigami.Theme.textColor: root.theme.text
-        Kirigami.Theme.disabledTextColor: root.theme.text_dim
-        Kirigami.Theme.highlightColor: root.theme.accent
-        Kirigami.Theme.highlightedTextColor: root.theme.text
-        Kirigami.Theme.hoverColor: root.theme.btn_hover
-
-        OtherProfile { peer: otherProfileSheet.peer }
-    }
-
-    Kirigami.OverlaySheet {
-        id: settingsSheet
-        title: i18nc("@title:window", "Settings")
-
-        // Every sheet is reparented into the window overlay, so it does not
-        // inherit the page's colours - see the note on menuBar.
-        Kirigami.Theme.inherit: false
-        Kirigami.Theme.backgroundColor: root.theme.bg2
-        Kirigami.Theme.textColor: root.theme.text
-        Kirigami.Theme.disabledTextColor: root.theme.text_dim
-        Kirigami.Theme.highlightColor: root.theme.accent
-        Kirigami.Theme.highlightedTextColor: root.theme.text
-        Kirigami.Theme.hoverColor: root.theme.btn_hover
-
-        // Relay and maintainer VDS are the two that route through a relay,
-        // so they are the two that need a host and port.
-        readonly property bool usesRelay: appSettings.connectionMode === 3
-                                       || appSettings.connectionMode === 4
-
-        // Leaving the mic open after the dialog closes would hold the device
-        // against the next call.
-        onClosed: audioDevices.stopMicTest()
-
-        ColumnLayout {
-            width: Kirigami.Units.gridUnit * 26
-            spacing: Kirigami.Units.smallSpacing
-
-            TabBar {
-                id: settingsTabs
-                Layout.fillWidth: true
-                TabButton { text: i18nc("@title:tab", "General") }
-                TabButton { text: i18nc("@title:tab", "Audio") }
-                TabButton { text: i18nc("@title:tab", "Network") }
-            }
-
-            StackLayout {
-                Layout.fillWidth: true
-                currentIndex: settingsTabs.currentIndex
-
-                ColumnLayout {
-                    spacing: Kirigami.Units.smallSpacing
-
-                    Label { text: i18nc("@label:textbox", "Username"); color: root.theme.text }
-                    TextField {
-                        Layout.fillWidth: true
-                        text: appSettings.username
-                        onEditingFinished: appSettings.username = text
-                    }
-
-                    Label { text: i18nc("@label:textbox", "Display name"); color: root.theme.text }
-                    TextField {
-                        Layout.fillWidth: true
-                        text: appSettings.displayName
-                        onEditingFinished: appSettings.displayName = text
-                    }
-
-                    Label { text: i18nc("@label:listbox", "Theme"); color: root.theme.text }
-                    ComboBox {
-                        id: themeCombo
-                        Layout.fillWidth: true
-                        model: ThemeManager.availableThemes
-                        displayText: ThemeManager.themeLabel(ThemeManager.currentTheme)
-                        currentIndex: model.indexOf(ThemeManager.currentTheme)
-                        delegate: ItemDelegate {
-                            width: themeCombo.width
-                            text: ThemeManager.themeLabel(modelData)
-                        }
-                        onActivated: ThemeManager.currentTheme = model[currentIndex]
-                    }
-                }
-
-                ColumnLayout {
-                    spacing: Kirigami.Units.smallSpacing
-
-                    Label { text: i18nc("@label:listbox", "Microphone"); color: root.theme.text }
-                    ComboBox {
-                        id: micCombo
-                        Layout.fillWidth: true
-                        textRole: "description"
-                        valueRole: "id"
-                        model: root.deviceList(audioDevices.inputs)
-                        currentIndex: indexOfValue(appSettings.audioInputId)
-                        onActivated: appSettings.audioInputId = currentValue
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: Kirigami.Units.smallSpacing
-                        Button {
-                            text: audioDevices.micTestRunning ? i18nc("@action:button", "Stop test")
-                                                              : i18nc("@action:button", "Test microphone")
-                            onClicked: {
-                                if (audioDevices.micTestRunning)
-                                    audioDevices.stopMicTest()
-                                else
-                                    audioDevices.startMicTest(appSettings.audioInputId)
-                            }
-                        }
-                        ProgressBar {
-                            Layout.fillWidth: true
-                            from: 0
-                            to: 1
-                            value: audioDevices.micLevel
-                        }
-                    }
-
-                    Label { text: i18nc("@label:listbox", "Speakers"); color: root.theme.text }
-                    ComboBox {
-                        id: spkCombo
-                        Layout.fillWidth: true
-                        textRole: "description"
-                        valueRole: "id"
-                        model: root.deviceList(audioDevices.outputs)
-                        currentIndex: indexOfValue(appSettings.audioOutputId)
-                        onActivated: appSettings.audioOutputId = currentValue
-                    }
-
-                    Button {
-                        text: i18nc("@action:button", "Test speakers")
-                        enabled: !audioDevices.tonePlaying
-                        onClicked: audioDevices.playTestTone(appSettings.audioOutputId)
-                    }
-
-                    Label {
-                        text: i18ncp("@label:slider playback volume in percent",
-                                     "Volume: %1%", "Volume: %1%", appSettings.audioVolume)
-                        color: root.theme.text
-                    }
-                    Slider {
-                        Layout.fillWidth: true
-                        from: 0
-                        to: 100
-                        stepSize: 1
-                        value: appSettings.audioVolume
-                        onMoved: appSettings.audioVolume = Math.round(value)
-                    }
-
-                    CheckBox {
-                        text: i18nc("@option:check", "Mute microphone")
-                        checked: appSettings.micMuted
-                        onToggled: appSettings.micMuted = checked
-                    }
-                    CheckBox {
-                        text: i18nc("@option:check", "Voice activity detection")
-                        checked: appSettings.vadEnabled
-                        onToggled: appSettings.vadEnabled = checked
-                    }
-                }
-
-                ColumnLayout {
-                    spacing: Kirigami.Units.smallSpacing
-
-                    Label { text: i18nc("@label:listbox", "Network mode"); color: root.theme.text }
-                    ComboBox {
-                        id: modeCombo
-                        Layout.fillWidth: true
-                        model: [
-                            i18nc("@item:inlistbox network mode", "Local network (LAN)"),
-                            i18nc("@item:inlistbox network mode", "K-Server (self-hosted)"),
-                            i18nc("@item:inlistbox network mode", "K-Server (join someone else's)"),
-                            i18nc("@item:inlistbox network mode", "Relay (not a K-Server)"),
-                            i18nc("@item:inlistbox network mode", "Maintainer's VDS"),
-                        ]
-                        currentIndex: appSettings.connectionMode
-                        // The unbuilt modes stay on the list so the shape of
-                        // the plan is visible, but they cannot be selected.
-                        delegate: ItemDelegate {
-                            width: modeCombo.width
-                            enabled: networkManager.modeAvailable(index)
-                            text: enabled
-                                ? modelData
-                                : i18nc("@item:inlistbox %1 is a network mode name",
-                                        "%1 (not available yet)", modelData)
-                        }
-                        onActivated: {
-                            if (networkManager.modeAvailable(currentIndex))
-                                appSettings.connectionMode = currentIndex
-                            else
-                                currentIndex = appSettings.connectionMode
-                        }
-                    }
-
-                    Label { text: i18nc("@label:textbox", "Relay server address"); color: root.theme.text }
-                    TextField {
-                        Layout.fillWidth: true
-                        enabled: settingsSheet.usesRelay
-                        text: appSettings.relayHost
-                        onEditingFinished: appSettings.relayHost = text
-                    }
-
-                    Label { text: i18nc("@label:textbox", "Relay server port"); color: root.theme.text }
-                    TextField {
-                        Layout.fillWidth: true
-                        enabled: settingsSheet.usesRelay
-                        text: appSettings.relayPort > 0 ? String(appSettings.relayPort) : ""
-                        validator: IntValidator { bottom: 0; top: 65535 }
-                        onEditingFinished: appSettings.relayPort = parseInt(text.length > 0 ? text : "0")
-                    }
-
-                    // AppSettings only persists; the running NetworkManager has
-                    // to be told separately, and switching mode tears the relay
-                    // tunnel up or down, so it waits for an explicit click.
-                    Button {
-                        text: i18nc("@action:button", "Save")
-                        onClicked: {
-                            networkManager.setRelayServer(appSettings.relayHost, appSettings.relayPort, 0)
-                            networkManager.setConnectionMode(appSettings.connectionMode)
-                            root.showStub(i18nc("@title:window confirmation that settings were applied", "Settings"),
-                                          i18nc("@info:status", "Settings saved"))
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Kirigami.OverlaySheet {
-        id: aboutSheet
-        title: i18nc("@title:window", "About")
-
-        // Every sheet is reparented into the window overlay, so it does not
-        // inherit the page's colours - see the note on menuBar.
-        Kirigami.Theme.inherit: false
-        Kirigami.Theme.backgroundColor: root.theme.bg2
-        Kirigami.Theme.textColor: root.theme.text
-        Kirigami.Theme.disabledTextColor: root.theme.text_dim
-        Kirigami.Theme.highlightColor: root.theme.accent
-        Kirigami.Theme.highlightedTextColor: root.theme.text
-        Kirigami.Theme.hoverColor: root.theme.btn_hover
-
-        // Everything here comes from the KAboutData built in main.cpp, so the
-        // dialog cannot drift away from what --version and DrKonqi report.
-        ColumnLayout {
-            width: Kirigami.Units.gridUnit * 20
-            spacing: Kirigami.Units.smallSpacing
-
-            Kirigami.Heading {
-                level: 2
-                text: aboutData.name
-                color: root.theme.text
-            }
-            Label {
-                text: i18nc("@info:status %1 is the version number", "Version %1", aboutData.version)
-                color: root.theme.text_dim
-            }
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                text: aboutData.description
-                color: root.theme.text
-            }
-            Label {
-                text: aboutData.copyright
-                color: root.theme.text_dim
-            }
-            Label {
-                text: i18nc("@info %1 is a licence name such as GNU General Public License v3.0 only",
-                            "License: %1", aboutData.license)
-                color: root.theme.text_dim
-            }
-            Label {
-                text: i18nc("@info %1 is a person's name", "Author: %1", aboutData.author)
-                color: root.theme.text_dim
-            }
-            Label {
-                textFormat: Text.RichText
-                text: "<a href=\"" + aboutData.homepage + "\">" + aboutData.homepage + "</a>"
-                linkColor: root.theme.accent
-                color: root.theme.text_dim
-                onLinkActivated: (link) => Qt.openUrlExternally(link)
-
-                HoverHandler {
-                    cursorShape: Qt.PointingHandCursor
-                }
-            }
-        }
-    }
-
-    // The seam for peer discovery by handle, which is the next piece of work and
-    // is deliberately not here. Until it lands, a conversation with somebody who
-    // is not in the list yet is started either by picking them out of the peers
-    // currently broadcasting presence, or by typing an address.
-    //
-    // When discovery by handle arrives it replaces the contents of this sheet and
-    // nothing else: everything downstream only ever sees root.currentPeerIp being
-    // set, and chatList.openChat() puts the row in the sidebar from there.
-    Kirigami.OverlaySheet {
-        id: newChatSheet
-        title: i18nc("@title:window", "New chat")
-
-        // Every sheet is reparented into the window overlay, so it does not
-        // inherit the page's colours - see the note on menuBar.
-        Kirigami.Theme.inherit: false
-        Kirigami.Theme.backgroundColor: root.theme.bg2
-        Kirigami.Theme.textColor: root.theme.text
-        Kirigami.Theme.disabledTextColor: root.theme.text_dim
-        Kirigami.Theme.highlightColor: root.theme.accent
-        Kirigami.Theme.highlightedTextColor: root.theme.text
-        Kirigami.Theme.hoverColor: root.theme.btn_hover
-
-        function startChatWith(ip) {
-            if (!ip || ip.length === 0)
-                return
-            newChatSheet.close()
-            root.currentPeerIp = ip
-        }
-
-        ColumnLayout {
-            width: Kirigami.Units.gridUnit * 22
-            spacing: Kirigami.Units.smallSpacing
-
-            Kirigami.Heading {
-                level: 4
-                text: i18nc("@title:group peers whose presence broadcasts are arriving", "On the network now")
-                color: root.theme.text
-            }
-
-            Kirigami.PlaceholderMessage {
-                Layout.fillWidth: true
-                visible: peersModel.count === 0
-                text: i18nc("@info", "Nobody is broadcasting")
-                explanation: i18nc("@info", "KOutNet is listening, but it's quiet here for now...")
-            }
-
-            Repeater {
-                model: peersModel
-
-                delegate: ContactDelegate {
-                    Layout.fillWidth: true
-                    displayName: model.display_name || model.username || model.ip
-                    preview: model.ip
-                    online: true
-                    onClicked: newChatSheet.startChatWith(model.ip)
-                }
-            }
-
-            Kirigami.Separator { Layout.fillWidth: true }
-
-            Label {
-                text: i18nc("@label:textbox", "Or type an address")
-                color: root.theme.text
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Kirigami.Units.smallSpacing
-
-                TextField {
-                    id: manualPeerField
-                    Layout.fillWidth: true
-                    placeholderText: i18nc("@info:placeholder an IPv4 address", "192.168.1.42")
-                    color: root.theme.text
-                    placeholderTextColor: root.theme.text_dim
-                    onAccepted: newChatSheet.startChatWith(text.trim())
-                }
-
-                Button {
-                    text: i18nc("@action:button open a chat with the address that was typed", "Open")
-                    enabled: manualPeerField.text.trim().length > 0
-                    onClicked: newChatSheet.startChatWith(manualPeerField.text.trim())
-                }
+        ChatListPage {
+            selectedChatId: root.currentPeerIp
+            favoritesChatId: root.kSelfChatId
+            model: chatList
+            onChatActivated: (chatId) => root.openChat(chatId)
+            onNewChatRequested: root.showLayer(newChatPageComponent)
+            onForgetRequested: (chatId) => {
+                chatList.removeChat(chatId)
+                if (root.currentPeerIp === chatId)
+                    root.currentPeerIp = ""
             }
         }
     }
 
     Component {
-        id: chatComponent
+        id: chatPageComponent
+
         ChatPage {
             readonly property bool isSelfChat: peerIp === root.kSelfChatId
 
             peerIp: root.currentPeerIp
-            peerInfo: root.peerInfoFor(root.currentPeerIp)
-            showBackButton: root.compactMode
-            messagesModel: root.modelForPeer(root.currentPeerIp)
+            peerInfo: root.currentPeerIp.length > 0 ? root.peerInfoFor(root.currentPeerIp) : null
+            messagesModel: root.currentPeerIp.length > 0 ? root.modelForPeer(root.currentPeerIp) : null
 
-            onReturnToListRequested: root.currentPeerIp = ""
             onCallRequested: {
                 if (!isSelfChat)
                     root.startOutgoingCall(peerIp)
@@ -1230,30 +571,63 @@ Kirigami.ApplicationWindow {
                 messagesModel.sendMessage(text)
             }
             onAttachRequested: function(localFilePath) {
-                const lower = localFilePath.toLowerCase()
-                const isImage = lower.endsWith(".png") || lower.endsWith(".jpg")
-                                || lower.endsWith(".jpeg") || lower.endsWith(".gif")
-                                || lower.endsWith(".bmp") || lower.endsWith(".webp")
                 if (!isSelfChat)
                     networkManager.sendFile(peerIp, localFilePath)
-                messagesModel.sendFile(localFilePath, isImage)
+                messagesModel.sendFile(localFilePath, root.looksLikeImage(localFilePath))
             }
-            onProfileRequested: {
-                otherProfileSheet.peer = root.peerInfoFor(peerIp)
-                otherProfileSheet.open()
-            }
-            onForwardRequested: root.showStub(i18nc("@title:window forwarding a message", "Forward"),
-                                              i18nc("@info", "Forwarding messages is not implemented in ChatModel yet."))
-            onDeleteRequested: root.showStub(i18nc("@title:window deleting a message", "Delete"),
-                                             i18nc("@info", "Deleting messages is not implemented in ChatModel yet."))
+            onProfileRequested: root.showLayer(otherProfileComponent, { peer: root.peerInfoFor(peerIp) })
+            onNewChatRequested: root.showLayer(newChatPageComponent)
+            onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
+            onForwardRequested: root.notify(i18nc("@info", "Forwarding messages is not implemented yet."),
+                                           Kirigami.MessageType.Information)
+            onDeleteRequested: root.notify(i18nc("@info", "Deleting messages is not implemented yet."),
+                                           Kirigami.MessageType.Information)
         }
     }
 
     Component {
-        id: placeholderComponent
-        Kirigami.PlaceholderMessage {
-            anchors.centerIn: parent
-            text: i18nc("@info", "Pick a chat on the left, or start a new one.")
+        id: settingsPageComponent
+
+        SettingsPage {
+            onSaved: root.notify(i18nc("@info:status", "Settings saved"), Kirigami.MessageType.Positive)
+        }
+    }
+
+    Component { id: aboutPageComponent; AboutPage {} }
+    Component { id: notesPageComponent; NotesPage {} }
+    Component { id: callLogPageComponent; CallLogPage {} }
+    Component { id: playerPageComponent; PlayerPage {} }
+    Component { id: otherProfileComponent; OtherProfile {} }
+
+    Component {
+        id: yourProfileComponent
+
+        YourProfile {
+            onNotImplemented: (text) => root.notify(text, Kirigami.MessageType.Information)
+        }
+    }
+
+    Component {
+        id: newChatPageComponent
+
+        NewChatPage {
+            peers: peersModel
+            onChatRequested: (ip) => {
+                root.pageStack.layers.pop()
+                root.openChat(ip)
+            }
+        }
+    }
+
+    // The welcome screen is a layer rather than an item pinned over the window
+    // overlay. The old arrangement needed a negative z to stay out of the way of
+    // every popup in the application, and got it wrong twice.
+    Component {
+        id: welcomeComponent
+
+        WelcomeScreen {
+            onContinueRequested: root.pageStack.layers.pop()
+            onAboutRequested: root.pageStack.layers.push(aboutPageComponent)
         }
     }
 }

@@ -1,214 +1,191 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
+import org.kde.kirigamiaddons.components as Components
+import org.kde.kirigamiaddons.formcard as FormCard
 import koutnet.app
 
-// A peer's profile. Same shape as YourProfile so the two read as one screen
-// in two states, minus every control that writes: no pickers, no edit mode,
-// no account switch.
+// A peer's profile. Same shape as YourProfile so the two read as one screen in
+// two states, minus every control that writes: no pickers, no edit mode, no
+// account switch.
 //
 // Everything here arrives in the presence packet, which carries the handle,
-// display name and a capped bio. Avatar, banner and background are files and
-// stay out of a broadcast that repeats on a timer, so those slots fall back
-// to the initial and the theme until a fetch keyed on profile_rev exists.
-Item {
+// display name and a capped bio. Avatar, banner and background are files and stay
+// out of a broadcast that repeats on a timer, so those slots fall back to the
+// initials and the colour scheme until a fetch keyed on profile_rev exists.
+Kirigami.ScrollablePage {
     id: root
-    readonly property var theme: ThemeManager.colors
 
-    // { ip, username, displayName, bio, os, e2e, avatarLetter }
+    // { ip, username, displayName, bio, os, e2e, avatarLetter, online, lastSeen }
     property var peer: null
-
-    implicitWidth: Kirigami.Units.gridUnit * 46
-    implicitHeight: Kirigami.Units.gridUnit * 30
-
 
     readonly property string shownName: peer
         ? (peer.displayName && peer.displayName.length > 0 ? peer.displayName
                                                            : (peer.username || peer.ip))
         : ""
 
-    Rectangle {
-        anchors.fill: parent
-        color: root.theme.bg
-    }
+    title: root.shownName
+
+    // See the note on Kirigami.Theme in Main.qml.
+    Kirigami.Theme.highlightColor: Brand.accent
 
     ColumnLayout {
-        anchors.fill: parent
-        spacing: 0
+        spacing: Kirigami.Units.largeSpacing
 
+        // Banner, with the avatar hanging off its bottom edge. No picture behind it
+        // yet, for the reason at the top of this file.
         Item {
             Layout.fillWidth: true
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 9
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 9 + avatarFrame.height * 0.4
 
             Rectangle {
-                anchors.fill: parent
-                color: root.theme.bg3
+                id: banner
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: Kirigami.Units.gridUnit * 9
+                color: Kirigami.Theme.alternateBackgroundColor
             }
 
-            Rectangle {
+            Components.Avatar {
                 id: avatarFrame
-                width: Kirigami.Units.gridUnit * 6.5
+                width: Kirigami.Units.gridUnit * 6
                 height: width
-                radius: width / 2
-                color: root.theme.bg
                 anchors.left: parent.left
                 anchors.leftMargin: Kirigami.Units.largeSpacing
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: -height * 0.35
-
-                Rectangle {
-                    anchors.fill: parent
-                    anchors.margins: 3
-                    radius: width / 2
-                    color: root.theme.item_sel
-
-                    Label {
-                        anchors.centerIn: parent
-                        text: root.shownName.length > 0 ? root.shownName.charAt(0).toUpperCase() : "?"
-                        font.pixelSize: Kirigami.Units.gridUnit * 2.2
-                        font.bold: true
-                        color: "white"
-                    }
-                }
-
-                Rectangle {
-                    width: Kirigami.Units.gridUnit * 1.1
-                    height: width
-                    radius: width / 2
-                    color: root.theme.online
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    border.color: root.theme.bg
-                    border.width: 2
-                }
+                anchors.top: banner.bottom
+                anchors.topMargin: -height * 0.4
+                name: root.shownName
             }
         }
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.margins: Kirigami.Units.largeSpacing
-            Layout.topMargin: Kirigami.Units.gridUnit * 2.4
+            Layout.leftMargin: Kirigami.Units.largeSpacing
+            Layout.rightMargin: Kirigami.Units.largeSpacing
             spacing: Kirigami.Units.smallSpacing
 
             ColumnLayout {
-                spacing: 2
-                Kirigami.Heading {
-                    level: 2
-                    text: root.shownName
-                    color: root.theme.text
-                }
-                Label {
-                    text: root.peer ? "@" + (root.peer.username || root.peer.ip) : ""
-                    color: root.theme.text_dim
-                }
-            }
-
-            Item { Layout.fillWidth: true }
-
-            // Reachability and session state belong to a peer and have no
-            // equivalent on your own page, so this row exists only here.
-            RowLayout {
-                spacing: Kirigami.Units.smallSpacing
-                Kirigami.Icon {
-                    Layout.preferredWidth: 16
-                    Layout.preferredHeight: 16
-                    source: root.peer && root.peer.e2e ? "security-high" : "security-low"
-                    color: root.peer && root.peer.e2e ? root.theme.online : root.theme.text_dim
-                }
-                Label {
-                    text: root.peer && root.peer.e2e
-                        ? i18nc("@info:status the session is end to end encrypted", "E2E")
-                        : i18nc("@info:status", "No session")
-                    color: root.theme.text_dim
-                }
-            }
-        }
-
-        Label {
-            Layout.leftMargin: Kirigami.Units.largeSpacing
-            Layout.bottomMargin: Kirigami.Units.smallSpacing
-            text: root.peer && root.peer.os.length > 0
-                ? i18nc("@info:status %1 is the peer's operating system", "online - %1", root.peer.os)
-                : i18nc("@info:status the peer is online", "online")
-            color: root.theme.text_dim
-            font.pixelSize: 13
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.margins: Kirigami.Units.largeSpacing
-            spacing: Kirigami.Units.largeSpacing
-
-            ColumnLayout {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
-                Layout.preferredWidth: root.width * 0.65
-                Layout.alignment: Qt.AlignTop
-                spacing: Kirigami.Units.smallSpacing
+                spacing: 0
 
-                Rectangle {
+                Kirigami.Heading {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Math.max(60, aboutText.implicitHeight + 24)
-                    radius: 8
-                    color: root.theme.bg3
-                    border.color: root.theme.border
-
-                    Text {
-                        id: aboutText
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        wrapMode: Text.Wrap
-                        textFormat: Text.MarkdownText
-                        color: root.peer && root.peer.bio && root.peer.bio.length > 0
-                            ? root.theme.text : root.theme.text_dim
-                        text: root.peer && root.peer.bio && root.peer.bio.length > 0
-                            ? root.peer.bio : i18nc("@info", "No description")
-                    }
+                    level: 1
+                    text: root.shownName
+                    elide: Text.ElideRight
                 }
 
-                Kirigami.PlaceholderMessage {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    text: i18nc("@info", "Will appear once connected to a K-Server")
-                    icon.name: "folder-symbolic"
+                QQC2.Label {
+                    text: root.peer
+                        ? i18nc("@info the peer's handle, %1 is the username", "@%1", root.peer.username || root.peer.ip)
+                        : ""
+                    color: Kirigami.Theme.disabledTextColor
+                }
+
+                // RelativeTime.now is read so this ages on its own while the page
+                // sits open and nothing arrives.
+                QQC2.Label {
+                    text: root.peer
+                        ? RelativeTime.presenceLabel(root.peer.online === true,
+                                                     root.peer.lastSeen || 0,
+                                                     RelativeTime.now)
+                        : ""
+                    font: Kirigami.Theme.smallFont
+                    color: (root.peer && root.peer.online === true)
+                        ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.disabledTextColor
                 }
             }
+        }
 
-            ColumnLayout {
-                Layout.preferredWidth: root.width * 0.32
-                Layout.fillHeight: true
-                Layout.alignment: Qt.AlignTop
-                spacing: Kirigami.Units.largeSpacing
+        FormCard.FormHeader {
+            Layout.fillWidth: true
+            title: i18nc("@title:group", "Session")
+        }
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: friendsCol.implicitHeight + 24
-                    radius: 8
-                    color: root.theme.bg3
-                    border.color: root.theme.border
+        // Reachability and session state belong to a peer and have no equivalent on
+        // your own page, so this section exists only here.
+        FormCard.FormCard {
+            Layout.fillWidth: true
 
-                    ColumnLayout {
-                        id: friendsCol
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 8
-                        Kirigami.Heading {
-                            level: 5
-                            text: i18nc("@title profile section", "Friends")
-                            color: root.theme.text
-                        }
-                        Label {
-                            text: i18nc("@info the friend list is empty", "No one yet")
-                            color: root.theme.text_dim
-                        }
-                    }
-                }
-                Item { Layout.fillHeight: true }
+            FormCard.FormTextDelegate {
+                id: e2eDelegate
+                icon.name: (root.peer && root.peer.e2e) ? "security-high" : "security-low"
+                text: (root.peer && root.peer.e2e)
+                    ? i18nc("@info:status the session is end to end encrypted", "End to end encrypted")
+                    : i18nc("@info:status", "No session")
+                description: (root.peer && root.peer.e2e)
+                    ? i18nc("@info:whatsthis", "Messages and calls with this peer are encrypted with X25519 and AES-256-GCM.")
+                    : i18nc("@info:whatsthis", "No key exchange has happened with this peer yet.")
             }
+
+            FormCard.FormDelegateSeparator { above: e2eDelegate; below: systemDelegate }
+
+            FormCard.FormTextDelegate {
+                id: systemDelegate
+                visible: root.peer && root.peer.os && root.peer.os.length > 0
+                icon.name: "computer"
+                text: i18nc("@label the peer's operating system", "System")
+                description: root.peer ? root.peer.os : ""
+            }
+
+            FormCard.FormDelegateSeparator { above: systemDelegate; below: addressDelegate }
+
+            FormCard.FormTextDelegate {
+                id: addressDelegate
+                icon.name: "network-wired"
+                text: i18nc("@label network address of the peer", "Address")
+                description: root.peer ? (root.peer.ip || "") : ""
+            }
+        }
+
+        FormCard.FormHeader {
+            Layout.fillWidth: true
+            title: i18nc("@title:group free-form text about the peer", "About")
+        }
+
+        FormCard.FormCard {
+            Layout.fillWidth: true
+
+            // Markdown, like the own-profile bio, so the same text renders the same
+            // way whichever side of the conversation it is read from.
+            FormCard.AbstractFormDelegate {
+                id: bioDelegate
+                background: null
+                focusPolicy: Qt.NoFocus
+
+                readonly property bool hasBio: root.peer && root.peer.bio && root.peer.bio.length > 0
+
+                contentItem: Kirigami.SelectableLabel {
+                    text: bioDelegate.hasBio ? root.peer.bio : i18nc("@info", "No description")
+                    textFormat: Text.MarkdownText
+                    wrapMode: Text.WordWrap
+                    color: bioDelegate.hasBio ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
+                }
+            }
+        }
+
+        FormCard.FormHeader {
+            Layout.fillWidth: true
+            title: i18nc("@title profile section", "Friends")
+        }
+
+        FormCard.FormCard {
+            Layout.fillWidth: true
+
+            FormCard.FormTextDelegate {
+                text: i18nc("@info the friend list is empty", "No one yet")
+            }
+        }
+
+        Kirigami.PlaceholderMessage {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 8
+            icon.name: "folder"
+            text: i18nc("@info", "Will appear once connected to a K-Server")
         }
     }
 }

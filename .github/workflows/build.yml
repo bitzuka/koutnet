@@ -29,6 +29,8 @@ jobs:
             libkf6coreaddons-dev \
             libkf6i18n-dev \
             libkf6kirigami-dev \
+            libkf6kirigamiaddons-dev \
+            libkf6colorscheme-dev \
             libkf6wallet-dev \
             extra-cmake-modules \
             libssl-dev

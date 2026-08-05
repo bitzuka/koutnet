@@ -2,33 +2,41 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Window
+import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
+import org.kde.kirigamiaddons.components as Components
 import koutnet.app
 
-// Telegram-style active call window: mute / speaker / screen / hangup.
-// Port of legacy ActiveCallWindow.
-Window {
+// The window a call in progress lives in: who, how long, and the three toggles.
+//
+// Same story as OutgoingCallWindow - it was a frameless always-on-top window
+// dragged by a MouseArea, with the mute button drawn as a Label holding an emoji
+// and the speaker and screen buttons drawn as Labels with an icon.name that Label
+// does not have, so those two showed nothing at all. They are ToolButtons now.
+//
+// Speaker and screen sharing are still not wired to anything, so they say so
+// rather than looking like controls that do not work.
+Kirigami.ApplicationWindow {
     id: root
-    width: 340
-    height: 560
-    flags: Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
-    color: "transparent"
 
     property string peerName: ""
     property string peerIp: ""
     property bool muted: false
     property int elapsedSeconds: 0
 
-    readonly property var theme: ThemeManager.colors
-
     signal hangup()
     signal muteToggled(bool muted)
 
-    Component.onCompleted: {
-        x = Screen.width / 2 - width / 2
-        y = Screen.height / 2 - height / 2
-    }
+    title: i18nc("@title:window %1 is the name of the other person on the call", "Call with %1", root.peerName)
+    width: Kirigami.Units.gridUnit * 20
+    height: Kirigami.Units.gridUnit * 28
+    minimumWidth: Kirigami.Units.gridUnit * 16
+    minimumHeight: Kirigami.Units.gridUnit * 22
+    visible: true
+
+    // See the note on Kirigami.Theme in Main.qml.
+    Kirigami.Theme.inherit: false
+    Kirigami.Theme.highlightColor: Brand.accent
 
     Timer {
         interval: 1000
@@ -37,66 +45,32 @@ Window {
         onTriggered: root.elapsedSeconds += 1
     }
 
-    Rectangle {
-        anchors.fill: parent
-        radius: 24
-        border.color: root.theme.border
-        border.width: 1
-        gradient: Gradient {
-            orientation: Gradient.Vertical
-            GradientStop { position: 0.0; color: root.theme.bg3 }
-            GradientStop { position: 1.0; color: root.theme.bg }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            property point dragOrigin
-            onPressed: dragOrigin = Qt.point(mouseX, mouseY)
-            onPositionChanged: {
-                if (pressed) {
-                    root.x += mouseX - dragOrigin.x
-                    root.y += mouseY - dragOrigin.y
-                }
-            }
-        }
+    pageStack.initialPage: Kirigami.Page {
+        globalToolBarStyle: Kirigami.ApplicationHeaderStyle.None
 
         ColumnLayout {
-            anchors.fill: parent
-            anchors.topMargin: 44
-            anchors.bottomMargin: 36
-            anchors.leftMargin: 28
-            anchors.rightMargin: 28
-            spacing: 0
+            anchors.centerIn: parent
+            width: Math.min(parent.width, Kirigami.Units.gridUnit * 18)
+            spacing: Kirigami.Units.largeSpacing
 
-            Rectangle {
+            Components.Avatar {
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredWidth: 130
-                Layout.preferredHeight: 130
-                radius: 65
-                color: root.theme.item_sel
-                Label {
-                    anchors.centerIn: parent
-                    text: root.peerName.length > 0 ? root.peerName.charAt(0).toUpperCase() : "?"
-                    font.pixelSize: 52
-                    font.bold: true
-                    color: "white"
-                }
+                implicitWidth: Kirigami.Units.gridUnit * 8
+                implicitHeight: Kirigami.Units.gridUnit * 8
+                name: root.peerName
             }
 
-            Item { Layout.preferredHeight: 20 }
-
-            Label {
-                Layout.alignment: Qt.AlignHCenter
+            Kirigami.Heading {
+                Layout.fillWidth: true
+                level: 1
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
                 text: root.peerName
-                font.pixelSize: 22
-                font.bold: true
-                color: root.theme.text
             }
 
-            Item { Layout.preferredHeight: 8 }
-
-            Label {
-                Layout.alignment: Qt.AlignHCenter
+            QQC2.Label {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
                 text: {
                     const h = Math.floor(root.elapsedSeconds / 3600)
                     const m = Math.floor((root.elapsedSeconds % 3600) / 60)
@@ -105,88 +79,56 @@ Window {
                     const ss = s < 10 ? "0" + s : s
                     return h > 0 ? (h + ":" + mm + ":" + ss) : (m + ":" + ss)
                 }
-                font.family: "monospace"
-                font.pixelSize: 14
-                color: root.theme.accent
+                font: Kirigami.Theme.fixedWidthFont
+                color: Kirigami.Theme.highlightColor
             }
 
-            Item { Layout.fillHeight: true }
-
-            ColumnLayout {
+            RowLayout {
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 4
+                Layout.topMargin: Kirigami.Units.gridUnit
+                spacing: Kirigami.Units.largeSpacing
 
-                RowLayout {
-                    Layout.alignment: Qt.AlignHCenter
-                    spacing: 20
-
-                    Rectangle {
-                        width: 56; height: 56; radius: 28
-                        color: root.muted ? "#444444" : (muteMouse.containsMouse ? "#3A3A60" : "#2A2A46")
-                        // Escaped rather than pasted in, so this file stays plain ASCII.
-                        Label { anchors.centerIn: parent; text: root.muted ? "\u{1F507}" : "\u{1F3A4}"; font.pixelSize: 24 }
-                        MouseArea {
-                            id: muteMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            onClicked: {
-                                root.muted = !root.muted
-                                root.muteToggled(root.muted)
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        width: 56; height: 56; radius: 28
-                        color: spkMouse.containsMouse ? "#3A3A60" : "#2A2A46"
-                        Label { anchors.centerIn: parent; icon.name: "audio-volume-high"; width: 24; height: 24 }
-                        MouseArea { id: spkMouse; anchors.fill: parent; hoverEnabled: true }
-                    }
-
-                    Rectangle {
-                        width: 56; height: 56; radius: 28
-                        color: screenMouse.containsMouse ? "#3A3A60" : "#2A2A46"
-                        Label { anchors.centerIn: parent; icon.name: "video-display"; width: 24; height: 24 }
-                        MouseArea { id: screenMouse; anchors.fill: parent; hoverEnabled: true }
+                QQC2.ToolButton {
+                    display: QQC2.AbstractButton.TextUnderIcon
+                    checkable: true
+                    checked: root.muted
+                    icon.name: root.muted ? "microphone-sensitivity-muted" : "audio-input-microphone"
+                    text: i18nc("@action:button silence your own microphone", "Mute")
+                    onToggled: {
+                        root.muted = checked
+                        root.muteToggled(root.muted)
                     }
                 }
 
-                RowLayout {
-                    Layout.alignment: Qt.AlignHCenter
-                    spacing: 20
-                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: i18nc("@action:button silence your own microphone", "Mute"); font.pixelSize: 10; color: root.theme.text_dim }
-                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: i18nc("@action:button", "Speaker"); font.pixelSize: 10; color: root.theme.text_dim }
-                    Label { Layout.preferredWidth: 56; horizontalAlignment: Text.AlignHCenter; text: i18nc("@action:button share your screen", "Screen"); font.pixelSize: 10; color: root.theme.text_dim }
+                QQC2.ToolButton {
+                    display: QQC2.AbstractButton.TextUnderIcon
+                    enabled: false
+                    icon.name: "audio-volume-high"
+                    text: i18nc("@action:button", "Speaker")
+                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.text: i18nc("@info:tooltip this control does nothing yet", "Not implemented yet")
+                }
+
+                QQC2.ToolButton {
+                    display: QQC2.AbstractButton.TextUnderIcon
+                    enabled: false
+                    icon.name: "video-display"
+                    text: i18nc("@action:button share your screen", "Screen")
+                    QQC2.ToolTip.visible: hovered
+                    QQC2.ToolTip.text: i18nc("@info:tooltip this control does nothing yet", "Not implemented yet")
                 }
             }
 
-            Item { Layout.preferredHeight: 24 }
-
-            ColumnLayout {
+            QQC2.Button {
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 4
-
-                Rectangle {
-                    Layout.alignment: Qt.AlignHCenter
-                    width: 72; height: 72; radius: 36
-                    color: endMouse.pressed ? "#B71C1C" : (endMouse.containsMouse ? "#EF5350" : "#E53935")
-                    Label { anchors.centerIn: parent; icon.name: "call-stop"; width: 28; height: 28 }
-                    MouseArea {
-                        id: endMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: {
-                            root.hangup()
-                            root.close()
-                        }
-                    }
-                }
-
-                Label {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: i18nc("@action:button hang up the call", "End")
-                    font.pixelSize: 10
-                    color: root.theme.text_dim
+                Layout.topMargin: Kirigami.Units.gridUnit
+                text: i18nc("@action:button hang up the call", "End call")
+                // Breeze already draws call-stop in red, so the button does not
+                // need a colour of its own on top of it.
+                icon.name: "call-stop"
+                onClicked: {
+                    root.hangup()
+                    root.close()
                 }
             }
         }
