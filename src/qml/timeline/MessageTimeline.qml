@@ -108,6 +108,26 @@ Item {
     // hung off, and it belongs to a delegate, so nothing may hold on to it.
     signal avatarActivated(bool own, Item anchorItem)
 
+    // The strip along the bottom the jump-to-bottom button is allowed to float
+    // in. It sits in the corner an outgoing message draws its delivery mark in,
+    // and it was sitting on top of the mark; this is the list shortened rather
+    // than the button moved, because the corner is where a jump button belongs.
+    //
+    // The list's own bottomMargin would have been the obvious place for it, and
+    // it is the wrong one: atBottom is measured against that margin, so growing
+    // it moves the end of the list away from a reader who is already standing on
+    // it and the view can never admit to being at the bottom again. Shortening
+    // the list moves the end with it and the arithmetic comes out the same.
+    //
+    // Held whenever the conversation is long enough to scroll rather than
+    // whenever the button is up - the button is up exactly when the view is not
+    // at the end, and reserving on that would step the content by the gap every
+    // time the reader reached it. Measured against this item's height and not
+    // the list's, so the room made here cannot decide whether room is needed.
+    readonly property real jumpRoom: messagesList.contentHeight > root.height
+        ? jumpButton.height + Kirigami.Units.largeSpacing * 2
+        : 0
+
     // How wide a message is. There used to be a cap of 46 grid units here, on
     // the reading-length argument, but with the column finally filling the
     // window it read as the conversation floating in the middle of the screen
@@ -197,6 +217,9 @@ Item {
         id: messagesList
 
         anchors.fill: parent
+        // Held off the bottom edge so the jump button is beside the newest
+        // message rather than on top of it - see the note on jumpRoom.
+        anchors.bottomMargin: root.jumpRoom
         clip: true
         model: reversed
         // Row 0 at the bottom. See the note at the top of this file.
@@ -332,6 +355,8 @@ Item {
     // Back to the newest message. Only while there is somewhere to go back
     // from: a button that is always there is a button nobody reads.
     Components.FloatingButton {
+        id: jumpButton
+
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.margins: Kirigami.Units.largeSpacing
