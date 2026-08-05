@@ -20,6 +20,7 @@
 
 #include "core/audio/AudioDevices.h"
 #include "core/constructor/AppSettings.h"
+#include "core/notify/NotificationManager.h"
 #include "koutnet-version.h"
 #include "koutnet_app_debug.h"
 #include "koutnet_crypto_debug.h"
@@ -129,6 +130,9 @@ int main(int argc, char *argv[])
     }
 
     auto *audioDevices = new koutnet::AudioDevices(&app);
+    // Owns the KNotification objects, so it has to outlive every window that
+    // can raise one; parented to the application for that reason.
+    auto *notifications = new koutnet::NotificationManager(&app);
 
     // Push the persisted audio choices into the engine before any call
     // can start, then keep them in sync as the settings dialog edits them.
@@ -190,6 +194,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("fileTransferHandler"), fileTransfer);
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), appSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("audioDevices"), audioDevices);
+    engine.rootContext()->setContextProperty(QStringLiteral("notificationManager"), notifications);
     // A flat map rather than the KAboutData object itself. The licence name and
     // the author sit behind lists of KAboutLicense/KAboutPerson that QML would
     // have to index by hand, and a dialog reading one plain object is easier to

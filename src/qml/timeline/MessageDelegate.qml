@@ -5,6 +5,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as Components
+import koutnet.app
 
 // One row of the timeline.
 //
@@ -52,6 +53,11 @@ Item {
     property real fontScale: 1.0
     property string selfName: ""
     property string peerName: ""
+    // The reader's own name, highlighted wherever the message says it.
+    property string selfDisplayName: ""
+    // Per-message and not per-conversation: revealing one spoiler should not
+    // reveal every other one in the backlog.
+    property bool spoilerRevealed: false
     // Briefly true after a jump lands on this message, so the reader can see
     // which one they were sent to.
     property bool flashing: false
@@ -73,6 +79,19 @@ Item {
     readonly property string authorName: root.isOwn
         ? i18nc("@info:placeholder the local user, as the author of their own message", "You")
         : (root.sender.length > 0 ? root.sender : root.peerName)
+
+    // Links, code, emphasis and spoilers, worked out in C++ - see
+    // core/chat/TextHandler.h, which is a port of NeoChat's. Colours are handed
+    // over rather than read there, because this item is the one that knows which
+    // theme chain it is drawing under.
+    readonly property string renderedBody: TextHandler.toRichText(root.text, {
+        "mentionName": root.selfDisplayName,
+        "mentionColor": Kirigami.Theme.positiveTextColor.toString(),
+        "codeBackground": Kirigami.Theme.alternateBackgroundColor.toString(),
+        "spoilerBackground": Kirigami.Theme.textColor.toString(),
+        "spoilerRevealed": root.spoilerRevealed,
+        "elideLinksAt": 48
+    })
 
     readonly property bool hasReply: root.replyToText.length > 0
     readonly property bool isPicture: root.isFile && root.isImage
@@ -289,18 +308,41 @@ Item {
                     // Plain Label rather than SelectableLabel: that one takes the
                     // right button for a copy menu of its own, and the right
                     // button on a message belongs to the message menu.
+                    //
+                    // Rich text everywhere except a run of emoji, which has no
+                    // markup in it by definition and is cheaper drawn plain.
                     QQC2.Label {
+                        id: bodyLabel
+
                         Layout.fillWidth: true
                         visible: !root.isFile
                         Layout.preferredHeight: visible ? -1 : 0
-                        text: root.text
-                        textFormat: Text.PlainText
+                        text: root.emojiOnly ? root.text : root.renderedBody
+                        textFormat: root.emojiOnly ? Text.PlainText : Text.RichText
                         wrapMode: Text.Wrap
                         // pointSize and not pixelSize: a desktop font is
                         // configured in points and reports pixelSize -1, which is
                         // what the Ctrl+wheel zoom would otherwise multiply.
                         font.pointSize: (root.emojiOnly ? 2.5 : 1.0)
                             * Kirigami.Theme.defaultFont.pointSize * root.fontScale
+
+                        // Opened outside the application rather than followed in
+                        // place: there is nothing in here that can render a page,
+                        // and a messenger that navigates is a browser.
+                        onLinkActivated: (link) => Qt.openUrlExternally(link)
+
+                        HoverHandler {
+                            cursorShape: bodyLabel.hoveredLink.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        }
+
+                        // A spoiler is uncovered by clicking it and stays
+                        // uncovered. Only bound when the message has one, so an
+                        // ordinary message is not swallowing left clicks.
+                        TapHandler {
+                            enabled: !root.spoilerRevealed && root.text.indexOf("||") >= 0
+                            acceptedButtons: Qt.LeftButton
+                            onTapped: root.spoilerRevealed = true
+                        }
                     }
 
                     ReactionFlow {

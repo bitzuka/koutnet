@@ -102,6 +102,8 @@ Kirigami.ApplicationWindow {
     function markChatRead(ip) {
         if (ip.length === 0 || ip === root.kSelfChatId)
             return
+        // Read here means read, so the popup about it has served its purpose.
+        notificationManager.clearChat(ip)
         root.modelForPeer(ip).markAllRead()
         networkManager.sendReadReceipt(ip, "dm")
     }
@@ -499,6 +501,12 @@ Kirigami.ApplicationWindow {
         function onMessage(msg) {
             if (msg.type === "private") {
                 root.modelForPeer(msg.from_ip).receiveMessage(msg.text, msg.from_ip)
+                // Posts only when the window is not in front - the manager
+                // decides that, because whether the application is active is a
+                // question about the process rather than about this window.
+                notificationManager.notifyMessage(msg.from_ip,
+                                                  root.peerDisplayName(msg.from_ip),
+                                                  msg.text)
                 // The message that was being typed has arrived.
                 if (root.typingChatId === msg.from_ip)
                     root.typingChatId = ""
@@ -508,6 +516,19 @@ Kirigami.ApplicationWindow {
                 // been, and the receipt for it would be this client's own lie.
                 if (msg.from_ip === root.currentPeerIp && root.chatAtBottom)
                     root.markChatRead(msg.from_ip)
+            } else if (msg.type === "edit") {
+                // The peer changed something it had already sent. msg_ts is the
+                // stamp of the original, which is the only identifier the two
+                // ends share - see NetworkManager::sendMessageEdit.
+                const editModel = root.modelForPeer(msg.from_ip)
+                const editRow = editModel.rowForStamp(msg.msg_ts)
+                if (editRow >= 0)
+                    editModel.editMessage(editRow, msg.new_text)
+            } else if (msg.type === "delete") {
+                const delModel = root.modelForPeer(msg.from_ip)
+                const delRow = delModel.rowForStamp(msg.msg_ts)
+                if (delRow >= 0)
+                    delModel.deleteMessage(delRow)
             } else if (msg.type === "read") {
                 // from_ip has been rewritten by dispatch() to the address this
                 // peer is filed under, which is the same string the chat is keyed
@@ -519,6 +540,9 @@ Kirigami.ApplicationWindow {
             incomingCall.callerName = username
             incomingCall.callerIp = ip
             incomingCall.open()
+            // Unconditionally, unlike a message: a dialog behind whatever the
+            // user is actually looking at is not a ringing telephone.
+            notificationManager.notifyCall(username, ip)
         }
         function onCallAccepted(username, ip) {
             voiceCallManager.call(ip)
@@ -531,6 +555,7 @@ Kirigami.ApplicationWindow {
             }
         }
         function onCallEnded(ip) {
+            notificationManager.clearCall(ip)
             if (root.outgoingCallWindow) { root.outgoingCallWindow.close(); root.outgoingCallWindow = null }
             if (root.activeCallWindow) { root.activeCallWindow.close(); root.activeCallWindow = null }
             // The caller giving up has to take the question away as well. The old
@@ -543,6 +568,42 @@ Kirigami.ApplicationWindow {
         // looked exactly like an idle network.
         function onErrorOccurred(message) {
             root.reportError(message)
+        }
+    }
+
+    // The notification is the only part of this application that can be clicked
+    // while the window is behind something else, so everything it offers has to
+    // bring the window back first.
+    Connections {
+        target: notificationManager
+
+        // The activation token the compositor wants is dealt with on the C++
+        // side before these arrive - see NotificationManager::adoptActivationToken
+        // - so requestActivate() here is allowed to do something.
+        function onChatRequested(chatId) {
+            root.show()
+            root.raise()
+            root.requestActivate()
+            root.openChat(chatId)
+        }
+        function onReplyRequested(chatId, text) {
+            if (text.trim().length === 0)
+                return
+            networkManager.sendPrivate(text, chatId)
+            root.modelForPeer(chatId).sendMessage(text)
+        }
+        function onCallAnswerRequested(ip) {
+            root.show()
+            root.raise()
+            root.requestActivate()
+            networkManager.sendCallAccept(ip)
+            voiceCallManager.call(ip)
+            root.openActiveCall(root.peerDisplayName(ip), ip)
+            incomingCall.callRejected()
+        }
+        function onCallRejectRequested(ip) {
+            networkManager.sendCallReject(ip)
+            incomingCall.callRejected()
         }
     }
 
@@ -576,7 +637,19 @@ Kirigami.ApplicationWindow {
     // Two columns, always both present. The list keeps the default column width
     // and the conversation, being last, fills what is left; PageRow folds to one
     // column by itself once the window is narrower than two of them.
-    pageStack.initialPage: [chatListPageComponent, chatPageComponent]
+    //
+    // Handed the two page objects rather than two Components on purpose.
+    // PageRow.initPage() instantiates a Component with
+    // pageComp.createObject(pagesLogic, ...), and pagesLogic is a QtObject - so
+    // the page is briefly a graphical item whose parent is not in the scene, and
+    // QQmlComponent says so:
+    //   Main.qml:...: QML ChatListPage: Created graphical object was not placed
+    //   in the graphics scene.
+    // It is adopted a line later by columnView.insertItem() and works fine, but
+    // the warning is real and printed at every start. Given an Item instead,
+    // getPageComponent() returns nothing, the createObject call never happens,
+    // and the same insertItem picks the page up from the window's contentData.
+    pageStack.initialPage: [chatListPage, chatPage]
     pageStack.defaultColumnWidth: Kirigami.Units.gridUnit * 17
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.ToolBar
     pageStack.globalToolBar.showNavigationButtons: Kirigami.ApplicationHeaderStyle.ShowBackButton
@@ -586,82 +659,88 @@ Kirigami.ApplicationWindow {
             pageStack.layers.push(welcomeComponent)
     }
 
-    Component {
-        id: chatListPageComponent
+    ChatListPage {
+        id: chatListPage
 
-        ChatListPage {
-            selectedChatId: root.currentPeerIp
-            favoritesChatId: root.kSelfChatId
-            connectionMode: appSettings.connectionMode
-            model: chatList
-            onChatActivated: (chatId) => root.openChat(chatId)
-            onNewChatRequested: root.showLayer(newChatPageComponent)
-            onProfileRequested: root.showLayer(yourProfileComponent)
-            onSettingsRequested: root.showLayer(settingsPageComponent)
-            onForgetRequested: (chatId) => {
-                chatList.removeChat(chatId)
-                if (root.currentPeerIp === chatId)
-                    root.currentPeerIp = ""
-            }
-            // The rail picks a mode; applying it is the same two calls the
-            // settings page makes, because switching mode raises or drops the
-            // relay tunnel and half of that is not a state to be in.
-            onConnectionModeRequested: (mode) => {
-                if (!networkManager.modeAvailable(mode))
-                    return
-                appSettings.connectionMode = mode
-                networkManager.setRelayServer(appSettings.relayHost, appSettings.relayPort, 0)
-                networkManager.setConnectionMode(mode)
-            }
+        selectedChatId: root.currentPeerIp
+        favoritesChatId: root.kSelfChatId
+        connectionMode: appSettings.connectionMode
+        model: chatList
+        onChatActivated: (chatId) => root.openChat(chatId)
+        onNewChatRequested: root.showLayer(newChatPageComponent)
+        onProfileRequested: root.showLayer(yourProfileComponent)
+        onSettingsRequested: root.showLayer(settingsPageComponent)
+        onForgetRequested: (chatId) => {
+            chatList.removeChat(chatId)
+            if (root.currentPeerIp === chatId)
+                root.currentPeerIp = ""
+        }
+        // The rail picks a mode; applying it is the same two calls the
+        // settings page makes, because switching mode raises or drops the
+        // relay tunnel and half of that is not a state to be in.
+        onConnectionModeRequested: (mode) => {
+            if (!networkManager.modeAvailable(mode))
+                return
+            appSettings.connectionMode = mode
+            networkManager.setRelayServer(appSettings.relayHost, appSettings.relayPort, 0)
+            networkManager.setConnectionMode(mode)
         }
     }
 
-    Component {
-        id: chatPageComponent
+    ChatPage {
+        id: chatPage
 
-        ChatPage {
-            readonly property bool isSelfChat: peerIp === root.kSelfChatId
+        readonly property bool isSelfChat: peerIp === root.kSelfChatId
 
-            peerIp: root.currentPeerIp
-            peerInfo: root.currentPeerIp.length > 0 ? root.peerInfoFor(root.currentPeerIp) : null
-            messagesModel: root.currentPeerIp.length > 0 ? root.modelForPeer(root.currentPeerIp) : null
-            peerTyping: root.typingChatId.length > 0 && root.typingChatId === root.currentPeerIp
+        peerIp: root.currentPeerIp
+        peerInfo: root.currentPeerIp.length > 0 ? root.peerInfoFor(root.currentPeerIp) : null
+        messagesModel: root.currentPeerIp.length > 0 ? root.modelForPeer(root.currentPeerIp) : null
+        peerTyping: root.typingChatId.length > 0 && root.typingChatId === root.currentPeerIp
+        // What the timeline highlights as a mention of the reader.
+        selfDisplayName: appSettings.displayName || appSettings.username
 
-            onAtBottomChanged: root.chatAtBottom = atBottom
-            Component.onCompleted: root.chatAtBottom = atBottom
+        onAtBottomChanged: root.chatAtBottom = atBottom
+        Component.onCompleted: root.chatAtBottom = atBottom
 
-            onCallRequested: {
-                if (!isSelfChat)
-                    root.startOutgoingCall(peerIp)
-            }
-            onSendRequested: function(text, replyExcerpt, replyAuthor, replyId) {
-                if (!isSelfChat)
-                    networkManager.sendPrivate(text, peerIp)
-                // The quote is stored with the message but not put on the wire:
-                // the protocol has no reply field, so sending one would only
-                // teach the peer to ignore it.
-                messagesModel.sendMessage(text, replyExcerpt, replyAuthor, replyId)
-            }
-            onAttachRequested: function(localFilePath) {
-                if (!isSelfChat)
-                    networkManager.sendFile(peerIp, localFilePath)
-                messagesModel.sendFile(localFilePath, root.looksLikeImage(localFilePath))
-            }
-            onTypingNotice: {
-                if (!isSelfChat)
-                    networkManager.sendTyping(peerIp, peerIp)
-            }
-            onReadReached: root.markChatRead(peerIp)
-            onProfileRequested: root.showLayer(otherProfileComponent, { peer: root.peerInfoFor(peerIp) })
-            onInfoRequested: root.togglePeerInfo()
-            onNewChatRequested: root.showLayer(newChatPageComponent)
-            onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
-            onForwardRequested: root.notify(i18nc("@info", "Forwarding messages is not implemented yet."),
-                                           Kirigami.MessageType.Information)
-            onDeleteRequested: root.notify(i18nc("@info", "Deleting messages is not implemented yet."),
-                                           Kirigami.MessageType.Information)
-            onEditRequested: root.notify(i18nc("@info", "Editing a message you have already sent is not implemented yet."),
-                                         Kirigami.MessageType.Information)
+        onCallRequested: {
+            if (!isSelfChat)
+                root.startOutgoingCall(peerIp)
+        }
+        onSendRequested: function(text, replyExcerpt, replyAuthor, replyId) {
+            if (!isSelfChat)
+                networkManager.sendPrivate(text, peerIp)
+            // The quote is stored with the message but not put on the wire:
+            // the protocol has no reply field, so sending one would only
+            // teach the peer to ignore it.
+            messagesModel.sendMessage(text, replyExcerpt, replyAuthor, replyId)
+        }
+        onAttachRequested: function(localFilePath) {
+            if (!isSelfChat)
+                networkManager.sendFile(peerIp, localFilePath)
+            messagesModel.sendFile(localFilePath, root.looksLikeImage(localFilePath))
+        }
+        onTypingNotice: {
+            if (!isSelfChat)
+                networkManager.sendTyping(peerIp, peerIp)
+        }
+        onReadReached: root.markChatRead(peerIp)
+        onProfileRequested: root.showLayer(otherProfileComponent, { peer: root.peerInfoFor(peerIp) })
+        onInfoRequested: root.togglePeerInfo()
+        onNewChatRequested: root.showLayer(newChatPageComponent)
+        onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
+        onForwardRequested: root.notify(i18nc("@info", "Forwarding messages is not implemented yet."),
+                                       Kirigami.MessageType.Information)
+        // The page has already changed its own copy by the time these arrive -
+        // it is the one holding the model. What is left is telling the peer,
+        // which needs the address, and only the window has that. The stamp is
+        // the identifier both ends agree on; see NetworkManager::sendMessageEdit.
+        onEditCommitted: (stamp, newText) => {
+            if (!isSelfChat)
+                networkManager.sendMessageEdit(peerIp, peerIp, stamp, newText)
+        }
+        onDeleteCommitted: (stamp) => {
+            if (!isSelfChat)
+                networkManager.sendMessageDelete(peerIp, peerIp, stamp)
         }
     }
 

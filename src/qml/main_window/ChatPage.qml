@@ -25,6 +25,8 @@ Kirigami.Page {
     property var peerInfo: null
     property var messagesModel: null
     property bool peerTyping: false
+    // Passed down to the timeline so a message that names the reader says so.
+    property string selfDisplayName: ""
 
     signal sendRequested(string text, string replyExcerpt, string replyAuthor, string replyId)
     signal attachRequested(string localFilePath)
@@ -33,8 +35,12 @@ Kirigami.Page {
     signal infoRequested()
     signal newChatRequested()
     signal forwardRequested(int row)
-    signal deleteRequested(int row)
-    signal editRequested(int row)
+    // Raised after the change has already been made to this page's own model.
+    // The window sends the peer its half, because it is the one that knows the
+    // address. The stamp rather than the row: a row number means nothing on the
+    // other side of a socket.
+    signal editCommitted(double stamp, string newText)
+    signal deleteCommitted(double stamp)
     signal typingNotice()
     // The window owns the one message strip, this page only asks for it.
     signal notifyRequested(string text)
@@ -182,6 +188,9 @@ Kirigami.Page {
         property string body: ""
         property string author: ""
         property string msgId: ""
+        // Whether this message has anything fenced in it, which is what decides
+        // if the "copy the code" entry is worth offering.
+        readonly property var codeBlocks: TextHandler.codeBlocks(messageMenu.body)
 
         Kirigami.Action {
             text: i18nc("@action:inmenu", "Reply")
@@ -198,6 +207,16 @@ Kirigami.Page {
             }
         }
         Kirigami.Action {
+            text: i18ncp("@action:inmenu copy the code out of a message; the count is how many fenced blocks it has",
+                         "Copy the code", "Copy the code blocks", messageMenu.codeBlocks.length)
+            icon.name: "edit-copy"
+            visible: messageMenu.codeBlocks.length > 0
+            onTriggered: {
+                clipboardHelper.copyText(messageMenu.codeBlocks.join("\n\n"))
+                root.notifyRequested(i18nc("@info:status", "Code copied to the clipboard"))
+            }
+        }
+        Kirigami.Action {
             text: i18nc("@action:inmenu add a reaction", "React")
             icon.name: "smiley-add"
             onTriggered: reactionPicker.openFor(messageMenu.row)
@@ -209,10 +228,73 @@ Kirigami.Page {
         }
         Kirigami.Action { separator: true }
         Kirigami.Action {
+            text: i18nc("@action:inmenu change what this message says", "Edit")
+            icon.name: "document-edit"
+            visible: root.canEditRow(messageMenu.row)
+            onTriggered: root.startEdit(messageMenu.row, messageMenu.body)
+        }
+        Kirigami.Action {
             text: i18nc("@action:inmenu delete this message", "Delete")
             icon.name: "edit-delete"
-            onTriggered: root.deleteRequested(messageMenu.row)
+            onTriggered: deleteConfirm.open()
         }
+    }
+
+    // Asked about rather than done, because there is no undo behind it: the
+    // entry is gone from the log as well as from the list.
+    Kirigami.PromptDialog {
+        id: deleteConfirm
+
+        // See the note on Kirigami.Theme in Main.qml.
+        Kirigami.Theme.inherit: false
+        Kirigami.Theme.highlightColor: Brand.accent
+
+        title: i18nc("@title:window", "Delete this message?")
+        subtitle: i18nc("@info", "It will be removed from this conversation and from the other end of it. This cannot be undone.")
+        standardButtons: Kirigami.Dialog.Cancel
+        customFooterActions: [
+            Kirigami.Action {
+                text: i18nc("@action:button confirm deleting a message", "Delete")
+                icon.name: "edit-delete"
+                onTriggered: {
+                    root.commitDelete(messageMenu.row)
+                    deleteConfirm.close()
+                }
+            }
+        ]
+    }
+
+    // Only your own text can be changed, and a file has no text to change.
+    function canEditRow(row) {
+        if (!root.messagesModel || row < 0)
+            return false
+        const idx = root.messagesModel.index(row, 0)
+        return root.messagesModel.data(idx, ChatModel.IsOwnRole) === true
+            && root.messagesModel.data(idx, ChatModel.IsFileRole) !== true
+    }
+
+    // Editing puts the old text back in the composer and remembers which row it
+    // came out of. Committing is the model's job first and the peer's second;
+    // nothing goes on the wire for a message the model refused to change.
+    function startEdit(row, body) {
+        composer.startEdit(row, body)
+    }
+
+    function commitEdit(row, newText) {
+        if (!root.messagesModel)
+            return
+        const stamp = root.messagesModel.stampForRow(row)
+        if (root.messagesModel.editMessage(row, newText))
+            root.editCommitted(stamp, newText)
+    }
+
+    function commitDelete(row) {
+        if (!root.messagesModel)
+            return
+        // Read before the row goes, or there is nothing left to read it from.
+        const stamp = root.messagesModel.stampForRow(row)
+        if (root.messagesModel.deleteMessage(row))
+            root.deleteCommitted(stamp)
     }
 
     function startReply(author, excerpt, msgId) {
@@ -236,8 +318,8 @@ Kirigami.Page {
         }
     }
 
-    EmojiPicker {
-        id: emojiPicker
+    EmojiPopup {
+        id: emojiPopup
         onPicked: (emoji) => composer.insert(emoji)
     }
 
@@ -270,9 +352,10 @@ Kirigami.Page {
         messagesModel: root.messagesModel
         selfName: root.selfReactionName
         peerName: root.title
+        selfDisplayName: root.selfDisplayName
 
         onReplyRequested: (row, author, excerpt, msgId) => root.startReply(author, excerpt, msgId)
-        onEditRequested: (row, body) => root.editRequested(row)
+        onEditRequested: (row, body) => root.startEdit(row, body)
         onReactRequested: (row) => reactionPicker.openFor(row)
         onMenuRequested: (row, author, body, msgId) => {
             messageMenu.row = row
@@ -291,8 +374,13 @@ Kirigami.Page {
     }
 
     // A conversation that is switched away from should not come back with half a
-    // reply to a message the reader has forgotten about.
-    onPeerIpChanged: root.clearReply()
+    // reply to a message the reader has forgotten about - nor with an edit of a
+    // message that is no longer on the screen, which would land on whatever row
+    // now has that number in a different chat.
+    onPeerIpChanged: {
+        root.clearReply()
+        composer.cancelEdit()
+    }
 
     footer: Composer {
         id: composer
@@ -303,8 +391,9 @@ Kirigami.Page {
 
         onSendRequested: (text, replyExcerpt, replyAuthor, replyId) =>
             root.sendRequested(text, replyExcerpt, replyAuthor, replyId)
+        onEditSubmitted: (row, text) => root.commitEdit(row, text)
         onAttachRequested: fileDialog.open()
-        onEmojiRequested: emojiPicker.open()
+        onEmojiRequested: emojiPopup.open()
         onReplyCancelled: root.clearReply()
         onTypingNotice: root.typingNotice()
     }

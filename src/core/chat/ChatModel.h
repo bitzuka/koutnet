@@ -99,6 +99,21 @@ public:
     Q_INVOKABLE void receiveFile(const QString &filePath, bool isImage, const QString &sender = QString());
     Q_INVOKABLE void appendSystemMessage(const QString &text);
 
+    // Changing and unsending a message. Both are local only: the caller tells
+    // the peer, because only the window knows which address this chat is with,
+    // and a model that reached for NetworkManager would be one that could not be
+    // tested without a socket.
+    //
+    // The stamp is the identifier on the wire - see NetworkManager's
+    // sendMessageEdit() - so rowForStamp() is how an edit arriving from the peer
+    // finds the message it is about.
+    Q_INVOKABLE double stampForRow(int row) const;
+    Q_INVOKABLE int rowForStamp(double ts) const;
+    // False rather than silently nothing when the row cannot take it: a file has
+    // no text to change, and a system line is nobody's message.
+    Q_INVOKABLE bool editMessage(int row, const QString &newText);
+    Q_INVOKABLE bool deleteMessage(int row);
+
     Q_INVOKABLE void toggleReaction(int row, const QString &emoji, const QString &username);
     // Marks every own outgoing message in this chat as read (called when
     // a "read" receipt arrives from the peer).
@@ -129,6 +144,9 @@ private:
     void reload();
     void appendEntry(MessageEntry e, bool persist);
     void refreshRow(int row);
+    // Rewrites the whole chat log from m_messages. The only way to change an
+    // entry that is already on disk, since HistoryManager appends.
+    void persistAll();
     // Both read m_messages[row - 1], so both are only ever called with a row
     // this model actually holds.
     bool startsRun(int row) const;

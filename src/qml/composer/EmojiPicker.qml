@@ -1,90 +1,128 @@
+// SPDX-FileCopyrightText: 2022 Tobias Fella <tobias.fella@kde.org>
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
-// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// Adapted from NeoChat's src/chatbar/EmojiPicker.qml.
+//
+// This replaces the hand-written grid over a hardcoded table that used to be
+// here. Categories, search over the CLDR short names, a recently-used list and
+// press-and-hold skin tones all come from upstream; the table behind them is
+// NeoChat's generated emojis.h, ported alongside it.
+//
+// Dropped from upstream: the Emojis/Stickers NavigationTabBar and everything it
+// switched to - ImagePacksModel, StickerModel, EmoticonFilterModel and the
+// currentRoom they hang off are Matrix image packs, which this project has no
+// equivalent of. What is left is the emoji half, unchanged in shape.
+//
+// This is the panel, not the window round it: EmojiPopup.qml is what the
+// composer opens, the same way upstream keeps EmojiDialog separate.
+pragma ComponentBehavior: Bound
+
 import QtQuick
-import QtQuick.Layouts
 import QtQuick.Controls as QQC2
+import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
-// The emoji keyboard behind the composer's smiley button.
-//
-// Categorised and broad rather than complete. A full Unicode table needs the
-// emoji database, skin tone variants and a search box over the CLDR names, and
-// that is a component rather than a popup - this one is here so that writing a
-// message does not need a second application open.
-//
-// The table below is the one that used to sit in the middle of the chat page.
-// It is the only payload in this tree that is not ASCII, and it has to be:
-// these are the characters, not names for them.
-QQC2.Popup {
+ColumnLayout {
     id: root
 
-    signal picked(string emoji)
+    readonly property var currentEmojiModel: EmojiModel.categories
 
-    // See the note on Kirigami.Theme in Main.qml: reparented into the window
-    // overlay, which starts a theme chain of its own.
-    Kirigami.Theme.inherit: false
-    Kirigami.Theme.highlightColor: Brand.accent
+    readonly property int categoryIconSize: Math.round(Kirigami.Units.gridUnit * 2.5)
+    // Guarded because a ListView reports currentIndex -1 while its model is
+    // still being set, and upstream indexes straight into the array.
+    readonly property var currentCategory: categories.currentIndex >= 0
+        ? root.currentEmojiModel[categories.currentIndex].category
+        : EmojiModel.Smileys
+    readonly property alias categoryCount: categories.count
 
-    parent: QQC2.Overlay.overlay
-    anchors.centerIn: parent
-    modal: true
-    focus: true
-    width: Kirigami.Units.gridUnit * 20
-    height: Kirigami.Units.gridUnit * 18
-    padding: Kirigami.Units.smallSpacing
+    signal chosen(string emoji)
 
-    readonly property var categoryKeys: Object.keys(root.emojiCategories)
+    onActiveFocusChanged: if (activeFocus) {
+        searchField.forceActiveFocus();
+    }
 
-    readonly property var emojiCategories: ({
-        "😀": ["😀","😁","😂","🤣","😃","😄","😅","😆","😉","😊","😋","😎","😍","😘","🥰","😗","😙","😚","☺","🙂","🤗","🤩","🤔","🤨","😐","😑","😶","🙄","😏","😣","😥","😮","🤐","😯","😪","😫","🥱","😴","😌","😛","😜","😝","🤤","😒","😓","😔","😕","🙃","🤑","😲","☹","🙁","😖","😞","😟","😤","😢","😭","😦","😧","😨","😩","🤯","😬","😰","😱","🥵","🥶","😳","🤪","😵","🥴","😠","😡","🤬","😷","🤒","🤕","🤢","🤮","🤧","😇","🥳","🥺","🤠","🤡","🤥","🤫","🤭","🧐","🤓","😈","👿","👹","👺","💀","👻","👽","🤖","💩","😺","😸","😹","😻","😼","😽","🙀","😿","😾"],
-        "👍": ["👍","👎","👏","🙌","👐","🤲","🤝","🙏","✍","💅","🤳","💪","🦾","🦿","🦵","🦶","👂","🦻","👃","🧠","🦷","🦴","👀","👁","👅","👄","💋","🩸","👶","🧒","👦","👧","🧑","👱","👨","🧔","👩","🧓","👴","👵","🙍","🙎","🙅","🙆","💁","🙋","🧏","🙇","🤦","🤷","👮","🕵","💂","🥷","👷","🤴","👸","👳","👲","🧕","🤵","👰","🤰","🤱","👼","🎅","🤶","🦸","🦹","🧙","🧚","🧛","🧜","🧝","🧞","🧟","💆","💇","🚶","🧍","🧎","🏃","💃","🕺","🕴","👯","🧖","🧗","🤺","🏇","⛷","🏂","🏌","🏄","🚣","🏊","⛹","🏋","🚴","🚵","🤸","🤼","🤽","🤾","🤹","🧘","🛀","🛌"],
-        "🐶": ["🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐽","🐸","🐵","🙈","🙉","🙊","🐒","🐔","🐧","🐦","🐤","🐣","🐥","🦆","🦅","🦉","🦇","🐺","🐗","🐴","🦄","🐝","🐛","🦋","🐌","🐞","🐜","🦟","🦗","🕷","🕸","🦂","🐢","🐍","🦎","🦖","🦕","🐙","🦑","🦐","🦞","🦀","🐡","🐠","🐟","🐬","🐳","🐋","🦈","🐊","🐅","🐆","🦓","🦍","🦧","🐘","🦛","🦏","🐪","🐫","🦒","🦘","🐃","🐂","🐄","🐎","🐖","🐏","🐑","🦙","🐐","🦌","🐕","🐩","🦮","🐕‍🦺","🐈","🐈‍⬛","🐓","🦃","🦚","🦜","🦢","🦩","🕊","🐇","🦝","🦨","🦡","🦦","🦥","🐁","🐀","🐿","🦔","🐾","🐉","🐲","🌵","🎄","🌲","🌳","🌴","🌱","🌿","☘","🍀","🎍","🎋","🍃","🍂","🍁","🍄","🌾","💐","🌷","🌹","🥀","🌺","🌸","🌼","🌻","🌞","🌝","🌛","🌜","🌚","🌕","🌖","🌗","🌘","🌑","🌒","🌓","🌔","🌙","🌎","🌍","🌏","🪐","💫","⭐","🌟","✨","⚡","🔥","💥","☄","☀","🌤","⛅","🌥","☁","🌦","🌧","⛈","🌩","🌨","❄","☃","⛄","🌬","💨","🌪","🌫","🌈","☂","☔","💧","💦","🌊"],
-        "🍎": ["🍏","🍎","🍐","🍊","🍋","🍌","🍉","🍇","🍓","🫐","🍈","🍒","🍑","🥭","🍍","🥥","🥝","🍅","🍆","🥑","🥦","🥬","🥒","🌶","🫑","🌽","🥕","🫒","🧄","🧅","🥔","🍠","🥐","🥯","🍞","🥖","🥨","🧀","🥚","🍳","🧈","🥞","🧇","🥓","🥩","🍗","🍖","🦴","🌭","🍔","🍟","🍕","🫓","🥪","🥙","🧆","🌮","🌯","🫔","🥗","🥘","🫕","🥫","🍝","🍜","🍲","🍛","🍣","🍱","🥟","🦪","🍤","🍙","🍚","🍘","🍥","🥠","🥮","🍢","🍡","🍧","🍨","🍦","🥧","🧁","🍰","🎂","🍮","🍭","🍬","🍫","🍿","🍩","🍪","🌰","🥜","🍯","🥛","🍼","🫖","☕","🍵","🧃","🥤","🧋","🍶","🍺","🍻","🥂","🍷","🥃","🍸","🍹","🧉","🍾","🧊","🥄","🍴","🍽","🥣","🥡","🥢","🧂"],
-        "⚽": ["⚽","🏀","🏈","⚾","🥎","🎾","🏐","🏉","🥏","🎱","🪀","🏓","🏸","🏒","🏑","🥍","🏏","🥅","⛳","🪁","🏹","🎣","🤿","🥊","🥋","🎽","🛹","🛷","⛸","🥌","🎿","⛷","🏂","🪂","🏋","🤼","🤸","⛹","🤺","🤾","🏌","🏇","⛷","🏂","🏄","🏊","🤽","🚣","🧗","🚴","🚵","🏎","🏍","🤹","🎖","🏆","🏅","🥇","🥈","🥉","🎗","🏵","🎫","🎟","🎪","🤹","🎭","🩰","🎨","🎬","🎤","🎧","🎼","🎹","🥁","🎷","🎺","🎸","🪕","🎻","🎲","♟","🎯","🎳","🎮","🎰","🧩"],
-        "❤": ["❤","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❣","💕","💞","💓","💗","💖","💘","💝","💟","☮","✝","☪","🕉","☸","✡","🔯","🕎","☯","☦","🛐","⛎","♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓","🆔","⚛","🉑","☢","☣","📴","📳","🈶","🈚","🈸","🈺","🈷","✴","🆚","💮","🉐","㊙","㊗","🈴","🈵","🈹","🈲","🅰","🅱","🆎","🆑","🅾","🆘","❌","⭕","🛑","⛔","📛","🚫","💯","💢","♨","🚷","🚯","🚳","🚱","🔞","📵","🚭","❗","❕","❓","❔","‼","⁉","🔅","🔆","〽","⚠","🚸","🔱","⚜","🔰","♻","✅","🈯","💹","❇","✳","❎","🌐","💠","Ⓜ","🌀","💤","🏧","🚾","♿","🅿","🈳","🈂","🛂","🛃","🛄","🛅","🛗","🧭","🧱","🧳","⌚","⏰","⏱","⏲","🕰","🕛","🕧","🕐","🕜","🕑","🕝","🕒","🕞","🕓","🕟","🕔","🕠","🕕","🕡","🕖","🕢","🕗","🕣","🕘","🕤","🕙","🕥","🕚","🕦","🌑","🌒","🌓","🌔","🌕","🌖","🌗","🌘","🌙","🌚","🌛","🌜","🌡","☀","🌝","🌞","🪐","⭐","🌟","🌠","🌌","☁","⛅","⛈","🌤","🌥","🌦","🌧","🌨","❄","🌬","💨","🌪","🌫","🌈","☂","☔","⚡","❄","☃","⛄","☄","🔥","💧","🌊"],
-    })
+    spacing: 0
 
-    contentItem: ColumnLayout {
-        spacing: Kirigami.Units.smallSpacing
+    QQC2.ScrollView {
+        Layout.fillWidth: true
+        Layout.preferredHeight: root.categoryIconSize + QQC2.ScrollBar.horizontal.height
+        QQC2.ScrollBar.horizontal.height: QQC2.ScrollBar.horizontal.visible ? QQC2.ScrollBar.horizontal.implicitHeight : 0
+        visible: categories.count !== 0
 
-        QQC2.TabBar {
-            id: categoryTabs
-            Layout.fillWidth: true
-
-            Repeater {
-                model: root.categoryKeys
-
-                delegate: QQC2.TabButton {
-                    required property var modelData
-                    text: modelData
-                }
-            }
-        }
-
-        GridView {
-            id: emojiGrid
-
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            cellWidth: Math.round(Kirigami.Units.gridUnit * 2.2)
-            cellHeight: Math.round(Kirigami.Units.gridUnit * 2.2)
+        ListView {
+            id: categories
             clip: true
-            model: root.emojiCategories[root.categoryKeys[categoryTabs.currentIndex]]
+            focus: true
+            orientation: ListView.Horizontal
 
-            QQC2.ScrollBar.vertical: QQC2.ScrollBar {}
+            Keys.onReturnPressed: if (emojiGrid.count > 0) {
+                emojiGrid.focus = true;
+            }
+            Keys.onEnterPressed: if (emojiGrid.count > 0) {
+                emojiGrid.focus = true;
+            }
 
-            delegate: QQC2.ToolButton {
+            KeyNavigation.down: emojiGrid.count > 0 ? emojiGrid : categories
+            KeyNavigation.tab: emojiGrid.count > 0 ? emojiGrid : categories
+
+            keyNavigationEnabled: true
+            keyNavigationWraps: true
+            Keys.forwardTo: searchField
+            interactive: width !== contentWidth
+
+            model: root.currentEmojiModel
+            Component.onCompleted: categories.forceActiveFocus()
+
+            delegate: Kirigami.NavigationTabButton {
                 required property var modelData
+                required property int index
 
-                width: emojiGrid.cellWidth
-                height: emojiGrid.cellHeight
-                text: modelData
+                width: root.categoryIconSize
+                height: width
+                checked: categories.currentIndex === index
+                text: modelData.emoji
+                QQC2.ToolTip.text: modelData.name
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                QQC2.ToolTip.visible: hovered
                 onClicked: {
-                    root.picked(modelData)
-                    root.close()
+                    categories.currentIndex = index;
+                    categories.focus = true;
                 }
             }
         }
+    }
+
+    Kirigami.Separator {
+        Layout.fillWidth: true
+        Layout.preferredHeight: 1
+    }
+
+    Kirigami.SearchField {
+        id: searchField
+        Layout.margins: Kirigami.Units.smallSpacing
+        Layout.fillWidth: true
+
+        // The focus is managed by the parent and we don't want to use the
+        // standard shortcut as it could block other SearchFields from using it.
+        focusSequence: ""
+    }
+
+    EmojiGrid {
+        id: emojiGrid
+        targetIconSize: root.categoryIconSize
+        model: searchField.text.length === 0
+            ? EmojiModel.emojis(root.currentCategory)
+            : EmojiModel.filterModel(searchField.text, false)
+        Layout.fillWidth: true
+        Layout.fillHeight: true
+        onChosen: unicode => root.chosen(unicode)
+        header: categories
+        Keys.forwardTo: searchField
+    }
+
+    function clearSearchField() {
+        searchField.text = "";
     }
 }

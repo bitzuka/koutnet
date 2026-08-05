@@ -20,6 +20,7 @@ Item {
     property real fontScale: 1.0
     property string selfName: ""
     property string peerName: ""
+    property string selfDisplayName: ""
 
     // True while the newest message is on screen. The window reads this to
     // decide whether an arriving message counts as read: a read receipt for a
@@ -167,6 +168,7 @@ Item {
             fontScale: root.fontScale
             selfName: root.selfName
             peerName: root.peerName
+            selfDisplayName: root.selfDisplayName
             flashing: flashTarget.row === messageRow.index
 
             onReplyRequested: (row, author, excerpt, msgId) => root.replyRequested(row, author, excerpt, msgId)

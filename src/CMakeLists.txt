@@ -11,7 +11,11 @@ find_package(OpenSSL REQUIRED)
 # have nowhere else to go, and the app refuses to write them in plain text.
 # Config carries the generated settings class, CoreAddons the about data that
 # DrKonqi and --version read.
-find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS Config CoreAddons I18n Kirigami Wallet)
+# Notifications is not optional either: a messenger that only tells you about a
+# message while you are already looking at it is not telling you anything. It
+# also owns the installed koutnet.notifyrc, which is what puts the per-event
+# switches in System Settings rather than in a dialog of this application's.
+find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS Config CoreAddons I18n Kirigami Notifications Wallet)
 
 # The i18n() call in QML comes from the localized context object, which lives
 # in a target of its own rather than in KF6::I18n.
@@ -129,6 +133,14 @@ qt_add_executable(KOutNet
     core/chat/ChatListModel.h
     core/chat/RelativeTime.cpp
     core/chat/RelativeTime.h
+    core/chat/TextHandler.cpp
+    core/chat/TextHandler.h
+    core/emoji/EmojiModel.cpp
+    core/emoji/EmojiModel.h
+    core/emoji/EmojiTones.cpp
+    core/emoji/EmojiTones.h
+    core/notify/NotificationManager.cpp
+    core/notify/NotificationManager.h
     core/theme/ColorSchemeSelector.cpp
     core/theme/ColorSchemeSelector.h
     network/NetworkManager.cpp
@@ -171,6 +183,10 @@ qt_add_qml_module(KOutNet
         qml/timeline/TypingIndicator.qml
         qml/composer/Composer.qml
         qml/composer/EmojiPicker.qml
+        qml/composer/EmojiPopup.qml
+        qml/composer/EmojiGrid.qml
+        qml/composer/EmojiDelegate.qml
+        qml/composer/EmojiTonesPicker.qml
         qml/composer/ReactionPicker.qml
         qml/peer/PeerInfoPage.qml
         qml/settings/SettingsPage.qml
@@ -210,6 +226,7 @@ target_link_libraries(KOutNet PRIVATE
     KF6::I18n
     KF6::I18nQml
     KF6::Kirigami
+    KF6::Notifications
     KF6::Wallet
 )
 
@@ -220,6 +237,10 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/io.github.bitzuka.KOutNet
         DESTINATION ${KDE_INSTALL_APPDIR})
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/io.github.bitzuka.KOutNet.metainfo.xml
         DESTINATION ${KDE_INSTALL_METAINFODIR})
+# Named after the KAboutData component name rather than the application name,
+# because that is what NotificationManager sets on every KNotification it makes.
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/koutnet.notifyrc
+        DESTINATION ${KDE_INSTALL_KNOTIFYRCDIR})
 # The file name carries the size and the theme directory it belongs in, which is
 # what ecm_install_icons reads it out of. It is still a single 512px bitmap: a
 # scalable icon is what this actually wants, and drawing one is its own job.
@@ -245,6 +266,7 @@ set(KOUTNET_GENERATED_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(KOutNet PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/core/theme
     ${CMAKE_CURRENT_SOURCE_DIR}/core/chat
+    ${CMAKE_CURRENT_SOURCE_DIR}/core/emoji
     ${KOUTNET_GENERATED_INCLUDE_DIR}
     ${PROJECT_BINARY_DIR}
 )

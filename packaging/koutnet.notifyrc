@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
+# Event definitions for KNotification. The file name matches the KAboutData
+# component name, which is what NotificationManager sets on every notification
+# it posts - see core/notify/NotificationManager.cpp.
+[Global]
+IconName=io.github.bitzuka.KOutNet
+Name=KOutNet
+Comment=P2P encrypted messenger for LAN, VPN and relay
+DesktopEntry=io.github.bitzuka.KOutNet
+
+[Event/message]
+Name=New message
+Comment=Somebody has written to you while the window was not in front
+Action=Popup
+Sound=message-new-instant
+
+[Event/call]
+Name=Incoming call
+Comment=Somebody is calling you
+Action=Popup|Sound
+Sound=phone-incoming-call

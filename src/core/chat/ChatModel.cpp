@@ -352,14 +352,21 @@ void ChatModel::markOwnMessagesRead()
             Q_EMIT dataChanged(idx, idx, {IsReadRole});
         }
     }
-    if (!any || !m_history || m_chatId.isEmpty())
+    if (!any)
         return;
 
     // Persist the read flags. The loop that used to be here had Q_UNUSED(m) for
     // a body, because there was no way to rewrite an entry already stored - so a
     // receipt lasted until the next reload and then the ticks came back.
     // HistoryManager::replaceAll() is that way.
-    //
+    persistAll();
+}
+
+void ChatModel::persistAll()
+{
+    if (!m_history || m_chatId.isEmpty())
+        return;
+
     // System messages are skipped rather than written out: appendEntry() never
     // persisted them, so they are in this list but not in the log, and a rewrite
     // for an unrelated reason is not the place to start storing them.
@@ -370,6 +377,68 @@ void ChatModel::markOwnMessagesRead()
             persisted.append(m_messages.at(i).toVariantMap());
     }
     m_history->replaceAll(m_chatId, persisted);
+}
+
+double ChatModel::stampForRow(int row) const
+{
+    if (row < 0 || row >= m_messages.size())
+        return 0.0;
+    return m_messages.at(row).ts;
+}
+
+int ChatModel::rowForStamp(double ts) const
+{
+    for (int i = 0; i < m_messages.size(); ++i) {
+        // Compared with a tolerance rather than for equality: the stamp travels
+        // as a JSON number and ensureMsgId() already treats three decimal places
+        // as the identity of a message.
+        if (qAbs(m_messages.at(i).ts - ts) < 0.0005)
+            return i;
+    }
+    return -1;
+}
+
+bool ChatModel::editMessage(int row, const QString &newText)
+{
+    if (row < 0 || row >= m_messages.size())
+        return false;
+    MessageEntry &m = m_messages[row];
+    // A file's text is its name, and rewriting that here would say something
+    // about the file on disk that is not true.
+    if (m.isSystem || m.isFile)
+        return false;
+    const QString trimmed = newText.trimmed();
+    if (trimmed.isEmpty() || trimmed == m.text)
+        return false;
+
+    m.text = trimmed;
+    m.isEdited = true;
+    const QModelIndex idx = index(row);
+    Q_EMIT dataChanged(idx, idx, {TextRole, IsEditedRole});
+    persistAll();
+    return true;
+}
+
+bool ChatModel::deleteMessage(int row)
+{
+    if (row < 0 || row >= m_messages.size())
+        return false;
+    if (m_messages.at(row).isSystem)
+        return false;
+
+    beginRemoveRows(QModelIndex(), row, row);
+    m_messages.remove(row);
+    endRemoveRows();
+
+    // Whether a message opens a run or a day is a statement about the row before
+    // it, so the one that has just moved up may need a header it did not have.
+    if (row < m_messages.size()) {
+        const QModelIndex idx = index(row);
+        Q_EMIT dataChanged(idx, idx, {ShowAuthorRole, ShowDayRole});
+    }
+
+    persistAll();
+    return true;
 }
 
 void ChatModel::markAllRead()

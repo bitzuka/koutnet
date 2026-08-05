@@ -25,10 +25,18 @@ ColumnLayout {
     property bool peerTyping: false
     property string peerName: ""
 
+    // Which message is being rewritten, or -1. An edit takes over the composer
+    // rather than opening a field of its own: the text is being written the same
+    // way it was written the first time, and a second editor on the screen is a
+    // second place to look for it.
+    property int editingRow: -1
+
     readonly property bool replying: root.replyExcerpt.length > 0
+    readonly property bool editing: root.editingRow >= 0
     readonly property alias text: input.text
 
     signal sendRequested(string text, string replyExcerpt, string replyAuthor, string replyId)
+    signal editSubmitted(int row, string text)
     signal attachRequested()
     signal emojiRequested()
     signal replyCancelled()
@@ -45,6 +53,21 @@ ColumnLayout {
         input.forceActiveFocus()
     }
 
+    function startEdit(row, body) {
+        // An edit and a reply are two different things to be doing with the same
+        // field, so starting one puts the other away.
+        root.replyCancelled()
+        root.editingRow = row
+        input.text = body
+        input.cursorPosition = input.length
+        input.forceActiveFocus()
+    }
+
+    function cancelEdit() {
+        root.editingRow = -1
+        input.clear()
+    }
+
     function insert(str) {
         input.insert(input.cursorPosition, str)
         input.forceActiveFocus()
@@ -53,6 +76,11 @@ ColumnLayout {
     function send() {
         if (input.text.trim().length === 0)
             return
+        if (root.editing) {
+            root.editSubmitted(root.editingRow, input.text)
+            root.cancelEdit()
+            return
+        }
         root.sendRequested(input.text, root.replyExcerpt, root.replyAuthor, root.replyId)
         input.clear()
         root.replyCancelled()
@@ -74,6 +102,43 @@ ColumnLayout {
         visible: root.peerTyping
         Layout.preferredHeight: visible ? -1 : 0
         peerName: root.peerName
+    }
+
+    // What is being rewritten, with a way out of it. Same shape as the reply bar
+    // below, because it is the same kind of statement about the field.
+    QQC2.ToolBar {
+        Layout.fillWidth: true
+        visible: root.editing
+
+        contentItem: RowLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            Kirigami.Icon {
+                source: "document-edit"
+                implicitWidth: Kirigami.Units.iconSizes.small
+                implicitHeight: Kirigami.Units.iconSizes.small
+            }
+
+            QQC2.Label {
+                Layout.fillWidth: true
+                text: i18nc("@info:status the composer is rewriting an existing message", "Editing a message")
+                textFormat: Text.PlainText
+                elide: Text.ElideRight
+                font.pointSize: Kirigami.Theme.smallFont.pointSize
+                font.bold: true
+                color: Kirigami.Theme.highlightColor
+            }
+
+            QQC2.ToolButton {
+                display: QQC2.AbstractButton.IconOnly
+                icon.name: "dialog-close"
+                text: i18nc("@action:button leave the message as it was", "Cancel the edit")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                QQC2.ToolTip.text: text
+                onClicked: root.cancelEdit()
+            }
+        }
     }
 
     // What this message is answering, with a way out of it.
@@ -179,6 +244,13 @@ ColumnLayout {
                     background: null
 
                     Keys.onPressed: (event) => {
+                        // Escape abandons an edit, which is what every other
+                        // field on the desktop does with it.
+                        if (event.key === Qt.Key_Escape && root.editing) {
+                            root.cancelEdit()
+                            event.accepted = true
+                            return
+                        }
                         const isReturn = event.key === Qt.Key_Return || event.key === Qt.Key_Enter
                         if (!isReturn)
                             return
@@ -202,8 +274,10 @@ ColumnLayout {
 
             QQC2.Button {
                 Layout.alignment: Qt.AlignBottom
-                text: i18nc("@action:button", "Send")
-                icon.name: "document-send"
+                text: root.editing
+                    ? i18nc("@action:button save the message being rewritten", "Save")
+                    : i18nc("@action:button", "Send")
+                icon.name: root.editing ? "document-save" : "document-send"
                 display: QQC2.AbstractButton.IconOnly
                 // Highlighted is what carries the accent here, so the button
                 // needs no background of its own.
@@ -211,7 +285,9 @@ ColumnLayout {
                 enabled: input.text.trim().length > 0
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-                QQC2.ToolTip.text: i18nc("@info:tooltip", "Send the message. Shift+Enter writes a new line instead.")
+                QQC2.ToolTip.text: root.editing
+                    ? i18nc("@info:tooltip", "Save the change. Escape leaves the message as it was.")
+                    : i18nc("@info:tooltip", "Send the message. Shift+Enter writes a new line instead.")
                 onClicked: root.send()
             }
         }
