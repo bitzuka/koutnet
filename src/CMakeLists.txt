@@ -3,7 +3,11 @@
 # Configured from the top level CMakeLists.txt, which owns project(), the ECM
 # lookup and the KDE includes. This file only describes the application.
 
-find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Quick QuickControls2 QuickDialogs2 Multimedia Network)
+# Widgets is here for one reason: KStatusNotifierItem::setContextMenu() takes a
+# QMenu, so the tray menu is a widget and the application has to be a
+# QApplication. See the note at the top of main.cpp. Nothing else in the tree
+# includes a widget header.
+find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Quick QuickControls2 QuickDialogs2 Multimedia Network Widgets)
 find_package(OpenSSL REQUIRED)
 # Kirigami is not optional: every QML file in qml/ imports it for the page
 # structure and the units, so a build without it fails at first window.
@@ -15,7 +19,16 @@ find_package(OpenSSL REQUIRED)
 # message while you are already looking at it is not telling you anything. It
 # also owns the installed koutnet.notifyrc, which is what puts the per-event
 # switches in System Settings rather than in a dialog of this application's.
-find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS Config CoreAddons I18n Kirigami Notifications Wallet)
+# StatusNotifierItem is the tray icon. It is a framework of its own rather than
+# part of KNotifications, and has been since before the 6.8 floor this project
+# claims, so it belongs in this list rather than in a version check of its own.
+# Not optional: with it missing the close button has nowhere to minimise to, and
+# a half-built tray is worse than none. Package names: kstatusnotifieritem,
+# kf6-kstatusnotifieritem, libkf6statusnotifieritem-dev.
+# IdleTime is what tells the notifications the difference between "the window is
+# behind something" and "nobody is there", which is the whole of the sound
+# behaviour. Package names: kidletime, kf6-kidletime, libkf6idletime-dev.
+find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS Config CoreAddons I18n IdleTime Kirigami Notifications StatusNotifierItem Wallet)
 
 # The i18n() call in QML comes from the localized context object, which lives
 # in a target of its own rather than in KF6::I18n.
@@ -143,6 +156,8 @@ qt_add_executable(KOutNet
     core/emoji/EmojiTones.h
     core/notify/NotificationManager.cpp
     core/notify/NotificationManager.h
+    core/tray/TrayIcon.cpp
+    core/tray/TrayIcon.h
     core/theme/ColorSchemeSelector.cpp
     core/theme/ColorSchemeSelector.h
     network/NetworkManager.cpp
@@ -198,6 +213,7 @@ qt_add_qml_module(KOutNet
         qml/tabs/CallLogPage.qml
         qml/tabs/PlayerPage.qml
         qml/tabs/KeenlyPage.qml
+        qml/profile/ProfileHeader.qml
         qml/profile/your_prof/YourProfile.qml
         qml/profile/not_your_prof/OtherProfile.qml
         qml/call/OutgoingCallWindow.qml
@@ -221,6 +237,7 @@ target_link_libraries(KOutNet PRIVATE
     Qt6::QuickDialogs2
     Qt6::Multimedia
     Qt6::Network
+    Qt6::Widgets
     OpenSSL::Crypto
     KF6::ColorScheme
     KF6::ConfigCore
@@ -228,8 +245,10 @@ target_link_libraries(KOutNet PRIVATE
     KF6::CoreAddons
     KF6::I18n
     KF6::I18nQml
+    KF6::IdleTime
     KF6::Kirigami
     KF6::Notifications
+    KF6::StatusNotifierItem
     KF6::Wallet
 )
 

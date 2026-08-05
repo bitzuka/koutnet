@@ -1,8 +1,16 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - application entry point
+// QApplication rather than QGuiApplication, which is what this used to be.
+// KStatusNotifierItem's only way to take a menu is setContextMenu(QMenu *), a
+// QMenu is a QWidget, and a QWidget without a QApplication is a warning followed
+// by a crash. The cost is a link against Qt6::Widgets; the interface is still
+// entirely QML and nothing else in the tree touches a widget.
+#include <QApplication>
 #include <QCommandLineParser>
 #include <QCryptographicHash>
+// setDesktopFileName is a QGuiApplication static, and this file calls it by
+// class name rather than through app.
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
@@ -21,6 +29,7 @@
 #include "core/audio/AudioDevices.h"
 #include "core/constructor/AppSettings.h"
 #include "core/notify/NotificationManager.h"
+#include "core/tray/TrayIcon.h"
 #include "koutnet-version.h"
 #include "koutnet_app_debug.h"
 #include "koutnet_crypto_debug.h"
@@ -28,7 +37,14 @@
 
 int main(int argc, char *argv[])
 {
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);
+    // The window is hidden rather than closed when it goes to the tray, and Qt
+    // would otherwise take the last window going away as the end of the session.
+    // Every way out of this application is now explicit - the drawer entry, the
+    // tray entry, and the close button when the tray is switched off - which is
+    // the behaviour a tray icon needs and is easier to reason about than a rule
+    // that changes with a setting.
+    QApplication::setQuitOnLastWindowClosed(false);
     // Names the catalog ki18n looks for. It has to happen before anything
     // asks for a translated string, so nothing resolves against whatever
     // domain happened to be current.
@@ -115,6 +131,14 @@ int main(int argc, char *argv[])
         network->setProfile(appSettings->username(), appSettings->displayName(), appSettings->bio(), revision);
     };
     publishProfile();
+    // Presence and the status emoji are not part of the digest above - see
+    // NetworkManager::setStatus - so they are pushed on their own.
+    const auto publishStatus = [network, appSettings]() {
+        network->setStatus(appSettings->presence(), appSettings->statusEmoji());
+    };
+    publishStatus();
+    for (auto signal : {&koutnet::AppSettings::presenceChanged, &koutnet::AppSettings::statusEmojiChanged})
+        QObject::connect(appSettings, signal, network, publishStatus);
     network->setGroupPassphrase(appSettings->groupPassphrase());
     QObject::connect(appSettings, &koutnet::AppSettings::groupPassphraseChanged, network, [network, appSettings]() {
         network->setGroupPassphrase(appSettings->groupPassphrase());
@@ -133,6 +157,16 @@ int main(int argc, char *argv[])
     // Owns the KNotification objects, so it has to outlive every window that
     // can raise one; parented to the application for that reason.
     auto *notifications = new koutnet::NotificationManager(&app);
+    notifications->setAwayAfterMinutes(appSettings->awayAfterMinutes());
+    QObject::connect(appSettings, &koutnet::AppSettings::awayAfterMinutesChanged, notifications, [notifications, appSettings]() {
+        notifications->setAwayAfterMinutes(appSettings->awayAfterMinutes());
+    });
+
+    // Built only when the setting asks for it, and never rebuilt: registering a
+    // status notifier item is a D-Bus name claim, and switching it off at runtime
+    // would leave the window with no way back if it were hidden at the time. The
+    // setting is read at start, and the settings page says so.
+    koutnet::TrayIcon *tray = appSettings->trayEnabled() ? new koutnet::TrayIcon(&app) : nullptr;
 
     // Push the persisted audio choices into the engine before any call
     // can start, then keep them in sync as the settings dialog edits them.
@@ -195,6 +229,10 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), appSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("audioDevices"), audioDevices);
     engine.rootContext()->setContextProperty(QStringLiteral("notificationManager"), notifications);
+    // Null when the tray is switched off. Main.qml checks for that rather than
+    // assuming an object, which is also what makes the close-to-tray path fall
+    // back to really closing.
+    engine.rootContext()->setContextProperty(QStringLiteral("trayIcon"), tray);
     // A flat map rather than the KAboutData object itself. The licence name and
     // the author sit behind lists of KAboutLicense/KAboutPerson that QML would
     // have to index by hand, and a dialog reading one plain object is easier to
