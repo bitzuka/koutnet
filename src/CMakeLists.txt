@@ -214,7 +214,8 @@ qt_add_qml_module(KOutNet
         qml/tabs/PlayerPage.qml
         qml/tabs/KeenlyPage.qml
         qml/profile/ProfileHeader.qml
-        qml/profile/your_prof/YourProfile.qml
+        qml/profile/ProfileBlock.qml
+        qml/profile/AccountCard.qml
         qml/profile/not_your_prof/OtherProfile.qml
         qml/call/OutgoingCallWindow.qml
         qml/call/IncomingCallDialog.qml

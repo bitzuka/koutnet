@@ -9,9 +9,14 @@ import org.kde.kirigamiaddons.formcard as FormCard
 import koutnet.app
 
 // Settings, as FormCard sections rather than a tab bar full of bare labels and
-// text fields. Four groups down one scrollable page: it is a short list, and a
+// text fields. Five groups down one scrollable page: it is a short list, and a
 // list this short reads better whole than split across pages the user has to
 // hunt through.
+//
+// The profile is the first of them rather than a page of its own. It was one,
+// and a page whose content was an identity block, six fields and a row of media
+// shelves with nothing behind them is a page that reads as empty. The fields
+// were settings all along.
 //
 // Nothing here writes the config file directly - AppSettings coalesces that. The
 // one exception is the Network group, which has a button, because switching mode
@@ -26,6 +31,18 @@ FormCard.FormCardPage {
     // See the note on Kirigami.Theme in Main.qml: FormCardPage and every FormCard
     // inside it start theme chains of their own.
     Kirigami.Theme.highlightColor: Brand.accent
+
+    readonly property string shownName: appSettings.displayName.length > 0
+        ? appSettings.displayName : appSettings.username
+
+    // A FormCard fills the row it is given and then draws its card centred at its
+    // own maximumWidth, leaving the rest of the row empty. Anything here that is
+    // not a FormCard has to be handed the same width and the same alignment or it
+    // starts at the window edge instead. Same value as FormCard.maximumWidth.
+    readonly property real kContentWidth: Kirigami.Units.gridUnit * 30
+    // What a form delegate puts round its text, so the blocks under the banner
+    // share one left edge with the cards below them.
+    readonly property real kContentPadding: Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing
 
     // Relay and maintainer VDS are the two that route through a relay, so they
     // are the two that need a host and port.
@@ -53,11 +70,158 @@ FormCard.FormCardPage {
         onAccepted: appSettings.wallpaperPath = selectedFile
     }
 
+    // GIFs are allowed here and not for the wallpaper: a banner is a strip the
+    // size of a postcard and the wallpaper is the whole window.
+    FileDialog {
+        id: avatarDialog
+        title: i18nc("@title:window", "Change avatar")
+        nameFilters: [i18nc("@item:inlistbox file dialog filter, keep the glob patterns",
+                            "Images (*.png *.jpg *.jpeg *.webp *.gif)")]
+        onAccepted: appSettings.avatarPath = selectedFile
+    }
+
+    FileDialog {
+        id: bannerDialog
+        title: i18nc("@title:window", "Change banner")
+        nameFilters: [i18nc("@item:inlistbox file dialog filter, keep the glob patterns",
+                            "Images (*.png *.jpg *.jpeg *.webp *.gif)")]
+        onAccepted: appSettings.bannerPath = selectedFile
+    }
+
+    FileDialog {
+        id: badgeDialog
+        title: i18nc("@title:window", "Choose name badge")
+        nameFilters: [i18nc("@item:inlistbox file dialog filter, keep the glob patterns",
+                            "Images (*.png *.jpg *.jpeg *.webp *.gif)")]
+        onAccepted: appSettings.nameBadgePath = selectedFile
+    }
+
+    // The same panel the composer writes messages with, which is where the emoji
+    // data and the search already are. A picker of its own here would be a second
+    // copy of both.
+    EmojiPopup {
+        id: statusSheet
+        onPicked: (emoji) => appSettings.statusEmoji = emoji
+    }
+
     FormCard.FormHeader {
-        title: i18nc("@title:group", "Identity")
+        title: i18nc("@title:group your own identity as other people see it", "Profile")
+    }
+
+    // Banner, the avatar over its lower-left, the name and the handle - see
+    // qml/profile/ProfileHeader.qml, which the peer's profile and both cards are
+    // built out of too.
+    //
+    // No presence line: your own reachability is that the process is running,
+    // which is not news. There is no edit mode either. Everything below writes
+    // straight through, which is what a settings page does anyway, and an
+    // "Edit profile" button on a page of settings was a second word for "type
+    // here".
+    ProfileHeader {
+        Layout.fillWidth: true
+        Layout.maximumWidth: root.kContentWidth
+        Layout.alignment: Qt.AlignHCenter
+
+        displayName: root.shownName
+        handle: appSettings.username
+        avatarSource: appSettings.avatarPath
+        bannerSource: appSettings.bannerPath
+        badgeSource: appSettings.nameBadgePath
+        showPresence: false
+        editable: true
+
+        onAvatarPickRequested: avatarDialog.open()
+        onBannerPickRequested: bannerDialog.open()
+    }
+
+    ProfileBlock {
+        Layout.fillWidth: true
+        Layout.maximumWidth: root.kContentWidth
+        Layout.alignment: Qt.AlignHCenter
+        Layout.leftMargin: root.kContentPadding
+        Layout.rightMargin: root.kContentPadding
+
+        label: i18nc("@label:textbox caption over what somebody says they are up to", "Custom status")
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Kirigami.Units.smallSpacing
+
+            // Falls back to an icon rather than to a placeholder character: with
+            // nothing set there is no emoji to show, and a face is what says
+            // what the slot is for.
+            QQC2.ToolButton {
+                display: appSettings.statusEmoji.length > 0 ? QQC2.AbstractButton.TextOnly
+                                                            : QQC2.AbstractButton.IconOnly
+                icon.name: "face-smile"
+                text: appSettings.statusEmoji
+                font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.4)
+
+                Accessible.name: i18nc("@action:button", "Set a status emoji")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                QQC2.ToolTip.text: Accessible.name
+
+                onClicked: statusSheet.open()
+            }
+
+            // Device-local for now. The presence packet carries the emoji and
+            // repeats on a timer, so a line of free text is not something to put
+            // in it - see NetworkManager::setStatus.
+            QQC2.TextField {
+                Layout.fillWidth: true
+                text: appSettings.statusText
+                placeholderText: i18nc("@info:placeholder", "What are you up to?")
+                onEditingFinished: appSettings.statusText = text
+            }
+
+            QQC2.ToolButton {
+                display: QQC2.AbstractButton.IconOnly
+                icon.name: "edit-clear"
+                enabled: appSettings.statusEmoji.length > 0 || appSettings.statusText.length > 0
+                text: i18nc("@action:button remove the custom status emoji", "Clear status emoji")
+
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                QQC2.ToolTip.text: text
+
+                onClicked: {
+                    appSettings.statusEmoji = ""
+                    appSettings.statusText = ""
+                }
+            }
+        }
+    }
+
+    // The blocks between the banner and the cards carry their own gaps: the page
+    // lays its children out with no spacing, on the assumption that every one of
+    // them is a card with a FormHeader over it.
+    ProfileBlock {
+        Layout.fillWidth: true
+        Layout.maximumWidth: root.kContentWidth
+        Layout.alignment: Qt.AlignHCenter
+        Layout.leftMargin: root.kContentPadding
+        Layout.rightMargin: root.kContentPadding
+        Layout.topMargin: Kirigami.Units.largeSpacing
+
+        label: i18nc("@title:group free-form text about yourself", "About me")
+
+        // Plain TextArea rather than a rendered Markdown label with an edit mode
+        // behind it: this is the page where things are typed, so what is on
+        // screen is the source. It is a peer's copy that gets rendered.
+        QQC2.TextArea {
+            Layout.fillWidth: true
+            Layout.minimumHeight: Kirigami.Units.gridUnit * 5
+            wrapMode: TextEdit.Wrap
+            text: appSettings.bio
+            placeholderText: i18nc("@info:placeholder", "Tell us about yourself...")
+            onEditingFinished: appSettings.bio = text
+        }
     }
 
     FormCard.FormCard {
+        Layout.topMargin: Kirigami.Units.largeSpacing
+
         FormCard.FormTextFieldDelegate {
             id: usernameField
             label: i18nc("@label:textbox the handle peers see", "Username")
@@ -73,6 +237,44 @@ FormCard.FormCardPage {
             description: i18nc("@info:whatsthis", "The name shown to peers, as opposed to the handle above.")
             text: appSettings.displayName
             onEditingFinished: appSettings.displayName = text
+        }
+
+        FormCard.FormDelegateSeparator { above: displayNameField; below: badgeButton }
+
+        FormCard.FormButtonDelegate {
+            id: badgeButton
+            text: i18nc("@action:button", "Choose name badge")
+            icon.name: "insert-image"
+            onClicked: badgeDialog.open()
+        }
+    }
+
+    FormCard.FormHeader {
+        title: i18nc("@title:group where the account lives", "Account")
+    }
+
+    FormCard.FormCard {
+        FormCard.FormRadioDelegate {
+            id: localRadio
+            text: i18nc("@option:radio account scope, this device only", "Local")
+            description: i18nc("@info:whatsthis", "This device only. Always usable.")
+            checked: !appSettings.globalAccount
+            onToggled: if (localRadio.checked) appSettings.globalAccount = false
+        }
+
+        FormCard.FormDelegateSeparator { above: localRadio; below: globalRadio }
+
+        FormCard.FormRadioDelegate {
+            id: globalRadio
+            text: i18nc("@option:radio account scope, hosted on a K-Server", "Global")
+            // Local is always a valid identity - it is just this device, there is
+            // nothing to register. Only Global depends on a K-Server connection
+            // that does not exist yet, so only it gets the caption.
+            description: appSettings.globalAccountRegistered
+                ? i18nc("@info:whatsthis", "Synced through a K-Server.")
+                : i18nc("@info:status this identity has no K-Server account", "Not registered")
+            checked: appSettings.globalAccount
+            onToggled: if (globalRadio.checked) appSettings.globalAccount = true
         }
     }
 

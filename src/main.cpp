@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
     // not in presence, only this.
     const auto publishProfile = [network, appSettings]() {
         const QString material = appSettings->displayName() + QChar(0x1f) + appSettings->bio() + QChar(0x1f) + appSettings->avatarPath() + QChar(0x1f)
-            + appSettings->bannerPath() + QChar(0x1f) + appSettings->profileBackgroundPath() + QChar(0x1f) + appSettings->nameBadgePath();
+            + appSettings->bannerPath() + QChar(0x1f) + appSettings->nameBadgePath();
         const QString revision = QString::fromLatin1(QCryptographicHash::hash(material.toUtf8(), QCryptographicHash::Sha256).toHex().left(12));
         network->setProfile(appSettings->username(), appSettings->displayName(), appSettings->bio(), revision);
     };
@@ -148,7 +148,6 @@ int main(int argc, char *argv[])
                         &koutnet::AppSettings::bioChanged,
                         &koutnet::AppSettings::avatarPathChanged,
                         &koutnet::AppSettings::bannerPathChanged,
-                        &koutnet::AppSettings::profileBackgroundPathChanged,
                         &koutnet::AppSettings::nameBadgePathChanged}) {
         QObject::connect(appSettings, signal, network, publishProfile);
     }

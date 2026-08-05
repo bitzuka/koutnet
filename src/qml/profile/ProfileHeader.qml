@@ -7,13 +7,15 @@ import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as Components
 import koutnet.app
 
-// The identity block at the top of a profile: banner, a large avatar hanging off
-// its lower edge, the name, the handle, the presence and the custom status.
+// The identity block every profile surface in the application starts with:
+// a banner, a large avatar hanging off its lower-left corner and ringed in the
+// colour behind it, the display name, the handle under it, and the presence.
 //
-// One component for both profile pages rather than the same forty lines twice.
-// The two used to drift - the peer's page had no badge slot and the own page had
-// no presence colour - and a header is exactly the part of a screen where the two
-// sides have to look like one design in two states.
+// One component in two sizes rather than four near-copies. compact is the popup
+// card - the peer card and the account card - and everything else is the wide one
+// that opens in the settings page and on a peer's profile. The two used to be
+// written out separately and had drifted apart in every dimension they shared,
+// which for an identity block is the whole point of having one.
 //
 // The type sizes are multiples of Kirigami.Theme.defaultFont rather than heading
 // levels. A profile header is the one place in this application where the name is
@@ -28,34 +30,48 @@ Item {
     // Reachability, which is a fact about the network.
     property bool online: false
     property double lastSeenSecs: 0
-    // What the user says about themselves, which is not the same thing. Empty
-    // renders the slot as a placeholder rather than collapsing it, so the header
-    // does not change height when one is set.
+    // Only somebody else has reachability worth drawing. Your own identity has
+    // none: the process is running, which is not news.
+    property bool showPresence: true
+    // What the user says about themselves, which is not the same thing. The
+    // compact card puts it under the handle; the wide one leaves it to a
+    // labelled block of its own further down.
     property string statusEmoji: ""
+    property string statusText: ""
     property string avatarSource: ""
     property string bannerSource: ""
     property string badgeSource: ""
 
-    // Own-profile pages get the two picker buttons; a peer's page has nothing
-    // here that writes.
+    // Popup size: a shallower banner, a smaller face, and the name at card size
+    // rather than at page size.
+    property bool compact: false
+    // Set by whoever draws a rounded surface under this, because the banner is
+    // full bleed and would otherwise square off the top of it.
+    property real topCornerRadius: 0
+
+    // Own-profile surfaces get the two picker buttons; a peer's has nothing here
+    // that writes.
     property bool editable: false
     // Whether the status slot can be clicked to change it. Separate from
-    // editable because it is offered outside edit mode: a status is a thing
-    // people change ten times a day.
+    // editable because a status is a thing people change ten times a day.
     property bool statusEditable: false
 
     signal bannerPickRequested()
     signal avatarPickRequested()
     signal statusPickRequested()
 
-    readonly property real kAvatarSize: Kirigami.Units.gridUnit * 6
-    // How much of the avatar sits over the banner rather than below it. Matches
-    // PeerCard, so the card and this read as the same design.
+    readonly property real kAvatarSize: root.compact
+        ? Kirigami.Units.gridUnit * 3.5
+        : Kirigami.Units.gridUnit * 6
+    readonly property real kBannerHeight: root.compact
+        ? Kirigami.Units.gridUnit * 4
+        : Kirigami.Units.gridUnit * 9
+    // How much of the avatar sits over the banner rather than below it.
     readonly property real kAvatarOverhang: 0.45
 
     // The same horizontal padding a form delegate puts round its text, so the
     // display name and the "About me" body under it share one left edge. How wide
-    // the column is is the page's business, not the header's.
+    // the column is is the caller's business, not this one's.
     readonly property real kContentPadding: Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing
 
     // Nothing here is in a layout - the avatar overlapping the banner is the
@@ -78,22 +94,36 @@ Item {
         onStatusChanged: if (status === AnimatedImage.Ready) playing = true
     }
 
-    Rectangle {
+    // ShadowedRectangle rather than a plain one: inside a card the top two
+    // corners have to be rounded and the bottom two must not, and a per-corner
+    // radius is the one thing it has that Rectangle at this Qt floor does not.
+    Kirigami.ShadowedRectangle {
         id: banner
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        height: Kirigami.Units.gridUnit * 9
-        clip: true
-
+        height: root.kBannerHeight
+        corners.topLeftRadius: root.topCornerRadius
+        corners.topRightRadius: root.topCornerRadius
+        corners.bottomLeftRadius: 0
+        corners.bottomRightRadius: 0
         // With no picture the strip is the brand colour rather than the theme's
         // alternate background, which on most schemes is a grey barely a shade
         // off the page behind it - the banner was there and invisible.
-        gradient: Gradient {
-            GradientStop { position: 0.0; color: Brand.accent }
-            GradientStop {
-                position: 1.0
-                color: Kirigami.ColorUtils.linearInterpolation(Brand.accent, Kirigami.Theme.backgroundColor, 0.45)
+        color: Brand.accent
+
+        // The gradient needs a plain Rectangle, and that one has a single radius
+        // for all four corners, so it is only laid on where the strip is square.
+        // In a card the flat brand colour and the rounded corners win.
+        Rectangle {
+            anchors.fill: parent
+            visible: root.topCornerRadius <= 0
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Brand.accent }
+                GradientStop {
+                    position: 1.0
+                    color: Kirigami.ColorUtils.linearInterpolation(Brand.accent, Kirigami.Theme.backgroundColor, 0.45)
+                }
             }
         }
 
@@ -118,10 +148,12 @@ Item {
         }
     }
 
-    // The ring behind the avatar, which is what lifts it off the banner. Sized
-    // from the avatar rather than the other way round.
+    // The ring behind the avatar, which is what lifts it off the banner. A
+    // sibling declared before the avatar rather than a child of it with a
+    // negative z: Avatar has no border of its own, and going through its children
+    // would be relying on where it paints its own circle. Sized from the avatar
+    // rather than the other way round.
     Rectangle {
-        id: avatarRing
         width: root.kAvatarSize + Kirigami.Units.smallSpacing * 3
         height: width
         radius: width / 2
@@ -180,8 +212,11 @@ Item {
 
             Kirigami.Heading {
                 Layout.fillWidth: true
-                level: 1
-                font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 2)
+                level: root.compact ? 3 : 1
+                font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * (root.compact ? 1.3 : 2))
+                // Bold on top of the heading level, because the handle right
+                // underneath is the same family and the weight is what separates
+                // them at a glance.
                 font.bold: true
                 text: root.displayName
                 textFormat: Text.PlainText
@@ -195,71 +230,86 @@ Item {
                 source: root.badgeSource
                 visible: root.badgeSource.length > 0
                 Layout.alignment: Qt.AlignVCenter
-                Layout.preferredWidth: Kirigami.Units.iconSizes.medium
-                Layout.preferredHeight: Kirigami.Units.iconSizes.medium
+                Layout.preferredWidth: root.compact
+                    ? Kirigami.Units.iconSizes.smallMedium
+                    : Kirigami.Units.iconSizes.medium
+                Layout.preferredHeight: Layout.preferredWidth
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
             }
         }
 
-        // Handle, and the custom status beside it.
+        QQC2.Label {
+            Layout.fillWidth: true
+            visible: root.handle.length > 0
+            text: i18nc("@info a handle, %1 is the user name", "@%1", root.handle)
+            textFormat: Text.PlainText
+            elide: Text.ElideRight
+            font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * (root.compact ? 1.0 : 1.25))
+            color: Kirigami.Theme.disabledTextColor
+        }
+
+        // The custom status, on the card only. The wide surfaces give it a
+        // labelled block of its own, which is where a line of free text belongs
+        // once there is room for one.
         RowLayout {
             Layout.fillWidth: true
+            Layout.topMargin: Kirigami.Units.smallSpacing
+            visible: root.compact && (root.statusEmoji.length > 0 || root.statusText.length > 0)
             spacing: Kirigami.Units.smallSpacing
 
             QQC2.Label {
-                visible: root.handle.length > 0
-                text: i18nc("@info a handle, %1 is the user name", "@%1", root.handle)
-                textFormat: Text.PlainText
-                elide: Text.ElideRight
-                font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.25)
-                color: Kirigami.Theme.disabledTextColor
-            }
-
-            // A button when it can be changed and a plain label when it cannot,
-            // so a peer's status is not something that looks clickable.
-            // Falls back to an icon rather than to a placeholder character: with
-            // nothing set there is no emoji to show, and a face is what says
-            // what the slot is for.
-            QQC2.ToolButton {
-                Layout.alignment: Qt.AlignVCenter
-                visible: root.statusEditable
-                display: root.statusEmoji.length > 0 ? QQC2.AbstractButton.TextOnly
-                                                     : QQC2.AbstractButton.IconOnly
-                icon.name: "face-smile"
+                visible: root.statusEmoji.length > 0
                 text: root.statusEmoji
-                font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.8)
-
-                Accessible.name: i18nc("@action:button", "Set a status emoji")
-                QQC2.ToolTip.visible: hovered
-                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-                QQC2.ToolTip.text: Accessible.name
-
-                onClicked: root.statusPickRequested()
+                textFormat: Text.PlainText
+                font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.3)
             }
 
             QQC2.Label {
-                Layout.alignment: Qt.AlignVCenter
-                visible: !root.statusEditable && root.statusEmoji.length > 0
-                text: root.statusEmoji
+                Layout.fillWidth: true
+                visible: root.statusText.length > 0
+                text: root.statusText
                 textFormat: Text.PlainText
-                font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.8)
+                elide: Text.ElideRight
             }
+        }
 
-            Item { Layout.fillWidth: true }
+        // The status picker, wherever the status belongs to this end. A button
+        // rather than a label, so one that can be changed does not look like one
+        // that cannot. It falls back to an icon rather than to a placeholder
+        // character: with nothing set there is no emoji to show, and a face is
+        // what says what the slot is for.
+        QQC2.ToolButton {
+            Layout.topMargin: Kirigami.Units.smallSpacing
+            visible: root.statusEditable
+            display: root.statusEmoji.length > 0 ? QQC2.AbstractButton.TextOnly
+                                                 : QQC2.AbstractButton.IconOnly
+            icon.name: "face-smile"
+            text: root.statusEmoji
+            font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.8)
+
+            Accessible.name: i18nc("@action:button", "Set a status emoji")
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            QQC2.ToolTip.text: Accessible.name
+
+            onClicked: root.statusPickRequested()
         }
 
         // Presence: a dot in the colour, and text big enough to read from where
         // somebody actually sits. RelativeTime.now is read so this ages on its
-        // own while the page is open and nothing arrives.
+        // own while the surface is open and nothing arrives.
         RowLayout {
             Layout.fillWidth: true
             Layout.topMargin: Kirigami.Units.smallSpacing
+            visible: root.showPresence
             spacing: Kirigami.Units.smallSpacing
 
             Rectangle {
                 Layout.alignment: Qt.AlignVCenter
-                width: Kirigami.Units.iconSizes.small
+                width: root.compact
+                    ? Math.round(Kirigami.Units.iconSizes.small * 0.6)
+                    : Kirigami.Units.iconSizes.small
                 height: width
                 radius: width / 2
                 color: root.online ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.disabledTextColor
@@ -270,7 +320,9 @@ Item {
                 text: RelativeTime.presenceLabel(root.online, root.lastSeenSecs, RelativeTime.now)
                 textFormat: Text.PlainText
                 elide: Text.ElideRight
-                font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.15)
+                font.pointSize: root.compact
+                    ? Kirigami.Theme.defaultFont.pointSize
+                    : Math.round(Kirigami.Theme.defaultFont.pointSize * 1.15)
                 color: root.online ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.disabledTextColor
             }
         }

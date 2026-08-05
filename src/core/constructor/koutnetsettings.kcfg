@@ -81,9 +81,6 @@
     </entry>
     <entry name="avatarPath" key="avatar_path" type="String"/>
     <entry name="bannerPath" key="banner_path" type="String"/>
-    <!-- Full-bleed backdrop behind the whole profile page, separate from the
-         banner strip up top. -->
-    <entry name="profileBackgroundPath" key="profile_background_path" type="String"/>
     <!-- Small custom image next to the display name. -->
     <entry name="nameBadgePath" key="name_badge_path" type="String"/>
     <!-- Markdown-formatted "about me" text. -->
@@ -93,6 +90,10 @@
          custom status. A single grapheme rather than free text: it rides in the
          presence packet, which repeats on a timer, so it has to stay small. -->
     <entry name="statusEmoji" key="status_emoji" type="String"/>
+    <!-- The line of text beside that emoji. Device-local: presence repeats on a
+         timer and free text has no business in a packet that does, so this one
+         is not published until there is somewhere to publish it to. -->
+    <entry name="statusText" key="status_text" type="String"/>
     <!-- What the user says they are, as opposed to whether they are reachable.
          0 = online, 1 = away, 2 = busy, 3 = invisible. An int rather than an
          enum for the same reason connectionMode is one: core/constructor does
