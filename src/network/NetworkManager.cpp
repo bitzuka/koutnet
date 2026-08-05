@@ -458,7 +458,7 @@ void NetworkManager::pruneStalePeers()
     const double now = nowEpoch();
     QVector<QString> stale;
     for (auto it = m_peers.constBegin(); it != m_peers.constEnd(); ++it) {
-        const double lastSeen = it.value()[QStringLiteral("last_seen")].toDouble();
+        const double lastSeen = it.value().value(protocol::kFieldLastSeen).toDouble();
         if (now - lastSeen > 25)
             stale.append(it.key());
     }
@@ -670,12 +670,12 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
     const QString key = m_peerKeyById.value(peerId, host);
     msg[QStringLiteral("ip")] = key;
     if (!advertised.isEmpty() && advertised != key)
-        msg[QStringLiteral("advertised_ip")] = advertised;
+        msg[protocol::kFieldAdvertisedIp] = advertised;
     if (!peerId.isEmpty())
         msg[QStringLiteral("from_id")] = peerId;
 
     const bool isNew = !m_peers.contains(key);
-    msg[QStringLiteral("last_seen")] = nowEpoch();
+    msg[protocol::kFieldLastSeen] = nowEpoch();
     // TODO: msg["conn_type"] = detectConnectionType(key);
     if (m_crypto)
         msg[QStringLiteral("e2e")] = m_crypto->hasSession(peerId.isEmpty() ? host : peerId);
@@ -685,6 +685,8 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
 
     if (isNew)
         Q_EMIT userOnline(msg);
+    else
+        Q_EMIT peerRefreshed(key, msg.value(protocol::kFieldLastSeen).toDouble());
 }
 
 void NetworkManager::onNewTcpConnection()
@@ -1127,7 +1129,12 @@ void NetworkManager::sendReadReceipt(const QString &toIp, const QString &chatId)
     payload[QStringLiteral("type")] = protocol::kMsgRead;
     payload[QStringLiteral("from_ip")] = m_hostIp;
     payload[QStringLiteral("chat_id")] = chatId;
-    sendUdp(payload, toIp);
+    // Every address the peer answers on, the same as sendPrivate(). A receipt
+    // that only goes to the address the chat happens to be filed under is a
+    // receipt that goes missing on exactly the multi-homed peer the identity
+    // keying was added for, and losing one leaves the sender's message showing
+    // as unconfirmed forever.
+    sendUdpToAll(payload, deliveryAddresses(toIp));
 }
 
 void NetworkManager::sendGroupInvite(const QString &gid, const QString &gname, const QString &toIp)

@@ -89,6 +89,10 @@ qt_add_executable(KOutNet
     core/chat/GroupManager.h
     core/chat/ChatModel.cpp
     core/chat/ChatModel.h
+    core/chat/ChatListModel.cpp
+    core/chat/ChatListModel.h
+    core/chat/RelativeTime.cpp
+    core/chat/RelativeTime.h
     core/theme/ThemeManager.cpp
     core/theme/ThemeManager.h
     network/NetworkManager.cpp

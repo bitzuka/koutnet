@@ -49,6 +49,20 @@ public:
     Q_INVOKABLE QVariantList loadCallLog();
     Q_INVOKABLE void addCall(const QVariantMap &entry);
 
+    // The conversation list, stored beside the logs rather than derived from
+    // them. Deriving it is not possible: filePathFor() replaces every character
+    // outside [\w-] to build a filename, so "192.168.1.5" and "192-168-1-5" both
+    // land on 192_168_1_5.json and neither can be read back out of it. A row also
+    // has to carry things no message log holds - the name and last-seen stamp of
+    // a peer that is currently switched off, and a chat the user has opened but
+    // not written in yet.
+    //
+    // Same reserved-id trick as the call log above, so this inherits the atomic
+    // write, the cache and the refusal to overwrite a file that would not parse,
+    // and introduces no new storage of its own.
+    Q_INVOKABLE QVariantList loadChatIndex();
+    Q_INVOKABLE void saveChatIndex(const QVariantList &entries);
+
 Q_SIGNALS:
     void historySavingEnabledChanged();
     void historyAppended(const QString &chatId, const QVariantMap &entry);

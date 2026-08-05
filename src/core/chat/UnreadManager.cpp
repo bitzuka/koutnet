@@ -18,6 +18,14 @@ void UnreadManager::markRead(const QString &chatId)
     }
 }
 
+void UnreadManager::restore(const QString &chatId, int count)
+{
+    if (count <= 0 || m_counts.contains(chatId))
+        return;
+    m_counts[chatId] = count;
+    Q_EMIT totalChanged();
+}
+
 int UnreadManager::get(const QString &chatId) const
 {
     return m_counts.value(chatId, 0);

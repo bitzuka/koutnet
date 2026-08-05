@@ -50,9 +50,30 @@ Kirigami.ApplicationWindow {
             m.reactionStore = ReactionStore
             m.unreadManager = UnreadManager
             m.chatId = ip
+            // Every message that lands in any chat, in either direction, from one
+            // place. Wiring the conversation list at the four call sites that send
+            // and receive instead would leave it wrong the first time a fifth one
+            // was added.
+            m.messageAdded.connect(root.onChatActivity)
             chatModels[ip] = m
         }
         return chatModels[ip]
+    }
+
+    function onChatActivity(chatId, preview, isOwn, ts) {
+        chatList.noteMessage(chatId, preview, isOwn, ts)
+    }
+
+    // Everything the user has read in this chat is read, and the peer is told so.
+    // Called both when a chat is opened and when a message arrives in the one
+    // already open - the second of those is what was missing, and it is why an
+    // outgoing message kept its "sent, not confirmed" arrow forever while the
+    // peer sat reading it with the window open.
+    function markChatRead(ip) {
+        if (ip.length === 0 || ip === root.kSelfChatId)
+            return
+        root.modelForPeer(ip).markAllRead()
+        networkManager.sendReadReceipt(ip, "dm")
     }
 
     function upsertPeer(info) {
@@ -76,12 +97,23 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // Who is reachable right now, straight off the presence broadcasts. This is a
+    // scanner and is no longer what the sidebar draws - it is the source for
+    // reachability, for the profile sheet, and for the peer picker below.
     ListModel { id: peersModel }
 
+    // What the sidebar draws: the conversations the user actually has. Survives
+    // restarts and peers going offline, neither of which peersModel does.
+    ChatListModel {
+        id: chatList
+        historyManager: HistoryManager
+        unreadManager: UnreadManager
+    }
+
     // Describes the peer at the top of ChatPage: username, os, e2e,
-    // avatarLetter, isFavorites, lastSeen. peersModel.count is read only to
-    // register a dependency, so this re-evaluates as peers come and go. Same
-    // same idea as above, on a ListModel instead of a Q_PROPERTY.
+    // avatarLetter, isFavorites, online, lastSeen. peersModel.count is read only
+    // to register a dependency, so this re-evaluates as peers come and go. Same
+    // idea as above, on a ListModel instead of a Q_PROPERTY.
     function peerInfoFor(ip) {
         /* eslint-disable no-unused-expressions */
         peersModel.count
@@ -92,6 +124,7 @@ Kirigami.ApplicationWindow {
                 e2e: false,
                 avatarLetter: "\u2605",
                 isFavorites: true,
+                online: false,
                 lastSeen: 0
             }
         }
@@ -107,14 +140,32 @@ Kirigami.ApplicationWindow {
                     e2e: p.e2e === true,
                     avatarLetter: (p.username || ip).charAt(0).toUpperCase(),
                     isFavorites: false,
-                    // NOTE: field name "last_seen" is assumed from the
-                    // legacy Python payload shape; confirm against
-                    // NetworkManager.h if this doesn't populate.
+                    // Being in peersModel is what reachable means: userOffline
+                    // takes a peer out of it as soon as NetworkManager stops
+                    // hearing presence.
+                    online: true,
+                    // Stamped by handlePresence() on arrival, not sent by the
+                    // peer - see kFieldLastSeen in network/Protocol.h. While the
+                    // peer is up it is always seconds old, so it only says
+                    // anything once "online" above has gone false.
                     lastSeen: p.last_seen || 0
                 }
             }
         }
-        return { username: ip, os: "", e2e: false, avatarLetter: "?", isFavorites: false, lastSeen: 0 }
+        // Not on the network. The conversation list is what remembers a peer that
+        // is switched off, which is the only thing that can still say when it was
+        // last around.
+        const known = chatList.chatInfo(ip)
+        return {
+            ip: ip,
+            username: known.displayName || ip,
+            os: "",
+            e2e: false,
+            avatarLetter: (known.displayName || ip).charAt(0).toUpperCase(),
+            isFavorites: false,
+            online: false,
+            lastSeen: known.lastSeenSecs || 0
+        }
     }
 
     // Call windows (Outgoing / Incoming / Active)
@@ -122,10 +173,14 @@ Kirigami.ApplicationWindow {
     property var incomingCallDialog: null
     property var activeCallWindow: null
 
+    // The friendly name if the peer publishes one, then the handle, then the bare
+    // address. Same order the conversation list files a chat under, so opening a
+    // chat and hearing presence from it do not disagree about what to call it.
     function peerDisplayName(ip) {
         for (let i = 0; i < peersModel.count; ++i) {
-            if (peersModel.get(i).ip === ip)
-                return peersModel.get(i).username || ip
+            const p = peersModel.get(i)
+            if (p.ip === ip)
+                return p.display_name || p.username || ip
         }
         return ip
     }
@@ -179,8 +234,11 @@ Kirigami.ApplicationWindow {
     }
 
     onCurrentPeerIpChanged: {
-        if (currentPeerIp.length > 0 && currentPeerIp !== kSelfChatId)
-            networkManager.sendReadReceipt(currentPeerIp, "dm")
+        if (currentPeerIp.length > 0 && currentPeerIp !== kSelfChatId) {
+            // Opening a chat is starting one, as far as the list is concerned.
+            chatList.openChat(currentPeerIp, root.peerDisplayName(currentPeerIp))
+            root.markChatRead(currentPeerIp)
+        }
         // Telegram-style: picking a chat auto-hides the overlay sidebar.
         if (currentPeerIp.length > 0)
             root.sidebarOpen = false
@@ -393,13 +451,34 @@ Kirigami.ApplicationWindow {
 
     Connections {
         target: networkManager
-        function onUserOnline(peerInfo) { root.upsertPeer(peerInfo) }
-        function onUserOffline(ip) { root.removePeer(ip) }
+        function onUserOnline(peerInfo) {
+            root.upsertPeer(peerInfo)
+            chatList.setPresence(peerInfo.ip, true, peerInfo.last_seen || 0,
+                                 peerInfo.display_name || peerInfo.username || "")
+        }
+        function onPeerRefreshed(ip, lastSeen) {
+            chatList.setPresence(ip, true, lastSeen, "")
+        }
+        function onUserOffline(ip) {
+            root.removePeer(ip)
+            // The stamp is deliberately not touched here: the last presence that
+            // arrived is when the peer was last seen, and "now" would be a lie
+            // that grows into "last seen just now" for a peer that has gone.
+            chatList.setPresence(ip, false, 0, "")
+        }
         function onMessage(msg) {
-            if (msg.type === "private")
+            if (msg.type === "private") {
                 root.modelForPeer(msg.from_ip).receiveMessage(msg.text, msg.from_ip)
-            else if (msg.type === "read")
+                // Reading it is what the peer is waiting to hear about, and the
+                // chat being open already is the case that never sent anything.
+                if (msg.from_ip === root.currentPeerIp)
+                    root.markChatRead(msg.from_ip)
+            } else if (msg.type === "read") {
+                // from_ip has been rewritten by dispatch() to the address this
+                // peer is filed under, which is the same string the chat is keyed
+                // on - see the note above the rewrite in NetworkManager.
                 root.modelForPeer(msg.from_ip).markOwnMessagesRead()
+            }
         }
         function onCallRequest(username, ip) { root.showIncomingCall(username, ip) }
         function onCallAccepted(username, ip) {
@@ -444,6 +523,8 @@ Kirigami.ApplicationWindow {
                             || lower.endsWith(".jpeg") || lower.endsWith(".gif")
                             || lower.endsWith(".bmp") || lower.endsWith(".webp")
             root.modelForPeer(fromIp).receiveFile(localPath, isImage, fromIp)
+            if (fromIp === root.currentPeerIp)
+                root.markChatRead(fromIp)
         }
     }
 
@@ -498,23 +579,31 @@ Kirigami.ApplicationWindow {
                             Layout.leftMargin: Kirigami.Units.smallSpacing + 36
 
                             Kirigami.Heading {
-                                text: i18nc("@title sidebar section", "Contacts")
+                                text: i18nc("@title sidebar section, the list of conversations", "Chats")
                                 level: 1
                                 font.bold: true
                                 font.weight: Font.Black
                                 color: root.theme.text
                             }
                             Item { Layout.fillWidth: true }
+
+                            ToolButton {
+                                icon.name: "list-add"
+                                display: AbstractButton.IconOnly
+                                text: i18nc("@action:button start a conversation with a peer that is not in the list yet", "New chat")
+                                ToolTip.visible: hovered
+                                ToolTip.text: text
+                                onClicked: newChatSheet.open()
+                            }
                         }
 
                         Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.theme.border }
 
                         ContactDelegate {
                             Layout.fillWidth: true
-                            peerIp: i18nc("@item contact list, chat with yourself", "Favorites")
+                            displayName: i18nc("@item conversation list, chat with yourself", "Favorites")
                             iconName: "bookmarks"
-                            showOnlineIndicator: false
-                            showSecurityLabel: false
+                            showPresence: false
                             selected: root.currentPeerIp === root.kSelfChatId
                             onClicked: root.currentPeerIp = root.kSelfChatId
                         }
@@ -523,7 +612,7 @@ Kirigami.ApplicationWindow {
                             id: searchField
                             Layout.fillWidth: true
                             Layout.margins: Kirigami.Units.smallSpacing
-                            placeholderText: i18nc("@info:placeholder filter the contact list", "Search")
+                            placeholderText: i18nc("@info:placeholder filter the conversation list", "Search")
                             text: root.contactSearchText
                             color: root.theme.text
                             placeholderTextColor: root.theme.text_dim
@@ -543,30 +632,52 @@ Kirigami.ApplicationWindow {
                         Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: root.theme.border }
 
                         ListView {
-                            id: peersList
+                            id: chatsList
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            model: peersModel
+                            model: chatList
                             clip: true
+                            // The model reorders rows as messages arrive, so the
+                            // list has somewhere to animate them to.
+                            move: Transition {
+                                NumberAnimation { properties: "y"; duration: Kirigami.Units.shortDuration }
+                            }
+                            displaced: Transition {
+                                NumberAnimation { properties: "y"; duration: Kirigami.Units.shortDuration }
+                            }
 
                             Kirigami.PlaceholderMessage {
                                 anchors.centerIn: parent
                                 width: parent.width - Kirigami.Units.largeSpacing * 2
-                                visible: peersList.count === 0
-                                text: i18nc("@info", "No one here yet")
-                                explanation: i18nc("@info", "KOutNet is looking for other users, but it's quiet here for now...")
+                                visible: chatsList.count === 0
+                                text: i18nc("@info there are no conversations yet", "No chats yet")
+                                explanation: i18nc("@info", "Start one from the button at the top of this list, or wait for someone to write to you.")
+                                helpfulAction: Kirigami.Action {
+                                    text: i18nc("@action:button start a conversation", "New chat")
+                                    icon.name: "list-add"
+                                    onTriggered: newChatSheet.open()
+                                }
                             }
 
                             delegate: ContactDelegate {
-                                width: peersList.width
-                                visible: root.contactSearchText.length === 0
-                                         || model.ip.toLowerCase().indexOf(root.contactSearchText.toLowerCase()) !== -1
-                                height: visible ? 60 : 0
-                                peerIp: model.ip
-                                peerOs: model.os || ""
-                                e2e: model.e2e === true
-                                selected: model.ip === root.currentPeerIp
-                                onClicked: root.currentPeerIp = model.ip
+                                width: chatsList.width
+                                // Searching matches the name and the address: an
+                                // unnamed peer only has the second one.
+                                readonly property bool matchesSearch:
+                                    root.contactSearchText.length === 0
+                                    || model.displayName.toLowerCase().indexOf(root.contactSearchText.toLowerCase()) !== -1
+                                    || model.chatId.toLowerCase().indexOf(root.contactSearchText.toLowerCase()) !== -1
+                                visible: matchesSearch
+                                height: visible ? implicitHeight : 0
+
+                                displayName: model.displayName
+                                preview: model.preview
+                                stampSecs: model.stampSecs
+                                lastSeenSecs: model.lastSeenSecs
+                                unreadCount: model.unreadCount
+                                online: model.online
+                                selected: model.chatId === root.currentPeerIp
+                                onClicked: root.currentPeerIp = model.chatId
                             }
                         }
                     }
@@ -1011,6 +1122,93 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // The seam for peer discovery by handle, which is the next piece of work and
+    // is deliberately not here. Until it lands, a conversation with somebody who
+    // is not in the list yet is started either by picking them out of the peers
+    // currently broadcasting presence, or by typing an address.
+    //
+    // When discovery by handle arrives it replaces the contents of this sheet and
+    // nothing else: everything downstream only ever sees root.currentPeerIp being
+    // set, and chatList.openChat() puts the row in the sidebar from there.
+    Kirigami.OverlaySheet {
+        id: newChatSheet
+        title: i18nc("@title:window", "New chat")
+
+        // Every sheet is reparented into the window overlay, so it does not
+        // inherit the page's colours - see the note on menuBar.
+        Kirigami.Theme.inherit: false
+        Kirigami.Theme.backgroundColor: root.theme.bg2
+        Kirigami.Theme.textColor: root.theme.text
+        Kirigami.Theme.disabledTextColor: root.theme.text_dim
+        Kirigami.Theme.highlightColor: root.theme.accent
+        Kirigami.Theme.highlightedTextColor: root.theme.text
+        Kirigami.Theme.hoverColor: root.theme.btn_hover
+
+        function startChatWith(ip) {
+            if (!ip || ip.length === 0)
+                return
+            newChatSheet.close()
+            root.currentPeerIp = ip
+        }
+
+        ColumnLayout {
+            width: Kirigami.Units.gridUnit * 22
+            spacing: Kirigami.Units.smallSpacing
+
+            Kirigami.Heading {
+                level: 4
+                text: i18nc("@title:group peers whose presence broadcasts are arriving", "On the network now")
+                color: root.theme.text
+            }
+
+            Kirigami.PlaceholderMessage {
+                Layout.fillWidth: true
+                visible: peersModel.count === 0
+                text: i18nc("@info", "Nobody is broadcasting")
+                explanation: i18nc("@info", "KOutNet is listening, but it's quiet here for now...")
+            }
+
+            Repeater {
+                model: peersModel
+
+                delegate: ContactDelegate {
+                    Layout.fillWidth: true
+                    displayName: model.display_name || model.username || model.ip
+                    preview: model.ip
+                    online: true
+                    onClicked: newChatSheet.startChatWith(model.ip)
+                }
+            }
+
+            Kirigami.Separator { Layout.fillWidth: true }
+
+            Label {
+                text: i18nc("@label:textbox", "Or type an address")
+                color: root.theme.text
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+
+                TextField {
+                    id: manualPeerField
+                    Layout.fillWidth: true
+                    placeholderText: i18nc("@info:placeholder an IPv4 address", "192.168.1.42")
+                    color: root.theme.text
+                    placeholderTextColor: root.theme.text_dim
+                    onAccepted: newChatSheet.startChatWith(text.trim())
+                }
+
+                Button {
+                    text: i18nc("@action:button open a chat with the address that was typed", "Open")
+                    enabled: manualPeerField.text.trim().length > 0
+                    onClicked: newChatSheet.startChatWith(manualPeerField.text.trim())
+                }
+            }
+        }
+    }
+
     Component {
         id: chatComponent
         ChatPage {
@@ -1055,7 +1253,7 @@ Kirigami.ApplicationWindow {
         id: placeholderComponent
         Kirigami.PlaceholderMessage {
             anchors.centerIn: parent
-            text: i18nc("@info", "Select a peer on the left to start a conversation.")
+            text: i18nc("@info", "Pick a chat on the left, or start a new one.")
         }
     }
 }

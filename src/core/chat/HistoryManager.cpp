@@ -123,3 +123,17 @@ void HistoryManager::addCall(const QVariantMap &entry)
 {
     append(QStringLiteral("__call_log__"), entry);
 }
+
+QVariantList HistoryManager::loadChatIndex()
+{
+    return load(QStringLiteral("__chat_index__"));
+}
+
+void HistoryManager::saveChatIndex(const QVariantList &entries)
+{
+    // replaceAll() rather than append(): this is one row per chat rewritten in
+    // place, not a log that grows. It also means switching history saving off
+    // stops the conversation list persisting as well, which is what someone
+    // switching it off is asking for.
+    replaceAll(QStringLiteral("__chat_index__"), entries);
+}

@@ -705,6 +705,54 @@ private Q_SLOTS:
         QCOMPARE(messages.count(), 1);
     }
 
+    // The read receipt is what turns an outgoing message's "sent, not confirmed"
+    // arrow into a pair of ticks, and it travels the same identity-keyed path a
+    // message does. It has one extra way to go wrong: the interface routes it to a
+    // chat by from_ip, so a receipt filed under the address the peer believes it
+    // lives at marks up a chat with nobody in it and the arrow never changes.
+    // Nothing about such a packet is wrong, so nothing complains about it either.
+    void areadReceiptLandsInTheChatThePeerIsFiledUnder()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        QSignalSpy errors(&h.net, &NetworkManager::errorOccurred);
+
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgRead;
+        o[QStringLiteral("chat_id")] = QStringLiteral("dm");
+        // The address the peer believes it lives at, which is neither the one this
+        // end filed it under nor the one the datagram arrives from.
+        o[QStringLiteral("from_ip")] = kOtherIp;
+        h.net.handleDatagram(kPeerAltIp, toDatagram(signedPacket(h.peer, o)));
+
+        QVERIFY2(errors.isEmpty(), "a correctly signed read receipt was refused");
+        QCOMPARE(messages.count(), 1);
+        const QJsonObject got = messages.at(0).at(0).toJsonObject();
+        QVERIFY(got.value(QStringLiteral("type")).toString() == protocol::kMsgRead);
+        QVERIFY2(got.value(QStringLiteral("from_ip")).toString() == kPeerIp,
+                 "the receipt reached the interface under an address no chat is keyed on");
+    }
+
+    // And it is a signed packet like any other: an unsigned one would let anybody
+    // mark somebody else's messages as read.
+    void anunsignedReadReceiptIsRefused()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        QJsonObject bare;
+        bare[QStringLiteral("type")] = protocol::kMsgRead;
+        bare[QStringLiteral("chat_id")] = QStringLiteral("dm");
+        bare[QStringLiteral("nonce")] = freshNonce();
+        bare[QStringLiteral("ts")] = nowEpoch();
+        bare[QStringLiteral("from_id")] = h.peer.ownIdentityId();
+        h.net.handleDatagram(kPeerIp, toDatagram(bare));
+        QCOMPARE(messages.count(), 0);
+    }
+
     // Taking a packet from any address is only safe because the signature is
     // what decides, so a bad one has to fail from every address equally.
     void abadSignatureIsRefusedFromEitherAddress()

@@ -174,6 +174,12 @@ void ChatModel::appendEntry(MessageEntry e, bool persist)
 
     if (!e.isOwn && !e.isSystem && m_unread && !m_chatId.isEmpty())
         m_unread->increment(m_chatId);
+
+    // After the unread bump, so a listener reading the count sees the new one.
+    // System messages are the app talking to itself and have no place in a
+    // conversation preview.
+    if (!e.isSystem && !m_chatId.isEmpty())
+        Q_EMIT messageAdded(m_chatId, e.text, e.isOwn, e.ts);
 }
 
 void ChatModel::sendMessage(const QString &text, const QString &replyToText)

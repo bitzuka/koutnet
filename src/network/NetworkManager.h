@@ -160,6 +160,12 @@ public:
 Q_SIGNALS:
     void hostIpChanged();
     void userOnline(QJsonObject peerInfo);
+    // Presence heard again from a peer that is already in the table. userOnline()
+    // fires once, on the first packet, so without this the interface's idea of
+    // when a peer was last around would be frozen at the moment it first
+    // appeared - and that stamp is the whole of what "last seen" can say once the
+    // peer has gone.
+    void peerRefreshed(QString ip, double lastSeen);
     void userOffline(QString ip);
     void message(QJsonObject msg);
     void callRequest(QString username, QString ip);

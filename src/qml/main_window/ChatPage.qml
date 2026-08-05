@@ -129,55 +129,96 @@ Kirigami.Page {
         }
     }
 
-    // Inline image viewer. An overlay on this page rather than a separate
-    // top-level Window.
-    Rectangle {
+    // Image viewer. A modal Popup rather than the hand-rolled full-bleed
+    // Rectangle this used to be, which stretched the picture to the window and
+    // needed its own MouseArea and Shortcut to be dismissible.
+    //
+    // Popup brings the whole of that with it: Overlay.modal paints the dim,
+    // closePolicy handles Escape and the click outside, and focus and z-order are
+    // the overlay's business rather than ours. That last part matters here - see
+    // the note on welcomeLoader in Main.qml, where a z on an overlay child put it
+    // over every popup in the application and ate their clicks. Nothing in this
+    // item sets z at all, and it must stay that way.
+    Popup {
         id: imageViewer
-        anchors.fill: parent
-        z: 90
-        color: Qt.rgba(0, 0, 0, 0.92)
-        opacity: 0
-        scale: 0.92
-        visible: opacity > 0.01
+
         property string source: ""
 
-        Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-        Behavior on scale   { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+        // The box the picture is fitted into. Most of the page but not all of it,
+        // so there is dimmed background on every side to click on and it reads as
+        // something laid over the chat rather than as a new screen.
+        readonly property real maxImageWidth: root.width * 0.85
+        readonly property real maxImageHeight: root.height * 0.85
 
-        Image {
-            anchors.fill: parent
-            anchors.margins: 24
-            source: imageViewer.source
-            fillMode: Image.PreserveAspectFit
+        parent: Overlay.overlay
+        modal: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        padding: 0
+        anchors.centerIn: parent
+
+        // No frame: the picture is the content, and the dim behind it is the
+        // background.
+        background: null
+
+        Overlay.modal: Rectangle {
+            color: Qt.rgba(0, 0, 0, 0.75)
         }
 
-        ToolButton {
-            anchors.top: parent.top
-            anchors.right: parent.right
-            anchors.margins: 12
-            text: "\u2715"
-            onClicked: imageViewer.hide()
+        enter: Transition {
+            ParallelAnimation {
+                NumberAnimation { property: "opacity"; from: 0; to: 1; duration: Kirigami.Units.shortDuration }
+                NumberAnimation { property: "scale"; from: 0.92; to: 1; duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
+            }
+        }
+        exit: Transition {
+            ParallelAnimation {
+                NumberAnimation { property: "opacity"; from: 1; to: 0; duration: Kirigami.Units.shortDuration }
+                NumberAnimation { property: "scale"; from: 1; to: 0.92; duration: Kirigami.Units.shortDuration; easing.type: Easing.InCubic }
+            }
         }
 
-        MouseArea {
-            anchors.fill: parent
-            onClicked: imageViewer.hide()
-        }
+        contentItem: Item {
+            // A comfortable large size rather than a stretch: the picture's own
+            // pixels when they fit, scaled down to the box when they do not, and
+            // never blown up past what the file actually has.
+            //
+            // The size is worked out from sourceSize, which is what is in the
+            // file, and not from the Image's width - reading the width here and
+            // setting it below is the binding loop this is written around.
+            readonly property real naturalWidth: fullImage.sourceSize.width
+            readonly property real naturalHeight: fullImage.sourceSize.height
+            readonly property real fitScale: (naturalWidth > 0 && naturalHeight > 0)
+                ? Math.min(1, imageViewer.maxImageWidth / naturalWidth,
+                              imageViewer.maxImageHeight / naturalHeight)
+                : 1
 
-        Shortcut {
-            sequence: "Escape"
-            enabled: imageViewer.visible
-            onActivated: imageViewer.hide()
+            implicitWidth: naturalWidth > 0 ? Math.round(naturalWidth * fitScale) : imageViewer.maxImageWidth
+            implicitHeight: naturalHeight > 0 ? Math.round(naturalHeight * fitScale) : imageViewer.maxImageHeight
+
+            Image {
+                id: fullImage
+                anchors.fill: parent
+                source: imageViewer.source
+                fillMode: Image.PreserveAspectFit
+                // Smooth on the way down, which is the direction it is ever
+                // scaled in.
+                mipmap: true
+            }
+
+            ToolButton {
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.margins: Kirigami.Units.smallSpacing
+                icon.name: "dialog-close"
+                text: i18nc("@action:button close the image viewer", "Close")
+                display: AbstractButton.IconOnly
+                onClicked: imageViewer.close()
+            }
         }
 
         function show(src) {
             imageViewer.source = src
-            imageViewer.opacity = 1
-            imageViewer.scale = 1
-        }
-        function hide() {
-            imageViewer.opacity = 0
-            imageViewer.scale = 0.92
+            imageViewer.open()
         }
     }
 
@@ -369,13 +410,25 @@ Kirigami.Page {
                         color: root.theme.text
                         font.bold: true
                     }
+                    // This used to read "last seen <full date>" whenever lastSeen
+                    // was non-zero and "online" only when it was zero, which is
+                    // backwards: handlePresence() stamps last_seen on every packet
+                    // that arrives, so a peer that was up had a fresh stamp and
+                    // therefore never once said "online". Reachability is the flag,
+                    // the stamp is only what it fell back to.
+                    //
+                    // RelativeTime.now is read so this ages on its own: the label
+                    // has to walk from "just now" to "2 minutes ago" with the
+                    // window sitting open and nothing arriving.
                     Label {
                         visible: root.peerInfo && !root.peerInfo.isFavorites
-                        text: root.peerInfo && root.peerInfo.lastSeen > 0
-                            ? i18nc("@info:status %1 is a date and time", "last seen %1",
-                                    new Date(root.peerInfo.lastSeen * 1000).toLocaleString())
-                            : i18nc("@info:status the peer is online", "online")
-                        color: root.theme.text_dim
+                        text: root.peerInfo
+                            ? RelativeTime.presenceLabel(root.peerInfo.online === true,
+                                                         root.peerInfo.lastSeen || 0,
+                                                         RelativeTime.now)
+                            : ""
+                        color: (root.peerInfo && root.peerInfo.online === true)
+                            ? root.theme.online : root.theme.text_dim
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
                     }
                 }

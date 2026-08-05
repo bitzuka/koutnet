@@ -77,6 +77,12 @@ public:
     Q_INVOKABLE void markAllRead();
 
 Q_SIGNALS:
+    // A message joined this chat, in either direction. The conversation list is
+    // built from this rather than from HistoryManager::historyAppended, because
+    // that one is silent when history saving is off and the sidebar still has to
+    // show the chat.
+    void messageAdded(const QString &chatId, const QString &preview, bool isOwn, double ts);
+
     void chatIdChanged();
     void historyManagerChanged();
     void reactionStoreChanged();

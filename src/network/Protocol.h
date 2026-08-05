@@ -29,6 +29,23 @@ inline constexpr QLatin1StringView kMsgDelete("delete");
 inline constexpr QLatin1StringView kMsgRead("read");
 inline constexpr QLatin1StringView kMsgSticker("sticker");
 
+// Fields on a peer record, which is the presence packet that arrived plus
+// whatever NetworkManager::handlePresence() adds to it. Written down here
+// because the interface reads them by name and had been guessing: a comment in
+// Main.qml carried "last_seen" over from the pre-port Python payload and said as
+// much.
+//
+// It is a real field, but it is not a wire field. handlePresence() stamps it
+// from the local clock on arrival and never reads it off the datagram - a peer
+// does not get to say when it was last heard from, and pruneStalePeers() decides
+// who is gone by it. So it means "when this end last heard from that peer", and
+// while a peer is up it is always a second or two old. That is why reachability
+// is the userOnline/userOffline pair rather than a comparison against this.
+inline constexpr QLatin1StringView kFieldLastSeen("last_seen");
+// The address a peer asked to be called, kept only when it differs from the one
+// it was actually heard on. A delivery hint, never an identity.
+inline constexpr QLatin1StringView kFieldAdvertisedIp("advertised_ip");
+
 // LAN / VPN mode, the default and the path that actually works today.
 // Broadcast, mDNS and ARP discovery with no server, see
 // NetworkManager::onBroadcastTimer and scanArpTable. A VPN adapter is just
