@@ -54,8 +54,11 @@ Item {
     property real fontScale: 1.0
     property string selfName: ""
     property string peerName: ""
-    // The reader's own name, highlighted wherever the message says it.
+    // The reader's own name, highlighted wherever the message says it, and worn
+    // by the header over their own messages.
     property string selfDisplayName: ""
+    // The reader's own picture, for the same header.
+    property string selfAvatarSource: ""
     // Per-message and not per-conversation: revealing one spoiler should not
     // reveal every other one in the backlog.
     property bool spoilerRevealed: false
@@ -74,12 +77,26 @@ Item {
     signal jumpRequested(string msgId)
     signal imageActivated(string path)
     signal fileActivated(string path)
+    signal avatarClicked(bool own, Item anchorItem)
 
-    // Who the header names. Incoming messages carry a sender only when the peer
+    // Who wrote this. Incoming messages carry a sender only when the peer
     // published one, and the conversation already knows who it is with.
+    //
+    // Your own name and not the word "You", because this is also what a reply
+    // quotes and what the context menu is titled with, and a quote attributed to
+    // "You" reads as nobody once it is sitting under somebody else's message.
     readonly property string authorName: root.isOwn
-        ? i18nc("@info:placeholder the local user, as the author of their own message", "You")
+        ? (root.selfDisplayName.length > 0
+            ? root.selfDisplayName
+            : i18nc("@info:placeholder the local user, as the author of their own message", "You"))
         : (root.sender.length > 0 ? root.sender : root.peerName)
+
+    // The same name in the run header. Marked, so that a glance down the column
+    // still tells your own messages from the peer's - the gutter stripe was
+    // carrying that on its own, and a two-pixel line is not much of a signature.
+    readonly property string headerName: root.isOwn
+        ? i18nc("@info run header over your own messages, %1 is your own display name", "%1 (you)", root.authorName)
+        : root.authorName
 
     // Links, code, emphasis and spoilers, worked out in C++ - see
     // core/chat/TextHandler.h, which is a port of NeoChat's. Colours are handed
@@ -211,13 +228,35 @@ Item {
                     }
 
                     Components.Avatar {
+                        id: authorAvatar
+
                         anchors.right: parent.right
                         anchors.top: parent.top
                         width: root.gutterWidth - Kirigami.Units.smallSpacing
                         height: width
                         visible: root.showAuthor
+                        // The plain name and not the header's: the generated
+                        // colour and the fallback initial have no business being
+                        // taken off the "(you)" the header wears.
                         name: root.authorName
+                        // Peers publish a name and a bio but no picture, so
+                        // theirs stays an initial - see setProfile() in
+                        // NetworkManager.
+                        source: root.isOwn ? root.selfAvatarSource : ""
                         asynchronous: true
+
+                        // A face is the shortest way to ask who somebody is. The
+                        // card is hung off this item, so it has to be the one
+                        // that reports the tap.
+                        TapHandler {
+                            acceptedButtons: Qt.LeftButton
+                            gesturePolicy: TapHandler.ReleaseWithinBounds
+                            onTapped: root.avatarClicked(root.isOwn, authorAvatar)
+                        }
+
+                        HoverHandler {
+                            cursorShape: Qt.PointingHandCursor
+                        }
                     }
 
                     // The clock for a message inside a run, which has no header
@@ -248,7 +287,7 @@ Item {
                         spacing: Kirigami.Units.smallSpacing
 
                         QQC2.Label {
-                            text: root.authorName
+                            text: root.headerName
                             textFormat: Text.PlainText
                             elide: Text.ElideRight
                             font.bold: true

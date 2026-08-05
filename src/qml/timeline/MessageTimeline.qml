@@ -20,12 +20,48 @@ Item {
     property string selfName: ""
     property string peerName: ""
     property string selfDisplayName: ""
+    property string selfAvatarSource: ""
+
+    // How far the view still has to travel before the newest message is on
+    // screen. Negative once the whole conversation fits.
+    //
+    // Written out rather than taken from atYEnd, which compares floats: contentY
+    // settles on -643.2 against a height of 643 and the view never admits to
+    // being at the end. NeoChat carries a hand-rolled closeToYEnd for the same
+    // reason. A view stuck at "not quite there" leaves the jump button up for
+    // good and stops every read receipt this window would have sent.
+    readonly property real tailDistance: messagesList.originY + messagesList.contentHeight
+        + messagesList.bottomMargin - messagesList.height - messagesList.contentY
 
     // True while the newest message is on screen. The window reads this to
     // decide whether an arriving message counts as read: a read receipt for a
     // message that scrolled past somewhere above the fold is a lie, and it is
-    // the one lie a messenger cannot take back.
-    readonly property bool atBottom: messagesList.atYEnd || messagesList.contentHeight <= messagesList.height
+    // the one lie a messenger cannot take back. Hence a pixel of slack and not
+    // a screenful.
+    readonly property bool atBottom: Math.round(root.tailDistance) <= 1
+
+    // Whether the view was following the newest message at the moment the row
+    // that is arriving now was handed over.
+    //
+    // Sampled before the insert on purpose. By the time count has changed the
+    // new row is already counted into contentHeight, atBottom reads false, and
+    // a test made there would drop out of following a conversation the reader
+    // never actually left.
+    property bool followTail: true
+
+    onMessagesModelChanged: root.followTail = true
+
+    // Getting back to the bottom is what says the backlog has been seen.
+    onAtBottomChanged: if (root.atBottom)
+        root.readReached()
+
+    Connections {
+        target: root.messagesModel
+
+        function onRowsAboutToBeInserted() {
+            root.followTail = root.atBottom
+        }
+    }
 
     readonly property int unreadCount: root.messagesModel ? root.messagesModel.unreadCount : 0
 
@@ -37,6 +73,9 @@ Item {
     signal imageActivated(string path)
     signal fileActivated(string path)
     signal readReached()
+    // own says which profile is being asked for; the item is what the card gets
+    // hung off, and it belongs to a delegate, so nothing may hold on to it.
+    signal avatarActivated(bool own, Item anchorItem)
 
     // How wide a message is. There used to be a cap of 46 grid units here, on
     // the reading-length argument, but with the column finally filling the
@@ -107,42 +146,50 @@ Item {
         // text layout on each row that comes into view.
         cacheBuffer: Math.round(messagesList.height * 2)
 
-        // Only Ctrl+wheel is taken. Plain scrolling is left to the ListView.
+        // The wheel, taken off the Flickable and given to Kirigami's handler -
+        // which is the same one qqc2-desktop-style hangs on every other
+        // scrollable thing in the application, so the timeline now scrolls the
+        // way the rest of the desktop does.
         //
-        // What used to be here drove the view by hand: flick() for a wheel and a
-        // direct write to contentY for a trackpad. The direct write clamped
-        // against Math.max(0, contentHeight - height), and all three of those are
-        // the wrong numbers. contentY is measured from originY, not from zero;
-        // the view has a topMargin and a bottomMargin the clamp did not count;
-        // and contentHeight on a list whose delegates have not all been built is
-        // an estimate from the average row height, which for a timeline holding
-        // both one-word replies and images is nowhere near the real total. On
-        // Wayland a mouse notch arrives with a non-null pixelDelta, so that is
-        // the branch a plain wheel took - which is why scrolling up parked
-        // contentY outside the range the view actually holds items for and left
-        // the reader looking at nothing until positionViewAtEnd() recomputed it.
-        WheelHandler {
-            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-            acceptedModifiers: Qt.ControlModifier
+        // Two attempts at this were spent on the wrong half of the problem. The
+        // first drove the view by hand and clamped contentY against
+        // Math.max(0, contentHeight - height): contentY is measured from
+        // originY, the view has two margins the sum did not count, and
+        // contentHeight is only an estimate from the average row height while
+        // the rows above have never been built - which for a list holding both
+        // one-word replies and images is nowhere near the real total. The second
+        // deleted that clamp and handed the wheel back to the Flickable, which
+        // turns a notch into a flick: momentum then carries contentY past the
+        // end of the same estimate, the view has no items where it has landed,
+        // and the reader is looking at nothing until the jump button calls
+        // positionViewAtEnd() and recomputes the position from an index.
+        //
+        // WheelHandler::scrollFlickable does the clamp against originY, both
+        // margins and contentHeight; blockTargetWheel keeps the Flickable's
+        // flick path out of it entirely, so there is no momentum left to
+        // overshoot with; and it rounds to device pixels. Dragging still flicks,
+        // which is what a touchscreen wants.
+        Kirigami.WheelHandler {
+            target: messagesList
 
             // Ctrl+wheel zooms the chat text rather than scrolling, which is the
-            // browser and editor convention.
-            onWheel: (event) => {
+            // browser and editor convention. Accepting the event is what stops
+            // the handler from scrolling on the same notch.
+            onWheel: (wheel) => {
+                if (!(wheel.modifiers & Qt.ControlModifier))
+                    return
                 root.fontScale = Math.max(0.7, Math.min(2.0,
-                    root.fontScale + (event.angleDelta.y > 0 ? 0.05 : -0.05)))
+                    root.fontScale + (wheel.angleDelta.y > 0 ? 0.05 : -0.05)))
+                wheel.accepted = true
             }
         }
 
         // Following the conversation only while the reader is already at the
         // end of it. Yanking somebody down out of the message they are reading
         // because a new one arrived is the behaviour this replaces.
-        onCountChanged: if (root.atBottom)
+        onCountChanged: if (root.followTail)
             Qt.callLater(messagesList.positionViewAtEnd)
         Component.onCompleted: messagesList.positionViewAtEnd()
-
-        // Getting back to the bottom is what says the backlog has been seen.
-        onAtYEndChanged: if (messagesList.atYEnd)
-            root.readReached()
 
         delegate: MessageDelegate {
             id: messageRow
@@ -152,6 +199,7 @@ Item {
             selfName: root.selfName
             peerName: root.peerName
             selfDisplayName: root.selfDisplayName
+            selfAvatarSource: root.selfAvatarSource
             flashing: flashTarget.row === messageRow.index
 
             onReplyRequested: (row, author, excerpt, msgId) => root.replyRequested(row, author, excerpt, msgId)
@@ -162,6 +210,7 @@ Item {
             onJumpRequested: (msgId) => root.jumpToMessage(msgId)
             onImageActivated: (path) => root.imageActivated(path)
             onFileActivated: (path) => root.fileActivated(path)
+            onAvatarClicked: (own, anchorItem) => root.avatarActivated(own, anchorItem)
         }
     }
 

@@ -52,7 +52,13 @@ QQC2.ToolBar {
                     Layout.alignment: Qt.AlignVCenter
                     implicitWidth: Kirigami.Units.iconSizes.medium
                     implicitHeight: Kirigami.Units.iconSizes.medium
+                    // The picture, falling back to the initial the way every
+                    // conversation row above does. This was the one place in the
+                    // window showing a blank circle to somebody who had gone to
+                    // the trouble of setting one.
                     name: root.shownName
+                    source: appSettings.avatarPath
+                    asynchronous: true
                 }
 
                 ColumnLayout {

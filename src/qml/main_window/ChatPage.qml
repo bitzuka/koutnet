@@ -25,8 +25,10 @@ Kirigami.Page {
     property var peerInfo: null
     property var messagesModel: null
     property bool peerTyping: false
-    // Passed down to the timeline so a message that names the reader says so.
+    // Passed down to the timeline so a message that names the reader says so,
+    // and so the reader's own messages are signed the way the peer's are.
     property string selfDisplayName: ""
+    property string selfAvatarSource: ""
 
     signal sendRequested(string text, string replyExcerpt, string replyAuthor, string replyId)
     signal attachRequested(string localFilePath)
@@ -36,6 +38,8 @@ Kirigami.Page {
     // The header identity, clicked. The window owns the card; this only says
     // which item to hang it off.
     signal peerCardRequested(Item anchorItem)
+    // Your own face in the timeline, clicked. The window holds the profile page.
+    signal ownProfileRequested()
     signal newChatRequested()
     signal forwardRequested(int row)
     // Raised after the change has already been made to this page's own model.
@@ -373,6 +377,14 @@ Kirigami.Page {
         selfName: root.selfReactionName
         peerName: root.title
         selfDisplayName: root.selfDisplayName
+        selfAvatarSource: root.selfAvatarSource
+
+        onAvatarActivated: (own, anchorItem) => {
+            if (own)
+                root.ownProfileRequested()
+            else
+                root.peerCardRequested(anchorItem)
+        }
 
         onReplyRequested: (row, author, excerpt, msgId) => root.startReply(author, excerpt, msgId)
         onEditRequested: (row, body) => root.startEdit(row, body)

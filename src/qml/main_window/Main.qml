@@ -494,14 +494,18 @@ Kirigami.ApplicationWindow {
             contentItem: RowLayout {
                 spacing: Kirigami.Units.largeSpacing
 
+                // Nothing at all until there is somebody to count. The empty
+                // case used to say it was searching, which is true of every
+                // second the application is running and so worth saying in none
+                // of them.
                 QQC2.Label {
                     Layout.fillWidth: true
+                    visible: peersModel.count > 0
                     elide: Text.ElideRight
                     font: Kirigami.Theme.smallFont
                     color: Kirigami.Theme.disabledTextColor
-                    text: peersModel.count > 0
-                        ? i18ncp("@info:status %1 is a number of peers", "%1 peer on the network", "%1 peers on the network", peersModel.count)
-                        : i18nc("@info:status", "Searching for peers...")
+                    text: i18ncp("@info:status %1 is a number of peers",
+                                 "%1 peer on the network", "%1 peers on the network", peersModel.count)
                 }
 
                 // No address here. This used to print the host's own IP in the
@@ -753,8 +757,10 @@ Kirigami.ApplicationWindow {
         peerInfo: root.currentPeerIp.length > 0 ? root.peerInfoFor(root.currentPeerIp) : null
         messagesModel: root.currentPeerIp.length > 0 ? root.modelForPeer(root.currentPeerIp) : null
         peerTyping: root.typingChatId.length > 0 && root.typingChatId === root.currentPeerIp
-        // What the timeline highlights as a mention of the reader.
+        // What the timeline highlights as a mention of the reader, and what it
+        // signs the reader's own messages with.
         selfDisplayName: appSettings.displayName || appSettings.username
+        selfAvatarSource: appSettings.avatarPath
 
         onAtBottomChanged: root.chatAtBottom = atBottom
         Component.onCompleted: root.chatAtBottom = atBottom
@@ -791,6 +797,7 @@ Kirigami.ApplicationWindow {
         onProfileRequested: root.showLayer(otherProfileComponent, { peer: root.peerInfoFor(peerIp) })
         onInfoRequested: root.togglePeerInfo()
         onPeerCardRequested: (anchorItem) => root.showPeerCard(peerIp, anchorItem)
+        onOwnProfileRequested: root.showLayer(yourProfileComponent)
         onNewChatRequested: root.showLayer(newChatPageComponent)
         onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
         onForwardRequested: root.notify(i18nc("@info", "Forwarding messages is not implemented yet."),
