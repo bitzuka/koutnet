@@ -11,6 +11,7 @@
 
 #include <QGuiApplication>
 
+#include <KIdleTime>
 #include <KLocalizedString>
 #include <KNotification>
 #include <KNotificationPermission>
@@ -32,6 +33,80 @@ NotificationManager::NotificationManager(QObject *parent)
             // no-op, which is the behaviour that was asked for.
         });
     }
+
+    connectIdleWatch();
+    rearmIdleTimeout();
+}
+
+void NotificationManager::connectIdleWatch()
+{
+    auto *idle = KIdleTime::instance();
+
+    // The identifier is checked because one KIdleTime instance is shared by the
+    // whole process, and this signal carries every timeout registered on it.
+    connect(idle, &KIdleTime::timeoutReached, this, [this](int identifier, int) {
+        if (identifier != m_idleTimeoutId) {
+            return;
+        }
+        m_userIdle = true;
+        // Asking for the resume event is what produces resumingFromIdle() below,
+        // and it has to be asked for again after every one. Without this the user
+        // stays away for the rest of the session.
+        KIdleTime::instance()->catchNextResumeEvent();
+    });
+
+    connect(idle, &KIdleTime::resumingFromIdle, this, [this] {
+        m_userIdle = false;
+    });
+}
+
+void NotificationManager::rearmIdleTimeout()
+{
+    auto *idle = KIdleTime::instance();
+
+    if (m_idleTimeoutId >= 0) {
+        idle->removeIdleTimeout(m_idleTimeoutId);
+        m_idleTimeoutId = -1;
+    }
+    // Whatever the old threshold had concluded is no longer about this one.
+    m_userIdle = false;
+
+    m_idleTimeoutId = idle->addIdleTimeout(m_awayAfterMinutes * 60 * 1000);
+}
+
+void NotificationManager::setAwayAfterMinutes(int minutes)
+{
+    // A zero or negative threshold would mean permanently away, which is not a
+    // setting anybody wants and is what an unwritten config key reads as.
+    const int clamped = minutes < 1 ? 1 : minutes;
+    if (m_awayAfterMinutes == clamped) {
+        return;
+    }
+    m_awayAfterMinutes = clamped;
+    rearmIdleTimeout();
+}
+
+NotificationManager::Attention NotificationManager::attention() const
+{
+    // Idle first: a focused window in front of an empty chair is still an empty
+    // chair, and that is the case the sound is for.
+    if (m_userIdle) {
+        return Attention::Away;
+    }
+    return windowHasFocus() ? Attention::Watching : Attention::Elsewhere;
+}
+
+QString NotificationManager::eventForAttention(Attention state)
+{
+    switch (state) {
+    case Attention::Watching:
+        return QStringLiteral("messagewatching");
+    case Attention::Away:
+        return QStringLiteral("messageaway");
+    case Attention::Elsewhere:
+        break;
+    }
+    return QStringLiteral("message");
 }
 
 void NotificationManager::adoptActivationToken(KNotification *notification)
@@ -65,7 +140,17 @@ KNotification *NotificationManager::makeNotification(const QString &eventId) con
 
 void NotificationManager::notifyMessage(const QString &chatId, const QString &sender, const QString &text)
 {
-    if (chatId.isEmpty() || windowHasFocus()) {
+    if (chatId.isEmpty()) {
+        return;
+    }
+
+    const Attention state = attention();
+    // Watching means the message is already on the screen. All that event does
+    // is play a sound, so it gets none of the popup machinery below - no title
+    // to replace, no reply field to type into, and nothing worth keying on the
+    // conversation.
+    if (state == Attention::Watching) {
+        makeNotification(eventForAttention(state))->sendEvent();
         return;
     }
 
@@ -75,7 +160,7 @@ void NotificationManager::notifyMessage(const QString &chatId, const QString &se
         previous->close();
     }
 
-    auto *notification = makeNotification(QStringLiteral("message"));
+    auto *notification = makeNotification(eventForAttention(state));
     m_messageNotifications.insert(chatId, notification);
     connect(notification, &KNotification::closed, this, [this, chatId, notification] {
         if (m_messageNotifications.value(chatId).data() == notification) {

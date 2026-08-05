@@ -40,8 +40,16 @@ public:
 
     // chatId is what the notification is keyed on, so a second message in the
     // same conversation replaces the first rather than adding to the pile.
-    // Silently does nothing while the window has focus.
+    //
+    // Always posts something now. Which event it posts is the point: the three
+    // notifyrc events differ only in their Action= line, so what the user gets -
+    // a popup, a sound, or both - follows where their attention is. See
+    // eventForAttention() in the .cpp.
     Q_INVOKABLE void notifyMessage(const QString &chatId, const QString &sender, const QString &text);
+
+    // Minutes of no input after which the user counts as away. Fed from
+    // AppSettings; re-arms the KIdleTime timeout when it changes.
+    Q_INVOKABLE void setAwayAfterMinutes(int minutes);
     // Calls always post: a ringing telephone is the case where the user is
     // looking at something else, and the window having focus does not mean the
     // person in front of it has noticed.
@@ -60,6 +68,38 @@ Q_SIGNALS:
     void callRejectRequested(const QString &callerIp);
 
 private:
+    // Where the user's attention is, which is the only thing that decides
+    // between the three message events.
+    enum class Attention {
+        // Looking at the window. A popup would be telling them what is already
+        // on the screen, so this one is a sound and nothing else.
+        Watching,
+        // The window is behind something, or minimised. A popup, silently: they
+        // are at the machine, so the screen is enough.
+        Elsewhere,
+        // No input for a while. Both, because neither on its own is going to be
+        // noticed by somebody who is not there.
+        Away,
+    };
+
+    Attention attention() const;
+    // The notifyrc event id for a state. The Action= line in
+    // packaging/koutnet.notifyrc is what turns it into a popup, a sound or both,
+    // which also means the user can overrule any of it in System Settings.
+    static QString eventForAttention(Attention state);
+
+    // KIdleTime, if the platform has a backend for it. Wayland needs the
+    // compositor to speak ext-idle-notify-v1; without that the idle timeout
+    // never fires and Away simply never happens, which degrades to the
+    // two-state behaviour rather than to a broken one.
+    //
+    // Two functions rather than one because the timeout is re-registered
+    // whenever the setting changes and the connections must not be. They are
+    // made with lambdas, and Qt::UniqueConnection does not apply to those - a
+    // single setup function called twice would quietly connect twice.
+    void connectIdleWatch();
+    void rearmIdleTimeout();
+
     // Whether a popup would be telling the user something they can already see.
     static bool windowHasFocus();
     // Every KNotification this class makes goes through here, because the
@@ -70,8 +110,18 @@ private:
     // is an environment variable Qt reads on the next activation.
     static void adoptActivationToken(KNotification *notification);
 
+    // Only the events that actually put a popup up are tracked. There is
+    // nothing to replace for a sound that has already played, and keeping those
+    // here would have the next message closing a notification that no longer
+    // exists.
     QHash<QString, QPointer<KNotification>> m_messageNotifications;
     QHash<QString, QPointer<KNotification>> m_callNotifications;
+
+    int m_awayAfterMinutes = 5;
+    // The KIdleTime identifier for the timeout above, so changing the setting
+    // can take the old one back out. -1 is "never registered one".
+    int m_idleTimeoutId = -1;
+    bool m_userIdle = false;
 };
 
 } // namespace koutnet

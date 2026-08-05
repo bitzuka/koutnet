@@ -3,18 +3,50 @@
 # Event definitions for KNotification. The file name matches the KAboutData
 # component name, which is what NotificationManager sets on every notification
 # it posts - see core/notify/NotificationManager.cpp.
+#
+# No audio ships with this application. Every Sound= below is a name out of the
+# freedesktop.org sound naming specification, which is resolved against whichever
+# sound theme the desktop is set to - ocean on Plasma 6, with
+# sound-theme-freedesktop underneath it as the fallback every theme inherits. A
+# bundled .ogg would be a file that ignores the user's theme, ignores their
+# volume, and has to be licence-audited; a spec name is none of those.
+#
+# There are three message events rather than one, and they differ only in their
+# Action= line. That is deliberate: which one gets posted is decided by where the
+# user's attention is (see eventForAttention()), and splitting them here rather
+# than in C++ is what puts each case in System Settings as its own switch. A user
+# who wants the in-window sound gone can turn off exactly that.
 [Global]
 IconName=io.github.bitzuka.KOutNet
 Name=KOutNet
 Comment=P2P encrypted messenger for LAN, VPN and relay
 DesktopEntry=io.github.bitzuka.KOutNet
 
+# Window behind something else, but somebody is at the machine. The screen is
+# enough, so this one is silent.
 [Event/message]
 Name=New message
 Comment=Somebody has written to you while the window was not in front
 Action=Popup
+
+# Window in front. A popup would be repeating what is already on the screen, so
+# this is the sound on its own.
+[Event/messagewatching]
+Name=New message while you are reading
+Comment=Somebody has written to you while the window was in front
+Action=Sound
 Sound=message-new-instant
 
+# No input for a while. Neither a popup nor a sound on its own gets noticed by
+# somebody who is not at the machine, so this is both.
+[Event/messageaway]
+Name=New message while you are away
+Comment=Somebody has written to you while you were idle
+Action=Popup|Sound
+Sound=message-new-instant
+
+# A ringing telephone is the one case that is worth interrupting whatever is in
+# front, so it never checks where the attention is.
 [Event/call]
 Name=Incoming call
 Comment=Somebody is calling you
