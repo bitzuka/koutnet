@@ -36,6 +36,11 @@ Kirigami.Page {
     property bool micMuted: false
     property bool deafened: false
 
+    // Compact mode. The rail goes: it is a column of mode buttons beside a list
+    // that has been narrowed to eleven grid units, and every mode it offers is
+    // also on the settings page. The rows tighten - see ContactDelegate.
+    property bool compact: false
+
     property bool favoritesExpanded: true
     property bool directExpanded: true
 
@@ -107,12 +112,14 @@ Kirigami.Page {
 
         ConnectionRail {
             Layout.fillHeight: true
+            visible: !root.compact
             currentMode: root.connectionMode
             onModeSelected: (mode) => root.connectionModeRequested(mode)
         }
 
         Kirigami.Separator {
             Layout.fillHeight: true
+            visible: !root.compact
             Layout.preferredWidth: 1
         }
 
@@ -183,6 +190,7 @@ Kirigami.Page {
 
                         displayName: root.favoritesName
                         iconName: "bookmarks"
+                        compact: root.compact
                         showPresence: false
                         selected: root.selectedChatId === root.favoritesChatId
                         onClicked: root.chatActivated(root.favoritesChatId)
@@ -223,6 +231,7 @@ Kirigami.Page {
                         && root.matchesSearch(model.displayName, model.chatId)
                     height: visible ? implicitHeight : 0
 
+                    compact: root.compact
                     displayName: model.displayName
                     preview: model.preview
                     stampSecs: model.stampSecs

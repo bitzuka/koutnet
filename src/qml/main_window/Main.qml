@@ -45,6 +45,45 @@ Kirigami.ApplicationWindow {
     Kirigami.Theme.inherit: false
     Kirigami.Theme.highlightColor: Brand.accent
 
+    // Compact mode: the conversation list and the conversation, tightened, and
+    // no peer column. A mode the user picks from the drawer and keeps, as opposed
+    // to what the page row already does by itself when the window is dragged
+    // narrow.
+    //
+    // It is the same layout tree, not a second one. Kirigami.Settings.isMobile,
+    // PageRow.wideMode and ApplicationWindow.wideScreen are all read-only - they
+    // are conclusions Kirigami draws, not switches - so what this actually does is
+    // change the two things that are writable: the width the list column asks for,
+    // and the size of the window. PageRow's own folding then follows, which is the
+    // point of not hand-rolling it.
+    readonly property bool compact: appSettings.compactMode
+
+    // The size to go back to when compact mode is switched off. Captured on the
+    // way in rather than guessed, so a maximised window does not come back as
+    // whatever looked like a sensible default.
+    property int roomyWidth: 0
+    property int roomyHeight: 0
+
+    function toggleCompact() {
+        if (!root.compact) {
+            root.roomyWidth = root.width
+            root.roomyHeight = root.height
+            appSettings.compactMode = true
+            // The peer column is the third one, and compact mode does not have a
+            // third one.
+            while (root.pageStack.depth > 2)
+                root.pageStack.pop()
+            root.width = Kirigami.Units.gridUnit * 26
+            root.height = Kirigami.Units.gridUnit * 30
+            return
+        }
+        appSettings.compactMode = false
+        if (root.roomyWidth > 0)
+            root.width = root.roomyWidth
+        if (root.roomyHeight > 0)
+            root.height = root.roomyHeight
+    }
+
     // Empty means no conversation is open, which the chat page draws as a
     // placeholder rather than an empty bubble list.
     property string currentPeerIp: ""
@@ -187,6 +226,11 @@ Kirigami.ApplicationWindow {
                     e2e: p.e2e === true,
                     avatarLetter: (p.username || root.unknownPeerName).charAt(0).toUpperCase(),
                     isFavorites: false,
+                    // What the peer says about itself, as opposed to whether it
+                    // is reachable. Rides in the presence packet - see
+                    // NetworkManager::setStatus.
+                    statusEmoji: p.status_emoji || "",
+                    presence: p.presence || 0,
                     // Being in peersModel is what reachable means: userOffline
                     // takes a peer out of it as soon as NetworkManager stops
                     // hearing presence.
@@ -210,6 +254,11 @@ Kirigami.ApplicationWindow {
             e2e: false,
             avatarLetter: (known.displayName || root.unknownPeerName).charAt(0).toUpperCase(),
             isFavorites: false,
+            // A peer that is switched off is not saying anything about itself,
+            // and the last thing it said is not worth showing as though it were
+            // current.
+            statusEmoji: "",
+            presence: 0,
             online: false,
             lastSeen: known.lastSeenSecs || 0
         }
@@ -343,6 +392,11 @@ Kirigami.ApplicationWindow {
             pageStack.pop()
             return
         }
+        // Compact mode is two columns by definition. The actions that ask for
+        // this are hidden there, so this is the belt to that pair of braces -
+        // a keyboard shortcut or a peer card could still get here.
+        if (root.compact)
+            return
         pageStack.push(peerInfoComponent)
         pageStack.currentIndex = pageStack.depth - 1
     }
@@ -366,6 +420,45 @@ Kirigami.ApplicationWindow {
         while (pageStack.layers.depth > 1)
             pageStack.layers.pop()
         pageStack.layers.push(page, properties)
+    }
+
+    // The wallpaper, behind everything. Local decoration: it is never put on the
+    // wire, no peer is told it exists, and nothing outside this window reads the
+    // setting.
+    //
+    // It shows through the conversation column, whose background is bound to the
+    // same setting - see ChatPage. Every other surface stays opaque on purpose:
+    // a form card or a toolbar over a photograph is a legibility problem, and the
+    // conversation is both the largest surface and the one a wallpaper is for.
+    //
+    // z is negative so this sits under the page row, which is the window's other
+    // child and has no z of its own.
+    Item {
+        anchors.fill: parent
+        z: -1
+        visible: appSettings.wallpaperPath.length > 0
+
+        Image {
+            anchors.fill: parent
+            source: appSettings.wallpaperPath
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: true
+            // The window is large and the file is whatever the user picked, so
+            // it is scaled once on load rather than on every frame.
+            sourceSize.width: parent.width
+            sourceSize.height: parent.height
+        }
+
+        // The scrim. Its strength is the complement of the opacity setting, so
+        // turning the wallpaper up turns the veil over it down - but it is floored
+        // rather than allowed to reach zero. At zero the text in the conversation
+        // sits directly on an arbitrary photograph, and no colour scheme can be
+        // legible against every one of those.
+        Rectangle {
+            anchors.fill: parent
+            color: Kirigami.Theme.backgroundColor
+            opacity: Math.max(0.2, 1 - appSettings.wallpaperOpacity / 100)
+        }
     }
 
     Shortcut {
@@ -456,11 +549,24 @@ Kirigami.ApplicationWindow {
                 icon.name: "help-about"
                 onTriggered: root.showLayer(aboutPageComponent)
             },
+            // Not checkable, for the same reason as the microphone entry above:
+            // triggering a checkable action writes its own checked property,
+            // which drops the binding to the setting. The label carries it.
+            Kirigami.Action {
+                text: root.compact
+                    ? i18nc("@action:inmenu go back to the full three-column layout", "Leave compact mode")
+                    : i18nc("@action:inmenu switch to a reduced layout for a narrow window", "Compact mode")
+                icon.name: root.compact ? "sidebar-expand" : "sidebar-collapse"
+                onTriggered: root.toggleCompact()
+            },
             Kirigami.Action {
                 text: root.visibility === Window.FullScreen
                     ? i18nc("@action:inmenu leave full screen", "Exit full screen")
                     : i18nc("@action:inmenu", "Full screen")
                 icon.name: root.visibility === Window.FullScreen ? "view-restore" : "view-fullscreen"
+                // Full screen and compact are opposite requests, and compact
+                // resizes the window, which a full-screen window cannot honour.
+                enabled: !root.compact
                 onTriggered: root.toggleFullScreen()
             },
             Kirigami.Action {
@@ -487,8 +593,12 @@ Kirigami.ApplicationWindow {
             type: Kirigami.MessageType.Information
         }
 
+        // A peer count is the first thing to go when the window is deliberately
+        // small: it is the least of what is on the screen and it costs a whole
+        // row.
         QQC2.ToolBar {
             Layout.fillWidth: true
+            visible: !root.compact
             position: QQC2.ToolBar.Footer
 
             contentItem: RowLayout {
@@ -545,9 +655,12 @@ Kirigami.ApplicationWindow {
         function onMessage(msg) {
             if (msg.type === "private") {
                 root.modelForPeer(msg.from_ip).receiveMessage(msg.text, msg.from_ip)
-                // Posts only when the window is not in front - the manager
-                // decides that, because whether the application is active is a
-                // question about the process rather than about this window.
+                // Always told; the manager decides what that turns into. A
+                // popup when the window is behind something, a sound when it
+                // is in front, both when nobody is at the machine - whether
+                // the application is active is a question about the process
+                // rather than about this window, which is why it is asked
+                // there and not here.
                 notificationManager.notifyMessage(msg.from_ip,
                                                   root.peerLabel(msg.from_ip),
                                                   msg.text)
@@ -700,11 +813,95 @@ Kirigami.ApplicationWindow {
     // getPageComponent() returns nothing, the createObject call never happens,
     // and the same insertItem picks the page up from the window's contentData.
     pageStack.initialPage: [chatListPage, chatPage]
-    pageStack.defaultColumnWidth: Kirigami.Units.gridUnit * 17
+    // The one number compact mode actually changes. Narrower than two of these
+    // and PageRow folds to a single column on its own, which is why the compact
+    // window size above is set relative to this rather than to nothing.
+    pageStack.defaultColumnWidth: root.compact ? Kirigami.Units.gridUnit * 11
+                                               : Kirigami.Units.gridUnit * 17
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.ToolBar
     pageStack.globalToolBar.showNavigationButtons: Kirigami.ApplicationHeaderStyle.ShowBackButton
 
+    // The tray, when there is one. trayIcon is null if the setting was off at
+    // start - see the note in main.cpp about why it is not built later - so
+    // everything that touches it is guarded.
+    readonly property bool hasTray: typeof trayIcon !== "undefined" && trayIcon !== null
+
+    // Bindings into the item rather than a Connections block: these are all
+    // "what the window already knows, drawn on the icon", and a signal handler
+    // per property would be four places for them to fall out of step.
+    Binding {
+        target: root.hasTray ? trayIcon : null
+        property: "unreadCount"
+        value: UnreadManager.total
+        restoreMode: Binding.RestoreNone
+    }
+    Binding {
+        target: root.hasTray ? trayIcon : null
+        property: "micMuted"
+        value: root.micMuted
+        restoreMode: Binding.RestoreNone
+    }
+    Binding {
+        target: root.hasTray ? trayIcon : null
+        property: "deafened"
+        value: root.deafened
+        restoreMode: Binding.RestoreNone
+    }
+    Binding {
+        target: root.hasTray ? trayIcon : null
+        property: "presence"
+        value: appSettings.presence
+        restoreMode: Binding.RestoreNone
+    }
+    Binding {
+        target: root.hasTray ? trayIcon : null
+        property: "windowVisible"
+        value: root.visible
+        restoreMode: Binding.RestoreNone
+    }
+
+    Connections {
+        target: root.hasTray ? trayIcon : null
+
+        function onShowHideRequested() {
+            if (root.visible) {
+                root.hide()
+                return
+            }
+            root.show()
+            root.raise()
+            root.requestActivate()
+        }
+        function onMuteToggleRequested() {
+            root.toggleMic()
+        }
+        function onDeafenToggleRequested() {
+            root.toggleDeafen()
+        }
+        function onPresenceRequested(presence) {
+            appSettings.presence = presence
+        }
+        function onQuitRequested() {
+            Qt.quit()
+        }
+    }
+
+    // Close means "put it away" while there is a tray to put it into, and means
+    // close otherwise. main.cpp turns off quitOnLastWindowClosed, so the second
+    // branch has to say Qt.quit() out loud - see the note there.
+    onClosing: (close) => {
+        if (root.hasTray && appSettings.minimizeToTray) {
+            close.accepted = false
+            root.hide()
+            return
+        }
+        close.accepted = true
+        Qt.quit()
+    }
+
     Component.onCompleted: {
+        if (root.hasTray)
+            trayIcon.attachWindow(root)
         if (appSettings.showWelcome)
             pageStack.layers.push(welcomeComponent)
     }
@@ -718,6 +915,7 @@ Kirigami.ApplicationWindow {
         model: chatList
         micMuted: root.micMuted
         deafened: root.deafened
+        compact: root.compact
 
         onChatActivated: (chatId) => root.openChat(chatId)
         onMicToggled: root.toggleMic()
@@ -753,6 +951,7 @@ Kirigami.ApplicationWindow {
         // pageStack.initialPage.
         Kirigami.ColumnView.fillWidth: true
 
+        compact: root.compact
         peerIp: root.currentPeerIp
         peerInfo: root.currentPeerIp.length > 0 ? root.peerInfoFor(root.currentPeerIp) : null
         messagesModel: root.currentPeerIp.length > 0 ? root.modelForPeer(root.currentPeerIp) : null

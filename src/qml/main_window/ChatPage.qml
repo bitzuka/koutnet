@@ -74,8 +74,26 @@ Kirigami.Page {
         : i18nc("@title", "Chat")
     padding: 0
 
+    // Compact mode. The peer column does not exist there, so the action that asks
+    // for it goes - see Main.qml, which refuses the request itself as well.
+    property bool compact: false
+
     // See the note on Kirigami.Theme in Main.qml.
     Kirigami.Theme.highlightColor: Brand.accent
+
+    // The one surface the wallpaper shows through. Every other page keeps its
+    // opaque background, because a form card or a toolbar over a photograph is a
+    // legibility problem and the conversation is both the largest surface and the
+    // one a wallpaper is for. The scrim that keeps the text readable sits between
+    // the picture and this - see Main.qml.
+    //
+    // A transparent Rectangle rather than no background at all: Kirigami.Page
+    // draws whatever is here, and taking it away also takes the surface the
+    // timeline's own bubbles are read against.
+    background: Rectangle {
+        color: Kirigami.Theme.backgroundColor
+        opacity: appSettings.wallpaperPath.length > 0 ? 0 : 1
+    }
 
     // Avatar, name and presence in the toolbar itself, which is where Kirigami
     // puts a page's identity.
@@ -142,7 +160,9 @@ Kirigami.Page {
         Kirigami.Action {
             text: i18nc("@action:button show who is on the other end of this conversation", "Details")
             icon.name: "documentinfo"
-            visible: root.hasChat && !root.isFavorites
+            // The peer card and the full profile page are both still reachable in
+            // compact mode; it is only the third column that is not.
+            visible: root.hasChat && !root.isFavorites && !root.compact
             onTriggered: root.infoRequested()
         },
         Kirigami.Action {

@@ -39,6 +39,26 @@ Delegates.RoundedItemDelegate {
     // reachability and no last-message line to show.
     property bool showPresence: true
 
+    // Compact mode. The message preview and the time stamp go, which is what
+    // takes the row from two lines to one, and the avatar comes down a size. The
+    // name, the presence dot and the unread count stay: those are the three
+    // things the row exists to say.
+    property bool compact: false
+
+    // What the row actually shows under the name. Nothing in compact mode, which
+    // is also what makes SubtitleContentItem lay itself out on one line.
+    readonly property string subtitleText: root.compact
+        ? ""
+        : (root.preview.length > 0
+            ? root.preview
+            : (root.showPresence
+                ? RelativeTime.presenceLabel(root.online, root.lastSeenSecs, RelativeTime.now)
+                : ""))
+
+    readonly property real avatarSize: root.compact
+        ? Kirigami.Units.iconSizes.smallMedium
+        : Kirigami.Units.iconSizes.medium
+
     // The avatar answers separately from the row: clicking a face asks who
     // this is, clicking the row opens the conversation.
     signal avatarClicked(Item anchorItem)
@@ -48,14 +68,19 @@ Delegates.RoundedItemDelegate {
     // which conversation is open, which the view knows nothing about.
     highlighted: root.selected
 
+    // No padding override. The row is tighter in compact mode because there is
+    // less in it - one line of text instead of two, and a smaller avatar - and
+    // RoundedItemDelegate sizes itself off its content. Writing a smaller padding
+    // here as well would mean naming the base class's own value in the other
+    // branch, which is a number this file would then own a stale copy of.
     contentItem: RowLayout {
         spacing: Kirigami.Units.smallSpacing
 
         Item {
             id: avatarSlot
 
-            implicitWidth: Kirigami.Units.iconSizes.medium
-            implicitHeight: Kirigami.Units.iconSizes.medium
+            implicitWidth: root.avatarSize
+            implicitHeight: root.avatarSize
             Layout.alignment: Qt.AlignVCenter
 
             // Taken before the delegate's own tap handling, so the card opens
@@ -98,12 +123,8 @@ Delegates.RoundedItemDelegate {
             Layout.fillWidth: true
             // The message if there is one, and the peer's status while there is
             // not, so a chat the user has only just opened still says something
-            // about who is on the other end.
-            subtitle: root.preview.length > 0
-                ? root.preview
-                : (root.showPresence
-                    ? RelativeTime.presenceLabel(root.online, root.lastSeenSecs, RelativeTime.now)
-                    : "")
+            // about who is on the other end. Empty in compact mode.
+            subtitle: root.subtitleText
             bold: root.unreadCount > 0
         }
 
@@ -113,7 +134,7 @@ Delegates.RoundedItemDelegate {
 
             QQC2.Label {
                 Layout.alignment: Qt.AlignRight
-                visible: text.length > 0
+                visible: !root.compact && text.length > 0
                 text: root.stampSecs > 0 ? RelativeTime.chatStamp(root.stampSecs, RelativeTime.now) : ""
                 font: Kirigami.Theme.smallFont
                 color: Kirigami.Theme.disabledTextColor
