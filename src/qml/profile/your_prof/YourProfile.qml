@@ -27,6 +27,16 @@ Kirigami.ScrollablePage {
     readonly property string shownName: appSettings.displayName.length > 0
         ? appSettings.displayName : appSettings.username
 
+    // The one column everything on this page lines up in.
+    //
+    // A FormCard fills the row it is given and then draws its card centred at its
+    // own maximumWidth, leaving the rest of the row empty. Anything here that is
+    // not a FormCard has to be handed the same width and the same alignment or it
+    // starts at the window edge instead - which is why the header, the media tabs
+    // and the placeholders each used to begin somewhere different from the cards
+    // between them. Same value as FormCard.maximumWidth.
+    readonly property real kContentWidth: Kirigami.Units.gridUnit * 30
+
     title: i18nc("@title:window", "My profile")
 
     // See the note on Kirigami.Theme in Main.qml.
@@ -66,19 +76,34 @@ Kirigami.ScrollablePage {
         onStatusChanged: if (status === AnimatedImage.Ready) playing = true
     }
 
-    // The backdrop the "Change background" picker sets. Dimmed, because the
-    // picture is chosen by the user and the text on top of it still has to be
-    // readable.
-    background: Item {
+    // The backdrop the "Change background" picker sets, over an opaque base.
+    //
+    // The base is a layer of its own because it is the thing that makes the page
+    // opaque, and the scrim above it is a fraction. Dimming the only opaque item
+    // in the background is what made the whole page forty-five percent
+    // see-through: the window's wallpaper came up through it - see Main.qml - and
+    // took the text with it.
+    //
+    // The picture is gated on having loaded rather than on the path being
+    // non-empty, so a file AnimatedImage cannot decode leaves the base showing
+    // rather than a hole with the wallpaper behind it.
+    background: Rectangle {
+        color: Kirigami.Theme.backgroundColor
+
         LoopingImage {
+            id: backdrop
             anchors.fill: parent
             source: appSettings.profileBackgroundPath
-            visible: appSettings.profileBackgroundPath.length > 0
+            visible: backdrop.status === AnimatedImage.Ready
         }
+
+        // Dimmed, because the picture is chosen by the user and the text on top of
+        // it still has to be readable.
         Rectangle {
             anchors.fill: parent
+            visible: backdrop.visible
             color: Kirigami.Theme.backgroundColor
-            opacity: appSettings.profileBackgroundPath.length > 0 ? 0.55 : 1
+            opacity: 0.55
         }
     }
 
@@ -133,6 +158,8 @@ Kirigami.ScrollablePage {
         // status emoji and the presence setting, which are separate.
         ProfileHeader {
             Layout.fillWidth: true
+            Layout.maximumWidth: root.kContentWidth
+            Layout.alignment: Qt.AlignHCenter
 
             displayName: root.shownName
             handle: appSettings.username
@@ -309,8 +336,8 @@ Kirigami.ScrollablePage {
         QQC2.TabBar {
             id: mediaTabs
             Layout.fillWidth: true
-            Layout.leftMargin: Kirigami.Units.largeSpacing
-            Layout.rightMargin: Kirigami.Units.largeSpacing
+            Layout.maximumWidth: root.kContentWidth
+            Layout.alignment: Qt.AlignHCenter
             visible: root.profileUsable
 
             QQC2.TabButton { text: i18nc("@title:tab", "Music"); icon.name: "audio-x-generic" }
@@ -323,6 +350,8 @@ Kirigami.ScrollablePage {
 
         Kirigami.PlaceholderMessage {
             Layout.fillWidth: true
+            Layout.maximumWidth: root.kContentWidth
+            Layout.alignment: Qt.AlignHCenter
             Layout.preferredHeight: Kirigami.Units.gridUnit * 8
             visible: root.profileUsable && !appSettings.globalAccount
             icon.name: "folder"
@@ -331,6 +360,8 @@ Kirigami.ScrollablePage {
 
         Kirigami.PlaceholderMessage {
             Layout.fillWidth: true
+            Layout.maximumWidth: root.kContentWidth
+            Layout.alignment: Qt.AlignHCenter
             Layout.preferredHeight: Kirigami.Units.gridUnit * 8
             visible: root.profileUsable && appSettings.globalAccount
             icon.name: "network-disconnect"
@@ -357,6 +388,8 @@ Kirigami.ScrollablePage {
         // misleading shelves.
         Kirigami.PlaceholderMessage {
             Layout.fillWidth: true
+            Layout.maximumWidth: root.kContentWidth
+            Layout.alignment: Qt.AlignHCenter
             Layout.preferredHeight: Kirigami.Units.gridUnit * 12
             visible: !root.profileUsable
             icon.name: "im-user"

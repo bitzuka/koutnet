@@ -431,6 +431,11 @@ Kirigami.ApplicationWindow {
     // a form card or a toolbar over a photograph is a legibility problem, and the
     // conversation is both the largest surface and the one a wallpaper is for.
     //
+    // Kirigami.Page already draws an opaque background, so that holds by itself
+    // for every page and every layer. It stops holding the moment one of them
+    // replaces the background with something of its own, which is what put this
+    // picture behind the whole of the profile page - see YourProfile.
+    //
     // z is negative so this sits under the page row, which is the window's other
     // child and has no z of its own.
     Item {

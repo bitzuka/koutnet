@@ -27,6 +27,10 @@ Kirigami.ScrollablePage {
 
     readonly property string unknownPeerName: i18nc("@info a peer that has published no name of its own", "Unknown peer")
 
+    // The one column everything on this page lines up in - same reasoning, and
+    // the same value, as on the own-profile page.
+    readonly property real kContentWidth: Kirigami.Units.gridUnit * 30
+
     // The address is behind this rather than on the page. It is the one thing
     // here that says where somebody physically is, and a profile is read with
     // other people looking at the screen.
@@ -50,6 +54,8 @@ Kirigami.ScrollablePage {
         // colour, which is what those slots are for.
         ProfileHeader {
             Layout.fillWidth: true
+            Layout.maximumWidth: root.kContentWidth
+            Layout.alignment: Qt.AlignHCenter
 
             displayName: root.shownName
             handle: root.peer ? (root.peer.username || "") : ""
@@ -148,6 +154,8 @@ Kirigami.ScrollablePage {
 
         Kirigami.PlaceholderMessage {
             Layout.fillWidth: true
+            Layout.maximumWidth: root.kContentWidth
+            Layout.alignment: Qt.AlignHCenter
             Layout.preferredHeight: Kirigami.Units.gridUnit * 8
             icon.name: "folder"
             text: i18nc("@info", "Will appear once connected to a K-Server")

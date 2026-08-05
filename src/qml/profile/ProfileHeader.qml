@@ -53,6 +53,11 @@ Item {
     // PeerCard, so the card and this read as the same design.
     readonly property real kAvatarOverhang: 0.45
 
+    // The same horizontal padding a form delegate puts round its text, so the
+    // display name and the "About me" body under it share one left edge. How wide
+    // the column is is the page's business, not the header's.
+    readonly property real kContentPadding: Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing
+
     // Nothing here is in a layout - the avatar overlapping the banner is the
     // whole point, and an overlap cannot be expressed between layout children -
     // so the height has to be added up by hand or the ColumnLayout this sits in
@@ -130,7 +135,7 @@ Item {
         width: root.kAvatarSize
         height: width
         anchors.left: parent.left
-        anchors.leftMargin: Kirigami.Units.largeSpacing * 2
+        anchors.leftMargin: root.kContentPadding
         anchors.top: banner.bottom
         anchors.topMargin: -height * root.kAvatarOverhang
 
@@ -164,8 +169,8 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: avatarFrame.bottom
-        anchors.leftMargin: Kirigami.Units.largeSpacing * 2
-        anchors.rightMargin: Kirigami.Units.largeSpacing * 2
+        anchors.leftMargin: root.kContentPadding
+        anchors.rightMargin: root.kContentPadding
         anchors.topMargin: Kirigami.Units.smallSpacing
         spacing: 0
 
