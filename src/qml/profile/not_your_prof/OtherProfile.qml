@@ -2,22 +2,26 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.formcard as FormCard
 import koutnet.app
 
-// A peer's profile. Literally the same header as YourProfile, so the two read as
-// one screen in two states, minus every control that writes: no pickers, no edit
-// mode, no account switch.
+// A peer's profile at full size: the same thing the settings page shows about
+// you, minus every control that writes. Banner, the avatar over its lower-left,
+// the name, the handle, the status, then what the peer says about itself, then
+// what this end knows about the session.
 //
 // Everything here arrives in the presence packet, which carries the handle,
-// display name and a capped bio. Avatar, banner and background are files and stay
-// out of a broadcast that repeats on a timer, so those slots fall back to the
-// initials and the colour scheme until a fetch keyed on profile_rev exists.
+// display name, status emoji and a capped bio. Avatar, banner and badge are
+// files and stay out of a broadcast that repeats on a timer, so those slots fall
+// back to the initials and the brand colour until a fetch keyed on profile_rev
+// exists.
 Kirigami.ScrollablePage {
     id: root
 
-    // { ip, username, displayName, bio, os, e2e, avatarLetter, online, lastSeen }
+    // { ip, username, displayName, bio, os, e2e, avatarLetter, online, lastSeen,
+    // statusEmoji }
     property var peer: null
 
     readonly property string shownName: peer
@@ -27,9 +31,18 @@ Kirigami.ScrollablePage {
 
     readonly property string unknownPeerName: i18nc("@info a peer that has published no name of its own", "Unknown peer")
 
-    // The one column everything on this page lines up in - same reasoning, and
-    // the same value, as on the own-profile page.
+    readonly property string statusEmoji: root.peer ? (root.peer.statusEmoji || "") : ""
+    readonly property string bio: root.peer ? (root.peer.bio || "") : ""
+
+    // The one column everything on this page lines up in. A FormCard fills the
+    // row it is given and then draws its card centred at its own maximumWidth,
+    // leaving the rest of the row empty, so anything here that is not a FormCard
+    // has to be handed the same width and the same alignment or it starts at the
+    // window edge instead. Same value as FormCard.maximumWidth.
     readonly property real kContentWidth: Kirigami.Units.gridUnit * 30
+    // What a form delegate puts round its text, so the blocks below the header
+    // share the header's left edge.
+    readonly property real kContentPadding: Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing
 
     // The address is behind this rather than on the page. It is the one thing
     // here that says where somebody physically is, and a profile is read with
@@ -44,14 +57,6 @@ Kirigami.ScrollablePage {
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 
-        // Banner, avatar, name, handle, presence and status, all of it shared
-        // with the own-profile page - see qml/profile/ProfileHeader.qml. Nothing
-        // is editable here: none of it belongs to this end.
-        //
-        // The avatar and banner sources stay empty for the reason at the top of
-        // this file: they are files, and files are not in a broadcast that
-        // repeats on a timer. The header falls back to the initials and the brand
-        // colour, which is what those slots are for.
         ProfileHeader {
             Layout.fillWidth: true
             Layout.maximumWidth: root.kContentWidth
@@ -61,7 +66,46 @@ Kirigami.ScrollablePage {
             handle: root.peer ? (root.peer.username || "") : ""
             online: root.peer ? root.peer.online === true : false
             lastSeenSecs: root.peer ? (root.peer.lastSeen || 0) : 0
-            statusEmoji: root.peer ? (root.peer.statusEmoji || "") : ""
+            statusEmoji: root.statusEmoji
+        }
+
+        // Only the emoji: the text half of a custom status is not in the
+        // presence packet, so there is nothing on this side to draw for it.
+        ProfileBlock {
+            Layout.fillWidth: true
+            Layout.maximumWidth: root.kContentWidth
+            Layout.alignment: Qt.AlignHCenter
+            Layout.leftMargin: root.kContentPadding
+            Layout.rightMargin: root.kContentPadding
+            visible: root.statusEmoji.length > 0
+
+            label: i18nc("@label:textbox caption over what somebody says they are up to", "Custom status")
+
+            QQC2.Label {
+                text: root.statusEmoji
+                textFormat: Text.PlainText
+                font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.6)
+            }
+        }
+
+        ProfileBlock {
+            Layout.fillWidth: true
+            Layout.maximumWidth: root.kContentWidth
+            Layout.alignment: Qt.AlignHCenter
+            Layout.leftMargin: root.kContentPadding
+            Layout.rightMargin: root.kContentPadding
+
+            label: i18nc("@title:group free-form text about the peer", "About")
+
+            // Markdown, like the own-profile bio, so the same text renders the
+            // same way whichever side of the conversation it is read from.
+            Kirigami.SelectableLabel {
+                Layout.fillWidth: true
+                text: root.bio.length > 0 ? root.bio : i18nc("@info", "No description")
+                textFormat: Text.MarkdownText
+                wrapMode: Text.WordWrap
+                color: root.bio.length > 0 ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
+            }
         }
 
         FormCard.FormHeader {
@@ -69,8 +113,8 @@ Kirigami.ScrollablePage {
             title: i18nc("@title:group", "Session")
         }
 
-        // Reachability and session state belong to a peer and have no equivalent on
-        // your own page, so this section exists only here.
+        // Reachability and session state belong to a peer and have no equivalent
+        // on your own profile, so this section exists only here.
         FormCard.FormCard {
             Layout.fillWidth: true
 
@@ -111,54 +155,6 @@ Kirigami.ScrollablePage {
                 text: i18nc("@label network address of the peer", "Address")
                 description: root.peer ? (root.peer.ip || "") : ""
             }
-        }
-
-        FormCard.FormHeader {
-            Layout.fillWidth: true
-            title: i18nc("@title:group free-form text about the peer", "About")
-        }
-
-        FormCard.FormCard {
-            Layout.fillWidth: true
-
-            // Markdown, like the own-profile bio, so the same text renders the same
-            // way whichever side of the conversation it is read from.
-            FormCard.AbstractFormDelegate {
-                id: bioDelegate
-                background: null
-                focusPolicy: Qt.NoFocus
-
-                readonly property bool hasBio: root.peer && root.peer.bio && root.peer.bio.length > 0
-
-                contentItem: Kirigami.SelectableLabel {
-                    text: bioDelegate.hasBio ? root.peer.bio : i18nc("@info", "No description")
-                    textFormat: Text.MarkdownText
-                    wrapMode: Text.WordWrap
-                    color: bioDelegate.hasBio ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
-                }
-            }
-        }
-
-        FormCard.FormHeader {
-            Layout.fillWidth: true
-            title: i18nc("@title profile section", "Friends")
-        }
-
-        FormCard.FormCard {
-            Layout.fillWidth: true
-
-            FormCard.FormTextDelegate {
-                text: i18nc("@info the friend list is empty", "No one yet")
-            }
-        }
-
-        Kirigami.PlaceholderMessage {
-            Layout.fillWidth: true
-            Layout.maximumWidth: root.kContentWidth
-            Layout.alignment: Qt.AlignHCenter
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 8
-            icon.name: "folder"
-            text: i18nc("@info", "Will appear once connected to a K-Server")
         }
     }
 }
