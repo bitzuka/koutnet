@@ -16,9 +16,9 @@ import koutnet.app
 // ring all come with it and all follow the colour scheme; the old version painted
 // four of those itself out of a palette table and had no focus ring at all.
 //
-// It has to be the direct delegate of a view, because that is where it takes its
-// width from. The pinned row uses it as a ListView header, which is still a child
-// of the view, so that holds there too.
+// It takes its width from the view it is the direct delegate of, and binds it
+// itself, so anywhere else it has to be handed one - see the pinned Favorites row
+// in ChatListPage, which is not a delegate of anything.
 Delegates.RoundedItemDelegate {
     id: root
 

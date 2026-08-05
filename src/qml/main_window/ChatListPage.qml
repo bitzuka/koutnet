@@ -14,11 +14,19 @@ import koutnet.app
 // rail runs the full height of the column beside a list that scrolls on its own,
 // and a ScrollablePage would scroll the rail with it.
 //
-// Sections are one ListView with a header rather than a stack of views: one
-// scrollbar covers everything, the keyboard walks the whole list, and rows still
-// animate when the model reorders them. The cost is that the fold state cannot
-// live in the headings - a ListView header is an implicit Component, and the
-// delegates cannot see an id inside it - so it lives here.
+// The section headings sit above the view rather than inside it, and the pinned
+// Favorites row with them. They used to be the ListView's header, and that is a
+// header whose height changes: folding one shrinks it, unfolding grows it again.
+// QQuickItemView answers a header resize with updateHeader() and fixupPosition()
+// and nothing else - it re-places the header above the first row and clamps
+// contentY into the new bounds. Shrinking puts contentY out of bounds and it is
+// pulled back; growing does not, so the height the header just got back appears
+// above the viewport and the section that was unfolded is off the top of the
+// list. Kept out of the view, a fold is a layout change and nothing else.
+//
+// The fold state still lives here rather than in the headings: the rows a
+// heading folds are somewhere else - inside a ListView delegate - and the one
+// copy of the state has to be visible to both.
 Kirigami.Page {
     id: root
 
@@ -47,7 +55,9 @@ Kirigami.Page {
     signal chatActivated(string chatId)
     signal newChatRequested()
     signal forgetRequested(string chatId)
-    signal profileRequested()
+    // The account row travels with the request: the account card is anchored to
+    // it, the same way a peer's card is anchored to the row that asked for it.
+    signal profileRequested(Item anchorItem)
     signal settingsRequested()
     signal connectionModeRequested(int mode)
     signal micToggled()
@@ -123,88 +133,62 @@ Kirigami.Page {
             Layout.preferredWidth: 1
         }
 
-        QQC2.ScrollView {
+        ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            spacing: 0
 
-            ListView {
-                id: chatsView
+            ChatSection {
+                Layout.fillWidth: true
+                text: root.favoritesName
+                itemCount: 1
+                expanded: root.favoritesExpanded
+                onToggleRequested: root.favoritesExpanded = !root.favoritesExpanded
+            }
 
-                currentIndex: -1
-                clip: true
+            // Favorites is one pinned local row and not a chat with anybody, so
+            // it is not in the model. Wrapped in an Item because
+            // RoundedItemDelegate binds its own width - to the view it is the
+            // delegate of, and this one is the delegate of nothing - and a
+            // binding on width beats whatever a layout assigns the next time it
+            // re-evaluates. The wrapper is what the row takes its width from and
+            // what carries the fold, so nothing here fights the column.
+            Item {
+                Layout.fillWidth: true
+                implicitHeight: favoritesRow.implicitHeight
+                visible: favoritesRow.visible
 
-                // The model reorders rows as messages arrive, so the list has
-                // somewhere to animate them to.
-                move: Transition {
-                    NumberAnimation { properties: "y"; duration: Kirigami.Units.shortDuration }
+                ContactDelegate {
+                    id: favoritesRow
+
+                    width: parent.width
+                    visible: root.favoritesExpanded
+                        && root.matchesSearch(root.favoritesName, root.favoritesChatId)
+
+                    displayName: root.favoritesName
+                    iconName: "bookmarks"
+                    compact: root.compact
+                    showPresence: false
+                    selected: root.selectedChatId === root.favoritesChatId
+                    onClicked: root.chatActivated(root.favoritesChatId)
                 }
-                displaced: Transition {
-                    NumberAnimation { properties: "y"; duration: Kirigami.Units.shortDuration }
-                }
+            }
 
-                // Right-click and long-press on a row land here. One menu for the
-                // whole list rather than one per delegate, so scrolling does not
-                // build a hundred of them.
-                Components.ConvergentContextMenu {
-                    id: rowMenu
+            ChatSection {
+                Layout.fillWidth: true
+                text: i18nc("@title:group conversation list section, one-to-one chats", "Direct messages")
+                itemCount: chatsView.count
+                visible: itemCount > 0
+                expanded: root.directExpanded
+                onToggleRequested: root.directExpanded = !root.directExpanded
+            }
 
-                    property string chatId: ""
-                    property string chatName: ""
-
-                    Kirigami.Action {
-                        text: i18nc("@action:inmenu open this conversation", "Open")
-                        icon.name: "document-open"
-                        onTriggered: root.chatActivated(rowMenu.chatId)
-                    }
-                    Kirigami.Action {
-                        text: i18nc("@action:inmenu remove the conversation from the list, keeping the history", "Forget this chat")
-                        icon.name: "list-remove"
-                        onTriggered: root.forgetRequested(rowMenu.chatId)
-                    }
-                }
-
-                // Favorites is one pinned local row and not a chat with anybody,
-                // so it is in the view header rather than in the model. Groups and
-                // Channels are the same shape when they land: another heading and
-                // another block of rows above the model's.
-                header: ColumnLayout {
-                    width: chatsView.width
-                    spacing: 0
-
-                    ChatSection {
-                        Layout.fillWidth: true
-                        text: root.favoritesName
-                        itemCount: 1
-                        visible: itemCount > 0
-                        expanded: root.favoritesExpanded
-                        onToggleRequested: root.favoritesExpanded = !root.favoritesExpanded
-                    }
-
-                    ContactDelegate {
-                        Layout.fillWidth: true
-                        visible: root.favoritesExpanded
-                            && root.matchesSearch(root.favoritesName, root.favoritesChatId)
-                        // A hidden item still takes its implicit height in a
-                        // layout unless it is told not to.
-                        Layout.preferredHeight: visible ? -1 : 0
-
-                        displayName: root.favoritesName
-                        iconName: "bookmarks"
-                        compact: root.compact
-                        showPresence: false
-                        selected: root.selectedChatId === root.favoritesChatId
-                        onClicked: root.chatActivated(root.favoritesChatId)
-                    }
-
-                    ChatSection {
-                        Layout.fillWidth: true
-                        text: i18nc("@title:group conversation list section, one-to-one chats", "Direct messages")
-                        itemCount: chatsView.count
-                        visible: itemCount > 0
-                        expanded: root.directExpanded
-                        onToggleRequested: root.directExpanded = !root.directExpanded
-                    }
-                }
+            // The placeholder is a sibling of the view rather than a child of it:
+            // a child of a Flickable is parented to its content item and would
+            // scroll away with the rows it is standing in for.
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
 
                 Kirigami.PlaceholderMessage {
                     anchors.centerIn: parent
@@ -220,39 +204,80 @@ Kirigami.Page {
                     }
                 }
 
-                delegate: ContactDelegate {
-                    id: chatRow
+                QQC2.ScrollView {
+                    anchors.fill: parent
 
-                    // model.* rather than required properties: every role below
-                    // shares its name with a property this delegate already has,
-                    // and a required property of the same name would bind to
-                    // itself.
-                    visible: root.directExpanded
-                        && root.matchesSearch(model.displayName, model.chatId)
-                    height: visible ? implicitHeight : 0
+                    ListView {
+                        id: chatsView
 
-                    compact: root.compact
-                    displayName: model.displayName
-                    preview: model.preview
-                    stampSecs: model.stampSecs
-                    lastSeenSecs: model.lastSeenSecs
-                    unreadCount: model.unreadCount
-                    online: model.online
-                    selected: model.chatId === root.selectedChatId
+                        currentIndex: -1
+                        clip: true
 
-                    function openRowMenu() {
-                        rowMenu.chatId = model.chatId
-                        rowMenu.chatName = model.displayName
-                        rowMenu.popup()
-                    }
+                        // The model reorders rows as messages arrive, so the list has
+                        // somewhere to animate them to.
+                        move: Transition {
+                            NumberAnimation { properties: "y"; duration: Kirigami.Units.shortDuration }
+                        }
+                        displaced: Transition {
+                            NumberAnimation { properties: "y"; duration: Kirigami.Units.shortDuration }
+                        }
 
-                    onClicked: root.chatActivated(model.chatId)
-                    onPressAndHold: chatRow.openRowMenu()
-                    onAvatarClicked: (anchorItem) => root.peerCardRequested(model.chatId, anchorItem)
+                        // Right-click and long-press on a row land here. One menu for the
+                        // whole list rather than one per delegate, so scrolling does not
+                        // build a hundred of them.
+                        Components.ConvergentContextMenu {
+                            id: rowMenu
 
-                    TapHandler {
-                        acceptedButtons: Qt.RightButton
-                        onTapped: chatRow.openRowMenu()
+                            property string chatId: ""
+                            property string chatName: ""
+
+                            Kirigami.Action {
+                                text: i18nc("@action:inmenu open this conversation", "Open")
+                                icon.name: "document-open"
+                                onTriggered: root.chatActivated(rowMenu.chatId)
+                            }
+                            Kirigami.Action {
+                                text: i18nc("@action:inmenu remove the conversation from the list, keeping the history", "Forget this chat")
+                                icon.name: "list-remove"
+                                onTriggered: root.forgetRequested(rowMenu.chatId)
+                            }
+                        }
+
+                        delegate: ContactDelegate {
+                            id: chatRow
+
+                            // model.* rather than required properties: every role below
+                            // shares its name with a property this delegate already has,
+                            // and a required property of the same name would bind to
+                            // itself.
+                            visible: root.directExpanded
+                                && root.matchesSearch(model.displayName, model.chatId)
+                            height: visible ? implicitHeight : 0
+
+                            compact: root.compact
+                            displayName: model.displayName
+                            preview: model.preview
+                            stampSecs: model.stampSecs
+                            lastSeenSecs: model.lastSeenSecs
+                            unreadCount: model.unreadCount
+                            online: model.online
+                            selected: model.chatId === root.selectedChatId
+
+                            function openRowMenu() {
+                                rowMenu.chatId = model.chatId
+                                rowMenu.chatName = model.displayName
+                                rowMenu.popup()
+                            }
+
+                            onClicked: root.chatActivated(model.chatId)
+                            onPressAndHold: chatRow.openRowMenu()
+                            onAvatarClicked: (anchorItem) => root.peerCardRequested(model.chatId, anchorItem)
+
+                            TapHandler {
+                                acceptedButtons: Qt.RightButton
+                                onTapped: chatRow.openRowMenu()
+                            }
+                        }
                     }
                 }
             }
@@ -263,7 +288,7 @@ Kirigami.Page {
         micMuted: root.micMuted
         deafened: root.deafened
 
-        onProfileRequested: root.profileRequested()
+        onProfileRequested: (anchorItem) => root.profileRequested(anchorItem)
         onSettingsRequested: root.settingsRequested()
         onMicToggled: root.micToggled()
         onDeafenToggled: root.deafenToggled()
