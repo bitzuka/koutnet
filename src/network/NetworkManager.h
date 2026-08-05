@@ -112,6 +112,12 @@ public:
     // can tell it needs to re-fetch without being sent the files.
     Q_INVOKABLE void setProfile(const QString &handle, const QString &displayName, const QString &bio, const QString &revision);
 
+    // What the user says they are, and the one emoji they say it with. Kept
+    // apart from setProfile because it is not part of the profile digest: going
+    // "busy" has not changed a picture, and bumping the revision over it would
+    // ask every peer to refetch a profile that is byte for byte the same one.
+    Q_INVOKABLE void setStatus(int presence, const QString &statusEmoji);
+
     // Shared secret for the public chat. Broadcast has no single peer to
     // hold an ECDH session with, so a passphrase everyone knows is the only
     // thing that can protect it. Empty means the chat goes out in the clear.
@@ -253,6 +259,8 @@ private:
     QString m_profileDisplayName;
     QString m_profileBio;
     QString m_profileRevision;
+    QString m_statusEmoji;
+    int m_presence = 0;
     QString m_relayHostOverride; // set via setRelayServer()
     quint16 m_relayPortOverride = 0;
     quint16 m_relayVoicePortOverride = 0;

@@ -89,6 +89,56 @@
     <!-- Markdown-formatted "about me" text. -->
     <entry name="bio" key="bio" type="String"/>
 
+    <!-- One emoji beside the display name, the way every other messenger does a
+         custom status. A single grapheme rather than free text: it rides in the
+         presence packet, which repeats on a timer, so it has to stay small. -->
+    <entry name="statusEmoji" key="status_emoji" type="String"/>
+    <!-- What the user says they are, as opposed to whether they are reachable.
+         0 = online, 1 = away, 2 = busy, 3 = invisible. An int rather than an
+         enum for the same reason connectionMode is one: core/constructor does
+         not include the network header. -->
+    <entry name="presence" key="presence" type="Int">
+      <default>0</default>
+      <min>0</min>
+      <max>3</max>
+    </entry>
+    <!-- Minutes of no input before the notifications treat the user as away, so
+         a message that arrives then gets both a popup and a sound. KIdleTime
+         asks the compositor; see core/notify/NotificationManager. -->
+    <entry name="awayAfterMinutes" key="away_after_minutes" type="Int">
+      <default>5</default>
+      <min>1</min>
+      <max>240</max>
+    </entry>
+
+    <!-- Picture behind the interface. Local decoration only: it is never put on
+         the wire and no peer is told it exists. -->
+    <entry name="wallpaperPath" key="wallpaper_path" type="String"/>
+    <!-- How much of the wallpaper comes through, in percent. The scrim over it
+         is the complement, floored so the content surfaces stay legible however
+         busy the picture is - see the note in Main.qml. -->
+    <entry name="wallpaperOpacity" key="wallpaper_opacity" type="Int">
+      <default>40</default>
+      <min>0</min>
+      <max>100</max>
+    </entry>
+
+    <!-- Reduced layout: two columns, tighter rows, no peer column. A mode the
+         user picks and keeps, as opposed to what the page row does by itself
+         when the window is dragged narrow. -->
+    <entry name="compactMode" key="compact_mode" type="Bool">
+      <default>false</default>
+    </entry>
+
+    <!-- The tray icon, and whether the window close button reaches for it
+         instead of for the exit. Off means the close button really does close. -->
+    <entry name="trayEnabled" key="tray_enabled" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="minimizeToTray" key="minimize_to_tray" type="Bool">
+      <default>true</default>
+    </entry>
+
     <!-- false = local account (this device only), true = global account synced
          through a K-Server. A UI-level toggle for now. -->
     <entry name="globalAccount" key="global_account" type="Bool">

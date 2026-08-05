@@ -149,6 +149,24 @@ void NetworkManager::setProfile(const QString &handle, const QString &displayNam
         onBroadcastTimer();
 }
 
+void NetworkManager::setStatus(int presence, const QString &statusEmoji)
+{
+    // One grapheme at most. This rides in the packet that repeats on a timer, so
+    // a peer that pasted a paragraph of emoji would be paying for it again on
+    // every interface this host broadcasts from.
+    const QString trimmed = statusEmoji.left(8);
+    if (m_presence == presence && m_statusEmoji == trimmed)
+        return;
+
+    m_presence = presence;
+    m_statusEmoji = trimmed;
+
+    // Same reasoning as setProfile: going away is worth saying now rather than
+    // whenever the timer next comes round.
+    if (m_running)
+        onBroadcastTimer();
+}
+
 void NetworkManager::setGroupPassphrase(const QString &passphrase)
 {
     m_groupPassphrase = passphrase;
@@ -385,6 +403,9 @@ QJsonObject NetworkManager::presencePayload() const
     payload[QStringLiteral("display_name")] = m_profileDisplayName;
     payload[QStringLiteral("bio")] = m_profileBio;
     payload[QStringLiteral("profile_rev")] = m_profileRevision;
+    // Said out loud rather than folded into profile_rev - see setStatus.
+    payload[QStringLiteral("presence")] = m_presence;
+    payload[QStringLiteral("status_emoji")] = m_statusEmoji;
     return payload;
 }
 
