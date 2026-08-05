@@ -470,18 +470,88 @@ QJsonObject CryptoManager::handshakePayload() const
     return payload;
 }
 
-bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &data)
+// Peer identity
+// The handle every map in here is keyed on. A digest and not the key itself, so
+// it is short enough to travel in a packet and to read in a log line, and it
+// cannot be confused with an address by anything that handles both.
+QString CryptoManager::identityIdFor(const QByteArray &idPubRaw)
+{
+    if (idPubRaw.isEmpty())
+        return QString();
+    return QString::fromLatin1(QCryptographicHash::hash(idPubRaw, QCryptographicHash::Sha256).toHex());
+}
+
+QString CryptoManager::ownIdentityId() const
+{
+    return identityIdFor(m_identityPubBytes);
+}
+
+QString CryptoManager::identityForAddress(const QString &address) const
+{
+    return m_addressToId.value(address);
+}
+
+QStringList CryptoManager::addressesFor(const QString &peerId) const
+{
+    return m_idToAddresses.value(resolveIdentity(peerId));
+}
+
+QString CryptoManager::resolveIdentity(const QString &peerRef) const
+{
+    if (peerRef.isEmpty())
+        return QString();
+    // An identity id names itself. Checked against the pin rather than against
+    // the session, so a peer whose handshake is still in flight still resolves.
+    if (m_peerIdPub.contains(peerRef))
+        return peerRef;
+    return m_addressToId.value(peerRef);
+}
+
+void CryptoManager::noteObservedAddress(const QString &peerId, const QString &address)
+{
+    if (peerId.isEmpty() || address.isEmpty())
+        return;
+
+    // An address belongs to one identity at a time. Whoever proved a handshake
+    // from it most recently is the one it points at, and the peer that used to
+    // be there keeps its session either way - only the shortcut moves.
+    const QString previous = m_addressToId.value(address);
+    if (previous != peerId && !previous.isEmpty()) {
+        QStringList &theirs = m_idToAddresses[previous];
+        theirs.removeAll(address);
+        if (theirs.isEmpty())
+            m_idToAddresses.remove(previous);
+    }
+    m_addressToId[address] = peerId;
+
+    QStringList &addresses = m_idToAddresses[peerId];
+    addresses.removeAll(address);
+    addresses.prepend(address);
+    while (addresses.size() > kMaxPeerAddresses) {
+        const QString dropped = addresses.takeLast();
+        // Only if it still points here: a later handshake may have moved it.
+        if (m_addressToId.value(dropped) == peerId)
+            m_addressToId.remove(dropped);
+    }
+}
+
+bool CryptoManager::processHandshake(const QString &observedAddress, const QJsonObject &data)
+{
+    return processHandshakeFrom(observedAddress, data) == HandshakeOutcome::Established;
+}
+
+CryptoManager::HandshakeOutcome CryptoManager::processHandshakeFrom(const QString &observedAddress, const QJsonObject &data, QString *outPeerId)
 {
     const QByteArray peerDhBytes = QByteArray::fromBase64(data.value(QStringLiteral("dh_pub")).toString().toLatin1());
     const QByteArray peerIdBytes = QByteArray::fromBase64(data.value(QStringLiteral("id_pub")).toString().toLatin1());
     const QByteArray peerDhSig = QByteArray::fromBase64(data.value(QStringLiteral("dh_pub_sig")).toString().toLatin1());
     if (peerDhBytes.isEmpty() || peerIdBytes.isEmpty() || peerDhSig.isEmpty())
-        return false;
+        return HandshakeOutcome::Refused;
 
     EVP_PKEY *peerIdPub =
         EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr, reinterpret_cast<const unsigned char *>(peerIdBytes.constData()), peerIdBytes.size());
     if (!peerIdPub)
-        return false;
+        return HandshakeOutcome::Refused;
 
     // Verify: peer's identity key signed their DH key.
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
@@ -489,7 +559,7 @@ bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &d
         // out of memory, and passing the null on to EVP_DigestVerifyInit would
         // be a crash rather than a refused handshake
         EVP_PKEY_free(peerIdPub);
-        return false;
+        return HandshakeOutcome::Refused;
     }
     const int verifyRc = EVP_DigestVerifyInit(mdctx, nullptr, nullptr, nullptr, peerIdPub) != 1
         ? 0
@@ -501,39 +571,55 @@ bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &d
     EVP_MD_CTX_free(mdctx);
     if (verifyRc != 1) {
         EVP_PKEY_free(peerIdPub);
-        return false;
+        return HandshakeOutcome::Refused;
     }
 
-    // Trust on first use. Presence is unauthenticated by design, since it is
-    // the packet that carries the handshake, so without this any host claiming
-    // a known peer's IP could hand us its own identity key and take over the
-    // session with no prompt. The first key seen for an IP is the one that
-    // stays; a different one later is either a MITM or a reinstall, and only
-    // the user can tell those apart.
-    const auto pinned = m_peerIdPub.constFind(peerIp);
+    // Past this line the payload has proved itself: whoever wrote it holds the
+    // private half of id_pub, whatever address it came from. This is the only
+    // thing in the packet worth keying anything on.
+    const QString peerId = identityIdFor(peerIdBytes);
+    if (outPeerId)
+        *outPeerId = peerId;
+
+    // Trust on first use, on the identity. The id is a digest of the key, so a
+    // pin that disagrees with the key that hashed to it means we hashed
+    // something else - unreachable, and cheaper to refuse than to reason about.
+    const auto pinned = m_peerIdPub.constFind(peerId);
     if (pinned != m_peerIdPub.constEnd() && *pinned != peerIdBytes) {
+        EVP_PKEY_free(peerIdPub);
+        return HandshakeOutcome::Refused;
+    }
+
+    // Someone else is already at this address and still has a live session. The
+    // identity above is not in doubt, so this is not a trust decision - but the
+    // address is how the interface files a peer, and handing a stranger the
+    // slot of a peer the user is talking to is the part of a takeover the user
+    // would see. Refuse the shortcut and say so; the newcomer can have its own
+    // session as soon as it turns up somewhere that is not taken.
+    const QString sitting = m_addressToId.value(observedAddress);
+    if (!sitting.isEmpty() && sitting != peerId && m_sessionKeys.contains(sitting)) {
         // presence repeats every couple of seconds, so warn once per offending
         // key instead of on every packet
-        if (m_warnedIdPub.value(peerIp) != peerIdBytes) {
-            m_warnedIdPub[peerIp] = peerIdBytes;
-            Q_EMIT peerIdentityChanged(peerIp, bytesToFingerprint(*pinned), bytesToFingerprint(peerIdBytes));
+        if (m_warnedIdPub.value(observedAddress) != peerIdBytes) {
+            m_warnedIdPub[observedAddress] = peerIdBytes;
+            Q_EMIT peerIdentityChanged(observedAddress, bytesToFingerprint(m_peerIdPub.value(sitting)), bytesToFingerprint(peerIdBytes));
         }
         EVP_PKEY_free(peerIdPub);
-        return false; // the session we already had stays live and usable
+        return HandshakeOutcome::AddressTaken; // the session we already had stays live and usable
     }
 
     EVP_PKEY *peerDhPub =
         EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, nullptr, reinterpret_cast<const unsigned char *>(peerDhBytes.constData()), peerDhBytes.size());
     if (!peerDhPub) {
         EVP_PKEY_free(peerIdPub);
-        return false;
+        return HandshakeOutcome::Refused;
     }
 
     EVP_PKEY_CTX *dctx = EVP_PKEY_CTX_new(m_dhPriv, nullptr);
     if (!dctx) {
         EVP_PKEY_free(peerDhPub);
         EVP_PKEY_free(peerIdPub);
-        return false;
+        return HandshakeOutcome::Refused;
     }
 
     // a failed derive leaves sharedSecret full of zeroes, and the session key
@@ -557,33 +643,34 @@ bool CryptoManager::processHandshake(const QString &peerIp, const QJsonObject &d
 
     if (!derived) {
         EVP_PKEY_free(peerIdPub);
-        return false;
+        return HandshakeOutcome::Refused;
     }
 
     QByteArray sessionKey = hkdfSha256(sharedSecret, QByteArrayLiteral("-v2-session"), kKeyLen);
     if (sessionKey.size() != kKeyLen) {
         cleanse(sessionKey);
         EVP_PKEY_free(peerIdPub);
-        return false;
+        return HandshakeOutcome::Refused;
     }
 
     // The key this replaces goes first: a repeat handshake with the same peer
     // would otherwise leave the previous one in the heap unwiped. Moved rather
     // than copied, so the hash ends up owning the only copy - the destructor is
     // where that one gets wiped.
-    const auto existing = m_sessionKeys.find(peerIp);
+    const auto existing = m_sessionKeys.find(peerId);
     if (existing != m_sessionKeys.end())
         cleanse(*existing);
 
-    m_sessionKeys[peerIp] = std::move(sessionKey);
-    m_peerIdPub[peerIp] = peerIdBytes;
+    m_sessionKeys[peerId] = std::move(sessionKey);
+    m_peerIdPub[peerId] = peerIdBytes;
+    noteObservedAddress(peerId, observedAddress);
     EVP_PKEY_free(peerIdPub);
-    return true;
+    return HandshakeOutcome::Established;
 }
 
-bool CryptoManager::hasSession(const QString &peerIp) const
+bool CryptoManager::hasSession(const QString &peerRef) const
 {
-    return m_sessionKeys.contains(peerIp);
+    return m_sessionKeys.contains(resolveIdentity(peerRef));
 }
 
 QString CryptoManager::fingerprint() const
@@ -591,16 +678,17 @@ QString CryptoManager::fingerprint() const
     return bytesToFingerprint(m_identityPubBytes);
 }
 
-QString CryptoManager::peerFingerprint(const QString &peerIp) const
+QString CryptoManager::peerFingerprint(const QString &peerRef) const
 {
-    if (!m_peerIdPub.contains(peerIp))
+    const QString peerId = resolveIdentity(peerRef);
+    if (!m_peerIdPub.contains(peerId))
         return QStringLiteral("?");
-    return bytesToFingerprint(m_peerIdPub.value(peerIp));
+    return bytesToFingerprint(m_peerIdPub.value(peerId));
 }
 
-SecurityLevel CryptoManager::securityLevel(const QString &peerIp, bool encryptionEnabled, bool hasPassphrase) const
+SecurityLevel CryptoManager::securityLevel(const QString &peerRef, bool encryptionEnabled, bool hasPassphrase) const
 {
-    if (!peerIp.isEmpty() && m_sessionKeys.contains(peerIp))
+    if (m_sessionKeys.contains(resolveIdentity(peerRef)))
         return SecurityLevel::E2E;
     if (encryptionEnabled && hasPassphrase)
         return SecurityLevel::Psk;
@@ -770,11 +858,11 @@ QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray 
 }
 
 // Packet HMAC
-QString CryptoManager::signPacket(const QString &peerIp, const QByteArray &payload) const
+QString CryptoManager::signPacket(const QString &peerRef, const QByteArray &payload) const
 {
     // constFind rather than value(): a copy of the session key would be one more
     // buffer holding it, and one more thing to remember to wipe.
-    const auto key = m_sessionKeys.constFind(peerIp);
+    const auto key = m_sessionKeys.constFind(resolveIdentity(peerRef));
     if (key == m_sessionKeys.constEnd())
         return QString();
 
@@ -787,11 +875,11 @@ QString CryptoManager::signPacket(const QString &peerIp, const QByteArray &paylo
     return out;
 }
 
-bool CryptoManager::verifyPacket(const QString &peerIp, const QByteArray &payload, const QString &sigB64) const
+bool CryptoManager::verifyPacket(const QString &peerRef, const QByteArray &payload, const QString &sigB64) const
 {
     // no key means nothing was verified, so the answer is no. deciding which
     // pre-session packets may pass anyway is the caller's job, not ours.
-    const auto key = m_sessionKeys.constFind(peerIp);
+    const auto key = m_sessionKeys.constFind(resolveIdentity(peerRef));
     if (key == m_sessionKeys.constEnd())
         return false;
 
@@ -806,19 +894,25 @@ bool CryptoManager::verifyPacket(const QString &peerIp, const QByteArray &payloa
 }
 
 // Replay protection
-bool CryptoManager::checkReplay(const QString &peerIp, const QString &nonceHex, double ts)
+bool CryptoManager::checkReplay(const QString &peerRef, const QString &nonceHex, double ts)
 {
     const double now = nowEpoch();
     if (std::abs(now - ts) > kReplayWindowSec)
         return false;
 
-    QHash<QString, SeenNonce> &bucket = m_seenNonces[peerIp];
+    // The identity when there is one, so moving to another interface does not
+    // hand the sender a fresh window to replay into. A stranger falls back to
+    // whatever it was called, which is the address it came from.
+    const QString peerId = resolveIdentity(peerRef);
+    const QString bucketKey = peerId.isEmpty() ? peerRef : peerId;
+
+    QHash<QString, SeenNonce> &bucket = m_seenNonces[bucketKey];
     if (bucket.contains(nonceHex))
         return false;
 
     const quint64 seq = ++m_nonceSeq;
     bucket[nonceHex] = SeenNonce{now, seq};
-    m_nonceBucketTouched[peerIp] = seq;
+    m_nonceBucketTouched[bucketKey] = seq;
 
     for (auto it = bucket.begin(); it != bucket.end();) {
         if (now - it.value().ts > kNonceCacheTtlSec)
@@ -859,7 +953,7 @@ void CryptoManager::evictOldestNoncePeers()
 {
     // One linear scan per eviction over at most kMaxNoncePeers entries. Under a
     // flood from spoofed source addresses this runs for every packet, so it does
-    // not sort - it takes the least recently used address and drops it.
+    // not sort - it takes the least recently used bucket and drops it.
     while (m_seenNonces.size() > kMaxNoncePeers && !m_nonceBucketTouched.isEmpty()) {
         auto oldest = m_nonceBucketTouched.cbegin();
         for (auto it = m_nonceBucketTouched.cbegin(); it != m_nonceBucketTouched.cend(); ++it) {
@@ -881,7 +975,7 @@ void CryptoManager::evictOldestNoncePeers()
 }
 
 // Rate limiting
-bool CryptoManager::checkRate(const QString &peerIp, int maxPerSec)
+bool CryptoManager::checkRate(const QString &sourceAddress, int maxPerSec)
 {
     const double now = nowEpoch();
 
@@ -897,7 +991,7 @@ bool CryptoManager::checkRate(const QString &peerIp, int maxPerSec)
         }
     }
 
-    QVector<double> &window = m_rateCounters[peerIp];
+    QVector<double> &window = m_rateCounters[sourceAddress];
 
     QVector<double> kept;
     kept.reserve(window.size());
@@ -919,14 +1013,14 @@ bool CryptoManager::checkRate(const QString &peerIp, int maxPerSec)
 //   type[1] + payload
 //   0x01 = AES-GCM with ECDH session key  (payload = nonce+ciphertext+tag)
 //   0x02 = AES-GCM with PBKDF2 passphrase key (payload = salt[32]+nonce+ciphertext+tag)
-QString CryptoManager::encrypt(const QString &plaintext, const QString &passphrase, const QString &peerIp) const
+QString CryptoManager::encrypt(const QString &plaintext, const QString &passphrase, const QString &peerRef) const
 {
     const QByteArray data = plaintext.toUtf8();
 
     // an empty return says "could not seal this", never "here it is in the
     // clear", so a broken salt or cipher cannot leak the message
     QByteArray wire;
-    const auto sessionKey = peerIp.isEmpty() ? m_sessionKeys.constEnd() : m_sessionKeys.constFind(peerIp);
+    const auto sessionKey = m_sessionKeys.constFind(resolveIdentity(peerRef));
     if (sessionKey != m_sessionKeys.constEnd()) {
         const QByteArray sealed = gcmEncrypt(*sessionKey, data);
         if (sealed.isEmpty())
@@ -953,12 +1047,13 @@ QString CryptoManager::encrypt(const QString &plaintext, const QString &passphra
     return QStringLiteral("KNC1:") + QString::fromLatin1(wire.toBase64());
 }
 
-QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphrase, const QString &peerIp) const
+QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphrase, const QString &peerRef) const
 {
     // whether this text was supposed to arrive sealed is decided by the keys
     // we hold, not by anything the sender put in the packet. otherwise
     // stripping the tag is all it takes to downgrade a session to cleartext.
-    const bool expectSealed = (!peerIp.isEmpty() && m_sessionKeys.contains(peerIp)) || !passphrase.isEmpty();
+    const QString peerId = resolveIdentity(peerRef);
+    const bool expectSealed = m_sessionKeys.contains(peerId) || !passphrase.isEmpty();
 
     if (!ciphertext.startsWith(QStringLiteral("KNC1:"))) {
         if (expectSealed)
@@ -977,7 +1072,7 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
     bool ok = false;
 
     if (type == 0x01) {
-        const auto sessionKey = peerIp.isEmpty() ? m_sessionKeys.constEnd() : m_sessionKeys.constFind(peerIp);
+        const auto sessionKey = m_sessionKeys.constFind(peerId);
         if (sessionKey != m_sessionKeys.constEnd())
             ok = gcmDecrypt(*sessionKey, payload, &plain);
     } else if (type == 0x02) {
@@ -996,20 +1091,20 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
 }
 
 // Raw byte encryption (voice)
-QByteArray CryptoManager::encryptBytes(const QString &peerIp, const QByteArray &plaintext) const
+QByteArray CryptoManager::encryptBytes(const QString &peerRef, const QByteArray &plaintext) const
 {
     // empty means "not encrypted", and the caller has to drop the frame. voice
     // in the clear is not a graceful degradation, it is the bug.
-    const auto key = m_sessionKeys.constFind(peerIp);
+    const auto key = m_sessionKeys.constFind(resolveIdentity(peerRef));
     if (key == m_sessionKeys.constEnd())
         return {};
 
     return gcmEncrypt(*key, plaintext); // nonce+ciphertext+tag
 }
 
-bool CryptoManager::decryptBytes(const QString &peerIp, const QByteArray &data, QByteArray *outPlain) const
+bool CryptoManager::decryptBytes(const QString &peerRef, const QByteArray &data, QByteArray *outPlain) const
 {
-    const auto key = m_sessionKeys.constFind(peerIp);
+    const auto key = m_sessionKeys.constFind(resolveIdentity(peerRef));
     if (key == m_sessionKeys.constEnd())
         return false; // unkeyed frames are not audio we are willing to play
 

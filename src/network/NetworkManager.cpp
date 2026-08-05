@@ -15,6 +15,8 @@
 #include <QNetworkInterface>
 #include <QRandomGenerator>
 
+#include <utility> // std::move, sendUdp() hands its payload on
+
 // TODO: AppSettings exists now, so the unfinished paths below can be wired to
 // it: static peer list, connection mode, relay credentials. The group
 // passphrase and CryptoManager already arrive through the constructor.
@@ -461,6 +463,11 @@ void NetworkManager::pruneStalePeers()
             stale.append(it.key());
     }
     for (const auto &ip : stale) {
+        const QString peerId = m_peers.value(ip).value(QStringLiteral("from_id")).toString();
+        // Or the next presence packet from this peer would be filed under an
+        // address that is no longer in the table, and it would never come back.
+        if (!peerId.isEmpty() && m_peerKeyById.value(peerId) == ip)
+            m_peerKeyById.remove(peerId);
         m_peers.remove(ip);
         Q_EMIT userOffline(ip);
     }
@@ -520,38 +527,61 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
     // in the first presence packet succeeded, every later presence packet from
     // that peer failed this check, the peer went stale after 25 seconds, and
     // the session key that caused it kept it away for good. What stands behind
-    // a presence packet is the identity pin in CryptoManager::processHandshake,
-    // not an HMAC.
+    // a presence packet is the identity pin in CryptoManager, not an HMAC.
+    //
+    // Which session, though, is a question about identity and not about where
+    // the datagram came from. The source address used to be the answer, and on
+    // any host with a VPN up it is the wrong one: the sender's session was
+    // established over the address it advertised and the packet arrives from the
+    // tunnel, so the lookup found nothing and a perfectly good message was
+    // dropped as unauthenticated. Both the address and from_id are hints; the
+    // HMAC below is what settles it, since only the holder of that session key
+    // can produce one.
+    QString peerId;
     if (m_crypto && !type.isEmpty() && !allowedUnsigned(type)) {
-        if (!m_crypto->hasSession(host)) {
+        const QString claimed = msg.value(QStringLiteral("from_id")).toString();
+        peerId = m_crypto->hasSession(claimed) ? claimed : m_crypto->identityForAddress(host);
+        if (!m_crypto->hasSession(peerId)) {
             Q_EMIT errorOccurred(i18nc("@info:status %1 is a message type, %2 a host address", "Unauthenticated %1 from %2 - dropping.", type, host));
             return;
         }
         const QString sig = msg.value(QStringLiteral("_sig")).toString();
-        if (sig.isEmpty() || !m_crypto->verifyPacket(host, signableBytes(msg), sig)) {
+        if (sig.isEmpty() || !m_crypto->verifyPacket(peerId, signableBytes(msg), sig)) {
             Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address", "HMAC verification failed from %1 - dropping.", host));
             return;
         }
 
-        // Layer 5 - replay guard. Only presence used to get one, so a captured
-        // packet of any other type could be resent forever: the nonce and the
-        // timestamp are inside the signature, so replaying the whole thing
-        // verifies as happily as the original did.
+        // Layer 5 - replay guard, on the identity. Only presence used to get one
+        // at all, so a captured packet of any other type could be resent
+        // forever: the nonce and the timestamp are inside the signature, so
+        // replaying the whole thing verifies as happily as the original did.
         const QString nonce = msg.value(QStringLiteral("nonce")).toString();
-        if (!nonce.isEmpty() && !m_crypto->checkReplay(host, nonce, msg.value(QStringLiteral("ts")).toDouble())) {
+        if (!nonce.isEmpty() && !m_crypto->checkReplay(peerId, nonce, msg.value(QStringLiteral("ts")).toDouble())) {
             return; // replayed or outside the timestamp window
         }
+
+        // from_ip is where the sender believes it lives, which is one of several
+        // on a multi-homed host and is not what the peer is filed under here.
+        // The interface routes a message to a chat by this field, so handing it
+        // the sender's preference lands the message in a chat with nobody in it.
+        const QString filedAs = m_peerKeyById.value(peerId);
+        if (!filedAs.isEmpty())
+            msg[QStringLiteral("from_ip")] = filedAs;
+        msg[QStringLiteral("from_id")] = peerId;
     }
 
     if (type == protocol::kMsgPresence) {
         handlePresence(host, msg);
     } else if (type == protocol::kMsgChat || type == protocol::kMsgGroup || type == protocol::kMsgReaction || type == protocol::kMsgEdit
                || type == protocol::kMsgDelete || type == protocol::kMsgRead) {
-        decryptMessageText(host, msg);
+        decryptMessageText(peerId, msg);
         Q_EMIT message(msg);
     } else if (type == protocol::kMsgPrivate) {
-        if (msg.value(QStringLiteral("to")).toString() == m_hostIp) {
-            decryptMessageText(host, msg);
+        // Against every address of ours and not just the primary one: the sender
+        // addressed this to whichever of them it knows, and comparing with
+        // m_hostIp alone dropped it without a word on any multi-homed machine.
+        if (myIps.contains(msg.value(QStringLiteral("to")).toString())) {
+            decryptMessageText(peerId, msg);
             Q_EMIT message(msg);
         }
     } else if (type == protocol::kMsgCallReq) {
@@ -574,7 +604,7 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
     }
 }
 
-void NetworkManager::decryptMessageText(const QString &fromIp, QJsonObject &msg) const
+void NetworkManager::decryptMessageText(const QString &peerRef, QJsonObject &msg) const
 {
     // Reactions, receipts and deletes share this dispatch path but carry no
     // body, and inventing a "text" field for them would confuse the UI.
@@ -585,52 +615,73 @@ void NetworkManager::decryptMessageText(const QString &fromIp, QJsonObject &msg)
     // it was enough to have the text handed to the UI unchecked. What matters
     // is whether we hold a key for this channel; decrypt() refuses cleartext
     // once we do.
-    if (!m_crypto->hasSession(fromIp) && m_groupPassphrase.isEmpty())
+    if (!m_crypto->hasSession(peerRef) && m_groupPassphrase.isEmpty())
         return;
 
     const QString cipherText = msg.value(QStringLiteral("text")).toString();
     // decrypt() picks the path from the tag byte, so handing it both the
     // passphrase and the peer covers session and group traffic alike.
-    const QString plain = m_crypto->decrypt(cipherText, m_groupPassphrase, fromIp);
+    const QString plain = m_crypto->decrypt(cipherText, m_groupPassphrase, peerRef);
     msg[QStringLiteral("text")] = plain;
 }
 
 void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
 {
-    QString ip = msg.value(QStringLiteral("ip")).toString(host);
+    // What the peer says about itself. Only ever a delivery candidate from here
+    // on: a host at one address can advertise any other, and pinning or listing
+    // a peer at an address of its own choosing is how that turns into a lie the
+    // interface repeats.
+    const QString advertised = msg.value(QStringLiteral("ip")).toString();
     const QSet<QString> myIps = m_localIps.isEmpty() ? QSet<QString>{m_hostIp} : m_localIps;
-    if (myIps.contains(ip) || myIps.contains(host))
+    if (myIps.contains(advertised) || myIps.contains(host))
         return;
+    if (host.isEmpty() || host == QLatin1String("0.0.0.0"))
+        return; // nowhere to file it and nowhere to answer
 
-    if (host != ip && !host.isEmpty() && host != QLatin1String("0.0.0.0"))
-        msg[QStringLiteral("source_ip")] = host;
-
-    // Layer 5 - replay guard on presence packets (nonce + timestamp window).
+    QString peerId;
     if (m_crypto) {
+        // ECDH handshake first, because it is what turns this packet into an
+        // identity: the replay bucket below belongs to that identity, and keying
+        // it on the address instead let the same captured packet be replayed
+        // once per source address an attacker felt like using.
+        if (msg.contains(QStringLiteral("dh_pub"))) {
+            // Someone new at an address a peer we still hold a session with is
+            // using. CryptoManager refuses it, and the peer record has to
+            // survive it too - it is where the interface reads the name and the
+            // fingerprint it shows beside the warning, and letting the refused
+            // packet rewrite those hands the spoofer the only part of the
+            // takeover the user can see.
+            if (m_crypto->processHandshakeFrom(host, msg, &peerId) == CryptoManager::HandshakeOutcome::AddressTaken)
+                return;
+        }
+
+        // Layer 5 - replay guard on presence packets (nonce + timestamp window).
         const QString nonce = msg.value(QStringLiteral("nonce")).toString();
         const double ts = msg.value(QStringLiteral("ts")).toDouble();
-        if (!nonce.isEmpty() && !m_crypto->checkReplay(ip, nonce, ts))
+        if (!nonce.isEmpty() && !m_crypto->checkReplay(peerId.isEmpty() ? host : peerId, nonce, ts))
             return; // replayed presence packet
-
-        // ECDH handshake - derives (or refreshes) the session key with this peer.
-        // A refusal for an address we already hold a session for is the
-        // impostor case in CryptoManager::processHandshake: someone claiming a
-        // known peer's address with an identity key of their own. The session
-        // and the pin survive that, but the peer record has to survive it too -
-        // it is where the interface reads the name and the fingerprint it shows
-        // beside the warning, and letting the refused packet rewrite those
-        // hands the spoofer the only part of the takeover the user can see.
-        if (msg.contains(QStringLiteral("dh_pub")) && !m_crypto->processHandshake(ip, msg) && m_crypto->hasSession(ip)) {
-            return;
-        }
     }
 
-    const bool isNew = !m_peers.contains(ip);
+    // One entry per identity, filed under the address we first heard it on. A
+    // multi-homed peer broadcasts on every interface it has, and two contacts
+    // for one person is worse than the listed address not being its newest -
+    // the other ones are remembered as delivery candidates either way, see
+    // deliveryAddresses().
+    const QString key = m_peerKeyById.value(peerId, host);
+    msg[QStringLiteral("ip")] = key;
+    if (!advertised.isEmpty() && advertised != key)
+        msg[QStringLiteral("advertised_ip")] = advertised;
+    if (!peerId.isEmpty())
+        msg[QStringLiteral("from_id")] = peerId;
+
+    const bool isNew = !m_peers.contains(key);
     msg[QStringLiteral("last_seen")] = nowEpoch();
-    // TODO: msg["conn_type"] = detectConnectionType(ip);
+    // TODO: msg["conn_type"] = detectConnectionType(key);
     if (m_crypto)
-        msg[QStringLiteral("e2e")] = m_crypto->hasSession(ip);
-    m_peers[ip] = msg;
+        msg[QStringLiteral("e2e")] = m_crypto->hasSession(peerId.isEmpty() ? host : peerId);
+    m_peers[key] = msg;
+    if (!peerId.isEmpty())
+        m_peerKeyById[peerId] = key;
 
     if (isNew)
         Q_EMIT userOnline(msg);
@@ -854,6 +905,11 @@ void NetworkManager::scheduleRelayReconnect()
 // outgoing
 void NetworkManager::sendUdp(QJsonObject payload, const QString &targetIp)
 {
+    sendUdpToAll(std::move(payload), targetIp.isEmpty() ? QVector<QString>{} : QVector<QString>{targetIp});
+}
+
+void NetworkManager::sendUdpToAll(QJsonObject payload, const QVector<QString> &targets)
+{
     if (!m_udp)
         return;
 
@@ -862,24 +918,73 @@ void NetworkManager::sendUdp(QJsonObject payload, const QString &targetIp)
         payload[QStringLiteral("nonce")] = randomHex(8);
         payload[QStringLiteral("ts")] = nowEpoch();
 
+        // Who this is from, so the far side can find the session even when the
+        // route sends this out of an interface it has never seen us on. Added
+        // before the signature, so it is a claim until the HMAC agrees with it.
+        if (m_crypto)
+            payload[QStringLiteral("from_id")] = m_crypto->ownIdentityId();
+
         // Layer 4 - HMAC-sign unicast packets once a session key exists with
-        // the target (broadcasts have no single peer session to sign for).
-        if (m_crypto && !targetIp.isEmpty() && m_crypto->hasSession(targetIp)) {
-            const QByteArray payloadBytes = signableBytes(payload);
-            payload[QStringLiteral("_sig")] = m_crypto->signPacket(targetIp, payloadBytes);
+        // the target (broadcasts have no single peer session to sign for). One
+        // signature for the whole set: these addresses are one peer holding one
+        // session key, so a copy per interface needs no extra signing and every
+        // copy verifies wherever it lands.
+        QString peerId;
+        for (const QString &target : targets) {
+            peerId = m_crypto ? m_crypto->identityForAddress(target) : QString();
+            if (!peerId.isEmpty())
+                break;
         }
+        if (!peerId.isEmpty())
+            payload[QStringLiteral("_sig")] = m_crypto->signPacket(peerId, signableBytes(payload));
     }
 
     const QByteArray data = QJsonDocument(payload).toJson(QJsonDocument::Compact);
 
     if (m_internetMode) {
+        // The relay forwards by the addresses in the payload, so one copy is
+        // the whole delivery however many interfaces the peer has.
         if (m_relaySocket && m_relayConnected)
             m_relaySocket->write(lengthPrefix(quint32(data.size())) + data);
-    } else if (!targetIp.isEmpty()) {
-        m_udp->writeDatagram(data, QHostAddress(targetIp), protocol::kUdpPortDefault);
+    } else if (!targets.isEmpty()) {
+        for (const QString &target : targets)
+            m_udp->writeDatagram(data, QHostAddress(target), protocol::kUdpPortDefault);
     } else {
         m_udp->writeDatagram(data, QHostAddress::Broadcast, protocol::kUdpPortDefault);
     }
+}
+
+QVector<QString> NetworkManager::deliveryAddresses(const QString &toIp) const
+{
+    QVector<QString> targets;
+    if (!toIp.isEmpty())
+        targets.append(toIp);
+
+    // Addresses a signed packet has actually arrived from come first: one of
+    // those is worth more than anything the peer claims about itself.
+    if (m_crypto) {
+        const QString peerId = m_crypto->identityForAddress(toIp);
+        const auto observed = m_crypto->addressesFor(peerId);
+        for (const QString &addr : observed) {
+            if (targets.size() >= kMaxDeliveryAddresses)
+                return targets;
+            if (!addr.isEmpty() && !targets.contains(addr) && !m_localIps.contains(addr))
+                targets.append(addr);
+        }
+    }
+
+    // Then the ones it advertised, which are guesses - and the reason for the
+    // cap, since the list arrives over the network at whatever length the sender
+    // felt like sending.
+    const auto altIps = m_peers.value(toIp).value(QStringLiteral("all_ips")).toArray();
+    for (const auto &v : altIps) {
+        if (targets.size() >= kMaxDeliveryAddresses)
+            break;
+        const QString altIp = v.toString();
+        if (!altIp.isEmpty() && !targets.contains(altIp) && !m_localIps.contains(altIp))
+            targets.append(altIp);
+    }
+    return targets;
 }
 
 void NetworkManager::sendPrivate(const QString &text, const QString &toIp)
@@ -905,16 +1010,13 @@ void NetworkManager::sendPrivate(const QString &text, const QString &toIp)
     payload[QStringLiteral("to")] = toIp;
     payload[QStringLiteral("from_ip")] = m_hostIp;
     payload[QStringLiteral("encrypted")] = encrypted;
-    sendUdp(payload, toIp);
 
-    // Also send to alternate IPs the peer reported (VPN/LAN redundancy)
-    const auto peerInfo = m_peers.value(toIp);
-    const auto altIps = peerInfo.value(QStringLiteral("all_ips")).toArray();
-    for (const auto &v : altIps) {
-        const QString altIp = v.toString();
-        if (altIp != toIp && !m_localIps.contains(altIp))
-            sendUdp(payload, altIp);
-    }
+    // One signed datagram, copied to every address this peer answers on - which
+    // is the LAN one and the VPN one on any host running both. It used to be a
+    // separate sendUdp() per address, and since the signature was made for the
+    // address it was aimed at, every copy but the first went out unsigned and
+    // was dropped by a correct receiver.
+    sendUdpToAll(payload, deliveryAddresses(toIp));
 }
 
 void NetworkManager::sendGroupMessage(const QString &gid, const QString &text, const QVector<QString> &members)

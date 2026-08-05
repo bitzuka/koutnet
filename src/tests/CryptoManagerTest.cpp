@@ -27,6 +27,9 @@ const QString kPeer = QStringLiteral("192.0.2.10");
 // The two addresses each side of a session believes the other one lives at.
 const QString kIpA = QStringLiteral("192.0.2.1");
 const QString kIpB = QStringLiteral("192.0.2.2");
+// A third address, for the peer at kIpB turning up somewhere else - a VPN
+// coming up, which is one interface more and the same person.
+const QString kIpC = QStringLiteral("192.0.2.3");
 
 // Two managers exchanging their real handshake payloads, which is what the
 // presence packet carries between two running instances.
@@ -450,6 +453,111 @@ private Q_SLOTS:
 
         // The real peer is still welcome.
         QVERIFY(a.processHandshake(kIpB, b.handshakePayload()));
+    }
+
+    // The session belongs to the identity key, not to the address the handshake
+    // happened over. Before this, a peer that sent from a second interface was a
+    // stranger, and everything it sent was dropped as unauthenticated.
+    void sessionsFollowTheIdentityNotTheAddress()
+    {
+        CryptoManager a(QStringLiteral("peer-a"));
+        CryptoManager b(QStringLiteral("peer-b"));
+        QVERIFY(pairUp(a, b));
+
+        const QString bId = a.identityForAddress(kIpB);
+        QVERIFY2(!bId.isEmpty(), "the handshake left no way to look the peer up by address");
+        QCOMPARE(bId, b.ownIdentityId());
+
+        const QByteArray payload = QByteArrayLiteral("{\"text\":\"hi\",\"type\":\"chat\"}");
+        const QString sig = b.signPacket(kIpA, payload);
+        QVERIFY(!sig.isEmpty());
+        QVERIFY2(a.verifyPacket(bId, payload, sig), "a signature could not be checked against the identity that made it");
+
+        // An address on its own still resolves to nothing, which is the point of
+        // calling it a hint: it neither grants nor denies anything by itself.
+        QVERIFY(a.identityForAddress(kIpC).isEmpty());
+        QVERIFY(!a.verifyPacket(kIpC, payload, sig));
+
+        // One handshake from the new interface and the address resolves as well,
+        // while the session, the pin and the old address are all untouched.
+        QVERIFY(a.processHandshake(kIpC, b.handshakePayload()));
+        QCOMPARE(a.identityForAddress(kIpC), bId);
+        QVERIFY(a.verifyPacket(kIpC, payload, sig));
+        QVERIFY(a.hasSession(kIpB));
+        QCOMPARE(a.peerFingerprint(kIpB), b.fingerprint());
+        const QStringList seen = a.addressesFor(bId);
+        QVERIFY(seen.contains(kIpB));
+        QVERIFY(seen.contains(kIpC));
+    }
+
+    void replayStateFollowsTheIdentity()
+    {
+        CryptoManager a(QStringLiteral("peer-a"));
+        CryptoManager b(QStringLiteral("peer-b"));
+        QVERIFY(pairUp(a, b));
+        const double now = QDateTime::currentMSecsSinceEpoch() / 1000.0;
+        const QString bId = a.identityForAddress(kIpB);
+
+        QVERIFY(a.checkReplay(kIpB, QStringLiteral("n1"), now));
+        QVERIFY2(!a.checkReplay(bId, QStringLiteral("n1"), now), "the address and the identity had separate replay buckets");
+
+        // The same captured nonce arriving from the peer's other interface, which
+        // used to be a fresh bucket and one free replay per address.
+        QVERIFY(a.processHandshake(kIpC, b.handshakePayload()));
+        QVERIFY2(!a.checkReplay(kIpC, QStringLiteral("n1"), now), "a captured packet was accepted again from another address");
+    }
+
+    // The impostor case at this level: the identity key is public, it goes out in
+    // every presence packet, so anyone can put a peer's id_pub in a handshake.
+    // What they cannot do is sign the DH key with it.
+    void aforgedSignatureUnderAKnownIdentityIsRefused()
+    {
+        CryptoManager a(QStringLiteral("peer-a"));
+        CryptoManager b(QStringLiteral("peer-b"));
+        QVERIFY(pairUp(a, b));
+        const QString bId = a.identityForAddress(kIpB);
+        const QString pinned = a.peerFingerprint(bId);
+
+        ForgedPeer forged;
+        QVERIFY2(forged.generate(), "could not build the forged identity, the test proves nothing");
+
+        QJsonObject fake = b.handshakePayload();
+        const QByteArray dh = QByteArray::fromBase64(fake.value(QStringLiteral("dh_pub")).toString().toLatin1());
+        QVERIFY(!dh.isEmpty());
+        fake[QStringLiteral("dh_pub_sig")] = QString::fromLatin1(forged.sign(dh).toBase64());
+
+        QVERIFY2(!a.processHandshake(kIpC, fake), "a handshake signed by the wrong key was accepted under a known identity");
+        QCOMPARE(a.peerFingerprint(bId), pinned);
+        QVERIFY(a.hasSession(kIpB));
+        QVERIFY2(a.identityForAddress(kIpC).isEmpty(), "an unproven packet taught the address index something");
+    }
+
+    // An address changing hands is refused while the peer sitting there is still
+    // live, because that slot is what the interface shows the user. It is not a
+    // verdict on the newcomer's identity, and anywhere else it is welcome.
+    void anAddressChangingHandsIsRefusedButTheNewcomerIsNot()
+    {
+        CryptoManager a(QStringLiteral("peer-a"));
+        CryptoManager b(QStringLiteral("peer-b"));
+        QVERIFY(pairUp(a, b));
+
+        CryptoManager newcomer(QStringLiteral("peer-newcomer"));
+        QString who;
+        QVERIFY2(a.processHandshakeFrom(kIpB, newcomer.handshakePayload(), &who) == CryptoManager::HandshakeOutcome::AddressTaken,
+                 "a stranger was let into an address a live peer is using");
+        QCOMPARE(who, newcomer.ownIdentityId());
+        QVERIFY(!a.hasSession(who));
+        QCOMPARE(a.identityForAddress(kIpB), b.ownIdentityId());
+
+        who.clear();
+        QVERIFY2(a.processHandshakeFrom(kIpC, newcomer.handshakePayload(), &who) == CryptoManager::HandshakeOutcome::Established,
+                 "the same peer was refused at an address nobody was using");
+        QCOMPARE(who, newcomer.ownIdentityId());
+        QVERIFY(a.hasSession(who));
+        QVERIFY(a.hasSession(kIpC));
+        // And the peer that was there all along is exactly where it was.
+        QVERIFY(a.hasSession(kIpB));
+        QCOMPARE(a.peerFingerprint(kIpB), b.fingerprint());
     }
 
     void handshakeRefusesJunk_data()

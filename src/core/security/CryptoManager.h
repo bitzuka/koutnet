@@ -4,8 +4,14 @@
 //
 // X25519 ECDH exchange with an Ed25519-signed identity, AES-256-GCM on
 // messages, a PBKDF2-SHA256 passphrase overlay for groups, HMAC-SHA256 on
-// control packets, a replay window over nonce and timestamp, and per-IP
+// control packets, a replay window over nonce and timestamp, and per-address
 // rate limiting.
+//
+// A peer is an Ed25519 identity key, never an address. Sessions, the trust-on-
+// first-use pin and the replay state all hang off that key, because a host has
+// as many addresses as it has interfaces - bring a VPN up and a message signed
+// with the session we established over the LAN arrives from the tunnel instead.
+// Addresses are kept as an index into that state and nothing more.
 #pragma once
 
 #include <QByteArray>
@@ -13,6 +19,7 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 
 typedef struct evp_pkey_st EVP_PKEY;
@@ -51,8 +58,13 @@ public:
     static constexpr int kMaxNoncesPerPeer = 4096;
     static constexpr int kMaxNoncePeers = 256;
     // Same again for the rate-limit windows, which are keyed on source address
-    // too and would otherwise be the way around the cap above.
+    // and would otherwise be the way around the cap above.
     static constexpr int kMaxRatePeers = 1024;
+    // How many addresses one identity is remembered at. A multi-homed host has
+    // a LAN address, a VPN address and on a bad day a second NIC; past that it
+    // is a peer walking the index rather than a peer with interfaces, so the
+    // oldest entry goes.
+    static constexpr int kMaxPeerAddresses = 8;
 
     explicit CryptoManager(QObject *parent = nullptr);
     // Same thing with its identity kept under a suffix of its own, in the
@@ -70,41 +82,76 @@ public:
         return m_valid;
     }
 
+    // Peer identity
+    // Every peerRef below is either an identity id - what identityIdFor()
+    // returns, and what all the state here is keyed on - or an address, which
+    // is looked up in the address index and may simply not be there. An
+    // address resolves to whatever identity was last seen using it and nothing
+    // more: it names a peer, it never authenticates one.
+    static QString identityIdFor(const QByteArray &idPubRaw);
+    QString ownIdentityId() const;
+    // Empty when this address has never carried a verified handshake. Callers
+    // treat that as "no idea who this is", not as "not to be trusted".
+    QString identityForAddress(const QString &address) const;
+    // Newest first, capped at kMaxPeerAddresses. Only addresses datagrams have
+    // actually arrived from are in here; what a peer advertises about itself is
+    // not evidence of anything and stays out.
+    QStringList addressesFor(const QString &peerId) const;
+
     // Handshake
+    // Refused: malformed, or the Ed25519 signature over dh_pub did not check
+    // out, so nothing was learned. AddressTaken: the identity is sound but
+    // another identity we still hold a session with is using that address, see
+    // peerIdentityChanged. Established: session derived or refreshed.
+    enum class HandshakeOutcome {
+        Refused,
+        AddressTaken,
+        Established,
+    };
     QJsonObject handshakePayload() const;
-    bool processHandshake(const QString &peerIp, const QJsonObject &data);
-    bool hasSession(const QString &peerIp) const;
+    // outPeerId is filled in whenever the payload proved its own identity, which
+    // includes the AddressTaken case - the caller needs to know who showed up.
+    HandshakeOutcome processHandshakeFrom(const QString &observedAddress, const QJsonObject &data, QString *outPeerId = nullptr);
+    bool processHandshake(const QString &observedAddress, const QJsonObject &data);
+    bool hasSession(const QString &peerRef) const;
 
     QString fingerprint() const;
-    QString peerFingerprint(const QString &peerIp) const;
-    SecurityLevel securityLevel(const QString &peerIp, bool encryptionEnabled, bool hasPassphrase) const;
+    QString peerFingerprint(const QString &peerRef) const;
+    SecurityLevel securityLevel(const QString &peerRef, bool encryptionEnabled, bool hasPassphrase) const;
 
     // Packet HMAC
-    QString signPacket(const QString &peerIp, const QByteArray &payload) const;
-    bool verifyPacket(const QString &peerIp, const QByteArray &payload, const QString &sigB64) const;
+    QString signPacket(const QString &peerRef, const QByteArray &payload) const;
+    bool verifyPacket(const QString &peerRef, const QByteArray &payload, const QString &sigB64) const;
 
     // Replay / rate limiting
-    bool checkReplay(const QString &peerIp, const QString &nonceHex, double ts);
-    bool checkRate(const QString &peerIp, int maxPerSec = 200);
+    // The replay bucket belongs to the identity, so a captured packet is no
+    // fresher for being resent from somewhere else. An unresolvable peerRef
+    // gets a bucket of its own under that name, which is what unauthenticated
+    // presence from a stranger gets.
+    bool checkReplay(const QString &peerRef, const QString &nonceHex, double ts);
+    // Deliberately still keyed on the source address: this one runs before
+    // anything is known about who sent the packet, which is the point of it.
+    bool checkRate(const QString &sourceAddress, int maxPerSec = 200);
 
     // Message encryption (text, base64-wrapped wire format)
-    QString encrypt(const QString &plaintext, const QString &passphrase = QString(), const QString &peerIp = QString()) const;
-    QString decrypt(const QString &ciphertext, const QString &passphrase = QString(), const QString &peerIp = QString()) const;
+    QString encrypt(const QString &plaintext, const QString &passphrase = QString(), const QString &peerRef = QString()) const;
+    QString decrypt(const QString &ciphertext, const QString &passphrase = QString(), const QString &peerRef = QString()) const;
 
     // Raw byte encryption (voice frames - no base64/JSON overhead)
     // Both refuse to work without a session: encryptBytes returns an empty
     // array and decryptBytes returns false, and the caller drops the frame.
-    QByteArray encryptBytes(const QString &peerIp, const QByteArray &plaintext) const;
-    bool decryptBytes(const QString &peerIp, const QByteArray &data, QByteArray *outPlain) const;
+    QByteArray encryptBytes(const QString &peerRef, const QByteArray &plaintext) const;
+    bool decryptBytes(const QString &peerRef, const QByteArray &data, QByteArray *outPlain) const;
 
 Q_SIGNALS:
-    // A handshake presented an identity key that does not match the one
-    // already pinned for this IP. The handshake was refused and the existing
-    // session left alone, so this is a warning, not a state change: either
-    // someone is impersonating the peer, or the peer reinstalled and lost its
-    // keys. The UI should show both fingerprints and let the user decide
-    // (clearing the pin is not implemented yet).
-    void peerIdentityChanged(const QString &peerIp, const QString &oldFingerprint, const QString &newFingerprint);
+    // Someone new turned up at an address a peer we still hold a session with
+    // is using. Not a broken pin any more - the pin is on the identity key, and
+    // that one cannot be argued with - but the peer's slot in the contact list
+    // is the visible half of a takeover, so the handshake is refused and the
+    // existing session left alone. Either an impostor, or the peer reinstalled
+    // and lost its keys. The UI should show both fingerprints and let the user
+    // decide (clearing the pin is not implemented yet).
+    void peerIdentityChanged(const QString &address, const QString &oldFingerprint, const QString &newFingerprint);
 
     // KWallet has the private keys, but the plaintext copy an older build left
     // in the config file could not be deleted, so it is still readable on disk.
@@ -136,6 +183,12 @@ private:
     // Drops the least recently used peer buckets until the replay cache is back
     // inside kMaxNoncePeers. Called only when it is over.
     void evictOldestNoncePeers();
+    // An identity id passes through; anything else is looked up in the address
+    // index. Empty means nobody here knows this peer.
+    QString resolveIdentity(const QString &peerRef) const;
+    // Files an address under an identity. Called from the handshake only, so
+    // what lands here is an address a signed payload actually arrived from.
+    void noteObservedAddress(const QString &peerId, const QString &address);
 
     const QString m_storageScope;
     bool m_valid = false;
@@ -155,13 +208,18 @@ private:
         quint64 seq = 0;
     };
 
-    QHash<QString, QByteArray> m_sessionKeys; // peer ip -> 32-byte session key
-    QHash<QString, QByteArray> m_peerIdPub; // peer ip -> raw Ed25519 pubkey
-    QHash<QString, QByteArray> m_warnedIdPub; // peer ip -> key we last warned about
-    QHash<QString, QHash<QString, SeenNonce>> m_seenNonces; // peer ip -> nonce -> when
-    QHash<QString, quint64> m_nonceBucketTouched; // peer ip -> its newest seq
+    QHash<QString, QByteArray> m_sessionKeys; // identity id -> 32-byte session key
+    QHash<QString, QByteArray> m_peerIdPub; // identity id -> raw Ed25519 pubkey
+    // The index, and the only address-keyed trust-adjacent state left. It is a
+    // hint for resolving an incoming datagram, so a wrong entry costs a failed
+    // HMAC check and nothing else.
+    QHash<QString, QString> m_addressToId; // address -> identity id
+    QHash<QString, QStringList> m_idToAddresses; // identity id -> addresses, newest first
+    QHash<QString, QByteArray> m_warnedIdPub; // address -> key we last warned about
+    QHash<QString, QHash<QString, SeenNonce>> m_seenNonces; // identity id -> nonce -> when
+    QHash<QString, quint64> m_nonceBucketTouched; // identity id -> its newest seq
     quint64 m_nonceSeq = 0; // arrivals, ever
-    QHash<QString, QVector<double>> m_rateCounters; // peer ip -> recent timestamps
+    QHash<QString, QVector<double>> m_rateCounters; // source address -> recent timestamps
 
     // sha256(salt + passphrase) -> key. Keyed on a digest rather than on the
     // passphrase itself, which used to keep the plaintext alive here for as

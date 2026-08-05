@@ -37,6 +37,13 @@ namespace
 // look like our own broadcast echoed back and get it dropped for that reason
 // instead of the one the test is about.
 const QString kPeerIp = QStringLiteral("198.51.100.7");
+// A second address the same peer sends from. This is the whole bug: discovery
+// happens over one interface, a VPN comes up, and the message leaves by the
+// other one - same peer, same session, different source address.
+const QString kPeerAltIp = QStringLiteral("198.51.100.8");
+// Somewhere else entirely, for a second peer that is not pretending to be the
+// first one at the first one's address.
+const QString kOtherIp = QStringLiteral("198.51.100.20");
 // The label the peer files its session with us under. Session keys are looked
 // up by string; both sides derived the same one, so what it is called on the
 // far side does not matter.
@@ -67,11 +74,11 @@ QByteArray toDatagram(const QJsonObject &obj)
 }
 
 // A presence packet as the peer would broadcast it, handshake bundle included.
-QJsonObject presenceFrom(const CryptoManager &peer, const QString &username = QStringLiteral("peer"))
+QJsonObject presenceFrom(const CryptoManager &peer, const QString &username = QStringLiteral("peer"), const QString &ip = kPeerIp)
 {
     QJsonObject o = peer.handshakePayload();
     o[QStringLiteral("type")] = protocol::kMsgPresence;
-    o[QStringLiteral("ip")] = kPeerIp;
+    o[QStringLiteral("ip")] = ip;
     o[QStringLiteral("ts")] = nowEpoch();
     o[QStringLiteral("nonce")] = freshNonce();
     o[QStringLiteral("username")] = username;
@@ -84,6 +91,10 @@ QJsonObject signedPacket(const CryptoManager &peer, QJsonObject o, double ts = -
 {
     o[QStringLiteral("nonce")] = freshNonce();
     o[QStringLiteral("ts")] = ts < 0.0 ? nowEpoch() : ts;
+    // Whose session key signed this, which is what sendUdp() now puts on every
+    // unicast packet: it is how the far side finds the session when the source
+    // address is one it has never seen this peer use.
+    o[QStringLiteral("from_id")] = peer.ownIdentityId();
     o[QStringLiteral("_sig")] = peer.signPacket(kSelfLabel, signableBytes(o));
     return o;
 }
@@ -639,6 +650,192 @@ private Q_SLOTS:
         QCOMPARE(messages.count(), 1);
         const QString delivered = messages.at(0).at(0).toJsonObject().value(QStringLiteral("text")).toString();
         QVERIFY2(delivered != QStringLiteral("meet me at seven"), "an unencrypted body was passed through on a channel with a session key");
+    }
+
+    // The bug this whole pass is about, seen with two clients on one machine and
+    // one of them in a network namespace. The sender's session was established
+    // over the address it advertised and the datagram arrived from the veth, so
+    // the session lookup - keyed on the source address - found nothing and the
+    // fail-closed policy dropped a message that had been signed correctly all
+    // along.
+    void aPacketFromAnotherAddressOfTheSamePeerIsAccepted()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        QSignalSpy errors(&h.net, &NetworkManager::errorOccurred);
+        const QString text = QStringLiteral("sent down the tunnel");
+
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgChat;
+        o[QStringLiteral("text")] = h.peer.encrypt(text, QString(), kSelfLabel);
+        h.net.handleDatagram(kPeerAltIp, toDatagram(signedPacket(h.peer, o)));
+
+        QVERIFY2(errors.isEmpty(), "a correctly signed packet from a second address of a known peer was called unauthenticated");
+        QCOMPARE(messages.count(), 1);
+        const QJsonObject got = messages.at(0).at(0).toJsonObject();
+        QCOMPARE(got.value(QStringLiteral("text")).toString(), text);
+        // And it belongs in the chat the peer is filed under, not in one named
+        // after whichever interface it happened to leave by.
+        QCOMPARE(got.value(QStringLiteral("from_ip")).toString(), kPeerIp);
+    }
+
+    // A private message is the packet that was actually being lost, and it has
+    // one more way to go missing: the "to" field carries one of our addresses,
+    // and it used to be compared against the primary one alone.
+    void aPrivateMessageToAnyOfOurAddressesArrives()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgPrivate;
+        o[QStringLiteral("to")] = h.net.hostIp();
+        o[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("still there?"), QString(), kSelfLabel);
+        h.net.handleDatagram(kPeerAltIp, toDatagram(signedPacket(h.peer, o)));
+        QCOMPARE(messages.count(), 1);
+
+        // Addressed to something that is not ours at all, which is somebody
+        // else's mail however well it is signed.
+        QJsonObject elsewhere = o;
+        elsewhere[QStringLiteral("to")] = kOtherIp;
+        h.net.handleDatagram(kPeerAltIp, toDatagram(signedPacket(h.peer, elsewhere)));
+        QCOMPARE(messages.count(), 1);
+    }
+
+    // Taking a packet from any address is only safe because the signature is
+    // what decides, so a bad one has to fail from every address equally.
+    void abadSignatureIsRefusedFromEitherAddress()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        for (const QString &from : {kPeerIp, kPeerAltIp}) {
+            QJsonObject o;
+            o[QStringLiteral("type")] = protocol::kMsgChat;
+            o[QStringLiteral("text")] = QStringLiteral("trust me");
+            QJsonObject tampered = signedPacket(h.peer, o);
+            tampered[QStringLiteral("text")] = QStringLiteral("send money");
+            h.net.handleDatagram(from, toDatagram(tampered));
+
+            // And an identity claim with no signature behind it at all.
+            QJsonObject bare = o;
+            bare[QStringLiteral("nonce")] = freshNonce();
+            bare[QStringLiteral("ts")] = nowEpoch();
+            bare[QStringLiteral("from_id")] = h.peer.ownIdentityId();
+            h.net.handleDatagram(from, toDatagram(bare));
+        }
+        QCOMPARE(messages.count(), 0);
+    }
+
+    // The other half of resolving a peer by identity: the identity in a packet
+    // is a claim, and anyone can copy one out of a presence broadcast. What
+    // makes it true is the HMAC, and that needs the session key behind the
+    // identity - so an impostor with a session of its own gets nowhere.
+    void animpostorClaimingAKnownIdentityIsRefused()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+        const QString pinned = h.mine.peerFingerprint(kPeerIp);
+
+        // Its own address and its own handshake, so it holds a real session key
+        // to sign with - just not the one belonging to the name it will use.
+        CryptoManager impostor(QStringLiteral("nm-impostor-id"));
+        h.net.handleDatagram(kOtherIp, toDatagram(presenceFrom(impostor, QStringLiteral("someone-else"), kOtherIp)));
+        QVERIFY(impostor.processHandshake(kSelfLabel, h.mine.handshakePayload()));
+        QVERIFY(h.mine.hasSession(kOtherIp));
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgChat;
+        o[QStringLiteral("text")] = QStringLiteral("it is me, your peer");
+        o[QStringLiteral("nonce")] = freshNonce();
+        o[QStringLiteral("ts")] = nowEpoch();
+        o[QStringLiteral("from_id")] = h.peer.ownIdentityId(); // the peer's name
+        o[QStringLiteral("_sig")] = impostor.signPacket(kSelfLabel, signableBytes(o)); // the impostor's key
+        QVERIFY2(!o.value(QStringLiteral("_sig")).toString().isEmpty(), "the impostor could not sign anything, so the refusal below proves nothing");
+        h.net.handleDatagram(kPeerAltIp, toDatagram(o));
+        QCOMPARE(messages.count(), 0);
+
+        // Nothing about the peer moved, and it can still be heard from.
+        QCOMPARE(h.mine.peerFingerprint(kPeerIp), pinned);
+        QVERIFY(h.mine.hasSession(kPeerIp));
+        QJsonObject real;
+        real[QStringLiteral("type")] = protocol::kMsgChat;
+        real[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("no it is not"), QString(), kSelfLabel);
+        h.net.handleDatagram(kPeerAltIp, toDatagram(signedPacket(h.peer, real)));
+        QCOMPARE(messages.count(), 1);
+    }
+
+    // Replay state hangs off the identity too, so a captured packet is not fresh
+    // again for having been resent from somewhere else.
+    void areplayedPacketIsRefusedFromAnotherAddress()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgChat;
+        o[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("pay the invoice"), QString(), kSelfLabel);
+        const QByteArray captured = toDatagram(signedPacket(h.peer, o));
+
+        h.net.handleDatagram(kPeerIp, captured);
+        QCOMPARE(messages.count(), 1);
+        h.net.handleDatagram(kPeerAltIp, captured);
+        QVERIFY2(messages.count() == 1, "a captured packet was accepted again from a different source address");
+    }
+
+    // Presence is where the addresses come from, and the peer decides how many
+    // it lists. One message may not become one datagram per entry.
+    void thefanOutIsCapped()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QJsonArray many;
+        for (int i = 0; i < 5000; ++i)
+            many.append(QStringLiteral("10.0.%1.%2").arg(i / 256).arg(i % 256));
+        QJsonObject presence = presenceFrom(h.peer);
+        presence[QStringLiteral("all_ips")] = many;
+        h.net.handleDatagram(kPeerIp, toDatagram(presence));
+
+        const QVector<QString> targets = h.net.deliveryAddresses(kPeerIp);
+        QVERIFY2(targets.size() <= NetworkManager::kMaxDeliveryAddresses, "an advertised address list decided how many datagrams one message becomes");
+        QVERIFY(targets.contains(kPeerIp));
+
+        // An address the peer has really been heard on is worth more than the
+        // five thousand it claims, so it has to be in there.
+        h.net.handleDatagram(kPeerAltIp, toDatagram(presenceFrom(h.peer, QStringLiteral("peer"), kPeerAltIp)));
+        const QVector<QString> withAlt = h.net.deliveryAddresses(kPeerIp);
+        QVERIFY(withAlt.size() <= NetworkManager::kMaxDeliveryAddresses);
+        QVERIFY2(withAlt.contains(kPeerAltIp), "an address the peer was heard on did not make it into the delivery set");
+    }
+
+    // One peer broadcasting on two interfaces is one person. And it does not get
+    // to list itself wherever it likes: the address in the peer table is the one
+    // its packets came from, not the one it asked to be called.
+    void amultiHomedPeerIsOneContact()
+    {
+        Harness h;
+        QSignalSpy online(&h.net, &NetworkManager::userOnline);
+
+        h.net.handleDatagram(kPeerIp, toDatagram(presenceFrom(h.peer, QStringLiteral("peer"), kOtherIp)));
+        QCOMPARE(online.count(), 1);
+        QCOMPARE(h.net.peers().size(), 1);
+        QVERIFY2(h.net.peers().contains(kPeerIp), "the peer was filed under the address it asked for rather than the one it sent from");
+        QVERIFY(!h.net.peers().contains(kOtherIp));
+        QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("ip")).toString(), kPeerIp);
+        QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("advertised_ip")).toString(), kOtherIp);
+
+        // Same identity, second interface: still one contact.
+        h.net.handleDatagram(kPeerAltIp, toDatagram(presenceFrom(h.peer, QStringLiteral("peer"), kPeerAltIp)));
+        QCOMPARE(h.net.peers().size(), 1);
+        QVERIFY(h.net.peers().contains(kPeerIp));
+        QCOMPARE(online.count(), 1);
     }
 
     void theRateLimitStopsAFlood()

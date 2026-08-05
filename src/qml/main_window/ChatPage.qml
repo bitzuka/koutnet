@@ -671,11 +671,25 @@ Kirigami.Page {
                             font.pointSize: Kirigami.Theme.smallFont.pointSize
                         }
 
+                        // A tick used to go up the moment the message was handed
+                        // to the socket, which over UDP says nothing at all -
+                        // the receiver may have dropped it, and that is exactly
+                        // what it looked like when it did. Ticks are now the read
+                        // receipt the peer really sends; on its own an outgoing
+                        // message is sent and nothing more is known about it.
                         Text {
                             visible: model.isOwn
-                            text: model.isRead ? "\u2713\u2713" : "\u2713"
+                            text: model.isRead ? "\u2713\u2713" : "\u2191"
                             color: model.isRead ? root.theme.accent : root.theme.text_dim
                             font.pointSize: Kirigami.Theme.smallFont.pointSize
+
+                            HoverHandler {
+                                id: deliveryMarkHover
+                            }
+                            ToolTip.visible: deliveryMarkHover.hovered
+                            ToolTip.text: model.isRead
+                                          ? i18nc("@info:tooltip state of an outgoing message", "Read by the recipient")
+                                          : i18nc("@info:tooltip state of an outgoing message", "Sent - delivery not confirmed")
                         }
                     }
                 }

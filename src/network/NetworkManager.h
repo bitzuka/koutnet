@@ -59,6 +59,13 @@ public:
     // noise (battery/CPU on laptops too) once discovery has already worked.
     static constexpr int kActiveBroadcastMs = 2000;
     static constexpr int kIdleBroadcastMs = 8000;
+    // How many addresses one message is copied to. A session belongs to the
+    // peer's identity now, so the same signed datagram is valid from any of its
+    // interfaces and a spare copy is cheap redundancy - but the list of
+    // addresses comes from the peer, and a peer advertising five thousand of
+    // them would have us send five thousand datagrams per keystroke. Four
+    // covers a LAN address, a VPN address and a spare.
+    static constexpr int kMaxDeliveryAddresses = 4;
 
     bool start();
     void stop();
@@ -75,6 +82,10 @@ public:
     {
         return m_peers;
     }
+    // Every address one message to this peer is sent to, newest observed first
+    // and never more than kMaxDeliveryAddresses of them. Public because the cap
+    // is the whole point of it and a test has to be able to read it back.
+    QVector<QString> deliveryAddresses(const QString &toIp) const;
 
     // Safe to call before start(), where it applies on the next one, or
     // while running, where it raises or drops the relay tunnel on the spot.
@@ -174,9 +185,14 @@ private Q_SLOTS:
 private:
     // setup helpers
     QJsonObject presencePayload() const;
+    // Stamps the packet, signs it once for the peer identity behind these
+    // addresses, and writes the same bytes to each of them. One signature for
+    // the whole set is the point: it is what a session keyed on identity buys.
+    // An empty list means broadcast.
+    void sendUdpToAll(QJsonObject payload, const QVector<QString> &targets);
     void dispatch(const QString &host, QJsonObject msg);
     void handlePresence(const QString &host, QJsonObject msg);
-    void decryptMessageText(const QString &fromIp, QJsonObject &msg) const;
+    void decryptMessageText(const QString &peerRef, QJsonObject &msg) const;
     // Files a socket under an address, deleting whatever it displaces. Both the
     // inbound and the outbound path can find one already there.
     void replaceVoiceSocket(const QString &ip, QTcpSocket *sock);
@@ -200,7 +216,12 @@ private:
     // because the inbound and outbound socket for one peer are different
     // streams and must not share a buffer.
     QHash<QTcpSocket *, QByteArray> m_voiceRxBuffers;
-    QMap<QString, QJsonObject> m_peers; // ip -> peer info
+    // The address a peer is filed under is the first one we heard it on, not
+    // the one it advertises - a multi-homed host sends from whichever interface
+    // the route picked. m_peerKeyById keeps one entry per identity, so a peer
+    // broadcasting on three interfaces is one contact and not three.
+    QMap<QString, QJsonObject> m_peers; // observed address -> peer info
+    QHash<QString, QString> m_peerKeyById; // identity id -> its key in m_peers
 
     QString m_hostIp;
     QSet<QString> m_localIps;
