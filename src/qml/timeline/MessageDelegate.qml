@@ -7,27 +7,18 @@ import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as Components
 import koutnet.app
 
-// One row of the timeline.
-//
-// Flat: no bubble, no tail, no coloured block behind the text. A bubble is a
-// frame drawn round every message to say where it starts and who sent it, and
-// both of those are already said - by the run header above it and by the gutter
-// beside it. The frames only cost width, and width is what a message wants.
-//
-// Consecutive messages from one sender share a header. The model works out where
-// a run begins, because that is a statement about the row before this one and a
-// delegate cannot see its neighbour.
-//
-// Your own messages are marked by a stripe down the leading edge rather than by
-// alignment or a fill. Alternating sides halves the usable width of the column
-// and makes every run start in a different place; a fill on your own messages
-// puts the loudest colour on the screen on the half of the conversation you
-// already wrote.
+// Flat: no bubble. A bubble frames a message to say where it starts and who sent
+// it, and the run header above and the gutter beside already say both; the frame
+// only costs width. Consecutive messages from one sender share a header, and the
+// model works out where a run begins because that is a statement about the row
+// before this one and a delegate cannot see its neighbour. Own messages get a
+// stripe down the leading edge rather than alignment or a fill: alternating sides
+// halves the usable width and moves every run start, and a fill puts the loudest
+// colour on the half of the conversation you wrote.
 Item {
     id: root
 
-    // Model roles, taken as required properties so a renamed role is a hard
-    // error at load and not a blank row at runtime.
+    // Required, so a renamed role is a hard error at load and not a blank row.
     required property int index
     required property string sender
     required property string text
@@ -49,26 +40,18 @@ Item {
     required property bool showAuthor
     required property bool showDay
 
-    // Set by the timeline.
     property real contentWidth: root.width
     property real fontScale: 1.0
     property string selfName: ""
     property string peerName: ""
-    // The reader's own name, highlighted wherever the message says it, and worn
-    // by the header over their own messages.
     property string selfDisplayName: ""
-    // The reader's own picture, for the same header.
     property string selfAvatarSource: ""
-    // Per-message and not per-conversation: revealing one spoiler should not
-    // reveal every other one in the backlog.
+    // Per-message: revealing one spoiler should not reveal the whole backlog.
     property bool spoilerRevealed: false
-    // Briefly true after a jump lands on this message, so the reader can see
-    // which one they were sent to.
     property bool flashing: false
 
-    // The quote travels with the request rather than being looked up again by
-    // row: the page would have to reach into the model through a QModelIndex to
-    // find what the delegate is already holding.
+    // The quote travels with the request rather than being looked up again by row:
+    // the page would have to reach into the model to find what this is holding.
     signal replyRequested(int row, string author, string excerpt, string msgId)
     signal editRequested(int row, string body)
     signal reactRequested(int row)
@@ -79,9 +62,6 @@ Item {
     signal fileActivated(string path)
     signal avatarClicked(bool own, Item anchorItem)
 
-    // Who wrote this. Incoming messages carry a sender only when the peer
-    // published one, and the conversation already knows who it is with.
-    //
     // Your own name and not the word "You", because this is also what a reply
     // quotes and what the context menu is titled with, and a quote attributed to
     // "You" reads as nobody once it is sitting under somebody else's message.
@@ -91,17 +71,14 @@ Item {
             : i18nc("@info:placeholder the local user, as the author of their own message", "You"))
         : (root.sender.length > 0 ? root.sender : root.peerName)
 
-    // The same name in the run header. Marked, so that a glance down the column
-    // still tells your own messages from the peer's - the gutter stripe was
-    // carrying that on its own, and a two-pixel line is not much of a signature.
+    // Marked, so a glance down the column still tells your own messages from the
+    // peer's: the gutter stripe was carrying that alone, and it is two pixels wide.
     readonly property string headerName: root.isOwn
         ? i18nc("@info run header over your own messages, %1 is your own display name", "%1 (you)", root.authorName)
         : root.authorName
 
-    // Links, code, emphasis and spoilers, worked out in C++ - see
-    // core/chat/TextHandler.h, which is a port of NeoChat's. Colours are handed
-    // over rather than read there, because this item is the one that knows which
-    // theme chain it is drawing under.
+    // Colours are handed over rather than read inside TextHandler, because this
+    // item is the one that knows which theme chain it is drawing under.
     readonly property string renderedBody: TextHandler.toRichText(root.text, {
         "mentionName": root.selfDisplayName,
         "mentionColor": Kirigami.Theme.positiveTextColor.toString(),
@@ -116,9 +93,7 @@ Item {
     readonly property bool emojiOnly: !root.isFile && !root.isSystem && root.looksLikeEmojiRun(root.text)
     readonly property real gutterWidth: Kirigami.Units.iconSizes.medium
 
-    // A message of nothing but a handful of emoji is the emoji, and gets drawn
-    // at a size that says so. Six is the cut-off because past that it is a
-    // sentence written in pictures and wants to read like one.
+    // Six is the cut-off: past that it is a sentence written in pictures.
     function looksLikeEmojiRun(str) {
         if (!str || str.trim().length === 0 || str.length > 16)
             return false
@@ -140,8 +115,6 @@ Item {
             || cp === 0x2764 || cp === 0x2665 || cp === 0x2B50 || cp === 0x2B55
             || cp === 0x00A9 || cp === 0x00AE || cp === 0x2122
             || cp === 0x3030 || cp === 0x303D
-            // Zero-width joiner, variation selectors and the rest of the glue
-            // that holds a composed emoji together.
             || (cp >= 0x200B && cp <= 0x200F)
             || (cp >= 0xFE00 && cp <= 0xFE0F)
     }
@@ -155,7 +128,11 @@ Item {
     ColumnLayout {
         id: layout
 
-        anchors.horizontalCenter: parent.horizontalCenter
+        // Leading edge rather than centred: centring split the timeline's
+        // scrollBarRoom between both sides, so half of a reservation meant to clear
+        // the trailing edge went to the leading one.
+        anchors.left: parent.left
+        anchors.leftMargin: Kirigami.Units.largeSpacing
         anchors.top: parent.top
         width: root.contentWidth
         spacing: 0
@@ -183,16 +160,12 @@ Item {
             visible: !root.isSystem
             implicitHeight: bodyRow.implicitHeight
             Layout.preferredHeight: visible ? -1 : 0
-            // A run that has started gets a little air above it; a message
-            // continuing one does not, which is what makes the run read as one
-            // block instead of five evenly spaced lines.
             Layout.topMargin: root.showAuthor && !root.showDay ? Kirigami.Units.largeSpacing : 0
 
             HoverHandler {
                 id: bodyHover
             }
 
-            // The jump target flash, and nothing else painted behind a message.
             Rectangle {
                 anchors.fill: parent
                 anchors.leftMargin: -Kirigami.Units.smallSpacing
@@ -209,9 +182,8 @@ Item {
                 anchors.top: parent.top
                 spacing: Kirigami.Units.smallSpacing
 
-                // The gutter: your own stripe, then the avatar, then nothing at
-                // all on the rows that continue a run. Reserved either way, so
-                // every line of a run starts at the same x.
+                // The gutter holds nothing at all on rows that continue a run, but
+                // is reserved either way so every line of a run starts at the same x.
                 Item {
                     Layout.alignment: Qt.AlignTop
                     Layout.preferredWidth: root.gutterWidth
@@ -235,18 +207,15 @@ Item {
                         width: root.gutterWidth - Kirigami.Units.smallSpacing
                         height: width
                         visible: root.showAuthor
-                        // The plain name and not the header's: the generated
-                        // colour and the fallback initial have no business being
-                        // taken off the "(you)" the header wears.
+                        // The plain name and not the header's: the generated colour
+                        // and fallback initial must not come off the "(you)".
                         name: root.authorName
-                        // Peers publish a name and a bio but no picture, so
-                        // theirs stays an initial - see setProfile() in
-                        // NetworkManager.
+                        // Peers publish a name and a bio but no picture, so theirs
+                        // stays an initial - see setProfile() in NetworkManager.
                         source: root.isOwn ? root.selfAvatarSource : ""
                         asynchronous: true
 
-                        // A face is the shortest way to ask who somebody is. The
-                        // card is hung off this item, so it has to be the one
+                        // The card is hung off this item, so it has to be the one
                         // that reports the tap.
                         TapHandler {
                             acceptedButtons: Qt.LeftButton
@@ -259,10 +228,8 @@ Item {
                         }
                     }
 
-                    // The clock for a message inside a run, which has no header
-                    // to carry one. On hover only: a column of times down the
-                    // gutter is noise, and the one time anybody wants is the one
-                    // next to the message they are looking at.
+                    // On hover only: a column of times down the gutter is noise, and
+                    // the wanted one is beside the message being looked at.
                     QQC2.Label {
                         anchors.right: parent.right
                         anchors.top: parent.top
@@ -279,7 +246,6 @@ Item {
                     Layout.alignment: Qt.AlignTop
                     spacing: Math.round(Kirigami.Units.smallSpacing / 2)
 
-                    // Run header: who, and when they started.
                     RowLayout {
                         Layout.fillWidth: true
                         visible: root.showAuthor
@@ -291,13 +257,11 @@ Item {
                             textFormat: Text.PlainText
                             elide: Text.ElideRight
                             font.bold: true
-                            // The accent, not a per-sender colour. A direct chat
-                            // has two people in it and a palette of generated
-                            // colours would be answering a question groups have.
+                            // The accent, not a per-sender colour: generated colours
+                            // answer a question only group chats have.
                             color: Kirigami.Theme.highlightColor
-                            // Off contentWidth rather than off the row this sits
-                            // in: reading back a width the layout is still
-                            // working out is how a header ends up in a loop.
+                            // Off contentWidth, not the row: reading back a width the
+                            // layout is still working out puts the header in a loop.
                             Layout.maximumWidth: Math.round(root.contentWidth * 0.5)
                         }
 
@@ -322,10 +286,9 @@ Item {
                         }
                     }
 
-                    // The quote, the attachment and the reactions are loaded
-                    // rather than declared. Most messages are a line of text
-                    // with none of the three, and building all three for every
-                    // row is most of what a fast scroll was paying for.
+                    // Quote, attachment and reactions are loaded rather than declared:
+                    // most messages have none of the three, and building all three per
+                    // row was most of what a fast scroll paid for.
                     Loader {
                         Layout.fillWidth: true
                         active: root.hasReply
@@ -355,12 +318,9 @@ Item {
                         }
                     }
 
-                    // Plain Label rather than SelectableLabel: that one takes the
-                    // right button for a copy menu of its own, and the right
-                    // button on a message belongs to the message menu.
-                    //
-                    // Rich text everywhere except a run of emoji, which has no
-                    // markup in it by definition and is cheaper drawn plain.
+                    // Plain Label rather than SelectableLabel: that one takes the right
+                    // button for a copy menu of its own, and the right button on a
+                    // message belongs to the message menu.
                     QQC2.Label {
                         id: bodyLabel
 
@@ -370,24 +330,21 @@ Item {
                         text: root.emojiOnly ? root.text : root.renderedBody
                         textFormat: root.emojiOnly ? Text.PlainText : Text.RichText
                         wrapMode: Text.Wrap
-                        // pointSize and not pixelSize: a desktop font is
-                        // configured in points and reports pixelSize -1, which is
-                        // what the Ctrl+wheel zoom would otherwise multiply.
+                        // pointSize and not pixelSize: a desktop font is configured in
+                        // points and reports pixelSize -1, which the zoom would multiply.
                         font.pointSize: (root.emojiOnly ? 2.5 : 1.0)
                             * Kirigami.Theme.defaultFont.pointSize * root.fontScale
 
-                        // Opened outside the application rather than followed in
-                        // place: there is nothing in here that can render a page,
-                        // and a messenger that navigates is a browser.
+                        // Opened outside rather than followed in place: nothing in here
+                        // renders a page, and a messenger that navigates is a browser.
                         onLinkActivated: (link) => Qt.openUrlExternally(link)
 
                         HoverHandler {
                             cursorShape: bodyLabel.hoveredLink.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
                         }
 
-                        // A spoiler is uncovered by clicking it and stays
-                        // uncovered. Only bound when the message has one, so an
-                        // ordinary message is not swallowing left clicks.
+                        // Only bound when the message has a spoiler, so an ordinary
+                        // message is not swallowing left clicks.
                         TapHandler {
                             enabled: !root.spoilerRevealed && root.text.indexOf("||") >= 0
                             acceptedButtons: Qt.LeftButton
@@ -409,9 +366,8 @@ Item {
                     }
                 }
 
-                // Edited marker and delivery state, at the trailing edge of the
-                // message rather than under it: a line of its own per message
-                // would double the height of a run of one-word replies.
+                // At the trailing edge rather than under the message: a line of its
+                // own would double the height of a run of one-word replies.
                 RowLayout {
                     Layout.alignment: Qt.AlignTop
                     spacing: Math.round(Kirigami.Units.smallSpacing / 2)
@@ -433,18 +389,11 @@ Item {
                 }
             }
 
-            // The hover strip, straddling the top edge at the trailing side.
-            //
-            // Loaded on hover and thrown away after. It is four buttons, four
-            // tooltips and a shadowed rectangle, and it used to be built for
-            // every message in the view whether or not anybody went near it.
-            //
-            // The strip hangs half above this message, so the pointer reaching
-            // for it has already left the body: keeping it loaded on
-            // bodyHover alone would pull it out from under the click. The strip
-            // reports its own hover into stripHovered instead. Assigned rather
-            // than bound, because a binding from active back through item to
-            // active is a loop and QML says so at every frame.
+            // Loaded on hover and thrown away after: four buttons, four tooltips and a
+            // shadowed rectangle, once built for every message in the view. The strip
+            // hangs half above this message, so a pointer reaching for it has already
+            // left the body and bodyHover alone would pull it from under the click.
+            // Assigned, not bound: active -> item -> active is a loop QML reports.
             Loader {
                 id: hoverActions
 
