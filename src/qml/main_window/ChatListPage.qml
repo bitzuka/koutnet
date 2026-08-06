@@ -54,6 +54,21 @@ Kirigami.Page {
 
     readonly property string favoritesName: i18nc("@item conversation list, chat with yourself", "Favorites")
 
+    // The needle lives here and not on the field. titleDelegate is a Component, so
+    // the field inside it is in a scope of its own and an id reaching in from out
+    // here does not resolve - matchesSearch() threw ReferenceError on every call.
+    // A throw leaves the binding at whatever it last held, which is why folding a
+    // section was final: collapsing short-circuits the && and hides the rows
+    // honestly, then expanding calls in here, throws, and visible stays false.
+    property string searchText: ""
+
+    // Folding hides rows, so typing has to unfold them again or the search appears
+    // to find nothing.
+    onSearchTextChanged: if (root.searchText.length > 0) {
+        root.favoritesExpanded = true
+        root.directExpanded = true
+    }
+
     title: i18nc("@title sidebar section, the list of conversations", "Chats")
     padding: 0
 
@@ -67,17 +82,15 @@ Kirigami.Page {
         spacing: Kirigami.Units.smallSpacing
 
         Kirigami.SearchField {
-            id: searchField
             Layout.fillWidth: true
             placeholderText: root.compact
                 ? ""
                 : i18nc("@info:placeholder filter the conversation list", "Search")
-            // Folding a section hides rows, so typing has to unfold them again or
-            // the search appears to find nothing.
-            onTextChanged: if (text.length > 0) {
-                root.favoritesExpanded = true
-                root.directExpanded = true
-            }
+            // Two ways round on purpose: the write keeps the page in step with what
+            // was typed, and the binding puts the text back if the page header is
+            // ever reloaded under it, which is what a Component in a Loader does.
+            text: root.searchText
+            onTextChanged: root.searchText = text
         }
 
         QQC2.ToolButton {
@@ -94,9 +107,9 @@ Kirigami.Page {
     // Matches the address as well as the name, since an unnamed peer only has the
     // former; here so the pinned row and the conversations use the same rule.
     function matchesSearch(displayName, chatId) {
-        if (searchField.text.length === 0)
+        if (root.searchText.length === 0)
             return true
-        const needle = searchField.text.toLowerCase()
+        const needle = root.searchText.toLowerCase()
         return displayName.toLowerCase().indexOf(needle) !== -1
             || chatId.toLowerCase().indexOf(needle) !== -1
     }
@@ -270,7 +283,11 @@ Kirigami.Page {
         }
     }
 
+    // Gone in compact mode rather than shrunk: the microphone, the deafen toggle
+    // and the settings entry are all in the global drawer and on the tray icon, so
+    // a strip of them under the list is the furniture compact mode is meant to drop.
     footer: AccountRow {
+        visible: !root.compact
         compact: root.compact
         micMuted: root.micMuted
         deafened: root.deafened
