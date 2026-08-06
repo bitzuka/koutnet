@@ -30,12 +30,28 @@
     </entry>
 
     <!-- NetworkManager::ConnectionMode as an int, so core/constructor does not
-         have to include the network header. 0 = LAN/VPN, 3 = relay. -->
+         have to include the network header. 0 = LAN/VPN, 1 = K-Server,
+         2 = relay. A file written before the three K-Server modes were merged
+         holds one of five values instead; AppSettings::migrateConnectionModes()
+         maps it, gated on configVersion.
+
+         Deliberately left unclamped, unlike the other ints here: a <max> of 2 is
+         applied on read, so a file holding the old 3 or 4 would reach the
+         migration already flattened to 2 and the two would be indistinguishable.
+         modeAvailable() refuses anything it does not recognise. -->
     <entry name="connectionMode" key="connection_mode" type="Int">
       <default>0</default>
     </entry>
     <entry name="relayHost" key="relay_host" type="String"/>
     <entry name="relayPort" key="relay_port" type="Int">
+      <default>0</default>
+    </entry>
+    <!-- Which K-Server to talk to. One mode reached at an address rather than a
+         mode each for "mine" and "somebody else's": it is the same protocol
+         either way, and the address is the only thing that differed. Empty means
+         a server on this machine, which is what self-hosting is. -->
+    <entry name="kServerHost" key="kserver_host" type="String"/>
+    <entry name="kServerPort" key="kserver_port" type="Int">
       <default>0</default>
     </entry>
 
@@ -124,11 +140,22 @@
       <max>100</max>
     </entry>
 
-    <!-- Reduced layout: two columns, tighter rows, no peer column. A mode the
-         user picks and keeps, as opposed to what the page row does by itself
-         when the window is dragged narrow. -->
+    <!-- Reduced layout: a slim conversation list with no rail and no section
+         headings, one line to a row, and no peer column. A mode the user picks
+         and keeps, as opposed to what the page row does by itself when the
+         window is dragged narrow. -->
     <entry name="compactMode" key="compact_mode" type="Bool">
       <default>false</default>
+    </entry>
+    <!-- The window size to restore when compact mode is switched off. Written on
+         the way in rather than guessed, and persisted because leaving compact
+         mode after a restart otherwise lands on whatever the default was. Zero
+         means nothing has been captured yet. -->
+    <entry name="roomyWidth" key="roomy_width" type="Int">
+      <default>0</default>
+    </entry>
+    <entry name="roomyHeight" key="roomy_height" type="Int">
+      <default>0</default>
     </entry>
 
     <!-- The tray icon, and whether the window close button reaches for it
@@ -151,8 +178,8 @@
       <default>false</default>
     </entry>
 
-    <!-- Bumped by AppSettings when it has rewritten values that QSettings had
-         escaped. Absent in every file written before the KConfig port. -->
+    <!-- Which migrations AppSettings has already run against this file. Absent
+         in every file written before the KConfig port, which is version 0. -->
     <entry name="configVersion" key="config_version" type="Int">
       <default>0</default>
     </entry>

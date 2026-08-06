@@ -17,9 +17,8 @@
 
 #include <utility> // std::move, sendUdp() hands its payload on
 
-// TODO: AppSettings exists now, so the unfinished paths below can be wired to
-// it: static peer list, connection mode, relay credentials. The group
-// passphrase and CryptoManager already arrive through the constructor.
+// TODO: AppSettings exists now, so the unfinished paths below can be wired to it:
+// static peer list, connection mode, relay credentials.
 
 namespace koutnet
 {
@@ -70,19 +69,14 @@ QByteArray signableBytes(QJsonObject obj)
     return QJsonDocument(obj).toJson(QJsonDocument::Compact);
 }
 
-// Packet types accepted from a host we hold no session key for. Presence has
-// to be here because it is the packet that carries the handshake, so requiring
-// a signature on it would mean no peer could ever get one. Nothing else has an
-// excuse, so keep this list at one entry unless the protocol grows another
-// genuinely pre-session message.
+// Packet types accepted from a host we hold no session key for. Presence has to be
+// here because it carries the handshake, so requiring a signature on it would mean
+// no peer could ever get one. Keep this list at one entry.
 bool allowedUnsigned(const QString &type)
 {
     return type == protocol::kMsgPresence;
 }
 
-// The 4-byte big-endian length that goes in front of every framed message.
-// Written out by hand rather than through QDataStream so the wire format stays
-// obvious to anyone reimplementing the protocol.
 QByteArray lengthPrefix(quint32 len)
 {
     QByteArray header(protocol::kFrameHeaderBytes, 0);
@@ -93,7 +87,6 @@ QByteArray lengthPrefix(quint32 len)
     return header;
 }
 
-// Callers check that at least kFrameHeaderBytes are buffered first.
 quint32 readLengthPrefix(const QByteArray &buf)
 {
     return (quint32(quint8(buf.at(0))) << 24) | (quint32(quint8(buf.at(1))) << 16) | (quint32(quint8(buf.at(2))) << 8) | quint32(quint8(buf.at(3)));
@@ -127,9 +120,8 @@ void NetworkManager::setRelayServer(const QString &host, quint16 tunnelPort, qui
 
 void NetworkManager::setProfile(const QString &handle, const QString &displayName, const QString &bio, const QString &revision)
 {
-    // Presence goes out on a short timer, so anything in here is paid
-    // for repeatedly. A long bio gets cut rather than pushing the
-    // packet towards fragmentation.
+    // Presence goes out on a short timer, so anything in here is paid for repeatedly;
+    // a long bio gets cut rather than pushing the packet towards fragmentation.
     constexpr int kMaxBioChars = 280;
 
     const QString trimmedBio = bio.left(kMaxBioChars);
@@ -142,18 +134,12 @@ void NetworkManager::setProfile(const QString &handle, const QString &displayNam
     m_profileBio = trimmedBio;
     m_profileRevision = revision;
 
-    // Announce straight away instead of waiting out the timer, so an
-    // edit shows up on other screens while the user still has the
-    // profile page open.
     if (m_running)
         onBroadcastTimer();
 }
 
 void NetworkManager::setStatus(int presence, const QString &statusEmoji)
 {
-    // One grapheme at most. This rides in the packet that repeats on a timer, so
-    // a peer that pasted a paragraph of emoji would be paying for it again on
-    // every interface this host broadcasts from.
     const QString trimmed = statusEmoji.left(8);
     if (m_presence == presence && m_statusEmoji == trimmed)
         return;
@@ -161,8 +147,6 @@ void NetworkManager::setStatus(int presence, const QString &statusEmoji)
     m_presence = presence;
     m_statusEmoji = trimmed;
 
-    // Same reasoning as setProfile: going away is worth saying now rather than
-    // whenever the timer next comes round.
     if (m_running)
         onBroadcastTimer();
 }
@@ -174,11 +158,9 @@ void NetworkManager::setGroupPassphrase(const QString &passphrase)
 
 void NetworkManager::setConnectionMode(ConnectionMode mode)
 {
-    // Only the relay-backed modes raise the tunnel. K-Server will have its
-    // own transport and does not exist yet.
-    const bool wantRelay = (mode == ConnectionMode::Relay || mode == ConnectionMode::MaintainerVds);
-    // Relay and maintainer VDS ride the same tunnel, so moving between those
-    // two changes the mode without disturbing the socket.
+    // Only the relay mode raises the tunnel. K-Server will have a transport of its own
+    // and does not exist yet; the maintainer VDS is a K-Server address now.
+    const bool wantRelay = (mode == ConnectionMode::Relay);
     const bool relayChanged = (wantRelay != m_internetMode);
 
     m_mode = mode;
@@ -205,15 +187,11 @@ bool NetworkManager::modeAvailable(int mode) const
     case ConnectionMode::LanOrVpn:
         return true;
     case ConnectionMode::Relay:
-        // Usable the moment someone fills in a relay address.
         return true;
-    case ConnectionMode::KServerSelfHosted:
-    case ConnectionMode::KServerClient:
-        // No K-Server exists in any form yet.
+    case ConnectionMode::KServer:
+        // No K-Server exists in any form yet, at any address - which is why the three
+        // modes that differed only by address merged without losing a capability.
         return false;
-    case ConnectionMode::MaintainerVds:
-        // Waiting on a deployed relay; the built-in list is still empty.
-        return !protocol::builtinRelays().isEmpty();
     }
     return false;
 }
@@ -232,8 +210,6 @@ void NetworkManager::refreshLocalIps()
     const QString newPrimary = localIpFallback();
     if (newPrimary != m_hostIp) {
         m_hostIp = newPrimary;
-        // the address is on screen and in every packet we send, so a silent
-        // swap leaves the UI showing the old one until the next restart
         Q_EMIT hostIpChanged();
     }
 }
@@ -244,24 +220,20 @@ bool NetworkManager::start()
     const quint16 tcpPort = protocol::kTcpPortDefault;
     m_voiceTcpPort = tcpPort;
 
-    // UDP socket
     m_udp = new QUdpSocket(this);
     bool bound = m_udp->bind(QHostAddress::AnyIPv4, udpPort, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
     if (!bound) {
         bound = m_udp->bind(QHostAddress::AnyIPv4, udpPort + 1, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
     }
     if (!bound) {
-        // int(): KLocalizedString has no quint16 substitution overload, so
-        // the port has to pick one explicitly.
+        // int(): KLocalizedString has no quint16 substitution overload.
         Q_EMIT errorOccurred(i18nc("@info:status %1 is a port number", "UDP bind failed on port %1.", int(udpPort)));
         return false;
     }
     connect(m_udp, &QUdpSocket::readyRead, this, &NetworkManager::onUdpReadyRead);
 
-    // mDNS-like discovery multicast group (best-effort)
     m_udp->joinMulticastGroup(QHostAddress(QStringLiteral("224.0.0.251")));
 
-    // TCP server (voice)
     m_tcpServer = new QTcpServer(this);
     if (!m_tcpServer->listen(QHostAddress::AnyIPv4, tcpPort)) {
         if (!m_tcpServer->listen(QHostAddress::AnyIPv4, 0)) {
@@ -272,8 +244,6 @@ bool NetworkManager::start()
     connect(m_tcpServer, &QTcpServer::newConnection, this, &NetworkManager::onNewTcpConnection);
 
     m_running = true;
-    // Connection mode is controlled explicitly via setConnectionMode()
-    // (defaults to LanOrVpn, see header) instead of being force-reset here.
     // TODO: once AppSettings lands, read the persisted mode before start().
     m_localIps = allLocalIpsFallback();
     m_localIps.insert(m_hostIp);
@@ -293,11 +263,9 @@ void NetworkManager::stop()
     m_running = false;
     m_broadcastTimer.stop();
 
-    // disconnect(this) before deleteLater() on all three, the way
-    // setConnectionMode() does it: the teardown handlers would otherwise fire
-    // into maps this function has just cleared. Without the deleteLater() every
-    // socket stayed alive as a child of this object, so a stop()/start() cycle -
-    // switching connection mode, for instance - stranded the whole set each time.
+    // disconnect(this) before deleteLater(), the way setConnectionMode() does it: the
+    // teardown handlers would fire into maps this function has just cleared, and
+    // without the deleteLater() a stop()/start() cycle stranded every socket.
     for (auto *sock : std::as_const(m_voiceConnections)) {
         sock->disconnect(this);
         sock->close();
@@ -313,9 +281,8 @@ void NetworkManager::stop()
     }
     m_pendingVoice.clear();
 
-    // Not conditional on m_internetMode any more: the socket exists or it does
-    // not, and a mode changed since it was opened is no reason to leave it
-    // behind with its handlers attached.
+    // Not conditional on m_internetMode: the socket exists or it does not, and a mode
+    // changed since it was opened is no reason to leave its handlers attached.
     if (m_relaySocket) {
         m_relaySocket->disconnect(this);
         m_relaySocket->close();
@@ -391,8 +358,6 @@ QJsonObject NetworkManager::presencePayload() const
     payload[QStringLiteral("ts")] = nowEpoch();
     payload[QStringLiteral("nonce")] = randomHex(8);
 
-    // ECDH handshake bundle - lets any peer that sees this presence packet
-    // derive a session key with us (Layer 1, see CryptoManager).
     if (m_crypto) {
         const QJsonObject hs = m_crypto->handshakePayload();
         for (auto it = hs.constBegin(); it != hs.constEnd(); ++it)
@@ -403,7 +368,6 @@ QJsonObject NetworkManager::presencePayload() const
     payload[QStringLiteral("display_name")] = m_profileDisplayName;
     payload[QStringLiteral("bio")] = m_profileBio;
     payload[QStringLiteral("profile_rev")] = m_profileRevision;
-    // Said out loud rather than folded into profile_rev - see setStatus.
     payload[QStringLiteral("presence")] = m_presence;
     payload[QStringLiteral("status_emoji")] = m_statusEmoji;
     return payload;
@@ -416,9 +380,7 @@ void NetworkManager::onBroadcastTimer()
     if (!m_running || !m_udp)
         return;
 
-    // Adaptive interval: broadcast aggressively while we have no peers yet,
-    // then back off once discovery has succeeded. Also reduces how "loud"
-    // the full /24 sweep below looks on corporate/public Wi-Fi.
+    // Backing off also makes the /24 sweep below less loud on public Wi-Fi.
     const int desiredInterval = m_peers.isEmpty() ? kActiveBroadcastMs : kIdleBroadcastMs;
     if (m_broadcastTimer.interval() != desiredInterval)
         m_broadcastTimer.setInterval(desiredInterval);
@@ -427,10 +389,8 @@ void NetworkManager::onBroadcastTimer()
     const QByteArray data = QJsonDocument(payload).toJson(QJsonDocument::Compact);
     const quint16 port = protocol::kUdpPortDefault;
 
-    // 1. Global LAN broadcast
     m_udp->writeDatagram(data, QHostAddress::Broadcast, port);
 
-    // 2. Per-interface subnet broadcasts
     QSet<QString> sentBroadcasts;
     const auto interfaces = QNetworkInterface::allInterfaces();
     for (const auto &iface : interfaces) {
@@ -448,10 +408,8 @@ void NetworkManager::onBroadcastTimer()
         }
     }
 
-    // 3. mDNS multicast
     m_udp->writeDatagram(data, QHostAddress(QStringLiteral("224.0.0.251")), port);
 
-    // 4. Unicast /24 subnet scan every 30s (fallback if broadcast blocked)
     const double now = nowEpoch();
     const double scanIntervalSec = m_peers.isEmpty() ? 30.0 : 120.0;
     if (now - m_lastScan > scanIntervalSec) {
@@ -485,8 +443,8 @@ void NetworkManager::pruneStalePeers()
     }
     for (const auto &ip : stale) {
         const QString peerId = m_peers.value(ip).value(QStringLiteral("from_id")).toString();
-        // Or the next presence packet from this peer would be filed under an
-        // address that is no longer in the table, and it would never come back.
+        // Or the next presence packet from this peer would be filed under an address
+        // no longer in the table, and it would never come back.
         if (!peerId.isEmpty() && m_peerKeyById.value(peerId) == ip)
             m_peerKeyById.remove(peerId);
         m_peers.remove(ip);
@@ -508,8 +466,7 @@ void NetworkManager::onUdpReadyRead()
 
 void NetworkManager::handleDatagram(const QString &host, const QByteArray &data)
 {
-    // Attacker-supplied bytes, so say what was wrong with them rather than
-    // treating "not an object" and "not even JSON" as the same thing.
+    // Attacker-supplied bytes, so say what was wrong with them.
     QJsonParseError parseErr;
     const auto doc = QJsonDocument::fromJson(data, &parseErr);
     if (parseErr.error != QJsonParseError::NoError || !doc.isObject()) {
@@ -521,7 +478,6 @@ void NetworkManager::handleDatagram(const QString &host, const QByteArray &data)
 
 void NetworkManager::dispatch(const QString &host, QJsonObject msg)
 {
-    // Layer 6 - rate limiting: max N packets/sec per source IP.
     if (m_crypto && !m_crypto->checkRate(host)) {
         return; // dropped - over rate limit
     }
@@ -537,27 +493,15 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
             return; // own broadcast echoed back
     }
 
-    // Layer 4 - HMAC verification. Everything outside the allowlist needs a
-    // session and a valid _sig; an absent one used to be waved through, which
-    // let anyone spoof a peer we had already authenticated by simply omitting
-    // the field.
-    //
-    // The allowlist is checked first and not only before a session exists.
-    // Presence is a broadcast, so sendUdp() has no single peer to sign it for
-    // and never puts a _sig on one - which meant that as soon as the handshake
-    // in the first presence packet succeeded, every later presence packet from
-    // that peer failed this check, the peer went stale after 25 seconds, and
-    // the session key that caused it kept it away for good. What stands behind
-    // a presence packet is the identity pin in CryptoManager, not an HMAC.
-    //
-    // Which session, though, is a question about identity and not about where
-    // the datagram came from. The source address used to be the answer, and on
-    // any host with a VPN up it is the wrong one: the sender's session was
-    // established over the address it advertised and the packet arrives from the
-    // tunnel, so the lookup found nothing and a perfectly good message was
-    // dropped as unauthenticated. Both the address and from_id are hints; the
-    // HMAC below is what settles it, since only the holder of that session key
-    // can produce one.
+    // Layer 4 - HMAC verification. Everything outside the allowlist needs a session
+    // and a valid _sig; an absent one used to be waved through, which let anyone spoof
+    // an already authenticated peer by simply omitting the field.
+    // Presence is exempt first, not only before a session exists: it is broadcast and
+    // never carries a _sig, so every later presence packet from a handshaked peer
+    // failed this check and the peer went stale for good.
+    // Which session is a question about identity, not about where the datagram came
+    // from - with a VPN up the source address is the wrong answer. The HMAC settles
+    // it, since only the holder of that session key can produce one.
     QString peerId;
     if (m_crypto && !type.isEmpty() && !allowedUnsigned(type)) {
         const QString claimed = msg.value(QStringLiteral("from_id")).toString();
@@ -572,19 +516,16 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
             return;
         }
 
-        // Layer 5 - replay guard, on the identity. Only presence used to get one
-        // at all, so a captured packet of any other type could be resent
-        // forever: the nonce and the timestamp are inside the signature, so
-        // replaying the whole thing verifies as happily as the original did.
+        // Layer 5 - replay guard, on the identity. Only presence used to get one, so a
+        // captured packet of any other type could be resent forever: the nonce and the
+        // timestamp are inside the signature, so a replay verifies as happily.
         const QString nonce = msg.value(QStringLiteral("nonce")).toString();
         if (!nonce.isEmpty() && !m_crypto->checkReplay(peerId, nonce, msg.value(QStringLiteral("ts")).toDouble())) {
             return; // replayed or outside the timestamp window
         }
 
-        // from_ip is where the sender believes it lives, which is one of several
-        // on a multi-homed host and is not what the peer is filed under here.
-        // The interface routes a message to a chat by this field, so handing it
-        // the sender's preference lands the message in a chat with nobody in it.
+        // from_ip is where the sender believes it lives, not what the peer is filed
+        // under here - the interface would route the message into an empty chat.
         const QString filedAs = m_peerKeyById.value(peerId);
         if (!filedAs.isEmpty())
             msg[QStringLiteral("from_ip")] = filedAs;
@@ -598,9 +539,8 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
         decryptMessageText(peerId, msg);
         Q_EMIT message(msg);
     } else if (type == protocol::kMsgPrivate) {
-        // Against every address of ours and not just the primary one: the sender
-        // addressed this to whichever of them it knows, and comparing with
-        // m_hostIp alone dropped it without a word on any multi-homed machine.
+        // Against every address of ours, not just the primary one: comparing with
+        // m_hostIp alone dropped this without a word on any multi-homed machine.
         if (myIps.contains(msg.value(QStringLiteral("to")).toString())) {
             decryptMessageText(peerId, msg);
             Q_EMIT message(msg);
@@ -627,31 +567,24 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
 
 void NetworkManager::decryptMessageText(const QString &peerRef, QJsonObject &msg) const
 {
-    // Reactions, receipts and deletes share this dispatch path but carry no
-    // body, and inventing a "text" field for them would confuse the UI.
     if (!m_crypto || !msg.contains(QStringLiteral("text")))
         return;
 
-    // The sender's "encrypted" flag used to decide this, which meant clearing
-    // it was enough to have the text handed to the UI unchecked. What matters
-    // is whether we hold a key for this channel; decrypt() refuses cleartext
-    // once we do.
+    // The sender "encrypted" flag used to decide this, so clearing it was enough to
+    // have the text handed to the UI unchecked. What matters is whether we hold a key
+    // for this channel; decrypt() refuses cleartext once we do.
     if (!m_crypto->hasSession(peerRef) && m_groupPassphrase.isEmpty())
         return;
 
     const QString cipherText = msg.value(QStringLiteral("text")).toString();
-    // decrypt() picks the path from the tag byte, so handing it both the
-    // passphrase and the peer covers session and group traffic alike.
     const QString plain = m_crypto->decrypt(cipherText, m_groupPassphrase, peerRef);
     msg[QStringLiteral("text")] = plain;
 }
 
 void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
 {
-    // What the peer says about itself. Only ever a delivery candidate from here
-    // on: a host at one address can advertise any other, and pinning or listing
-    // a peer at an address of its own choosing is how that turns into a lie the
-    // interface repeats.
+    // Only ever a delivery candidate: a host at one address can advertise any other,
+    // and trusting that is how it becomes a lie the interface repeats.
     const QString advertised = msg.value(QStringLiteral("ip")).toString();
     const QSet<QString> myIps = m_localIps.isEmpty() ? QSet<QString>{m_hostIp} : m_localIps;
     if (myIps.contains(advertised) || myIps.contains(host))
@@ -661,33 +594,25 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
 
     QString peerId;
     if (m_crypto) {
-        // ECDH handshake first, because it is what turns this packet into an
-        // identity: the replay bucket below belongs to that identity, and keying
-        // it on the address instead let the same captured packet be replayed
-        // once per source address an attacker felt like using.
+        // ECDH handshake first, because it is what turns this packet into an identity:
+        // the replay bucket below belongs to that identity, and keying it on the
+        // address let one captured packet be replayed once per source address.
         if (msg.contains(QStringLiteral("dh_pub"))) {
-            // Someone new at an address a peer we still hold a session with is
-            // using. CryptoManager refuses it, and the peer record has to
-            // survive it too - it is where the interface reads the name and the
-            // fingerprint it shows beside the warning, and letting the refused
-            // packet rewrite those hands the spoofer the only part of the
-            // takeover the user can see.
+            // Someone new at an address a peer we still hold a session with is using.
+            // The peer record must survive it - it holds the name and fingerprint the
+            // warning shows, and a refused packet rewriting those aids the spoofer.
             if (m_crypto->processHandshakeFrom(host, msg, &peerId) == CryptoManager::HandshakeOutcome::AddressTaken)
                 return;
         }
 
-        // Layer 5 - replay guard on presence packets (nonce + timestamp window).
         const QString nonce = msg.value(QStringLiteral("nonce")).toString();
         const double ts = msg.value(QStringLiteral("ts")).toDouble();
         if (!nonce.isEmpty() && !m_crypto->checkReplay(peerId.isEmpty() ? host : peerId, nonce, ts))
             return; // replayed presence packet
     }
 
-    // One entry per identity, filed under the address we first heard it on. A
-    // multi-homed peer broadcasts on every interface it has, and two contacts
-    // for one person is worse than the listed address not being its newest -
-    // the other ones are remembered as delivery candidates either way, see
-    // deliveryAddresses().
+    // One entry per identity, filed under the address first heard: two contacts for one
+    // person is worse than a stale address, and deliveryAddresses() keeps the rest.
     const QString key = m_peerKeyById.value(peerId, host);
     msg[QStringLiteral("ip")] = key;
     if (!advertised.isEmpty() && advertised != key)
@@ -718,10 +643,8 @@ void NetworkManager::onNewTcpConnection()
         if (ip.startsWith(QLatin1String("::ffff:")))
             ip = ip.mid(7);
 
-        // A peer that reconnects arrives here again while the socket from the
-        // last call is still in the map. Assigning over it left that one alive
-        // with its handlers attached - one stranded QTcpSocket per reconnect,
-        // and a disconnect on the old one still reporting the call as ended.
+        // A reconnecting peer arrives while the last socket is still in the map, and
+        // assigning over it stranded that socket, still reporting the call as ended.
         replaceVoiceSocket(ip, sock);
         connect(sock, &QTcpSocket::readyRead, this, [this, sock, ip] {
             onVoiceData(sock, ip);
@@ -733,7 +656,6 @@ void NetworkManager::onNewTcpConnection()
     }
 }
 
-// Puts a socket in the voice map, seeing off whatever was there for that address.
 void NetworkManager::replaceVoiceSocket(const QString &ip, QTcpSocket *sock)
 {
     if (auto *previous = m_voiceConnections.value(ip, nullptr); previous && previous != sock) {
@@ -747,23 +669,20 @@ void NetworkManager::replaceVoiceSocket(const QString &ip, QTcpSocket *sock)
 
 void NetworkManager::onVoiceData(QTcpSocket *sock, const QString &ip)
 {
-    // Reassemble whole frames before handing anything on. The old code read
-    // whatever had arrived and called it a frame, which is why encrypted voice
-    // never worked: the GCM tag was almost never at the end of the slice.
+    // Reassemble whole frames first. The old code called whatever had arrived a frame,
+    // which is why encrypted voice never worked: the GCM tag was mid-slice.
     QByteArray buf = m_voiceRxBuffers.value(sock) + sock->readAll();
     QVector<QByteArray> frames;
 
     while (buf.size() >= protocol::kFrameHeaderBytes) {
         const quint32 len = readLengthPrefix(buf);
         if (len == 0 || len > protocol::kMaxVoiceFrameBytes) {
-            // the length is peer-supplied, so a silly one is either a broken
-            // sender or an attempt to make us allocate a gigabyte
+            // a peer-supplied length, so a silly one asks us to allocate a gigabyte
             m_voiceRxBuffers.remove(sock);
             Q_EMIT errorOccurred(
                 i18nc("@info:status %1 is a host address, %2 a byte count", "Voice frame from %1 declared %2 bytes - dropping the connection.", ip, len));
-            // abort() on a connected socket emits disconnected(), which is
-            // where the teardown lives - doing it here as well would tell the
-            // call layer twice.
+            // abort() on a connected socket emits disconnected(), where the teardown
+            // lives - doing it here as well would tell the call layer twice.
             sock->abort();
             return;
         }
@@ -778,8 +697,6 @@ void NetworkManager::onVoiceData(QTcpSocket *sock, const QString &ip)
     m_voiceRxBuffers[sock] = buf;
 
     for (const auto &frame : std::as_const(frames)) {
-        // VoiceCallManager decrypts (CryptoManager::decryptBytes) before
-        // pushing into the jitter buffer, so the sender has to come with it.
         Q_EMIT voiceDataFrom(ip, frame);
     }
 }
@@ -807,10 +724,8 @@ void NetworkManager::startInternetTunnel()
     }
 
     if (host.isEmpty() || port == 0) {
-        // No VDS configured yet (no built-in relay ships, no custom one set
-        // via setRelayServer()). Don't spam-reconnect for something that
-        // can't possibly succeed - just check back periodically in case the
-        // user configures one, or an update ships a built-in relay.
+        // Nothing to connect to, so do not spam-reconnect - just check back in case
+        // the user configures a relay or an update ships a built-in one.
         Q_EMIT errorOccurred(i18nc("@info:status",
                                    "VDS mode is on but no relay server is configured. "
                                    "Set one in Settings, or switch back to LAN/VPN mode."));
@@ -867,9 +782,7 @@ void NetworkManager::startInternetTunnel()
     sock->connectToHost(host, port);
 }
 
-// The relay counterpart of onVoiceData: same 4-byte big-endian framing, and the
-// payload is one compact JSON object per frame, which is what sendUdp() writes
-// on this socket.
+// Same 4-byte big-endian framing as onVoiceData, one compact JSON object per frame.
 void NetworkManager::onRelayData()
 {
     m_relayBuffer += m_relaySocket->readAll();
@@ -878,8 +791,6 @@ void NetworkManager::onRelayData()
     while (m_relayBuffer.size() >= protocol::kFrameHeaderBytes) {
         const quint32 len = readLengthPrefix(m_relayBuffer);
         if (len == 0 || len > protocol::kMaxRelayFrameBytes) {
-            // the relay is no more trusted than a peer, and a bogus length here
-            // would otherwise mean a multi-gigabyte allocation
             Q_EMIT errorOccurred(i18nc("@info:status %1 is a byte count", "Relay frame declared %1 bytes - dropping the tunnel.", len));
             m_relayBuffer.clear();
             // the disconnected handler clears the flag and schedules the
@@ -901,9 +812,8 @@ void NetworkManager::onRelayData()
             continue;
         }
         const QJsonObject msg = doc.object();
-        // The TCP peer is the relay, not the sender, so the source address has
-        // to come out of the payload - it is what the replay guard, the HMAC
-        // check and the peer table are all keyed on.
+        // The TCP peer is the relay, not the sender, so the source address has to come
+        // out of the payload - the replay guard and the peer table are keyed on it.
         QString host = msg.value(QStringLiteral("from_ip")).toString();
         if (host.isEmpty())
             host = msg.value(QStringLiteral("ip")).toString();
@@ -925,7 +835,6 @@ void NetworkManager::scheduleRelayReconnect()
     });
 }
 
-// outgoing
 void NetworkManager::sendUdp(QJsonObject payload, const QString &targetIp)
 {
     sendUdpToAll(std::move(payload), targetIp.isEmpty() ? QVector<QString>{} : QVector<QString>{targetIp});
@@ -941,17 +850,14 @@ void NetworkManager::sendUdpToAll(QJsonObject payload, const QVector<QString> &t
         payload[QStringLiteral("nonce")] = randomHex(8);
         payload[QStringLiteral("ts")] = nowEpoch();
 
-        // Who this is from, so the far side can find the session even when the
-        // route sends this out of an interface it has never seen us on. Added
-        // before the signature, so it is a claim until the HMAC agrees with it.
+        // Who this is from, so the far side finds the session even when the route picks
+        // an unfamiliar interface. Before the signature, so it is only a claim.
         if (m_crypto)
             payload[QStringLiteral("from_id")] = m_crypto->ownIdentityId();
 
-        // Layer 4 - HMAC-sign unicast packets once a session key exists with
-        // the target (broadcasts have no single peer session to sign for). One
-        // signature for the whole set: these addresses are one peer holding one
-        // session key, so a copy per interface needs no extra signing and every
-        // copy verifies wherever it lands.
+        // Layer 4 - HMAC-sign unicast packets once a session key exists with the
+        // target; broadcasts have no single peer session to sign for. One signature for
+        // the whole set, since these addresses are one peer holding one session key.
         QString peerId;
         for (const QString &target : targets) {
             peerId = m_crypto ? m_crypto->identityForAddress(target) : QString();
@@ -965,8 +871,6 @@ void NetworkManager::sendUdpToAll(QJsonObject payload, const QVector<QString> &t
     const QByteArray data = QJsonDocument(payload).toJson(QJsonDocument::Compact);
 
     if (m_internetMode) {
-        // The relay forwards by the addresses in the payload, so one copy is
-        // the whole delivery however many interfaces the peer has.
         if (m_relaySocket && m_relayConnected)
             m_relaySocket->write(lengthPrefix(quint32(data.size())) + data);
     } else if (!targets.isEmpty()) {
@@ -996,9 +900,8 @@ QVector<QString> NetworkManager::deliveryAddresses(const QString &toIp) const
         }
     }
 
-    // Then the ones it advertised, which are guesses - and the reason for the
-    // cap, since the list arrives over the network at whatever length the sender
-    // felt like sending.
+    // Then the ones it advertised, which are guesses - and the reason for the cap,
+    // since the list arrives at whatever length the sender felt like sending.
     const auto altIps = m_peers.value(toIp).value(QStringLiteral("all_ips")).toArray();
     for (const auto &v : altIps) {
         if (targets.size() >= kMaxDeliveryAddresses)
@@ -1016,9 +919,8 @@ void NetworkManager::sendPrivate(const QString &text, const QString &toIp)
     bool encrypted = false;
 
     if (m_crypto) {
-        // A session is the better key when there is one. Falling back to the
-        // group passphrase means a message still gets protection before the
-        // handshake with this peer has completed.
+        // A session is the better key when there is one. The group passphrase still
+        // protects a message sent before the handshake with this peer completed.
         const QString passphrase = m_crypto->hasSession(toIp) ? QString() : m_groupPassphrase;
         const QString cipherText = m_crypto->encrypt(text, passphrase, toIp);
         if (cipherText != text) {
@@ -1034,11 +936,9 @@ void NetworkManager::sendPrivate(const QString &text, const QString &toIp)
     payload[QStringLiteral("from_ip")] = m_hostIp;
     payload[QStringLiteral("encrypted")] = encrypted;
 
-    // One signed datagram, copied to every address this peer answers on - which
-    // is the LAN one and the VPN one on any host running both. It used to be a
-    // separate sendUdp() per address, and since the signature was made for the
-    // address it was aimed at, every copy but the first went out unsigned and
-    // was dropped by a correct receiver.
+    // One signed datagram copied to every address this peer answers on. It used to be
+    // a sendUdp() per address, and since the signature was made for the address it was
+    // aimed at, every copy but the first went out unsigned and was dropped.
     sendUdpToAll(payload, deliveryAddresses(toIp));
 }
 
@@ -1150,11 +1050,8 @@ void NetworkManager::sendReadReceipt(const QString &toIp, const QString &chatId)
     payload[QStringLiteral("type")] = protocol::kMsgRead;
     payload[QStringLiteral("from_ip")] = m_hostIp;
     payload[QStringLiteral("chat_id")] = chatId;
-    // Every address the peer answers on, the same as sendPrivate(). A receipt
-    // that only goes to the address the chat happens to be filed under is a
-    // receipt that goes missing on exactly the multi-homed peer the identity
-    // keying was added for, and losing one leaves the sender's message showing
-    // as unconfirmed forever.
+    // Every address the peer answers on, as sendPrivate() does: a lost receipt leaves
+    // the sender message showing as unconfirmed forever.
     sendUdpToAll(payload, deliveryAddresses(toIp));
 }
 
@@ -1241,7 +1138,6 @@ void NetworkManager::sendChunksQueued(const QVector<QJsonObject> &chunks, const 
     });
 }
 
-// voice TCP
 bool NetworkManager::connectVoice(const QString &ip)
 {
     if (m_voiceConnections.contains(ip))
@@ -1249,8 +1145,6 @@ bool NetworkManager::connectVoice(const QString &ip)
     if (m_pendingVoice.contains(ip))
         return true; // an attempt is already in flight for this peer
 
-    // Resolved up front so a missing relay is still reported synchronously,
-    // which is the one failure the caller can know about without waiting.
     QString relayHost;
     quint16 relayPort = 0;
     if (m_internetMode) {
@@ -1290,14 +1184,12 @@ bool NetworkManager::connectVoice(const QString &ip)
             return; // already connected, or replaced by a newer attempt
         m_pendingVoice.remove(ip);
         Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address, %2 a socket error message", "Voice connect to %1 failed: %2", ip, sock->errorString()));
-        // whoever started the call listens for this to unwind its own state
         Q_EMIT voiceDisconnected(ip);
         sock->deleteLater();
     });
 
-    // No waitForConnected: it blocked the GUI thread for up to three seconds
-    // while the callee's ringtone was supposed to be playing. The result now
-    // arrives as voiceConnected() or voiceDisconnected().
+    // No waitForConnected: it blocked the GUI thread for up to three seconds while the
+    // callee ringtone was supposed to be playing.
     if (m_internetMode)
         sock->connectToHost(relayHost, relayPort);
     else

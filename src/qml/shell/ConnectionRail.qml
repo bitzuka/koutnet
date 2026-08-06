@@ -5,38 +5,29 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 
-// The strip down the left edge of the window: how this client reaches the
-// network, one round button per mode.
+// The connection mode sits on the left edge rather than three pages into the
+// settings because it is the thing this application is for.
 //
-// It is here rather than buried three pages into the settings because the
-// connection mode is the thing this application is for. A messenger that can be
-// pointed at a LAN, a VPN, a K-Server or the maintainer's relay has to say which
-// of those it is doing without being asked.
-//
-// The rail only picks a mode. Writing it to the running network layer is
-// deliberately somebody else's job - switching mode tears a relay tunnel up or
-// down, so it goes through the same apply that the settings page uses.
+// The rail only picks a mode; applying it goes through the same path the
+// settings page uses, because switching tears a relay tunnel up or down.
 QQC2.Control {
     id: root
 
-    // NetworkManager.ConnectionMode as an int, mirrored from AppSettings.
     property int currentMode: 0
 
     signal modeSelected(int mode)
 
-    // Width comes from the buttons, which are square, plus the column's own
-    // insets. Hardcoding a grid unit count here and a padding there is how a
-    // rail ends up half a pixel wider than the separator beside it.
+    // Width comes from the square buttons plus the column's own insets;
+    // hardcoding it is how the rail ends up half a pixel off the separator.
     implicitWidth: Kirigami.Units.iconSizes.smallMedium + Kirigami.Units.gridUnit * 2
 
     padding: 0
 
-    // Mirrors NetworkManager::ConnectionMode. The values are persisted, so the
-    // order here is the enum's order and not a nicer one.
+    // The values are persisted, so the order here is the enum's, not a nicer one.
     //
-    // Every mode stays on the rail whether or not it works yet. Which of them
-    // can be picked is NetworkManager's answer, not this file's - landing a
-    // K-Server means changing modeAvailable() and nothing here.
+    // Three buttons and not five: self-hosted, somebody else's and the
+    // maintainer's deployment were one protocol at three addresses, and picking
+    // an address belongs in a text field on the settings page.
     readonly property var modes: [
         {
             mode: 0,
@@ -46,35 +37,23 @@ QQC2.Control {
         },
         {
             mode: 1,
-            name: i18nc("@item connection mode, a K-Server run by this user", "K-Server, self-hosted"),
+            name: i18nc("@item connection mode, a K-Server at whatever address is configured", "K-Server"),
             icon: "network-server",
             reason: i18nc("@info:tooltip why a connection mode cannot be used", "not built yet")
         },
         {
             mode: 2,
-            name: i18nc("@item connection mode, somebody else's K-Server", "K-Server, someone else's"),
-            icon: "network-connect",
-            reason: i18nc("@info:tooltip why a connection mode cannot be used", "not built yet")
-        },
-        {
-            mode: 3,
             name: i18nc("@item connection mode, a plain relay that is not a K-Server", "Relay server"),
             icon: "network-vpn",
             reason: i18nc("@info:tooltip why a connection mode cannot be used", "no relay address is set")
-        },
-        {
-            mode: 4,
-            name: i18nc("@item connection mode, the relay the project maintainer runs", "Maintainer's server"),
-            icon: "cloudstatus",
-            reason: i18nc("@info:tooltip why a connection mode cannot be used", "no server has been deployed yet")
         }
     ]
 
     contentItem: QQC2.ScrollView {
         id: railScroll
 
-        // A rail this narrow has no room for a scrollbar, and five buttons never
-        // need one; it is here only so a sixth mode does not fall off the bottom.
+        // Three buttons never need a scrollbar, and this rail has no room for
+        // one; the view is here so a fourth mode does not fall off the bottom.
         QQC2.ScrollBar.vertical.policy: QQC2.ScrollBar.AlwaysOff
         QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
         contentWidth: availableWidth
