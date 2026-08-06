@@ -3,6 +3,7 @@
 #include "HistoryManager.h"
 
 #include "koutnet_chat_debug.h"
+#include <QCryptographicHash>
 #include <QDebug>
 #include <QFile>
 #include <QJsonArray>
@@ -10,6 +11,17 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStandardPaths>
+
+namespace
+{
+// How much of the readable part of a chat id survives into the file name. A
+// room alias can be longer than a file name is allowed to be, and the digest is
+// what carries the identity, so the readable part is free to be cut.
+constexpr int kMaxStemChars = 48;
+// Hex characters of SHA-256. Forty-eight bits is far past the point where a
+// collision is a realistic way to lose a conversation.
+constexpr int kDigestChars = 12;
+} // namespace
 
 HistoryManager::HistoryManager(QObject *parent)
     : QObject(parent)
@@ -31,11 +43,46 @@ QDir HistoryManager::historyDir() const
     return QDir(base + QStringLiteral("/history"));
 }
 
-QString HistoryManager::filePathFor(const QString &chatId) const
+QString HistoryManager::legacyStemFor(const QString &chatId)
 {
+    static const QRegularExpression unsafe(QStringLiteral("[^\\w\\-]"));
     QString safe = chatId;
-    safe.replace(QRegularExpression(QStringLiteral("[^\\w\\-]")), QStringLiteral("_"));
-    return historyDir().filePath(safe + QStringLiteral(".json"));
+    safe.replace(unsafe, QStringLiteral("_"));
+    return safe;
+}
+
+QString HistoryManager::stemFor(const QString &chatId)
+{
+    const QString safe = legacyStemFor(chatId);
+    // Nothing was replaced and the name is short enough to be one: this id is
+    // already unique among file names. Returning it untouched is what keeps
+    // every log written before the digest existed readable.
+    if (safe == chatId && safe.size() <= kMaxStemChars)
+        return safe;
+
+    const QString digest = QString::fromLatin1(QCryptographicHash::hash(chatId.toUtf8(), QCryptographicHash::Sha256).toHex().left(kDigestChars));
+    return safe.left(kMaxStemChars) + QLatin1Char('-') + digest;
+}
+
+QString HistoryManager::filePathFor(const QString &chatId)
+{
+    const QDir dir = historyDir();
+    const QString path = dir.filePath(stemFor(chatId) + QStringLiteral(".json"));
+
+    if (m_namesChecked.contains(chatId))
+        return path;
+    m_namesChecked.insert(chatId);
+
+    const QString legacy = dir.filePath(legacyStemFor(chatId) + QStringLiteral(".json"));
+    // A log that has stopped reading back is indistinguishable from a lost one,
+    // so the file moves with the scheme rather than being abandoned by it. Once
+    // per chat per run, and never over a file that is already there - two ids
+    // that used to share a name cannot both claim it.
+    if (legacy != path && QFile::exists(legacy) && !QFile::exists(path)) {
+        if (!QFile::rename(legacy, path))
+            qCWarning(KOUTNET_LOG_CHAT) << "could not move" << legacy << "to" << path;
+    }
+    return path;
 }
 
 QVariantList HistoryManager::load(const QString &chatId)
