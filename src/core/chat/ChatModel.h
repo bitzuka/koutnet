@@ -88,6 +88,15 @@ public:
     Q_INVOKABLE void receiveFile(const QString &filePath, bool isImage, const QString &sender = QString());
     Q_INVOKABLE void appendSystemMessage(const QString &text);
 
+    // A message that arrived with an identity and a time of its own, which a LAN
+    // datagram has neither of. The only entry point the Matrix path uses, and
+    // the only one that is idempotent: remoteId is the event id, sync replays
+    // the tail of a timeline on every reconnect, and the log on disk carries the
+    // same ids back, so a restart does not double the conversation. Returns
+    // false when the message was already here.
+    Q_INVOKABLE bool
+    ingestRemoteMessage(const QString &remoteId, const QString &text, const QString &sender, bool isOwn, double ts, bool isSystem = false);
+
     // Editing and unsending are local only: the caller tells the peer, because
     // only the window knows this chat's address and a model reaching for
     // NetworkManager could not be tested without a socket. The stamp is the

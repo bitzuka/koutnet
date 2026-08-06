@@ -343,6 +343,29 @@ void ChatModel::appendSystemMessage(const QString &text)
     appendEntry(e, false);
 }
 
+bool ChatModel::ingestRemoteMessage(const QString &remoteId, const QString &text, const QString &sender, bool isOwn, double ts, bool isSystem)
+{
+    // No id means no duplicate check, and without one this is receiveMessage().
+    if (remoteId.isEmpty() || rowForMsgId(remoteId) >= 0)
+        return false;
+
+    MessageEntry e;
+    e.msgId = remoteId;
+    e.text = text;
+    e.sender = sender;
+    e.ts = ts > 0.0 ? ts : QDateTime::currentMSecsSinceEpoch() / 1000.0;
+    e.isOwn = isOwn;
+    e.isSystem = isSystem;
+    e.msgType = QStringLiteral("private");
+    // Our own message came back from the server, so it is on the wire by
+    // definition; a pending mark that nothing will ever clear is worse than none.
+    e.isRead = isOwn;
+    // Persisted like any other, which is what makes the duplicate check survive
+    // a restart: reload() puts these ids back before the first sync arrives.
+    appendEntry(e, true);
+    return true;
+}
+
 void ChatModel::toggleReaction(int row, const QString &emoji, const QString &username)
 {
     if (row < 0 || row >= m_messages.size() || !m_reactions)
