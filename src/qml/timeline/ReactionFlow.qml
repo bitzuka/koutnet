@@ -4,17 +4,13 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 
-// The reactions under a message, as pills that toggle.
-//
-// A Flow rather than a RowLayout: fifteen reactions on one message is unusual
-// but not wrong, and the row has to wrap rather than push the timeline sideways.
+// A Flow rather than a RowLayout: fifteen reactions on one message is unusual but
+// not wrong, and the row has to wrap rather than push the timeline sideways.
 Flow {
     id: root
 
     // ReactionStore::summary() output: a list of { emoji, count, users }.
     property var reactions: []
-    // The name this client files its own reactions under. Compared against the
-    // users list to decide which pills are yours.
     property string selfName: ""
 
     signal toggled(string emoji)
@@ -55,8 +51,7 @@ Flow {
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 textFormat: Text.PlainText
-                // Emoji then count, with a space between rather than a glued
-                // "3x": the emoji is the label and the number is an aside.
+                // A space rather than a glued "3x": the number is an aside.
                 text: i18nc("@item reaction pill, %1 is the emoji and %2 how many reacted with it",
                             "%1 %2", pill.modelData.emoji, pill.modelData.count)
                 font: Kirigami.Theme.smallFont
@@ -64,8 +59,7 @@ Flow {
 
             background: Rectangle {
                 radius: height / 2
-                // Your own reaction is the accent; everyone else's is a tint of
-                // the text colour, so a wall of pills still says which are yours.
+                // Your own is the accent, so a wall of pills still says which are yours.
                 color: pill.mine
                     ? Kirigami.ColorUtils.tintWithAlpha(Kirigami.Theme.backgroundColor, Kirigami.Theme.highlightColor, 0.3)
                     : Kirigami.ColorUtils.tintWithAlpha(Kirigami.Theme.backgroundColor, Kirigami.Theme.textColor, 0.08)
@@ -77,8 +71,7 @@ Flow {
         }
     }
 
-    // Adding a reaction from the row itself, rather than only from the hover
-    // actions. Once a message has reactions this is where the eye already is.
+    // Once a message has reactions, the row is where the eye already is.
     QQC2.AbstractButton {
         id: addButton
 

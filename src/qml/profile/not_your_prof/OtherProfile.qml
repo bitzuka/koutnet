@@ -7,16 +7,11 @@ import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.formcard as FormCard
 import koutnet.app
 
-// A peer's profile at full size: the same thing the settings page shows about
-// you, minus every control that writes. Banner, the avatar over its lower-left,
-// the name, the handle, the status, then what the peer says about itself, then
-// what this end knows about the session.
-//
-// Everything here arrives in the presence packet, which carries the handle,
-// display name, status emoji and a capped bio. Avatar, banner and badge are
-// files and stay out of a broadcast that repeats on a timer, so those slots fall
-// back to the initials and the brand colour until a fetch keyed on profile_rev
-// exists.
+// A peer's profile at full size: what the settings page shows about you, minus every
+// control that writes. Everything here arrives in the presence packet, which carries
+// the handle, display name, status emoji and a capped bio. Avatar, banner and badge
+// are files and stay out of a broadcast that repeats on a timer, so those slots fall
+// back to initials and the brand colour until a fetch keyed on profile_rev exists.
 Kirigami.ScrollablePage {
     id: root
 
@@ -34,24 +29,19 @@ Kirigami.ScrollablePage {
     readonly property string statusEmoji: root.peer ? (root.peer.statusEmoji || "") : ""
     readonly property string bio: root.peer ? (root.peer.bio || "") : ""
 
-    // The one column everything on this page lines up in. A FormCard fills the
-    // row it is given and then draws its card centred at its own maximumWidth,
-    // leaving the rest of the row empty, so anything here that is not a FormCard
-    // has to be handed the same width and the same alignment or it starts at the
-    // window edge instead. Same value as FormCard.maximumWidth.
+    // A FormCard fills its row and then draws the card centred at its own
+    // maximumWidth, so anything here that is not a FormCard needs the same width and
+    // alignment or it starts at the window edge.
     readonly property real kContentWidth: Kirigami.Units.gridUnit * 30
-    // What a form delegate puts round its text, so the blocks below the header
-    // share the header's left edge.
+    // What a form delegate puts round its text, so the blocks share a left edge.
     readonly property real kContentPadding: Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing
 
-    // The address is behind this rather than on the page. It is the one thing
-    // here that says where somebody physically is, and a profile is read with
-    // other people looking at the screen.
+    // The address is behind this rather than on the page: it is the one thing here
+    // that says where somebody physically is, and a screen is read over shoulders.
     property bool technicalShown: false
 
     title: root.shownName
 
-    // See the note on Kirigami.Theme in Main.qml.
     Kirigami.Theme.highlightColor: Brand.accent
 
     ColumnLayout {
@@ -69,8 +59,7 @@ Kirigami.ScrollablePage {
             statusEmoji: root.statusEmoji
         }
 
-        // Only the emoji: the text half of a custom status is not in the
-        // presence packet, so there is nothing on this side to draw for it.
+        // Only the emoji: the text half of a status is not in the presence packet.
         ProfileBlock {
             Layout.fillWidth: true
             Layout.maximumWidth: root.kContentWidth
@@ -97,8 +86,7 @@ Kirigami.ScrollablePage {
 
             label: i18nc("@title:group free-form text about the peer", "About")
 
-            // Markdown, like the own-profile bio, so the same text renders the
-            // same way whichever side of the conversation it is read from.
+            // Markdown, so the same text renders the same way on either side.
             Kirigami.SelectableLabel {
                 Layout.fillWidth: true
                 text: root.bio.length > 0 ? root.bio : i18nc("@info", "No description")
@@ -113,8 +101,7 @@ Kirigami.ScrollablePage {
             title: i18nc("@title:group", "Session")
         }
 
-        // Reachability and session state belong to a peer and have no equivalent
-        // on your own profile, so this section exists only here.
+        // Reachability and session state have no equivalent on your own profile.
         FormCard.FormCard {
             Layout.fillWidth: true
 

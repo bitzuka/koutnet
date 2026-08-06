@@ -5,9 +5,7 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 
-// Three dots and a name, for while the peer is writing.
-//
-// The animation only runs while the row is visible. A repeating animation on a
+// The animation only runs while the row is visible: a repeating animation on a
 // hidden item is a wakeup every 400ms for a conversation nobody is having.
 RowLayout {
     id: root
@@ -16,8 +14,7 @@ RowLayout {
 
     spacing: Kirigami.Units.smallSpacing
 
-    // Sized off the font rather than off a pixel count, so the dots stay in
-    // proportion to the line they sit on when the desktop font changes.
+    // Off the font and not a pixel count, so the dots follow the desktop font.
     FontMetrics {
         id: metrics
         font: Kirigami.Theme.smallFont
@@ -43,9 +40,7 @@ RowLayout {
                 SequentialAnimation on opacity {
                     running: root.visible
                     loops: Animation.Infinite
-                    // Each dot starts a third of a cycle after the one before,
-                    // which is what makes the row read as a wave rather than a
-                    // blink.
+                    // A third of a cycle apart, so the row reads as a wave.
                     PauseAnimation { duration: dot.index * 160 }
                     NumberAnimation { to: 1.0; duration: 320; easing.type: Easing.InOutQuad }
                     NumberAnimation { to: 0.3; duration: 320; easing.type: Easing.InOutQuad }

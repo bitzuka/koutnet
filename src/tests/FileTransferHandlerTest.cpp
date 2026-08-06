@@ -1,11 +1,5 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// Tests for the peer-supplied filename and the chunk accounting.
-//
-// Everything this class reads comes off the wire: the name a file is written
-// under, how many chunks there are, how big each one is, and how big the sender
-// claims the whole thing will be. None of it is checkable by hand, because a
-// well-behaved peer never sends any of the interesting cases.
 
 #include <KLocalizedString>
 #include <QDir>
@@ -57,9 +51,7 @@ class FileTransferHandlerTest : public QObject
     Q_OBJECT
 
 private Q_SLOTS:
-    // A name is only safe if joining it to the destination folder cannot point
-    // anywhere else, so that is what gets asserted rather than any particular
-    // rewrite of the string.
+    // A name is only safe if joining it to the destination cannot point elsewhere.
     void sanitizedNamesStayInTheFolder_data()
     {
         QTest::addColumn<QString>("raw");
@@ -111,15 +103,14 @@ private Q_SLOTS:
 
         QVERIFY2(name.toUtf8().size() <= FileTransferHandler::kMaxFilenameBytes, qPrintable(QStringLiteral("%1 bytes of filename").arg(name.toUtf8().size())));
 
-        // The whole point, stated as the property it has to have.
         const QString base = QDir::cleanPath(downloadDir());
         const QString joined = QDir::cleanPath(base + QLatin1Char('/') + name);
         QVERIFY2(joined.startsWith(base + QLatin1Char('/')), qPrintable(QStringLiteral("%1 escapes %2").arg(joined, base)));
         QCOMPARE(QFileInfo(joined).absolutePath(), base);
     }
 
-    // The same thing again through the real transfer path, because the check in
-    // saveToDisk() compares canonical paths and only a write proves it agrees.
+    // Again through the real path: saveToDisk() compares canonical paths, and only a
+    // write proves it.
     void aHostileNameIsWrittenInsideTheFolder_data()
     {
         QTest::addColumn<QString>("raw");
@@ -151,7 +142,6 @@ private Q_SLOTS:
         QCOMPARE(QFileInfo(path).absolutePath(), base);
         QVERIFY2(QFileInfo::exists(path), qPrintable(path));
 
-        // Nothing may be left behind for a transfer that completed.
         QCOMPARE(handler.pendingTransferCount(), 0);
         QCOMPARE(handler.pendingBufferedBytes(), 0);
     }
@@ -168,8 +158,8 @@ private Q_SLOTS:
         QTest::newRow("negative") << QJsonValue(-1) << false;
         QTest::newRow("very negative") << QJsonValue(-1e18) << false;
         QTest::newRow("over the cap") << QJsonValue(double(FileTransferHandler::kMaxTransferBytes) + 1.0) << false;
-        // Narrowing either of these to qint64 is undefined behaviour, not a
-        // large number that then fails a range check.
+        // Narrowing either of these to qint64 is undefined behaviour, not a large
+        // number.
         QTest::newRow("absurd") << QJsonValue(1e300) << false;
         QTest::newRow("infinity") << QJsonValue(std::numeric_limits<double>::infinity()) << false;
         QTest::newRow("nan") << QJsonValue(std::numeric_limits<double>::quiet_NaN()) << false;
@@ -197,13 +187,10 @@ private Q_SLOTS:
 
         QCOMPARE(handler.pendingTransferCount(), accepted ? 1 : 0);
         QCOMPARE(rejected.count(), accepted ? 0 : 1);
-        // A refused announcement must not have booked any memory either.
         if (!accepted)
             QCOMPARE(handler.pendingBufferedBytes(), 0);
     }
 
-    // Retransmission is legitimate - UDP drops packets and a sender that resends
-    // the same index with the same bytes is doing the right thing.
     void anIdenticalResendIsAccepted()
     {
         FileTransferHandler handler;
@@ -227,8 +214,6 @@ private Q_SLOTS:
         QCOMPARE(handler.pendingTransferCount(), 0);
     }
 
-    // The other half of the same rule. An index resent with different bytes is
-    // either a broken sender or the trick below, and there is no way to tell.
     void aConflictingResendKillsTheTransfer()
     {
         FileTransferHandler handler;
@@ -244,9 +229,9 @@ private Q_SLOTS:
         QCOMPARE(handler.pendingBufferedBytes(), 0);
     }
 
-    // The accounting bug this replaced: insert() replaces, so walking every
-    // index once at one byte and then again at full size cost nothing the first
-    // time round and the cap never saw the second pass.
+    // The accounting bug this replaced: insert() replaces, so every index at one
+    // byte and then again at full size cost nothing the first pass and the cap never
+    // saw the second.
     void aSecondPassAtFullSizeIsRefused()
     {
         FileTransferHandler handler;
@@ -256,24 +241,21 @@ private Q_SLOTS:
         const int total = 16;
         handler.onMeta(metaFor(tid, 16, QStringLiteral("twopass.bin")));
 
-        // One short of the whole set on purpose: the last chunk would finish
-        // the transfer, flush it to disk and empty the buffers we are measuring.
+        // One short on purpose: the last chunk would flush to disk and empty the
+        // buffers.
         for (int i = 0; i < total - 1; ++i)
             handler.onChunkMessage(chunkFor(tid, i, total, QByteArrayLiteral("x")));
         QCOMPARE(rejected.count(), 0);
         QCOMPARE(handler.pendingBufferedBytes(), total - 1);
 
-        // Same index, more bytes. Either it is counted, or it is refused; the
-        // one thing it may not be is free.
         handler.onChunkMessage(chunkFor(tid, 0, total, QByteArray(4096, 'x')));
         QVERIFY2(rejected.count() == 1 || handler.pendingBufferedBytes() > total - 1, "a resent index grew the transfer without being charged for it");
         QCOMPARE(handler.pendingTransferCount(), 0);
         QCOMPARE(handler.pendingBufferedBytes(), 0);
     }
 
-    // Deliberately the expensive test in this file: proving the cap holds means
-    // actually handing over more than the cap. 4 MiB a chunk keeps it to about
-    // fifty iterations.
+    // Deliberately expensive: proving the cap holds means handing over more than the
+    // cap.
     void theByteCapHolds()
     {
         FileTransferHandler handler;
@@ -284,8 +266,6 @@ private Q_SLOTS:
         const QByteArray chunk(chunkBytes, 'q');
         const int total = int(FileTransferHandler::kMaxTransferBytes / chunkBytes) + 2;
 
-        // Announced small on purpose: the cap has to hold against what actually
-        // arrives, not against what the peer said would arrive.
         handler.onMeta(metaFor(tid, 1024, QStringLiteral("big.bin")));
 
         int sent = 0;
@@ -328,8 +308,6 @@ private Q_SLOTS:
         QCOMPARE(handler.pendingBufferedBytes(), 0);
     }
 
-    // A chunk for a transfer whose meta was refused, or never sent at all, has
-    // nowhere to go and must not create somewhere to go.
     void chunksWithoutAMetaAreDropped()
     {
         FileTransferHandler handler;
@@ -344,7 +322,6 @@ private Q_SLOTS:
         QCOMPARE(handler.pendingTransferCount(), 0);
         QCOMPARE(handler.pendingBufferedBytes(), 0);
 
-        // An empty tid is not a transfer identifier.
         handler.onMeta(metaFor(QString(), 16, QStringLiteral("x.bin")));
         QCOMPARE(handler.pendingTransferCount(), 0);
     }
@@ -362,9 +339,8 @@ private Q_SLOTS:
     }
 };
 
-// The download directory is the one path here that QStandardPaths test mode
-// does not move: on Unix it comes out of the XDG user dirs, so without a home
-// of its own this test would write into the real ~/Downloads.
+// The download directory is the one path QStandardPaths test mode does not move: on
+// Unix it comes from the XDG user dirs, so this would write into real ~/Downloads.
 int main(int argc, char *argv[])
 {
     QTemporaryDir home;
@@ -378,8 +354,7 @@ int main(int argc, char *argv[])
 
     QStandardPaths::setTestModeEnabled(true);
     QCoreApplication app(argc, argv);
-    // Without a domain ki18n warns on every single string, which buries
-    // the actual test output.
+    // Without a domain ki18n warns on every string, burying the test output.
     KLocalizedString::setApplicationDomain(QByteArrayLiteral("koutnet"));
     QCoreApplication::setOrganizationName(QStringLiteral("koutnet-tests"));
     QCoreApplication::setApplicationName(QStringLiteral("file-transfer-handler"));

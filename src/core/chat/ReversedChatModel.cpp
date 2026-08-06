@@ -11,9 +11,6 @@ void ReversedChatModel::setSourceModel(QAbstractItemModel *model)
 {
     if (model == sourceModel())
         return;
-    // Bracketed the way QIdentityProxyModel brackets its own: every row this
-    // model has is about to mean something else, and the view has to be told
-    // before the translations are unhooked rather than after.
     beginResetModel();
     if (sourceModel())
         disconnect(sourceModel(), nullptr, this, nullptr);
@@ -29,9 +26,9 @@ void ReversedChatModel::connectSource()
         return;
 
     // An insert at the source tail is a prepend here, and the range has to be
-    // worked out from the count before the insert - which is the count the
-    // source still reports while "about to" is running, and not the one it
-    // reports afterwards.
+    // worked out from the count before the insert - the count the source still
+    // reports while "about to" is running, and not the one it reports
+    // afterwards.
     connect(src, &QAbstractItemModel::rowsAboutToBeInserted, this, [this](const QModelIndex &parent, int first, int last) {
         if (parent.isValid())
             return;
@@ -78,9 +75,9 @@ void ReversedChatModel::connectSource()
     });
 
     // ChatModel neither moves rows nor rearranges itself, so these are here
-    // only so that a source which grew the habit would not go unnoticed. A
-    // reset is the honest answer: reversing a move means remapping every
-    // persistent index, and there is no caller asking for it.
+    // only so a source that grew the habit would not go unnoticed. A reset is
+    // the honest answer: reversing a move means remapping every persistent
+    // index.
     connect(src, &QAbstractItemModel::rowsAboutToBeMoved, this, [this]() {
         beginResetModel();
     });
@@ -142,9 +139,8 @@ int ReversedChatModel::toSourceRow(int proxyRow) const
 
 int ReversedChatModel::fromSourceRow(int sourceRow) const
 {
-    // Same arithmetic in both directions, but spelled twice: a caller reads
-    // which way round it is going off the name, and one of the two is always
-    // the wrong one to have picked.
+    // Same arithmetic both ways, but spelled twice: a caller reads which way
+    // round it is going off the name, and one of the two is always wrong.
     const int n = sourceRowCount();
     if (sourceRow < 0 || sourceRow >= n)
         return -1;

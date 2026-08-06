@@ -5,18 +5,13 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 
-// React, reply, edit and the rest, floating at the trailing edge of whichever
-// message the pointer is over.
-//
-// A strip that appears on hover rather than four buttons on every row. Four
-// buttons per message is forty buttons on a screenful, all competing with the
-// text they belong to; and the same four are on the context menu for anyone
-// without a pointer.
+// A strip on hover rather than four buttons on every row: four per message is
+// forty on a screenful, all competing with the text they belong to. The same four
+// are on the context menu for anyone without a pointer.
 QQC2.Control {
     id: root
 
-    // Editing is only offered on your own text. There is nothing to edit on a
-    // file, and nothing this client can do about somebody else's message.
+    // Nothing to edit on a file, and nothing this client can do about a peer's.
     property bool canEdit: false
 
     signal reactRequested()
@@ -26,8 +21,7 @@ QQC2.Control {
 
     padding: Math.round(Kirigami.Units.smallSpacing / 2)
 
-    // The strip sits over the message text, so it needs an edge of its own to be
-    // legible against - the same recipe the floating buttons use.
+    // The strip sits over the message text, so it needs an edge to be legible against.
     background: Kirigami.ShadowedRectangle {
         radius: Kirigami.Units.cornerRadius
         color: Kirigami.Theme.backgroundColor

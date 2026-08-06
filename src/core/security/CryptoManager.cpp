@@ -1,6 +1,5 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// KOutNet - Security Engine v2 (C++/Qt6 port)
 #include "CryptoManager.h"
 #include "SecretStore.h"
 #include "koutnet_crypto_debug.h"
@@ -32,16 +31,12 @@ double nowEpoch()
     return QDateTime::currentMSecsSinceEpoch() / 1000.0;
 }
 
-// Overwrite a buffer of key material before it is freed. QByteArray and QString
-// only release the block, so a private key, a shared secret or a passphrase
-// stays legible in the heap until something else happens to reuse the page -
-// and a core dump, a swap file or a hibernation image is where it turns up.
-//
-// data() detaches first, which means this only wipes the copy in hand: it is
-// correct for a buffer nothing else holds a reference to, which is what every
-// call site below is. Where a buffer is deliberately handed on to live longer
-// (a session key going into m_sessionKeys) it is moved rather than copied, and
-// wiped from there instead.
+// Overwrite key material before the buffer is freed. QByteArray and QString only
+// release the block, so a private key, a shared secret or a passphrase stays
+// legible in the heap - and a core dump, a swap file or a hibernation image is
+// where it turns up. data() detaches first, so this wipes only the copy in hand:
+// correct for a buffer nothing else references, which every call site below is. A
+// session key going into m_sessionKeys is moved rather than copied, and wiped there.
 void cleanse(QByteArray &buf)
 {
     if (!buf.isEmpty())
@@ -75,9 +70,8 @@ private:
     T &m_buf;
 };
 
-// Wallet entry names. The QSettings paths they replaced are spelled out in
-// migrateLegacyKeys(). An empty scope is the application's own identity, so
-// the names it has always used stay exactly as they were.
+// Wallet entry names; the QSettings paths they replaced are in migrateLegacyKeys().
+// An empty scope is the application's own identity, so its names stay as they were.
 QString identityWalletKey(const QString &scope)
 {
     return scope.isEmpty() ? QStringLiteral("identity_priv_b64") : QStringLiteral("identity_priv_b64_") + scope;
@@ -97,8 +91,6 @@ QStringList legacyConfigKeys(const QString &scope)
     return {QStringLiteral("security/%1_identity_priv_b64").arg(scope), QStringLiteral("security/%1_dh_priv_b64").arg(scope)};
 }
 
-// Where a config-file key that is not the one in use ends up, so that deleting
-// the plaintext never destroys the only copy of an identity.
 QString supersededWalletKey(const QString &walletKey)
 {
     return walletKey + QStringLiteral("_superseded");
@@ -143,8 +135,6 @@ CryptoManager::~CryptoManager()
     if (m_dhPriv)
         EVP_PKEY_free(m_dhPriv);
 
-    // The session keys and the cached passphrase keys live as long as this
-    // object does, so this is the exit path for both of them.
     for (auto it = m_sessionKeys.begin(); it != m_sessionKeys.end(); ++it)
         cleanse(*it);
     for (auto it = m_passphraseKeyCache.begin(); it != m_passphraseKeyCache.end(); ++it)
@@ -161,7 +151,6 @@ QByteArray CryptoManager::randomBytes(int n)
     return buf;
 }
 
-// Key lifecycle
 // The private keys live in KWallet, never in QSettings. A session without a
 // wallet still gets a keypair so the app works, it just forgets it on exit.
 bool CryptoManager::initKeypairs()
@@ -185,7 +174,6 @@ bool CryptoManager::initKeypairs()
     if (EVP_PKEY_get_raw_public_key(m_identityPriv, reinterpret_cast<unsigned char *>(m_identityPubBytes.data()), &len) != 1)
         return false;
 
-    // Sign our DH public key with our identity key (Ed25519 one-shot sign).
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     if (!mdctx)
         return false;
@@ -219,17 +207,12 @@ bool CryptoManager::migrateLegacyKeys(QString *outIdentityB64, QString *outDhB64
 {
     QString legacyId;
     QString legacyDh;
-    // Both hold a private key in base64. The caller gets a copy of each and
-    // wipes those in turn.
     Wiper wipeId(legacyId);
     Wiper wipeDh(legacyDh);
     {
-        // Scoped so the instance that read the plaintext is gone before the one
-        // that deletes it exists. Both would share a single in-memory copy of
-        // the file anyway, but nothing here needs that to be true.
         // toString() and not toByteArray(): the old build stored these with a
-        // QByteArray overload, so the file says @ByteArray(...) - QSettings
-        // hands either type back as the same base64 text.
+        // QByteArray overload, so the file says @ByteArray(...) - QSettings hands
+        // either type back as the same base64 text.
         QSettings settings;
         legacyId = settings.value(legacyConfigKeys(m_storageScope).at(0)).toString();
         legacyDh = settings.value(legacyConfigKeys(m_storageScope).at(1)).toString();
@@ -257,10 +240,9 @@ bool CryptoManager::migrateLegacyKeys(QString *outIdentityB64, QString *outDhB64
     return true;
 }
 
-// Deliberately not part of the migration branch. Deleting the plaintext used to
-// be a side effect of the one run that filled the wallet, so a deletion that
-// never reached the disk was never retried: from the next start on the wallet
-// read succeeds, the migration is skipped, and the readable copy stays forever.
+// Deliberately not part of the migration branch: deleting the plaintext used to be
+// a side effect of the one run that filled the wallet, so a deletion that never
+// reached the disk was never retried, and the readable copy stayed forever.
 void CryptoManager::dropLegacyPlaintextKeys()
 {
     if (!stashSupersededPlaintextKeys())
@@ -279,18 +261,15 @@ void CryptoManager::dropLegacyPlaintextKeys()
     reportPlaintextKeysLeft(detail);
 }
 
-// The config file can be carrying a different key pair than the wallet: a run
-// where the wallet was unreachable generated a throwaway identity, or the user
-// restored an old config file. That plaintext still has to go, but deleting the
-// only copy of an identity the user might want back is not a fix, so it moves
-// into the wallet first. False means do not delete anything yet.
+// The config file can carry a different key pair than the wallet: a run where the
+// wallet was unreachable generated a throwaway identity, or an old config file was
+// restored. That plaintext still has to go, but not before the wallet has a copy.
 bool CryptoManager::stashSupersededPlaintextKeys()
 {
     QString legacyId;
     QString legacyDh;
     QString walletId;
     QString walletDh;
-    // Four private keys in base64 by the end of this function.
     Wiper wipeId(legacyId);
     Wiper wipeDh(legacyDh);
     Wiper wipeWalletId(walletId);
@@ -330,9 +309,8 @@ bool CryptoManager::stashSupersededPlaintextKeys()
 
 void CryptoManager::reportPlaintextKeysLeft(const QString &reason)
 {
-    // Queued: this runs from the constructor, where nothing is connected yet.
-    // QML sets its connections up while the engine loads, which is before the
-    // event loop starts, so a zero timer still reaches the interface.
+    // Queued: this runs from the constructor, where nothing is connected yet. QML
+    // connects while the engine loads, before the event loop, so a zero timer works.
     QTimer::singleShot(0, this, [this, reason]() {
         Q_EMIT plaintextKeysLeftInConfig(reason);
     });
@@ -342,22 +320,16 @@ bool CryptoManager::loadStoredKeys()
 {
     QString idB64;
     QString dhB64;
-    // Base64 of the two private keys, and below them the raw bytes themselves.
-    // Five returns out of this function, hence the guards rather than a call
-    // per exit.
     Wiper wipeIdB64(idB64);
     Wiper wipeDhB64(dhB64);
     if (!SecretStore::read(identityWalletKey(m_storageScope), &idB64) || !SecretStore::read(dhWalletKey(m_storageScope), &dhB64) || idB64.isEmpty()
         || dhB64.isEmpty()) {
-        // nothing in the wallet: either a first run, or an older build that
-        // kept the keys in QSettings
         if (!migrateLegacyKeys(&idB64, &dhB64))
             return false;
     } else {
-        // The wallet is the only copy we use from here on, so anything left in
-        // the config file is pure liability. Checked on every start because an
-        // earlier run may have filled the wallet and then failed to rewrite
-        // the file.
+        // The wallet is the only copy used from here on, so anything left in the config
+        // file is pure liability. Checked on every start because an earlier run may
+        // have filled the wallet and then failed to rewrite the file.
         dropLegacyPlaintextKeys();
     }
 
@@ -413,8 +385,6 @@ bool CryptoManager::generateAndStoreKeys()
     }
     EVP_PKEY_CTX_free(dhCtx);
 
-    // The raw private keys, and then the base64 of each. Both get wiped whichever
-    // way this function ends; the copies KWallet takes are its problem.
     size_t len = 0;
     QByteArray idRaw;
     QByteArray dhRaw;
@@ -441,9 +411,8 @@ bool CryptoManager::generateAndStoreKeys()
     idB64 = QString::fromLatin1(idRaw.toBase64());
     dhB64 = QString::fromLatin1(dhRaw.toBase64());
 
-    // A wallet we cannot reach is not a reason to refuse to run, but it is a
-    // reason to say so: the keypair above works for this session and then goes
-    // away, so peers will see a new fingerprint next time.
+    // A wallet we cannot reach is not a reason to refuse to run, but it is a reason
+    // to say so: this keypair lasts the session, so peers see a new fingerprint next.
     if (!SecretStore::write(identityWalletKey(m_storageScope), idB64) || !SecretStore::write(dhWalletKey(m_storageScope), dhB64)) {
         qCCritical(KOUTNET_LOG_CRYPTO,
                    "could not store the identity keys in KWallet (%s). Running with a "
@@ -453,14 +422,12 @@ bool CryptoManager::generateAndStoreKeys()
         return true;
     }
 
-    // Reached when the legacy pair was unusable (only one half present, or
-    // corrupt), so this identity replaces it. The unusable half is still
-    // readable key material and buys the user nothing now.
+    // Reached when the legacy pair was unusable (one half missing, or corrupt), so
+    // this identity replaces it - and the unusable half is still readable key material.
     dropLegacyPlaintextKeys();
     return true;
 }
 
-// Handshake
 QJsonObject CryptoManager::handshakePayload() const
 {
     QJsonObject payload;
@@ -470,10 +437,8 @@ QJsonObject CryptoManager::handshakePayload() const
     return payload;
 }
 
-// Peer identity
-// The handle every map in here is keyed on. A digest and not the key itself, so
-// it is short enough to travel in a packet and to read in a log line, and it
-// cannot be confused with an address by anything that handles both.
+// The handle every map in here is keyed on. A digest and not the key itself, so it
+// is short enough for a packet and a log line, and cannot be confused with an address.
 QString CryptoManager::identityIdFor(const QByteArray &idPubRaw)
 {
     if (idPubRaw.isEmpty())
@@ -512,9 +477,8 @@ void CryptoManager::noteObservedAddress(const QString &peerId, const QString &ad
     if (peerId.isEmpty() || address.isEmpty())
         return;
 
-    // An address belongs to one identity at a time. Whoever proved a handshake
-    // from it most recently is the one it points at, and the peer that used to
-    // be there keeps its session either way - only the shortcut moves.
+    // An address belongs to one identity at a time: whoever proved a handshake from it
+    // most recently owns it. Both peers keep their sessions, only the shortcut moves.
     const QString previous = m_addressToId.value(address);
     if (previous != peerId && !previous.isEmpty()) {
         QStringList &theirs = m_idToAddresses[previous];
@@ -553,11 +517,8 @@ CryptoManager::HandshakeOutcome CryptoManager::processHandshakeFrom(const QStrin
     if (!peerIdPub)
         return HandshakeOutcome::Refused;
 
-    // Verify: peer's identity key signed their DH key.
     EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     if (!mdctx) {
-        // out of memory, and passing the null on to EVP_DigestVerifyInit would
-        // be a crash rather than a refused handshake
         EVP_PKEY_free(peerIdPub);
         return HandshakeOutcome::Refused;
     }
@@ -574,16 +535,14 @@ CryptoManager::HandshakeOutcome CryptoManager::processHandshakeFrom(const QStrin
         return HandshakeOutcome::Refused;
     }
 
-    // Past this line the payload has proved itself: whoever wrote it holds the
-    // private half of id_pub, whatever address it came from. This is the only
-    // thing in the packet worth keying anything on.
+    // Past this line the payload has proved itself: whoever wrote it holds the private
+    // half of id_pub, whatever address it came from. The only thing worth keying on.
     const QString peerId = identityIdFor(peerIdBytes);
     if (outPeerId)
         *outPeerId = peerId;
 
-    // Trust on first use, on the identity. The id is a digest of the key, so a
-    // pin that disagrees with the key that hashed to it means we hashed
-    // something else - unreachable, and cheaper to refuse than to reason about.
+    // Trust on first use, on the identity. The id is a digest of the key, so a pin
+    // that disagrees with it is unreachable - cheaper to refuse than to reason about.
     const auto pinned = m_peerIdPub.constFind(peerId);
     if (pinned != m_peerIdPub.constEnd() && *pinned != peerIdBytes) {
         EVP_PKEY_free(peerIdPub);
@@ -591,15 +550,12 @@ CryptoManager::HandshakeOutcome CryptoManager::processHandshakeFrom(const QStrin
     }
 
     // Someone else is already at this address and still has a live session. The
-    // identity above is not in doubt, so this is not a trust decision - but the
-    // address is how the interface files a peer, and handing a stranger the
-    // slot of a peer the user is talking to is the part of a takeover the user
-    // would see. Refuse the shortcut and say so; the newcomer can have its own
-    // session as soon as it turns up somewhere that is not taken.
+    // identity above is not in doubt, so this is not a trust decision - but handing a
+    // stranger the slot of a peer the user is talking to is the visible half of a
+    // takeover. The newcomer can have a session from an address that is not taken.
     const QString sitting = m_addressToId.value(observedAddress);
     if (!sitting.isEmpty() && sitting != peerId && m_sessionKeys.contains(sitting)) {
-        // presence repeats every couple of seconds, so warn once per offending
-        // key instead of on every packet
+        // presence repeats every couple of seconds, so warn once per offending key
         if (m_warnedIdPub.value(observedAddress) != peerIdBytes) {
             m_warnedIdPub[observedAddress] = peerIdBytes;
             Q_EMIT peerIdentityChanged(observedAddress, bytesToFingerprint(m_peerIdPub.value(sitting)), bytesToFingerprint(peerIdBytes));
@@ -626,9 +582,8 @@ CryptoManager::HandshakeOutcome CryptoManager::processHandshakeFrom(const QStrin
     // built from it would then be the same on every machine
     size_t secretLen = 0;
     QByteArray sharedSecret;
-    // The one buffer here that is worth reading out of a core dump: every
-    // session key with this peer, for as long as neither side regenerates its
-    // keypair, comes out of these bytes.
+    // The one buffer here worth reading out of a core dump: every session key with
+    // this peer comes out of these bytes until one side regenerates its keypair.
     Wiper wipeSecret(sharedSecret);
     bool derived =
         EVP_PKEY_derive_init(dctx) == 1 && EVP_PKEY_derive_set_peer(dctx, peerDhPub) == 1 && EVP_PKEY_derive(dctx, nullptr, &secretLen) == 1 && secretLen > 0;
@@ -653,10 +608,9 @@ CryptoManager::HandshakeOutcome CryptoManager::processHandshakeFrom(const QStrin
         return HandshakeOutcome::Refused;
     }
 
-    // The key this replaces goes first: a repeat handshake with the same peer
-    // would otherwise leave the previous one in the heap unwiped. Moved rather
-    // than copied, so the hash ends up owning the only copy - the destructor is
-    // where that one gets wiped.
+    // The key this replaces goes first: a repeat handshake would otherwise leave the
+    // previous one unwiped in the heap. Moved rather than copied, so the hash owns the
+    // only copy - the destructor is where that one gets wiped.
     const auto existing = m_sessionKeys.find(peerId);
     if (existing != m_sessionKeys.end())
         cleanse(*existing);
@@ -695,7 +649,6 @@ SecurityLevel CryptoManager::securityLevel(const QString &peerRef, bool encrypti
     return SecurityLevel::Plain;
 }
 
-// HKDF-SHA256
 QByteArray CryptoManager::hkdfSha256(const QByteArray &secret, const QByteArray &info, int outLen)
 {
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
@@ -724,7 +677,6 @@ QByteArray CryptoManager::hkdfSha256(const QByteArray &secret, const QByteArray 
     return out;
 }
 
-// AES-256-GCM
 QByteArray CryptoManager::gcmEncrypt(const QByteArray &key, const QByteArray &plaintext)
 {
     const QByteArray nonce = randomBytes(kNonceLen);
@@ -807,17 +759,14 @@ bool CryptoManager::gcmDecrypt(const QByteArray &key, const QByteArray &data, QB
     return true;
 }
 
-// PBKDF2 passphrase keys (cached)
 QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray &salt) const
 {
     QByteArray pass = passphrase.toUtf8();
     Wiper wipePass(pass);
 
-    // A hash of the pair, not the pair itself. The cache key used to be the
-    // passphrase with the salt appended, which kept the user's group passphrase
-    // in plain text in this hash for the lifetime of the process - and unlike the
-    // derived key it is the secret the user typed and probably reuses elsewhere.
-    // The salt is fixed length, so salt-then-passphrase is unambiguous.
+    // A hash of the pair, not the pair itself. The cache key used to be the passphrase
+    // with the salt appended, which kept the user's group passphrase in plain text here
+    // for the life of the process. The salt is fixed length, so this is unambiguous.
     QCryptographicHash tag(QCryptographicHash::Sha256);
     tag.addData(salt);
     tag.addData(pass);
@@ -842,22 +791,18 @@ QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray 
         return {};
     }
 
-    // Cheap unbounded-growth guard: each PBKDF2 derivation is expensive
-    // (480k iterations), which is why we cache it - but a long session
-    // cycling through many distinct passphrases must not grow this forever.
+    // Each derivation is 480k iterations, which is why it is cached at all - but a
+    // long session cycling through many passphrases must not grow this forever.
     if (m_passphraseKeyCache.size() >= kMaxPassphraseCacheSize) {
         for (auto it = m_passphraseKeyCache.begin(); it != m_passphraseKeyCache.end(); ++it)
             cleanse(*it);
         m_passphraseKeyCache.clear();
     }
 
-    // The caller gets a copy that shares this block, which is why the wipe for
-    // it lives in the destructor rather than here.
     m_passphraseKeyCache[cacheKey] = key;
     return key;
 }
 
-// Packet HMAC
 QString CryptoManager::signPacket(const QString &peerRef, const QByteArray &payload) const
 {
     // constFind rather than value(): a copy of the session key would be one more
@@ -893,16 +838,14 @@ bool CryptoManager::verifyPacket(const QString &peerRef, const QByteArray &paylo
     return ok;
 }
 
-// Replay protection
 bool CryptoManager::checkReplay(const QString &peerRef, const QString &nonceHex, double ts)
 {
     const double now = nowEpoch();
     if (std::abs(now - ts) > kReplayWindowSec)
         return false;
 
-    // The identity when there is one, so moving to another interface does not
-    // hand the sender a fresh window to replay into. A stranger falls back to
-    // whatever it was called, which is the address it came from.
+    // The identity when there is one, so moving to another interface does not hand
+    // the sender a fresh window to replay into. A stranger falls back to its address.
     const QString peerId = resolveIdentity(peerRef);
     const QString bucketKey = peerId.isEmpty() ? peerRef : peerId;
 
@@ -921,13 +864,10 @@ bool CryptoManager::checkReplay(const QString &peerRef, const QString &nonceHex,
             ++it;
     }
 
-    // A peer sending fresh nonces faster than the TTL retires them outruns the
-    // sweep above, so the newest half is kept and the older half goes. Ordered
-    // by arrival and not by the clock, because a flood puts thousands of these
-    // in the same millisecond and every one of them would look equally old.
-    // Forgetting an old nonce means a packet from that far back could be
-    // replayed once, which is the lesser problem: the alternative is a bucket
-    // that grows for as long as the flood lasts.
+    // A peer sending fresh nonces faster than the TTL retires them outruns the sweep
+    // above, so the newest half is kept. Ordered by arrival and not by the clock: a
+    // flood puts thousands of these in one millisecond. Forgetting an old nonce lets a
+    // packet from that far back be replayed once, which beats a bucket that grows.
     if (bucket.size() > kMaxNoncesPerPeer) {
         QVector<quint64> seqs;
         seqs.reserve(bucket.size());
@@ -951,9 +891,8 @@ bool CryptoManager::checkReplay(const QString &peerRef, const QString &nonceHex,
 
 void CryptoManager::evictOldestNoncePeers()
 {
-    // One linear scan per eviction over at most kMaxNoncePeers entries. Under a
-    // flood from spoofed source addresses this runs for every packet, so it does
-    // not sort - it takes the least recently used bucket and drops it.
+    // Under a flood from spoofed source addresses this runs for every packet, so it
+    // does not sort - it takes the least recently used bucket and drops it.
     while (m_seenNonces.size() > kMaxNoncePeers && !m_nonceBucketTouched.isEmpty()) {
         auto oldest = m_nonceBucketTouched.cbegin();
         for (auto it = m_nonceBucketTouched.cbegin(); it != m_nonceBucketTouched.cend(); ++it) {
@@ -966,22 +905,19 @@ void CryptoManager::evictOldestNoncePeers()
     }
 
     // A bucket with no recorded arrival cannot be ordered against the others, so
-    // if any are left over the cap they go together. Unreachable unless the two
-    // hashes fall out of step.
+    // any left over the cap go together. Unreachable unless the hashes disagree.
     if (m_seenNonces.size() > kMaxNoncePeers) {
         m_seenNonces.clear();
         m_nonceBucketTouched.clear();
     }
 }
 
-// Rate limiting
 bool CryptoManager::checkRate(const QString &sourceAddress, int maxPerSec)
 {
     const double now = nowEpoch();
 
-    // Keyed on the source address, so a flood from spoofed ones grows this the
-    // same way it grew the replay cache. A window nobody has added to for a
-    // second is empty and worth nothing, so those are what go.
+    // Keyed on the source address, so a flood from spoofed ones grows this the way
+    // it grew the replay cache. A window nobody added to for a second is worth none.
     if (m_rateCounters.size() > kMaxRatePeers) {
         for (auto it = m_rateCounters.begin(); it != m_rateCounters.end();) {
             if (it.value().isEmpty() || now - it.value().constLast() >= 1.0)
@@ -1008,7 +944,6 @@ bool CryptoManager::checkRate(const QString &sourceAddress, int maxPerSec)
     return true;
 }
 
-// Public encrypt/decrypt
 // Wire format (base64 after the "KNC1:" tag):
 //   type[1] + payload
 //   0x01 = AES-GCM with ECDH session key  (payload = nonce+ciphertext+tag)
@@ -1090,7 +1025,6 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
     return QString::fromUtf8(plain);
 }
 
-// Raw byte encryption (voice)
 QByteArray CryptoManager::encryptBytes(const QString &peerRef, const QByteArray &plaintext) const
 {
     // empty means "not encrypted", and the caller has to drop the frame. voice

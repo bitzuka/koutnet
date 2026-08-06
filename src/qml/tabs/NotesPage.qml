@@ -6,13 +6,10 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
-// Personal scratchpad. In-memory only for now - several sheets and a Markdown
-// preview are implemented client-side, but nothing here is wired to HistoryManager
-// yet (no confirmed API for it), so sheets are lost on restart until that is
-// connected.
-//
-// The sheet tabs used to be Rectangles with a hand-written radius and a MouseArea
-// each. A TabBar is the same thing with keyboard navigation and a focus ring.
+// In-memory only for now - the sheets and the Markdown preview work client-side, but
+// nothing is wired to HistoryManager yet, so sheets are lost on restart. The sheet
+// tabs used to be Rectangles with a hand-written radius and a MouseArea each; a
+// TabBar is the same thing with keyboard navigation and a focus ring.
 Kirigami.Page {
     id: root
 
@@ -21,11 +18,9 @@ Kirigami.Page {
     title: i18nc("@title notes tab", "Notes")
     padding: 0
 
-    // See the note on Kirigami.Theme in Main.qml.
     Kirigami.Theme.highlightColor: Brand.accent
 
-    // The number is always there, so the label is one plural msgid rather than a
-    // word with a digit stuck on the end.
+    // One plural msgid rather than a word with a digit stuck on the end.
     function sheetName(number) {
         return i18ncp("@item note sheet name", "Sheet %1", "Sheet %1", number)
     }
@@ -69,8 +64,7 @@ Kirigami.Page {
         }
     ]
 
-    // Not a control the user sees; it only remembers which of the two views the
-    // action above last asked for.
+    // Not a control the user sees; it remembers what the action last asked for.
     QtObject {
         id: previewToggle
         property bool checked: false

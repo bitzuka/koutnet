@@ -9,7 +9,6 @@
 namespace koutnet::protocol
 {
 
-// Message types
 inline constexpr QLatin1StringView kMsgPresence("presence");
 inline constexpr QLatin1StringView kMsgChat("chat");
 inline constexpr QLatin1StringView kMsgPrivate("private");
@@ -29,33 +28,18 @@ inline constexpr QLatin1StringView kMsgDelete("delete");
 inline constexpr QLatin1StringView kMsgRead("read");
 inline constexpr QLatin1StringView kMsgSticker("sticker");
 
-// Fields on a peer record, which is the presence packet that arrived plus
-// whatever NetworkManager::handlePresence() adds to it. Written down here
-// because the interface reads them by name and had been guessing: a comment in
-// Main.qml carried "last_seen" over from the pre-port Python payload and said as
-// much.
-//
-// It is a real field, but it is not a wire field. handlePresence() stamps it
-// from the local clock on arrival and never reads it off the datagram - a peer
-// does not get to say when it was last heard from, and pruneStalePeers() decides
-// who is gone by it. So it means "when this end last heard from that peer", and
-// while a peer is up it is always a second or two old. That is why reachability
-// is the userOnline/userOffline pair rather than a comparison against this.
+// Fields on a peer record: the presence packet that arrived plus whatever
+// handlePresence() adds to it. last_seen is stamped from the local clock on
+// arrival, never read off the wire, and pruneStalePeers() judges staleness by it.
 inline constexpr QLatin1StringView kFieldLastSeen("last_seen");
 // The address a peer asked to be called, kept only when it differs from the one
 // it was actually heard on. A delivery hint, never an identity.
 inline constexpr QLatin1StringView kFieldAdvertisedIp("advertised_ip");
 
 // LAN / VPN mode, the default and the path that actually works today.
-// Broadcast, mDNS and ARP discovery with no server, see
-// NetworkManager::onBroadcastTimer and scanArpTable. A VPN adapter is just
-// another local interface, see NetworkManager::refreshLocalIps.
 inline constexpr quint16 kUdpPortDefault = 42000;
 inline constexpr quint16 kTcpPortDefault = 42001;
 
-// VDS / relay mode
-// Used by the Relay and MaintainerVds modes, where a relay server
-// handles discovery and NAT traversal beyond the LAN.
 struct RelayServer {
     const char *name;
     const char *host;
@@ -65,30 +49,25 @@ struct RelayServer {
 
 // TODO(VDS): populate once an official KOutNet relay is deployed, e.g.:
 //   { "KOutNet Official", "relay.koutnet.example", 42010, 42011 },
-// Until then this stays empty, and Vds mode requires the user to supply
+// Until then this stays empty, and Relay mode requires the user to supply
 // their own server via NetworkManager::setRelayServer().
 inline const QVector<RelayServer> &builtinRelays()
 {
     static const QVector<RelayServer> relays = {
-        // (empty - no built-in relay ships yet)
     };
     return relays;
 }
 
-// Reconnect backoff for the relay/tunnel connection - starts fast, doubles
-// up to a ceiling, so an unreachable/unconfigured VDS doesn't hammer the
-// network or battery forever.
+// Reconnect backoff for the relay tunnel, so an unreachable or unconfigured
+// VDS does not hammer the network or the battery forever.
 inline constexpr int kRelayReconnectBaseMs = 3000;
 inline constexpr int kRelayReconnectMaxMs = 60000;
 
-// Framing for the TCP streams. Both the voice sockets and the relay tunnel put
-// a 4-byte big-endian length in front of every message, because TCP hands back
-// a byte stream and an arbitrary slice of it is not a frame - an AES-GCM tag
-// that starts one byte off never verifies.
+// Framing for the TCP streams: a 4-byte big-endian length in front of every
+// message, because an AES-GCM tag that starts one byte off never verifies.
 inline constexpr int kFrameHeaderBytes = 4;
 // The declared length comes from an untrusted peer, so each stream refuses
-// anything larger than it could plausibly need and hangs up. A voice frame is
-// a fraction of a second of PCM; a relay frame is JSON, file chunks included.
+// anything larger than it could plausibly need and hangs up.
 inline constexpr quint32 kMaxVoiceFrameBytes = 1u << 20; // 1 MiB
 inline constexpr quint32 kMaxRelayFrameBytes = 8u << 20; // 8 MiB
 

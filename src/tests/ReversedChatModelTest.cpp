@@ -1,15 +1,8 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// Tests for the proxy the timeline is laid out over.
-//
-// The whole point of this class is that an append at the tail of the chat has
-// to come out as a prepend at row 0, with the begin/end pair naming that row and
-// no other. Get it wrong by one and QQuickListView builds the right number of
-// delegates against the wrong rows, which on screen is a conversation where
-// every message is signed by the person who sent the one before it - and nothing
-// crashes, so nothing says so.
-//
-// No GUI here: this is arithmetic over signals, and it is checked as such.
+// Tests for the proxy the timeline is laid out over: an append at the tail of the
+// chat has to come out as a prepend at row 0. Off by one and QQuickListView shows
+// every message signed by whoever sent the one before it, and nothing crashes.
 
 #include <QAbstractItemModelTester>
 #include <QAbstractListModel>
@@ -22,9 +15,7 @@
 namespace
 {
 
-// The smallest thing that can stand in for ChatModel: oldest first, append
-// only, one role. Everything the proxy does is a statement about row numbers,
-// so nothing about a real message is needed to provoke it.
+// The smallest stand-in for ChatModel: oldest first, append only, one role.
 class SourceList : public QAbstractListModel
 {
     Q_OBJECT
@@ -151,8 +142,6 @@ void ReversedChatModelTest::mapsRowsBothWaysAtTheEdges()
     ReversedChatModel proxy;
     proxy.setSourceModel(&src);
 
-    // The two ends are what a jump and a reply-quote actually land on, so they
-    // are the two that matter.
     QCOMPARE(proxy.toSourceRow(0), 3);
     QCOMPARE(proxy.toSourceRow(3), 0);
     QCOMPARE(proxy.fromSourceRow(0), 3);
@@ -205,8 +194,6 @@ void ReversedChatModelTest::survivesAnEmptySource()
     QCOMPARE(proxy.rowCount(), 0);
     QVERIFY(!proxy.index(0, 0).isValid());
 
-    // The first message in a conversation is still a prepend, even though there
-    // is nothing in front of it.
     QSignalSpy inserted(&proxy, &QAbstractItemModel::rowsInserted);
     src.append(QStringLiteral("first"));
     QCOMPARE(inserted.count(), 1);
@@ -231,7 +218,6 @@ void ReversedChatModelTest::appendArrivesAsAPrepend()
 
     QCOMPARE(about.count(), 1);
     QCOMPARE(inserted.count(), 1);
-    // Row 0 and only row 0, in both halves of the pair.
     QCOMPARE(about.first().at(1).toInt(), 0);
     QCOMPARE(about.first().at(2).toInt(), 0);
     QCOMPARE(inserted.first().at(1).toInt(), 0);
@@ -269,10 +255,8 @@ void ReversedChatModelTest::insertsABlockInOnePiece()
 
     QSignalSpy inserted(&proxy, &QAbstractItemModel::rowsInserted);
 
-    // Two rows at source 1 and 2 at once. Afterwards the source reads
-    // a x y b c d, so reversed it reads d c b y x a and the pair is at proxy
-    // rows 3 and 4 - the range worked out from the count before the insert, not
-    // after, which is the one that is easy to get wrong by the size of the block.
+    // Two rows at source 1 and 2: the proxy pair lands at rows 3 and 4, worked
+    // out from the count before the insert.
     src.insertBlock(1, {QStringLiteral("x"), QStringLiteral("y")});
 
     QCOMPARE(inserted.count(), 1);
@@ -298,14 +282,12 @@ void ReversedChatModelTest::removalMapsToTheOtherEnd()
 
     QSignalSpy removed(&proxy, &QAbstractItemModel::rowsRemoved);
 
-    // Unsending the newest message: source row 2, proxy row 0.
     src.removeAt(2);
     QCOMPARE(removed.count(), 1);
     QCOMPARE(removed.first().at(1).toInt(), 0);
     QCOMPARE(removed.first().at(2).toInt(), 0);
     QCOMPARE(bodies(proxy), QStringList({QStringLiteral("b"), QStringLiteral("a")}));
 
-    // And the oldest: source row 0, now the last proxy row.
     src.removeAt(0);
     QCOMPARE(removed.count(), 2);
     QCOMPARE(removed.at(1).at(1).toInt(), 1);
@@ -352,7 +334,6 @@ void ReversedChatModelTest::followsASourceReset()
     QCOMPARE(done.count(), 1);
     QCOMPARE(bodies(proxy), QStringList({QStringLiteral("z"), QStringLiteral("y"), QStringLiteral("x")}));
 
-    // A conversation that was emptied leaves nothing behind.
     src.resetWith({});
     QCOMPARE(proxy.rowCount(), 0);
 }
@@ -374,7 +355,6 @@ void ReversedChatModelTest::swappingTheSourceResets()
 
     QAbstractItemModelTester tester(&proxy);
 
-    // The chat that was switched away from must not still be driving the view.
     QSignalSpy inserted(&proxy, &QAbstractItemModel::rowsInserted);
     first.append(QStringLiteral("b"));
     QCOMPARE(inserted.count(), 0);
@@ -390,8 +370,7 @@ void ReversedChatModelTest::forwardsTheRoleNames()
     ReversedChatModel proxy;
     proxy.setSourceModel(&src);
 
-    // A renamed role here is every delegate property coming back empty, and
-    // QML says nothing about it.
+    // A renamed role here is every delegate property coming back empty, silently.
     QCOMPARE(proxy.roleNames(), src.roleNames());
 }
 

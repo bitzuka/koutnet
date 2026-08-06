@@ -12,17 +12,11 @@
 
 namespace
 {
-// What a conversation is called when the peer has never published a name. The
-// chat is keyed on the address, but the address is not something to print in a
-// list somebody leaves open on a second monitor.
 QString unknownPeerName()
 {
     return i18nc("@info a peer that has published no name of its own", "Unknown peer");
 }
 
-// How long a preview line is allowed to be before it is cut. The row elides
-// what it draws anyway; this is about not carrying a whole pasted essay in the
-// index file for every chat.
 constexpr int kMaxPreviewChars = 120;
 
 QString clampPreview(const QString &text)
@@ -45,7 +39,7 @@ ChatListModel::ChatListModel(QObject *parent)
 bool ChatListModel::isTrackable(const QString &chatId)
 {
     // Reserved ids belong to HistoryManager's own logs - the call log and this
-    // model's index live in the same directory under names of that shape.
+    // model's index share that shape.
     return !chatId.isEmpty() && !chatId.startsWith(QLatin1String("__"));
 }
 
@@ -74,8 +68,8 @@ QVariant ChatListModel::data(const QModelIndex &index, int role) const
     case PreviewRole:
         if (e.preview.isEmpty())
             return QString();
-        // Composed here rather than in the delegate so the whole line is one
-        // string a translator can reorder.
+        // Composed here, not in the delegate, so the whole line is one string a
+        // translator can reorder.
         return e.previewIsOwn ? i18nc("@info:status conversation list preview of a message this user sent, %1 is the message", "You: %1", e.preview) : e.preview;
     case StampSecsRole:
         return e.lastActivity;
@@ -198,8 +192,7 @@ void ChatListModel::moveToSortedPosition(int row)
         return;
 
     // beginMoveRows() wants the destination in the coordinates of the list as it
-    // stands now, and taking the row out first shifts everything after it - so
-    // a move down the list is one further along than the compacted index.
+    // stands now, and taking the row out shifts everything after it.
     const int wireDestination = target > row ? target + 1 : target;
     if (!beginMoveRows(QModelIndex(), row, row, QModelIndex(), wireDestination))
         return;
@@ -232,8 +225,6 @@ void ChatListModel::openChat(const QString &chatId, const QString &displayName)
     Entry e;
     e.chatId = chatId;
     e.displayName = displayName;
-    // No activity: an empty chat the user just opened belongs at the bottom, not
-    // above conversations that have something in them.
     const int at = destinationFor(0.0, -1);
     beginInsertRows(QModelIndex(), at, at);
     m_rows.insert(at, e);
@@ -248,15 +239,11 @@ void ChatListModel::noteMessage(const QString &chatId, const QString &preview, b
 
     const int row = indexOfChat(chatId);
     if (row < 0) {
-        // Somebody wrote first. This is the other half of "a chat appears when
-        // the user starts one": it appears when one starts itself.
         Entry e;
         e.chatId = chatId;
         e.preview = clampPreview(preview);
         e.previewIsOwn = isOwn;
         e.lastActivity = ts;
-        // ChatModel bumps the unread count before this is called, so the badge is
-        // already right and only has to be read across.
         if (m_unread)
             e.unread = m_unread->get(chatId);
         const int at = destinationFor(ts, -1);
@@ -289,7 +276,7 @@ void ChatListModel::setPresence(const QString &chatId, bool online, double lastS
         m_rows[row].online = online;
         changed.append(OnlineRole);
     }
-    // Only ever forward. A presence packet that overtook an older one must not
+    // Only ever forward: a presence packet that overtook an older one must not
     // make the peer look as though it had gone quiet in between.
     if (lastSeenSecs > m_rows.at(row).lastSeen) {
         m_rows[row].lastSeen = lastSeenSecs;
@@ -307,13 +294,9 @@ void ChatListModel::setPresence(const QString &chatId, bool online, double lastS
 
     refreshRow(row, changed);
 
-    // Not on every stamp. A peer that is up refreshes this every few seconds and
-    // the row says "online" the whole time, so writing each one would be a full
-    // rewrite of the index per presence packet - for a number nothing is reading.
-    // It starts being read the moment the peer goes, so that is when it is worth
-    // a write. The cost is that a stamp is lost if the application is killed
-    // while the peer is still up, which shows as a last-seen from the previous
-    // session rather than as nothing at all.
+    // Not on every stamp: a live peer refreshes this every few seconds, which
+    // would rewrite the whole index per packet for a number nothing reads until
+    // the peer goes. Cost is a stamp lost if we are killed while it is still up.
     if (wentOffline || renamed)
         scheduleSave();
 }
@@ -331,8 +314,8 @@ void ChatListModel::removeChat(const QString &chatId)
 
 void ChatListModel::load()
 {
-    // Both managers are set as separate property assignments from QML, so this
-    // runs twice; the index is only worth reading once.
+    // Both managers are assigned as separate properties from QML, so this runs
+    // twice.
     if (m_loaded || !m_history)
         return;
     m_loaded = true;
@@ -365,9 +348,8 @@ void ChatListModel::load()
     m_rows = loaded;
     endResetModel();
 
-    // UnreadManager starts empty every run, so the counts restored above have to
-    // be put back into it or the badge and the total would disagree the moment
-    // anything touched either.
+    // UnreadManager starts empty every run, so restored counts have to be put
+    // back into it or the badge and the total would disagree.
     if (m_unread) {
         for (const Entry &e : m_rows) {
             if (e.unread > 0)

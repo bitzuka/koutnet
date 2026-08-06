@@ -7,15 +7,10 @@ import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as Components
 import koutnet.app
 
-// The window a call in progress lives in: who, how long, and the three toggles.
-//
-// Same story as OutgoingCallWindow - it was a frameless always-on-top window
-// dragged by a MouseArea, with the mute button drawn as a Label holding an emoji
-// and the speaker and screen buttons drawn as Labels with an icon.name that Label
-// does not have, so those two showed nothing at all. They are ToolButtons now.
-//
-// Speaker and screen sharing are still not wired to anything, so they say so
-// rather than looking like controls that do not work.
+// Same story as OutgoingCallWindow: it was a frameless always-on-top window dragged
+// by a MouseArea, with the speaker and screen buttons drawn as Labels carrying an
+// icon.name that Label does not have, so those two showed nothing at all. Speaker
+// and screen sharing are still not wired to anything, so they say so.
 Kirigami.ApplicationWindow {
     id: root
 
@@ -34,7 +29,6 @@ Kirigami.ApplicationWindow {
     minimumHeight: Kirigami.Units.gridUnit * 22
     visible: true
 
-    // See the note on Kirigami.Theme in Main.qml.
     Kirigami.Theme.inherit: false
     Kirigami.Theme.highlightColor: Brand.accent
 
@@ -123,8 +117,7 @@ Kirigami.ApplicationWindow {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.topMargin: Kirigami.Units.gridUnit
                 text: i18nc("@action:button hang up the call", "End call")
-                // Breeze already draws call-stop in red, so the button does not
-                // need a colour of its own on top of it.
+                // Breeze already draws call-stop in red.
                 icon.name: "call-stop"
                 onClicked: {
                     root.hangup()

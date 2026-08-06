@@ -1,16 +1,13 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 // KOutNet - application entry point
-// QApplication rather than QGuiApplication, which is what this used to be.
-// KStatusNotifierItem's only way to take a menu is setContextMenu(QMenu *), a
-// QMenu is a QWidget, and a QWidget without a QApplication is a warning followed
-// by a crash. The cost is a link against Qt6::Widgets; the interface is still
-// entirely QML and nothing else in the tree touches a widget.
+// QApplication rather than QGuiApplication: KStatusNotifierItem takes its menu
+// through setContextMenu(QMenu *), and a QWidget without a QApplication is a
+// warning followed by a crash. The cost is a link against Qt6::Widgets.
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QCryptographicHash>
-// setDesktopFileName is a QGuiApplication static, and this file calls it by
-// class name rather than through app.
+// setDesktopFileName is a QGuiApplication static, called by class name below.
 #include <QGuiApplication>
 #include <QIcon>
 #include <QQmlApplicationEngine>
@@ -38,16 +35,11 @@
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-    // The window is hidden rather than closed when it goes to the tray, and Qt
-    // would otherwise take the last window going away as the end of the session.
-    // Every way out of this application is now explicit - the drawer entry, the
-    // tray entry, and the close button when the tray is switched off - which is
-    // the behaviour a tray icon needs and is easier to reason about than a rule
-    // that changes with a setting.
+    // The window is hidden rather than closed when it goes to the tray, and Qt would
+    // otherwise take the last window going away as the end of the session.
     QApplication::setQuitOnLastWindowClosed(false);
-    // Names the catalog ki18n looks for. It has to happen before anything
-    // asks for a translated string, so nothing resolves against whatever
-    // domain happened to be current.
+    // Names the catalog ki18n looks for. It has to happen before anything asks for a
+    // translated string, so nothing resolves against whatever domain was current.
     KLocalizedString::setApplicationDomain(QByteArrayLiteral("koutnet"));
 
     KAboutData aboutData(QStringLiteral("koutnet"),
@@ -58,50 +50,39 @@ int main(int argc, char *argv[])
                          i18nc("@info:credit", "Copyright 2026 bitzuka"));
     aboutData.addAuthor(i18nc("@info:credit", "bitzuka"), i18nc("@info:credit", "Author and maintainer"), QStringLiteral("bitzuka.koutnet@gmail.com"));
     aboutData.setHomepage(QStringLiteral("https://github.com/bitzuka/koutnet"));
-    // DrKonqi offers to file a report at this address after a crash, so it has
-    // to be a tracker that exists. The KDE product is created together with the
-    // incubation request; the metainfo still points at the GitHub tracker.
+    // DrKonqi offers to file a report at this address after a crash, so it has to be
+    // a tracker that exists. The metainfo still points at the GitHub tracker.
     aboutData.setBugAddress(QByteArrayLiteral("https://bugs.kde.org/enter_bug.cgi?product=koutnet"));
-    // Filled in per catalog by whoever translates it, which is why these two
-    // strings are placeholders rather than prose.
     aboutData.setTranslator(i18nc("NAME OF TRANSLATORS", "Your names"), i18nc("EMAIL OF TRANSLATORS", "Your emails"));
     aboutData.setDesktopFileName(QStringLiteral("io.github.bitzuka.KOutNet"));
     KAboutData::setApplicationData(aboutData);
 
-    // After setApplicationData on purpose: that call takes the application name
-    // from the component name, which would point QSettings at
-    // KOutNet/koutnet.conf and leave the plaintext-key cleanup looking at a
-    // file nobody has ever written.
-    //
-    // "KOutNet" rather than the KDE-conventional organisation domain because
-    // every installed copy already keeps its settings in ~/.config/KOutNet/,
-    // and the KWallet migration reads them from there. Moving the path would
-    // strand them.
+    // After setApplicationData on purpose: that call takes the application name from
+    // the component name, which would point QSettings at KOutNet/koutnet.conf and
+    // leave the plaintext-key cleanup looking at a file nobody ever wrote.
+    // "KOutNet" rather than the organisation domain because every installed copy
+    // already keeps its settings in ~/.config/KOutNet/, where the KWallet migration
+    // reads them from.
     app.setApplicationName(QStringLiteral("KOutNet"));
     app.setOrganizationName(QStringLiteral("KOutNet"));
 
-    // --version and --help, plus whatever the platform plugin wants to take off
-    // the command line.
     QCommandLineParser parser;
     aboutData.setupCommandLine(&parser);
     parser.process(app);
     aboutData.processCommandLine(&parser);
 
-    // Wayland reads the taskbar icon off the .desktop file it matches to the
-    // window's app_id, which Qt takes from here. X11 ignores that and uses
-    // the window icon hint below, so both get set.
+    // Wayland reads the taskbar icon off the .desktop file it matches to the window
+    // app_id, which Qt takes from here; X11 uses the window icon hint below instead.
     QGuiApplication::setDesktopFileName(QStringLiteral("io.github.bitzuka.KOutNet"));
-    // The QML module resources sit under the URI path directly rather than
-    // below /qt/qml, since this build has not opted into the newer CMake
-    // resource prefix policy. The isNull check is what caught the wrong path.
+    // The QML module resources sit under the URI path directly rather than below
+    // /qt/qml, since this build has not opted into the newer CMake resource policy.
     const QIcon appIcon(QStringLiteral(":/koutnet/app/assets/512-apps-io.github.bitzuka.KOutNet.png"));
     if (appIcon.isNull())
         qCWarning(KOUTNET_LOG_APP, "application icon missing from the QML module resources");
     app.setWindowIcon(appIcon);
 
-    // Single shared CryptoManager instance - injected into every module that
-    // needs it (NetworkManager, VoiceCallManager). Never create a second
-    // instance elsewhere; identity keys and session state must stay
+    // Single shared CryptoManager - injected into every module that needs it. Never
+    // create a second instance elsewhere; identity keys and session state must stay
     // single-sourced. See core/security/CryptoManager.h.
     auto *crypto = new koutnet::CryptoManager(&app);
     if (!crypto->isValid()) {
@@ -109,21 +90,16 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // Constructed after CryptoManager because that is the last thing to edit
-    // the config file through QSettings while it clears out plaintext keys.
-    // AppSettings writes the same file with KConfig, and the two encode
-    // non-ASCII differently, so the KConfig write has to come second.
+    // Constructed after CryptoManager because that is the last thing to edit the
+    // config file through QSettings while it clears out plaintext keys. AppSettings
+    // writes the same file with KConfig, which encodes non-ASCII differently.
     auto *appSettings = new koutnet::AppSettings(&app);
     auto *network = new koutnet::NetworkManager(crypto, &app);
 
-    // Apply persisted connection settings before start() - see AppSettings.
     network->setRelayServer(appSettings->relayHost(), quint16(appSettings->relayPort()));
     network->setConnectionMode(static_cast<koutnet::NetworkManager::ConnectionMode>(appSettings->connectionMode()));
     auto *voice = new koutnet::VoiceCallManager(network, crypto, &app);
     auto *fileTransfer = new koutnet::FileTransferHandler(&app);
-    // One digest over the whole profile, images included. Peers compare
-    // it to decide whether anything changed; the files themselves are
-    // not in presence, only this.
     const auto publishProfile = [network, appSettings]() {
         const QString material = appSettings->displayName() + QChar(0x1f) + appSettings->bio() + QChar(0x1f) + appSettings->avatarPath() + QChar(0x1f)
             + appSettings->bannerPath() + QChar(0x1f) + appSettings->nameBadgePath();
@@ -131,8 +107,6 @@ int main(int argc, char *argv[])
         network->setProfile(appSettings->username(), appSettings->displayName(), appSettings->bio(), revision);
     };
     publishProfile();
-    // Presence and the status emoji are not part of the digest above - see
-    // NetworkManager::setStatus - so they are pushed on their own.
     const auto publishStatus = [network, appSettings]() {
         network->setStatus(appSettings->presence(), appSettings->statusEmoji());
     };
@@ -161,14 +135,11 @@ int main(int argc, char *argv[])
         notifications->setAwayAfterMinutes(appSettings->awayAfterMinutes());
     });
 
-    // Built only when the setting asks for it, and never rebuilt: registering a
-    // status notifier item is a D-Bus name claim, and switching it off at runtime
-    // would leave the window with no way back if it were hidden at the time. The
-    // setting is read at start, and the settings page says so.
+    // Built only when the setting asks for it, and never rebuilt: registering a status
+    // notifier item is a D-Bus name claim, and switching it off at runtime would leave
+    // a hidden window with no way back.
     koutnet::TrayIcon *tray = appSettings->trayEnabled() ? new koutnet::TrayIcon(&app) : nullptr;
 
-    // Push the persisted audio choices into the engine before any call
-    // can start, then keep them in sync as the settings dialog edits them.
     voice->setAudioInputDevice(appSettings->audioInputId());
     voice->setAudioOutputDevice(appSettings->audioOutputId());
     voice->setAudioVolume(appSettings->audioVolume() / 100.0);
@@ -196,17 +167,14 @@ int main(int argc, char *argv[])
     if (!network->start())
         qCWarning(KOUTNET_LOG_NETWORK, "failed to start network layer");
 
-    // Touching the manager here is what restores the dark/light choice from the
-    // last run: it does that in its own constructor, and the QML singleton that
-    // exposes the setting is only built when the settings page is first opened.
-    // Without this line the application would come up in the desktop's scheme
-    // until the user went looking for the option again.
+    // Touching the manager here is what restores the dark/light choice from the last
+    // run: it does that in its own constructor, and the QML singleton that exposes the
+    // setting is only built when the settings page is first opened.
     KColorSchemeManager::instance();
 
     QQmlApplicationEngine engine;
 
-    // Gives QML the i18n family of functions. Without this the calls simply
-    // are not there and every string in the interface fails to resolve.
+    // Gives QML the i18n family of functions; without it every string fails to resolve.
     KLocalization::setupLocalizedContext(&engine);
 
     // The QML module sits under a resource prefix of its own rather than the
@@ -228,22 +196,17 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), appSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("audioDevices"), audioDevices);
     engine.rootContext()->setContextProperty(QStringLiteral("notificationManager"), notifications);
-    // Null when the tray is switched off. Main.qml checks for that rather than
-    // assuming an object, which is also what makes the close-to-tray path fall
-    // back to really closing.
+    // Null when the tray is switched off. Main.qml checks for that, which is also what
+    // makes the close-to-tray path fall back to really closing.
     engine.rootContext()->setContextProperty(QStringLiteral("trayIcon"), tray);
-    // A flat map rather than the KAboutData object itself. The licence name and
-    // the author sit behind lists of KAboutLicense/KAboutPerson that QML would
-    // have to index by hand, and a dialog reading one plain object is easier to
-    // keep honest than one reading a value type through a QVariant.
+    // A flat map rather than KAboutData itself: the licence and author sit behind lists
+    // QML would have to index by hand.
     QVariantMap about;
     about[QStringLiteral("name")] = aboutData.displayName();
     about[QStringLiteral("version")] = aboutData.version();
     about[QStringLiteral("description")] = aboutData.shortDescription();
     about[QStringLiteral("copyright")] = aboutData.copyrightStatement();
     about[QStringLiteral("homepage")] = aboutData.homepage();
-    // Both lists are filled above, but a missing entry would leave the dialog
-    // showing the word "undefined" rather than nothing.
     if (!aboutData.licenses().isEmpty())
         about[QStringLiteral("license")] = aboutData.licenses().constFirst().name(KAboutLicense::FullName);
     if (!aboutData.authors().isEmpty())

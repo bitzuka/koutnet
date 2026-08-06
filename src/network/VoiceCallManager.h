@@ -21,9 +21,8 @@ class VoiceCallManager : public QObject
     Q_OBJECT
 
 public:
-    // Same CryptoManager instance NetworkManager holds. Voice frames are
-    // encrypted here rather than there, as raw AES-GCM with no JSON or
-    // base64 around them, because only this class knows which IPs are live.
+    // Same CryptoManager instance NetworkManager holds. Voice frames are encrypted
+    // here as raw AES-GCM, because only this class knows which IPs are live.
     explicit VoiceCallManager(NetworkManager *net, CryptoManager *crypto, QObject *parent = nullptr);
 
     // Q_INVOKABLE is load-bearing here. Without it a QML call fails at
@@ -39,9 +38,8 @@ public:
         return m_muted;
     }
 
-    // Deafen silences incoming audio and implies mute. The two are held apart
-    // rather than folded into one flag so that un-deafening puts the
-    // microphone back the way the user left it instead of simply opening it.
+    // Deafen implies mute but is held apart from it, so un-deafening restores the
+    // microphone state the user chose rather than simply opening it.
     Q_INVOKABLE void setDeafen(bool deafened);
     Q_INVOKABLE bool toggleDeafen();
     bool isDeafened() const
@@ -51,8 +49,6 @@ public:
 
     Q_INVOKABLE void setVad(bool enabled);
 
-    // Settings-dialog passthroughs. The engine itself stays private;
-    // QML has no business holding a pointer to the call audio path.
     Q_INVOKABLE void setAudioInputDevice(const QString &id);
     Q_INVOKABLE void setAudioOutputDevice(const QString &id);
     Q_INVOKABLE void setAudioVolume(qreal volume);
@@ -62,7 +58,6 @@ public:
         return m_active;
     }
 
-    // Speaking-state subscription (forwarded from AudioEngine VAD)
     using SpeakingCallback = std::function<void(bool)>;
     void subscribeSpeaking(const SpeakingCallback &cb);
 

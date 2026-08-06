@@ -6,17 +6,13 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
-// The seam for peer discovery by handle, which is the next piece of work and is
-// deliberately not here. Until it lands, a conversation with somebody who is not
-// in the list yet is started either by picking them out of the peers currently
-// broadcasting presence, or by typing an address.
-//
-// When discovery by handle arrives it replaces the contents of this page and
-// nothing else: everything downstream only ever sees chatRequested being emitted.
+// Discovery by handle is the next piece of work and deliberately not here yet;
+// until it lands a chat is started from a presence broadcast or a typed address.
+// When it arrives it replaces the contents of this page and nothing else:
+// everything downstream only ever sees chatRequested being emitted.
 Kirigami.ScrollablePage {
     id: root
 
-    // The live presence model, not the conversation list.
     property alias peers: peerView.model
 
     signal chatRequested(string ip)

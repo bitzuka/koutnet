@@ -7,29 +7,24 @@ import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
-// The short list of reactions, plus a way to add a picture as one.
-//
-// Six and not the whole emoji keyboard: reacting is meant to be one click, and
-// a grid of two thousand is the picker the composer already has.
+// Six and not the whole emoji keyboard: reacting is meant to be one click, and a
+// grid of two thousand is the picker the composer already has.
 QQC2.Popup {
     id: root
 
-    // Which message the reaction is going on. Carried here rather than passed to
-    // the signal by the caller, because the popup outlives the click that opened
-    // it and the row it belongs to has to survive with it.
+    // Carried here rather than passed to the signal, because the popup outlives the
+    // click that opened it and the row it belongs to has to survive with it.
     property int targetRow: -1
 
     signal chosen(int row, string emoji)
 
-    // Client-side only for now: not persisted, not sent to the peer. Making a
-    // custom emoji durable and shared needs a store for the picture itself,
-    // which is a piece of work of its own.
+    // Client-side only for now: a durable shared custom emoji needs a store for the
+    // picture itself, which is a piece of work of its own.
     property var customEmojis: []
 
     readonly property var quickEmojis: ["👍", "❤️", "😂", "😮", "😢", "🔥"]
 
-    // See the note on Kirigami.Theme in Main.qml: this is reparented into the
-    // window overlay, which starts a theme chain of its own.
+    // See Main.qml: reparented into the overlay, which is its own theme chain.
     Kirigami.Theme.inherit: false
     Kirigami.Theme.highlightColor: Brand.accent
 
@@ -60,12 +55,9 @@ QQC2.Popup {
                 implicitWidth: Kirigami.Units.gridUnit * 2
                 implicitHeight: Kirigami.Units.gridUnit * 2
 
-                // A picture reaction is a file path behind an "img:" marker; a
-                // plain one is the character itself.
+                // A picture reaction is a file path behind an "img:" marker.
                 readonly property bool isPicture: typeof modelData === "string" && modelData.indexOf("img:") === 0
 
-                // Accessible.name and the tooltip carry the character, since the
-                // button itself has no text to read out any more.
                 Accessible.name: pick.isPicture
                     ? i18nc("@info:whatsthis a picture the user added as a reaction", "Custom reaction")
                     : pick.modelData
@@ -75,12 +67,9 @@ QQC2.Popup {
                     root.close()
                 }
 
-                // A contentItem of its own rather than the button's own label.
-                // The default one draws the character in the interface font at
-                // the interface size, and a desktop UI font has no emoji in it -
-                // so the six choices came out as nothing at all in a row of
-                // empty buttons. This is the treatment the composer's picker
-                // already uses; see EmojiDelegate.qml.
+                // A contentItem of its own, because the button's default label draws
+                // the character in the interface font and a desktop UI font has no
+                // emoji in it - the six choices came out as a row of empty buttons.
                 contentItem: Item {
                     QQC2.Label {
                         anchors.fill: parent

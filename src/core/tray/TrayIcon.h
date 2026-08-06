@@ -1,21 +1,8 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// KOutNet - status notifier item
-//
-// KStatusNotifierItem rather than a QSystemTrayIcon or anything hand-rolled: it
-// speaks the StatusNotifierItem D-Bus protocol, which is what Plasma's tray
-// actually consumes, and it gets the overlay icon, the attention state and the
-// exported menu for free.
-//
-// The menu is a QMenu, because that is the only thing setContextMenu() takes.
-// That is why main.cpp builds a QApplication and not a QGuiApplication - see the
-// note there; a QMenu without one is a warning followed by a crash.
-//
-// State flows one way in each direction. QML writes the properties below,
-// because the window is what knows whether the microphone is muted and how many
-// messages are unread; this class only draws them. Clicking a menu entry comes
-// back as one of the signals, and QML decides what that means. Nothing here
-// reaches into the network or audio layers.
+// setContextMenu() only takes a QMenu, which is why main.cpp builds a
+// QApplication and not a QGuiApplication - a QMenu without one is a warning
+// followed by a crash.
 #pragma once
 
 #include <QObject>
@@ -33,16 +20,15 @@ class TrayIcon : public QObject
 {
     Q_OBJECT
 
-    // Unread messages across every conversation. Non-zero puts the item into
-    // NeedsAttention and hangs an overlay on the icon, which is the whole reason
-    // a tray icon is worth having on a messenger.
+    // Non-zero puts the item into NeedsAttention and hangs an overlay on the
+    // icon.
     Q_PROPERTY(int unreadCount READ unreadCount WRITE setUnreadCount NOTIFY unreadCountChanged)
     Q_PROPERTY(bool micMuted READ micMuted WRITE setMicMuted NOTIFY micMutedChanged)
     Q_PROPERTY(bool deafened READ deafened WRITE setDeafened NOTIFY deafenedChanged)
     // AppSettings::presence: 0 online, 1 away, 2 busy, 3 invisible.
     Q_PROPERTY(int presence READ presence WRITE setPresence NOTIFY presenceChanged)
-    // Whether the window is up, so the one entry can say Show or Hide rather
-    // than being a toggle whose label never admits which way it goes.
+    // So the one entry can say Show or Hide rather than being an unlabelled
+    // toggle.
     Q_PROPERTY(bool windowVisible READ windowVisible WRITE setWindowVisible NOTIFY windowVisibleChanged)
 
 public:
@@ -80,8 +66,7 @@ public:
     void setWindowVisible(bool visible);
 
     // Hands the item the window it belongs to, so a click on the icon raises or
-    // hides it without a round trip through QML. Takes a QWindow, which is what
-    // a QML Window already is, so Main.qml can pass itself.
+    // hides it without a round trip through QML.
     Q_INVOKABLE void attachWindow(QWindow *window);
 
 Q_SIGNALS:
@@ -91,8 +76,6 @@ Q_SIGNALS:
     void presenceChanged();
     void windowVisibleChanged();
 
-    // The menu was used. The window owns the microphone and the page stack, so
-    // all this class does is say which entry was picked.
     void showHideRequested();
     void muteToggleRequested();
     void deafenToggleRequested();
@@ -100,11 +83,7 @@ Q_SIGNALS:
     void quitRequested();
 
 private:
-    // Icon, overlay, attention state and tooltip, all of which are functions of
-    // the properties above. One place so they cannot drift apart.
     void refresh();
-    // Rebuilds only the labels that carry state, which is the mute and deafen
-    // pair and the Show/Hide entry.
     void refreshMenuLabels();
 
     KStatusNotifierItem *m_item = nullptr;

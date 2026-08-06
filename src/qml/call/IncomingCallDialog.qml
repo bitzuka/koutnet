@@ -7,14 +7,10 @@ import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as Components
 import koutnet.app
 
-// Somebody is calling: a question with two answers, which is a dialog.
-//
-// It used to be a frameless always-on-top Window that slid up from
-// Screen.height + 10 with a NumberAnimation, could be dragged around by a
-// MouseArea, and drew its accept and reject buttons as coloured circles with a
-// Label inside carrying an icon.name that Label has no such property for - so
-// both were blank circles. A PromptDialog in the main window is the same question
-// asked properly, and it follows the window rather than the screen.
+// It used to be a frameless always-on-top Window that slid up from Screen.height,
+// was dragged by a MouseArea, and drew accept and reject as circles holding a Label
+// with an icon.name Label has no such property for - so both were blank. A
+// PromptDialog follows the window rather than the screen.
 Kirigami.PromptDialog {
     id: root
 
@@ -24,15 +20,13 @@ Kirigami.PromptDialog {
     signal answered()
     signal declined()
 
-    // See the note on Kirigami.Theme in Main.qml: a dialog is reparented into the
-    // window overlay, which is a theme chain of its own.
+    // See Main.qml: a dialog is reparented into the overlay, its own theme chain.
     Kirigami.Theme.inherit: false
     Kirigami.Theme.highlightColor: Brand.accent
 
     title: i18nc("@title:window", "Incoming call")
     showCloseButton: false
-    // Only the two below. The standard set would put an OK next to them and leave
-    // it unclear which one picks up.
+    // The standard set would put an OK next to them and hide which one picks up.
     standardButtons: QQC2.Dialog.NoButton
 
     customFooterActions: [
@@ -54,7 +48,6 @@ Kirigami.PromptDialog {
         }
     ]
 
-    // Called by the window when the peer gives up before the user answers.
     function callRejected() {
         root.close()
     }

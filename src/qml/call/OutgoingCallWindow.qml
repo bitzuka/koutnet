@@ -7,13 +7,10 @@ import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as Components
 import koutnet.app
 
-// "Calling..." window. The pulsing rings are kept - they are the one piece of
-// decoration here that says something, namely that it is still trying.
-//
-// It used to be a FramelessWindowHint window centred on Screen with a MouseArea
-// that moved it by hand, which is the window manager's job and got no snapping, no
-// keyboard move, no taskbar entry and no compositor shadow. It is an ordinary
-// window now.
+// The pulsing rings are kept: they are the one piece of decoration here that says
+// something, namely that it is still trying. It used to be a FramelessWindowHint
+// window moved by a MouseArea, which is the window manager's job and got no
+// snapping, no keyboard move, no taskbar entry and no compositor shadow.
 Kirigami.ApplicationWindow {
     id: root
 
@@ -30,20 +27,17 @@ Kirigami.ApplicationWindow {
     minimumHeight: Kirigami.Units.gridUnit * 20
     visible: true
 
-    // See the note on Kirigami.Theme in Main.qml. A separate window is a separate
-    // theme chain, so the accent has to be named again here.
+    // A separate window is a separate theme chain, so the accent is named again.
     Kirigami.Theme.inherit: false
     Kirigami.Theme.highlightColor: Brand.accent
 
-    // The trailing dots are animated, so the label is one msgid with the run of
-    // dots as a placeholder instead of a concatenation.
+    // The dots are animated, so they are a placeholder and not a concatenation.
     function callingLabel(dots) {
         return i18nc("@info:status waiting for the peer to pick up, %1 is a run of dots",
                      "Calling%1", ".".repeat(dots))
     }
 
-    // Twice a second, because the dots are what it is really driving; the elapsed
-    // count below divides back down to seconds.
+    // Twice a second, because the dots are what it is really driving.
     Timer {
         interval: 500
         running: true
@@ -55,8 +49,7 @@ Kirigami.ApplicationWindow {
     }
 
     pageStack.initialPage: Kirigami.Page {
-        // Nothing to put in a toolbar: the window title says who is being called
-        // and the only action is the button at the bottom.
+        // Nothing to put in a toolbar: the title says who, the button says stop.
         globalToolBarStyle: Kirigami.ApplicationHeaderStyle.None
 
         ColumnLayout {
@@ -69,9 +62,7 @@ Kirigami.ApplicationWindow {
                 implicitWidth: Kirigami.Units.gridUnit * 12
                 implicitHeight: implicitWidth
 
-                // Three rings out of phase, each fading as it grows. Much cheaper
-                // than the paintEvent this was ported from, and the colour is the
-                // accent rather than a palette entry.
+                // Much cheaper than the paintEvent this was ported from.
                 Repeater {
                     model: 3
 
@@ -161,8 +152,7 @@ Kirigami.ApplicationWindow {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.topMargin: Kirigami.Units.gridUnit
                 text: i18nc("@action:button abandon the outgoing call", "Cancel")
-                // Breeze already draws call-stop in red, so the button does not
-                // need a colour of its own on top of it.
+                // Breeze already draws call-stop in red.
                 icon.name: "call-stop"
                 onClicked: {
                     root.cancelled()

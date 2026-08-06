@@ -53,8 +53,7 @@ QVariantList HistoryManager::load(const QString &chatId)
         if (doc.isArray()) {
             result = doc.array().toVariantList();
         } else if (!raw.trimmed().isEmpty()) {
-            // whatever is in there is still the user's log, so keep the chat
-            // usable in memory but never write over the file again
+            // still the user's log: never write over the file again
             m_unreadable.insert(chatId);
             qCWarning(KOUTNET_LOG_CHAT) << "refusing to overwrite unreadable" << f.fileName() << err.errorString();
         }
@@ -88,10 +87,8 @@ void HistoryManager::replaceAll(const QString &chatId, const QVariantList &entri
     if (msgs.size() > kMaxMessagesPerChat)
         msgs = msgs.mid(msgs.size() - kMaxMessagesPerChat);
 
-    // load() first, for a chat this process has not read yet: reading the file
-    // is what discovers that it will not parse, and writeChatFile() refuses to
-    // touch one of those. Without this, a damaged log would be overwritten with
-    // whatever the caller happens to be holding.
+    // load() first, for a chat this process has not read yet: reading is what
+    // discovers a file that will not parse, and writeChatFile() refuses those
     load(chatId);
     m_cache.insert(chatId, msgs);
     writeChatFile(chatId, msgs);
@@ -102,8 +99,8 @@ void HistoryManager::writeChatFile(const QString &chatId, const QVariantList &ms
     if (m_unreadable.contains(chatId))
         return;
 
-    // QSaveFile because this rewrites the whole log every message: a crash
-    // halfway through the old QFile write left the chat truncated
+    // QSaveFile because a crash halfway through the old QFile write left the
+    // chat truncated
     QSaveFile f(filePathFor(chatId));
     if (!f.open(QIODevice::WriteOnly)) {
         qCWarning(KOUTNET_LOG_CHAT) << "failed to write" << f.fileName() << f.errorString();
@@ -131,9 +128,5 @@ QVariantList HistoryManager::loadChatIndex()
 
 void HistoryManager::saveChatIndex(const QVariantList &entries)
 {
-    // replaceAll() rather than append(): this is one row per chat rewritten in
-    // place, not a log that grows. It also means switching history saving off
-    // stops the conversation list persisting as well, which is what someone
-    // switching it off is asking for.
     replaceAll(QStringLiteral("__chat_index__"), entries);
 }

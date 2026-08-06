@@ -16,8 +16,8 @@
 #include <QtMath>
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
-// Qt renamed the QAudio namespace to QtAudio in 6.7. CMakeLists still declares
-// 6.4 as the floor, so alias it back rather than hard-requiring the newer Qt.
+// qt renamed the QAudio namespace to QtAudio in 6.7; cmake still declares 6.4
+// as the floor.
 namespace QtAudio = QAudio;
 #endif
 
@@ -43,8 +43,6 @@ QVariantList describe(const QList<QAudioDevice> &devices)
     return out;
 }
 
-// Falls back to the system default when the saved device is gone, which is the
-// normal case for a USB headset that was unplugged since the setting was made.
 QAudioDevice pick(const QList<QAudioDevice> &devices, const QString &id, const QAudioDevice &fallback)
 {
     if (id.isEmpty())
@@ -94,7 +92,6 @@ qreal rmsOf(const QByteArray &chunk, const QAudioFormat &fmt)
     return qSqrt(sum / count);
 }
 
-// Ramped at both ends so the speaker test does not start and end on a click.
 QByteArray makeTone(const QAudioFormat &fmt)
 {
     const int rate = fmt.sampleRate() > 0 ? fmt.sampleRate() : kProbeRate;
@@ -176,8 +173,6 @@ void AudioDevices::startMicTest(const QString &deviceId)
 
     const QAudioFormat fmt = probeFormat(device);
     if (!device.isFormatSupported(fmt)) {
-        // The message to the user cannot name a format without turning into
-        // noise, and the format is the only useful part of a bug report here.
         qCWarning(KOUTNET_LOG_AUDIO) << "input device" << device.description() << "rejects" << fmt;
         Q_EMIT error(i18nc("@info:status", "The input device rejects every format we can read."));
         return;
@@ -204,8 +199,8 @@ void AudioDevices::readMicChunk()
     const QByteArray chunk = m_capture->readAll();
     if (chunk.isEmpty())
         return;
-    // Square root keeps quiet speech visible on a linear bar; raw RMS spends
-    // most of its range down near zero and barely moves for normal talking.
+// square root keeps quiet speech visible; raw rms barely moves for normal
+// talking.
     setLevel(qBound(0.0, qSqrt(rmsOf(chunk, m_source->format())) * 1.6, 1.0));
 }
 
@@ -249,8 +244,6 @@ void AudioDevices::playTestTone(const QString &deviceId)
 
     m_sink = new QAudioSink(device, fmt, this);
     connect(m_sink, &QAudioSink::stateChanged, this, [this](QtAudio::State state) {
-        // IdleState means the buffer drained, which for a one-shot tone is the
-        // end of playback rather than an underrun to recover from.
         if (state == QtAudio::IdleState || state == QtAudio::StoppedState)
             stopTestTone();
     });

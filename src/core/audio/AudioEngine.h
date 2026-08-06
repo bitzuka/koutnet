@@ -1,9 +1,5 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// KOutNet - real-time voice engine: capture, mix, playback.
-//
-// QAudioSource/QAudioSink in pull mode rather than a polling thread. Letting
-// the Qt Multimedia backend drive timing is cheaper on low-RAM machines.
 #pragma once
 
 #include <QAudioFormat>
@@ -44,10 +40,8 @@ public:
         return m_running;
     }
 
-    // Both are written from the GUI thread and read by PlaybackDevice::readData()
-    // on Qt Multimedia's own audio thread, so they are atomic rather than merely
-    // small: a plain qreal is not one store, and a torn read of it would land in
-    // the sample loop as a volume nobody asked for.
+// written on the gui thread, read by PlaybackDevice::readData() on qt's audio
+// thread: a torn read of a plain qreal lands as a volume nobody asked for.
     void setMuted(bool muted)
     {
         m_muted.store(muted, std::memory_order_relaxed);
@@ -57,8 +51,6 @@ public:
         return m_muted.load(std::memory_order_relaxed);
     }
 
-    // Deafened means nothing from the network reaches the speakers. Read on
-    // the audio thread like the two above, so it is atomic for the same reason.
     void setDeafened(bool deafened)
     {
         m_deafened.store(deafened, std::memory_order_relaxed);
@@ -77,9 +69,7 @@ public:
         return m_volume.load(std::memory_order_relaxed);
     }
 
-    // Empty id means "system default". Read at startCapture() time, so
-    // a change made during a call takes effect on the next one rather
-    // than tearing down a live stream mid-sentence.
+// read at startCapture(): a change during a call takes effect on the next one.
     void setInputDeviceId(const QString &id)
     {
         m_inputId = id;

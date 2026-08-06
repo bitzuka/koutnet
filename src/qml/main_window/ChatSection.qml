@@ -4,30 +4,21 @@ import QtQuick
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 
-// A heading in the conversation list that the rows under it fold into.
-//
-// ListSectionHeader draws the label, the rule beside it and the trailing row
-// this puts the chevron in, so the only thing written here is the folding. It is
-// an ItemDelegate underneath, which is why clicking the label works as well as
-// clicking the chevron - a heading with a hit target the size of a chevron is a
-// heading nobody folds twice.
+// ListSectionHeader already draws the label, the rule and the trailing row, so
+// only the folding is written here. It is an ItemDelegate underneath, which is
+// why clicking the label folds as well as clicking the chevron.
 Kirigami.ListSectionHeader {
     id: root
 
-    // How many rows are under it. Shown only while it is folded, where the count
-    // is the only thing left saying the section has anything in it.
     property int itemCount: 0
-    // Owned by whoever placed the heading, not by the heading. The rows this
-    // folds are somewhere else in the list - inside a ListView delegate, which
-    // cannot see an id declared in the view's header - so the one copy of the
-    // state has to live above both of them.
+    // Owned by whoever placed the heading. The rows this folds live inside a
+    // ListView delegate, which cannot see an id declared in the view's header,
+    // so the one copy of the state has to sit above both of them.
     property bool expanded: true
 
     signal toggleRequested()
 
-    // Whether an empty section is worth drawing is the caller's question, not
-    // this one's: the conversation list hides one, the peer drawer keeps its
-    // headings put so the sections do not shuffle as facts arrive.
+    // Hiding an empty section is the caller's question, not this one's.
 
     Accessible.name: root.text
     Accessible.description: root.expanded

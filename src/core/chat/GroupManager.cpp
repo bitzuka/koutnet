@@ -31,8 +31,7 @@ QString GroupManager::createGroup(const QString &name, const QString &creatorIp)
 {
     const QString gid = QStringLiteral("g_%1_%2")
                             .arg(QDateTime::currentSecsSinceEpoch())
-                            // two groups created in the same second must not collide, so this is
-                            // wider than the old 4 digits and comes from the system generator
+                            // same second must not collide, hence 8 hex digits
                             .arg(QRandomGenerator::system()->generate(), 8, 16, QLatin1Char('0'));
 
     QVariantMap g;
@@ -122,8 +121,6 @@ void GroupManager::load()
     QJsonParseError err;
     const QJsonDocument doc = QJsonDocument::fromJson(raw, &err);
     if (err.error != QJsonParseError::NoError || !doc.isObject()) {
-        // a truncated or hand-edited file is still the user's group list, so
-        // block saving rather than replacing it with whatever we managed to read
         m_loadFailed = true;
         qCWarning(KOUTNET_LOG_CHAT) << "refusing to overwrite unreadable" << f.fileName() << err.errorString();
         return;
@@ -144,7 +141,6 @@ void GroupManager::save()
     for (auto it = m_groups.constBegin(); it != m_groups.constEnd(); ++it)
         root[it.key()] = QJsonObject::fromVariantMap(it.value());
 
-    // QSaveFile so a crash or a full disk mid-write leaves the old list intact
     QSaveFile f(filePath());
     if (!f.open(QIODevice::WriteOnly)) {
         qCWarning(KOUTNET_LOG_CHAT) << "save failed:" << f.fileName() << f.errorString();

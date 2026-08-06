@@ -17,8 +17,6 @@ namespace koutnet
 
 namespace
 {
-// The four presences, in the order AppSettings::presence numbers them. The icon
-// names are breeze status icons; the strings are what the menu shows.
 struct PresenceEntry {
     int value;
     const char *iconName;
@@ -48,15 +46,13 @@ QString presenceLabel(int presence)
 TrayIcon::TrayIcon(QObject *parent)
     : QObject(parent)
 {
-    // The id is what the tray keys its own per-item settings on, so it matches
-    // the KAboutData component name like the notifyrc does.
+    // The id keys the tray's per-item settings, so it matches the KAboutData
+    // name.
     m_item = new KStatusNotifierItem(QStringLiteral("koutnet"), this);
     m_item->setTitle(i18nc("@title the application, as the system tray names it", "KOutNet"));
-    // Communications rather than ApplicationStatus: it puts the item with the
-    // other messengers in trays that group by category.
     m_item->setCategory(KStatusNotifierItem::Communications);
-    // The standard set is Quit plus a Minimize/Restore pair, and both of those
-    // are already below with labels that say what they do.
+    // Both standard actions are already below, with labels that say what they
+    // do.
     m_item->setStandardActionsEnabled(false);
 
     auto *menu = new QMenu();
@@ -66,9 +62,9 @@ TrayIcon::TrayIcon(QObject *parent)
 
     menu->addSeparator();
 
-    // Not checkable, for the same reason the drawer entries are not: a checkable
-    // action writes its own checked state when triggered, which is then no
-    // longer whatever the window thinks. The label carries the state instead.
+    // Not checkable: a checkable action writes its own checked state when
+    // triggered, which is then no longer whatever the window thinks. The label
+    // carries it.
     m_muteAction = menu->addAction(QString());
     connect(m_muteAction, &QAction::triggered, this, &TrayIcon::muteToggleRequested);
 
@@ -77,8 +73,6 @@ TrayIcon::TrayIcon(QObject *parent)
 
     menu->addSeparator();
 
-    // Presence is one of four rather than a toggle, so here a check mark is the
-    // right control - and an exclusive group is what stops two being ticked.
     auto *presenceMenu = menu->addMenu(i18nc("@title:menu what to tell peers you are", "Presence"));
     presenceMenu->setIcon(QIcon::fromTheme(QStringLiteral("user-online")));
     m_presenceGroup = new QActionGroup(this);
@@ -167,8 +161,6 @@ void TrayIcon::refresh()
 
     m_item->setIconByName(QStringLiteral("io.github.bitzuka.KOutNet"));
 
-    // NeedsAttention is what makes a tray that hides passive items show this
-    // one, which is exactly the case where there is something to read.
     if (m_unreadCount > 0) {
         m_item->setStatus(KStatusNotifierItem::NeedsAttention);
         m_item->setOverlayIconByName(QStringLiteral("mail-unread"));
@@ -179,8 +171,6 @@ void TrayIcon::refresh()
     }
 
     m_item->setStatus(KStatusNotifierItem::Active);
-    // Cleared rather than left behind: an overlay for a count of zero is a badge
-    // saying there is something to read when there is not.
     m_item->setOverlayIconByName(QString());
     m_item->setToolTip(QStringLiteral("io.github.bitzuka.KOutNet"), i18nc("@info:tooltip the system tray icon", "KOutNet"), presenceLabel(m_presence));
 }
@@ -198,9 +188,8 @@ void TrayIcon::refreshMenuLabels()
                                          : i18nc("@action:inmenu silence your own microphone", "Mute microphone"));
         m_muteAction->setIcon(
             QIcon::fromTheme((m_micMuted || m_deafened) ? QStringLiteral("microphone-sensitivity-muted") : QStringLiteral("audio-input-microphone")));
-        // Deafen already holds the microphone down, so offering to unmute it
-        // while it cannot be heard either way would be a control that does
-        // nothing. Same rule as the drawer entry.
+        // Deafen already holds the microphone down, so offering to unmute what
+        // cannot be heard either way would be a control that does nothing.
         m_muteAction->setEnabled(!m_deafened);
     }
 

@@ -6,7 +6,6 @@
 #include <QString>
 #include <QVariantMap>
 
-// Data structure for a single chat message.
 struct MessageEntry {
     QString sender;
     QString text;
@@ -17,28 +16,20 @@ struct MessageEntry {
     bool isSystem = false;
     bool isEdited = false;
     QString replyToText;
-    // Who wrote the message being answered, and its msgId. The quote used to be
-    // the text alone, which is enough to draw a grey line above a message and
-    // nothing else: it cannot say whose words those were, and it cannot be
-    // followed back to them. Both are empty on a message that answers nothing,
-    // and replyToId is empty for a quote that predates these fields.
     QString replyToSender;
     QString replyToId;
     QString chatId;
     QString msgId;
 
-    // File-transfer fields (match the FileTransferHandler flow already in use)
     bool isFile = false;
     QString filePath; // local path once downloaded/attached
     bool isImage = false;
 
-    // Read receipt for own outgoing messages
     bool isRead = false;
 
     // True between an outgoing message appearing in the timeline and its
-    // datagram being written. Deliberately absent from toJson() and
-    // toVariantMap(): anything reloaded from the log was sent long ago, and a
-    // "sending" state that survived a restart would never resolve.
+    // datagram being written. Deliberately not serialised - a "sending" state
+    // that survived a restart would never resolve.
     bool pending = false;
 
     MessageEntry() = default;

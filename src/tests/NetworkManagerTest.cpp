@@ -1,14 +1,8 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// Tests for the packet path: parse, authenticate, replay-check, dispatch.
-//
-// Every byte that reaches handleDatagram() came from whoever felt like sending
-// a UDP packet to port 42000. The interesting cases are the ones a real peer
-// never produces - a missing signature, a replayed packet, a 10 MB blob - so
-// none of this is reachable by running two copies of the application.
-//
-// No sockets are bound and no peers are contacted: handleDatagram() is fed
-// directly, which is the whole reason it exists as a function.
+// The interesting cases are the ones a real peer never produces - a missing
+// signature, a replayed packet, a 10 MB blob - so handleDatagram() is fed
+// directly, with no sockets bound and no peers contacted.
 
 #include <KLocalizedString>
 #include <QDateTime>
@@ -32,21 +26,13 @@ namespace protocol = koutnet::protocol;
 namespace
 {
 
-// The address the peer under test claims. TEST-NET-2, so it can never collide
-// with an address this machine actually holds - which would make the packet
-// look like our own broadcast echoed back and get it dropped for that reason
-// instead of the one the test is about.
+// TEST-NET-2, so the peer's claimed address can never collide with one this
+// machine holds, which would drop the packet as our own echoed broadcast.
 const QString kPeerIp = QStringLiteral("198.51.100.7");
-// A second address the same peer sends from. This is the whole bug: discovery
-// happens over one interface, a VPN comes up, and the message leaves by the
-// other one - same peer, same session, different source address.
+// A second address the same peer sends from - the whole bug: discovery happens
+// over one interface, a VPN comes up, and the message leaves by the other.
 const QString kPeerAltIp = QStringLiteral("198.51.100.8");
-// Somewhere else entirely, for a second peer that is not pretending to be the
-// first one at the first one's address.
 const QString kOtherIp = QStringLiteral("198.51.100.20");
-// The label the peer files its session with us under. Session keys are looked
-// up by string; both sides derived the same one, so what it is called on the
-// far side does not matter.
 const QString kSelfLabel = QStringLiteral("198.51.100.1");
 
 double nowEpoch()
@@ -60,8 +46,7 @@ QString freshNonce()
     return QStringLiteral("nonce-%1").arg(++counter);
 }
 
-// Has to match NetworkManager's own signableBytes() byte for byte, or nothing
-// signed here would ever verify there.
+// Has to match NetworkManager's signableBytes() byte for byte or nothing verifies.
 QByteArray signableBytes(QJsonObject obj)
 {
     obj.remove(QStringLiteral("_sig"));
@@ -73,7 +58,6 @@ QByteArray toDatagram(const QJsonObject &obj)
     return QJsonDocument(obj).toJson(QJsonDocument::Compact);
 }
 
-// A presence packet as the peer would broadcast it, handshake bundle included.
 QJsonObject presenceFrom(const CryptoManager &peer, const QString &username = QStringLiteral("peer"), const QString &ip = kPeerIp)
 {
     QJsonObject o = peer.handshakePayload();
@@ -85,22 +69,16 @@ QJsonObject presenceFrom(const CryptoManager &peer, const QString &username = QS
     return o;
 }
 
-// The signing half of sendUdp(): nonce, timestamp, then the HMAC over
-// everything else.
 QJsonObject signedPacket(const CryptoManager &peer, QJsonObject o, double ts = -1.0)
 {
     o[QStringLiteral("nonce")] = freshNonce();
     o[QStringLiteral("ts")] = ts < 0.0 ? nowEpoch() : ts;
-    // Whose session key signed this, which is what sendUdp() now puts on every
-    // unicast packet: it is how the far side finds the session when the source
-    // address is one it has never seen this peer use.
     o[QStringLiteral("from_id")] = peer.ownIdentityId();
     o[QStringLiteral("_sig")] = peer.signPacket(kSelfLabel, signableBytes(o));
     return o;
 }
 
-// One NetworkManager, the CryptoManager it was given, and a second one standing
-// in for the peer. Separate storage scopes, or both would come up as the same
+// Separate storage scopes, or both CryptoManagers would come up as the same
 // identity and every signature would verify for the wrong reason.
 class Harness
 {
@@ -112,8 +90,6 @@ public:
     {
     }
 
-    // Runs the real handshake in both directions, the way a presence packet
-    // does it, and leaves both sides holding the session key.
     bool establishSession()
     {
         net.handleDatagram(kPeerIp, toDatagram(presenceFrom(peer)));
@@ -149,8 +125,6 @@ private Q_SLOTS:
         QTest::newRow("bare number") << QByteArrayLiteral("12345");
         QTest::newRow("nul in the middle") << QByteArray("{\"type\":\"chat\"\x00,\"text\":\"x\"}", 27);
 
-        // Past whatever the parser's nesting limit is, which is the point: it
-        // has to refuse rather than recurse until the stack runs out.
         QByteArray deep;
         deep.reserve(8192);
         deep.append(QByteArrayLiteral("{\"type\":\"chat\",\"text\":"));
@@ -167,15 +141,11 @@ private Q_SLOTS:
         deepObjects.append(QByteArray(2000, '}'));
         QTest::newRow("deeply nested objects") << deepObjects;
 
-        // Ten megabytes of valid JSON. Nothing here is allowed to keep it, and
-        // nothing is allowed to act on it either - there is no session, so the
-        // signature policy refuses it before any handler sees it.
         QJsonObject huge;
         huge[QStringLiteral("type")] = protocol::kMsgChat;
         huge[QStringLiteral("text")] = QString(10 * 1024 * 1024, QLatin1Char('A'));
         QTest::newRow("ten megabytes of json") << toDatagram(huge);
 
-        // And ten megabytes that is not JSON at all.
         QTest::newRow("ten megabytes of junk") << (QByteArrayLiteral("{\"type\":") + QByteArray(10 * 1024 * 1024, 'z'));
     }
 
@@ -198,10 +168,8 @@ private Q_SLOTS:
         QVERIFY2(h.net.peers().isEmpty(), "a peer was recorded from a packet that never parsed");
     }
 
-    // A type nobody implements is not an error to report and not a packet to
-    // act on. It falls off the end of the dispatch chain, and the test is here
-    // so that adding a branch later cannot silently start accepting one
-    // unsigned.
+    // The test is here so adding a branch later cannot silently start accepting
+    // one unsigned.
     void anUnknownTypeIsIgnored_data()
     {
         QTest::addColumn<QString>("type");
@@ -227,8 +195,6 @@ private Q_SLOTS:
         QJsonObject o;
         o[QStringLiteral("type")] = type;
         o[QStringLiteral("text")] = QStringLiteral("payload");
-        // Correctly signed, so that a packet getting through would be the
-        // dispatch chain's doing and not a failure to authenticate.
         h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
 
         QCOMPARE(messages.count(), 0);
@@ -237,8 +203,8 @@ private Q_SLOTS:
         QCOMPARE(h.net.peers().size(), peersBefore);
     }
 
-    // Presence is the packet that carries the handshake, so it is the one thing
-    // that may arrive unauthenticated. Nothing else may.
+    // Presence carries the handshake, so it is the one packet that may arrive
+    // unauthenticated.
     void onlyPresencePassesBeforeASession()
     {
         Harness h;
@@ -272,7 +238,6 @@ private Q_SLOTS:
         QVERIFY(!errors.isEmpty());
         QVERIFY(!h.mine.hasSession(kPeerIp));
 
-        // The one exception, and it is what gets the session going.
         h.net.handleDatagram(kPeerIp, toDatagram(presenceFrom(h.peer)));
         QCOMPARE(online.count(), 1);
         QVERIFY(h.mine.hasSession(kPeerIp));
@@ -295,14 +260,12 @@ private Q_SLOTS:
         QCOMPARE(messages.count(), 0);
         QCOMPARE(errors.count(), 1);
 
-        // An empty one is no better than a missing one.
         QJsonObject emptySig = bare;
         emptySig[QStringLiteral("nonce")] = freshNonce();
         emptySig[QStringLiteral("_sig")] = QString();
         h.net.handleDatagram(kPeerIp, toDatagram(emptySig));
         QCOMPARE(messages.count(), 0);
 
-        // Nor is a wrong one, of any length.
         for (const QString &sig : {QStringLiteral("AAAA"),
                                    QString::fromLatin1(QByteArray(32, '\0').toBase64()),
                                    QString::fromLatin1(QByteArray(32, 'x').toBase64()),
@@ -314,16 +277,14 @@ private Q_SLOTS:
             QCOMPARE(messages.count(), 0);
         }
 
-        // A signature over different bytes than the ones that arrived.
         QJsonObject tampered = signedPacket(h.peer, bare);
         tampered[QStringLiteral("text")] = QStringLiteral("transfer 1000 to me");
         h.net.handleDatagram(kPeerIp, toDatagram(tampered));
         QCOMPARE(messages.count(), 0);
     }
 
-    // The counterpart: a correctly signed packet has to get through, and its
-    // body has to come out of the session key. If this fails, the fail-closed
-    // policy above is fail-always and the application does not work at all.
+    // The counterpart: if a correctly signed packet does not get through, the
+    // fail-closed policy above is fail-always and the application does not work.
     void aCorrectlySignedPacketIsAccepted()
     {
         Harness h;
@@ -344,8 +305,7 @@ private Q_SLOTS:
     }
 
     // Signing happens over the JSON text, so the packet has to survive a
-    // serialise/parse round trip unchanged - a fractional timestamp included,
-    // since that is what sendUdp() puts in every packet.
+    // serialise/parse round trip unchanged, fractional timestamp included.
     void aSignatureSurvivesTheJsonRoundTrip()
     {
         Harness h;
@@ -366,10 +326,8 @@ private Q_SLOTS:
                  "number can either");
     }
 
-    // The regression this exists for: presence carries no signature, because a
-    // broadcast has no single peer to sign it for. Requiring one once a session
-    // existed meant the peer went stale 25 seconds after the handshake and the
-    // session key kept it away permanently.
+    // Regression: presence carries no signature, a broadcast having no single peer
+    // to sign for. Requiring one once a session existed made the peer go stale.
     void presenceKeepsFlowingAfterASession()
     {
         Harness h;
@@ -380,8 +338,6 @@ private Q_SLOTS:
         const double firstSeen = h.net.peers().value(kPeerIp).value(QStringLiteral("last_seen")).toDouble();
         QVERIFY(firstSeen > 0.0);
 
-        // Same peer, same identity, a later broadcast. No _sig, because the
-        // application never puts one on a presence packet.
         const QJsonObject again = presenceFrom(h.peer, QStringLiteral("peer-renamed"));
         QVERIFY(!again.contains(QStringLiteral("_sig")));
         h.net.handleDatagram(kPeerIp, toDatagram(again));
@@ -401,8 +357,6 @@ private Q_SLOTS:
         QCOMPARE(online.count(), 1);
         QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("username")).toString(), QStringLiteral("original"));
 
-        // Same nonce, edited contents - which is exactly what a captured packet
-        // being resent with a tweak looks like.
         QJsonObject replay = first;
         replay[QStringLiteral("username")] = QStringLiteral("attacker");
         h.net.handleDatagram(kPeerIp, toDatagram(replay));
@@ -411,9 +365,9 @@ private Q_SLOTS:
         QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("username")).toString(), QStringLiteral("original"));
     }
 
-    // Signed packets used to get no replay check at all: the nonce and the
-    // timestamp are inside the signature, so resending the captured bytes
-    // verifies exactly as well as the original did.
+    // Signed packets used to get no replay check: the nonce and timestamp are
+    // inside the signature, so resending the captured bytes verifies as well as
+    // the original.
     void aReplayedSignedPacketIsRefused()
     {
         Harness h;
@@ -466,10 +420,9 @@ private Q_SLOTS:
         QCOMPARE(messages.count(), accepted ? 1 : 0);
     }
 
-    // Fields the peer fills in and a handler then passes on. None of them is
-    // interpreted here, and that is the property worth pinning down: the chat
-    // id becomes a filename in HistoryManager::filePathFor(), which sanitises
-    // it there, and nothing in this layer may do so half way.
+    // None of these fields is interpreted here, and that is the property pinned
+    // down: chat ids are sanitised in HistoryManager, so no layer may do it half
+    // way.
     void hostileFieldsStayInsideTheirHandler_data()
     {
         QTest::addColumn<QString>("chatId");
@@ -498,7 +451,6 @@ private Q_SLOTS:
         h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
 
         QCOMPARE(typing.count(), 1);
-        // Verbatim, or something along the way decided to reinterpret it.
         QCOMPARE(typing.at(0).at(1).toString(), chatId);
     }
 
@@ -530,14 +482,9 @@ private Q_SLOTS:
         o[QStringLiteral("msg_ts")] = msgTs;
         h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
 
-        // This layer hands the field on untouched; nothing here narrows it to an
-        // integer, which is where a value the integer cannot hold would stop
-        // being a large number and start being undefined behaviour.
         QCOMPARE(messages.count(), 1);
     }
 
-    // all_ips drives the alternate-address fan-out in sendPrivate(), so a peer
-    // gets to choose how long that list is.
     void ahostileAllIpsListIsSurvivable_data()
     {
         QTest::addColumn<QJsonValue>("allIps");
@@ -564,14 +511,11 @@ private Q_SLOTS:
         h.net.handleDatagram(kPeerIp, toDatagram(presence));
 
         QCOMPARE(online.count(), 1);
-        // Recorded against the peer and nowhere else: one presence packet may
-        // never create entries for the addresses it lists.
         QCOMPARE(h.net.peers().size(), 1);
         QVERIFY(h.net.peers().contains(kPeerIp));
     }
 
-    // Our own broadcast comes back to us on every interface we sent it on, and
-    // a peer claiming one of our addresses gets the same treatment.
+    // Our own broadcast comes back on every interface we sent it on.
     void ourOwnPacketsAreDropped()
     {
         Harness h;
@@ -589,16 +533,14 @@ private Q_SLOTS:
         h.net.handleDatagram(h.net.hostIp(), toDatagram(o));
         QCOMPARE(messages.count(), 0);
 
-        // And a presence packet claiming to be us is not a peer.
         QJsonObject presence = presenceFrom(h.peer);
         presence[QStringLiteral("ip")] = h.net.hostIp();
         h.net.handleDatagram(kPeerIp, toDatagram(presence));
         QVERIFY(h.net.peers().isEmpty());
     }
 
-    // A different identity arriving for an address we have already pinned is
-    // refused by CryptoManager, and the peer entry must not be taken over by it
-    // either.
+    // A different identity for an already pinned address is refused by
+    // CryptoManager, and the peer entry must not be taken over by it either.
     void animpostorDoesNotTakeOverThePeerEntry()
     {
         Harness h;
@@ -614,13 +556,9 @@ private Q_SLOTS:
         QCOMPARE(identityChanged.count(), 1);
         QCOMPARE(h.mine.peerFingerprint(kPeerIp), pinned);
         QVERIFY(h.mine.hasSession(kPeerIp));
-        // The peer record is what the interface shows next to that warning, so
-        // the refused packet may not have rewritten it either.
         QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("username")).toString(), QStringLiteral("peer"));
         QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("id_pub")).toString(), h.peer.handshakePayload().value(QStringLiteral("id_pub")).toString());
 
-        // The session key still belongs to the peer we handshook with, so the
-        // impostor cannot sign anything we will accept.
         QSignalSpy messages(&h.net, &NetworkManager::message);
         QJsonObject o;
         o[QStringLiteral("type")] = protocol::kMsgChat;
@@ -652,12 +590,10 @@ private Q_SLOTS:
         QVERIFY2(delivered != QStringLiteral("meet me at seven"), "an unencrypted body was passed through on a channel with a session key");
     }
 
-    // The bug this whole pass is about, seen with two clients on one machine and
-    // one of them in a network namespace. The sender's session was established
-    // over the address it advertised and the datagram arrived from the veth, so
-    // the session lookup - keyed on the source address - found nothing and the
-    // fail-closed policy dropped a message that had been signed correctly all
-    // along.
+    // The bug this pass is about, seen with one client in a network namespace: the
+    // session was established over the advertised address while the datagram
+    // arrived from the veth, so the address-keyed lookup found nothing and dropped
+    // it.
     void aPacketFromAnotherAddressOfTheSamePeerIsAccepted()
     {
         Harness h;
@@ -676,14 +612,12 @@ private Q_SLOTS:
         QCOMPARE(messages.count(), 1);
         const QJsonObject got = messages.at(0).at(0).toJsonObject();
         QCOMPARE(got.value(QStringLiteral("text")).toString(), text);
-        // And it belongs in the chat the peer is filed under, not in one named
-        // after whichever interface it happened to leave by.
         QCOMPARE(got.value(QStringLiteral("from_ip")).toString(), kPeerIp);
     }
 
-    // A private message is the packet that was actually being lost, and it has
-    // one more way to go missing: the "to" field carries one of our addresses,
-    // and it used to be compared against the primary one alone.
+    // A private message was what was actually being lost, and it has one more way
+    // to go missing: the "to" field used to be compared against our primary
+    // address alone.
     void aPrivateMessageToAnyOfOurAddressesArrives()
     {
         Harness h;
@@ -697,20 +631,15 @@ private Q_SLOTS:
         h.net.handleDatagram(kPeerAltIp, toDatagram(signedPacket(h.peer, o)));
         QCOMPARE(messages.count(), 1);
 
-        // Addressed to something that is not ours at all, which is somebody
-        // else's mail however well it is signed.
         QJsonObject elsewhere = o;
         elsewhere[QStringLiteral("to")] = kOtherIp;
         h.net.handleDatagram(kPeerAltIp, toDatagram(signedPacket(h.peer, elsewhere)));
         QCOMPARE(messages.count(), 1);
     }
 
-    // The read receipt is what turns an outgoing message's "sent, not confirmed"
-    // arrow into a pair of ticks, and it travels the same identity-keyed path a
-    // message does. It has one extra way to go wrong: the interface routes it to a
-    // chat by from_ip, so a receipt filed under the address the peer believes it
-    // lives at marks up a chat with nobody in it and the arrow never changes.
-    // Nothing about such a packet is wrong, so nothing complains about it either.
+    // A read receipt is routed to a chat by from_ip, so one filed under the
+    // address the peer believes it lives at marks up a chat with nobody in it and
+    // the sent arrow never changes.
     void areadReceiptLandsInTheChatThePeerIsFiledUnder()
     {
         Harness h;
@@ -722,8 +651,6 @@ private Q_SLOTS:
         QJsonObject o;
         o[QStringLiteral("type")] = protocol::kMsgRead;
         o[QStringLiteral("chat_id")] = QStringLiteral("dm");
-        // The address the peer believes it lives at, which is neither the one this
-        // end filed it under nor the one the datagram arrives from.
         o[QStringLiteral("from_ip")] = kOtherIp;
         h.net.handleDatagram(kPeerAltIp, toDatagram(signedPacket(h.peer, o)));
 
@@ -735,8 +662,7 @@ private Q_SLOTS:
                  "the receipt reached the interface under an address no chat is keyed on");
     }
 
-    // And it is a signed packet like any other: an unsigned one would let anybody
-    // mark somebody else's messages as read.
+    // Unsigned, anybody could mark somebody else's messages as read.
     void anunsignedReadReceiptIsRefused()
     {
         Harness h;
@@ -753,8 +679,7 @@ private Q_SLOTS:
         QCOMPARE(messages.count(), 0);
     }
 
-    // Taking a packet from any address is only safe because the signature is
-    // what decides, so a bad one has to fail from every address equally.
+    // Taking a packet from any address is only safe because the signature decides.
     void abadSignatureIsRefusedFromEitherAddress()
     {
         Harness h;
@@ -769,7 +694,6 @@ private Q_SLOTS:
             tampered[QStringLiteral("text")] = QStringLiteral("send money");
             h.net.handleDatagram(from, toDatagram(tampered));
 
-            // And an identity claim with no signature behind it at all.
             QJsonObject bare = o;
             bare[QStringLiteral("nonce")] = freshNonce();
             bare[QStringLiteral("ts")] = nowEpoch();
@@ -779,18 +703,17 @@ private Q_SLOTS:
         QCOMPARE(messages.count(), 0);
     }
 
-    // The other half of resolving a peer by identity: the identity in a packet
-    // is a claim, and anyone can copy one out of a presence broadcast. What
-    // makes it true is the HMAC, and that needs the session key behind the
-    // identity - so an impostor with a session of its own gets nowhere.
+    // The identity in a packet is a claim anyone can copy out of a presence
+    // broadcast. What makes it true is the HMAC, which needs the session key
+    // behind the identity.
     void animpostorClaimingAKnownIdentityIsRefused()
     {
         Harness h;
         QVERIFY(h.establishSession());
         const QString pinned = h.mine.peerFingerprint(kPeerIp);
 
-        // Its own address and its own handshake, so it holds a real session key
-        // to sign with - just not the one belonging to the name it will use.
+        // Its own handshake, so it holds a real session key - just not that
+        // name's.
         CryptoManager impostor(QStringLiteral("nm-impostor-id"));
         h.net.handleDatagram(kOtherIp, toDatagram(presenceFrom(impostor, QStringLiteral("someone-else"), kOtherIp)));
         QVERIFY(impostor.processHandshake(kSelfLabel, h.mine.handshakePayload()));
@@ -808,7 +731,6 @@ private Q_SLOTS:
         h.net.handleDatagram(kPeerAltIp, toDatagram(o));
         QCOMPARE(messages.count(), 0);
 
-        // Nothing about the peer moved, and it can still be heard from.
         QCOMPARE(h.mine.peerFingerprint(kPeerIp), pinned);
         QVERIFY(h.mine.hasSession(kPeerIp));
         QJsonObject real;
@@ -818,8 +740,7 @@ private Q_SLOTS:
         QCOMPARE(messages.count(), 1);
     }
 
-    // Replay state hangs off the identity too, so a captured packet is not fresh
-    // again for having been resent from somewhere else.
+    // Replay state hangs off the identity, not the source address.
     void areplayedPacketIsRefusedFromAnotherAddress()
     {
         Harness h;
@@ -837,8 +758,8 @@ private Q_SLOTS:
         QVERIFY2(messages.count() == 1, "a captured packet was accepted again from a different source address");
     }
 
-    // Presence is where the addresses come from, and the peer decides how many
-    // it lists. One message may not become one datagram per entry.
+    // The peer decides how many addresses it lists; one message may not become one
+    // each.
     void thefanOutIsCapped()
     {
         Harness h;
@@ -855,17 +776,14 @@ private Q_SLOTS:
         QVERIFY2(targets.size() <= NetworkManager::kMaxDeliveryAddresses, "an advertised address list decided how many datagrams one message becomes");
         QVERIFY(targets.contains(kPeerIp));
 
-        // An address the peer has really been heard on is worth more than the
-        // five thousand it claims, so it has to be in there.
         h.net.handleDatagram(kPeerAltIp, toDatagram(presenceFrom(h.peer, QStringLiteral("peer"), kPeerAltIp)));
         const QVector<QString> withAlt = h.net.deliveryAddresses(kPeerIp);
         QVERIFY(withAlt.size() <= NetworkManager::kMaxDeliveryAddresses);
         QVERIFY2(withAlt.contains(kPeerAltIp), "an address the peer was heard on did not make it into the delivery set");
     }
 
-    // One peer broadcasting on two interfaces is one person. And it does not get
-    // to list itself wherever it likes: the address in the peer table is the one
-    // its packets came from, not the one it asked to be called.
+    // One peer on two interfaces is one person, and the peer table records the
+    // address its packets came from, not the one it asked to be called.
     void amultiHomedPeerIsOneContact()
     {
         Harness h;
@@ -879,7 +797,6 @@ private Q_SLOTS:
         QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("ip")).toString(), kPeerIp);
         QCOMPARE(h.net.peers().value(kPeerIp).value(QStringLiteral("advertised_ip")).toString(), kOtherIp);
 
-        // Same identity, second interface: still one contact.
         h.net.handleDatagram(kPeerAltIp, toDatagram(presenceFrom(h.peer, QStringLiteral("peer"), kPeerAltIp)));
         QCOMPARE(h.net.peers().size(), 1);
         QVERIFY(h.net.peers().contains(kPeerIp));
@@ -902,15 +819,13 @@ private Q_SLOTS:
     }
 };
 
-// Test mode so CryptoManager's config lookups stay in a scratch directory, and
-// no sockets are bound anywhere in here - QCoreApplication is only needed for
-// the timers the two classes own.
+// Test mode keeps CryptoManager's config lookups in a scratch directory. No
+// sockets are bound; QCoreApplication is only needed for the classes' timers.
 int main(int argc, char *argv[])
 {
     QStandardPaths::setTestModeEnabled(true);
     QCoreApplication app(argc, argv);
-    // Without a domain ki18n warns on every single string, which buries
-    // the actual test output.
+    // Without a domain ki18n warns on every string, burying the test output.
     KLocalizedString::setApplicationDomain(QByteArrayLiteral("koutnet"));
     QCoreApplication::setOrganizationName(QStringLiteral("koutnet-tests"));
     QCoreApplication::setApplicationName(QStringLiteral("network-manager"));

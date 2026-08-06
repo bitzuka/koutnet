@@ -7,15 +7,13 @@ import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.delegates as Delegates
 import koutnet.app
 
-// Call log, backed by HistoryManager.loadCallLog() - the same call-log store
-// VoiceCallManager will append to once outgoing and incoming call events are wired
-// to it.
+// Backed by HistoryManager.loadCallLog() - the same store VoiceCallManager will
+// append to once call events are wired to it.
 Kirigami.ScrollablePage {
     id: root
 
     title: i18nc("@title call log", "Calls")
 
-    // See the note on Kirigami.Theme in Main.qml.
     Kirigami.Theme.highlightColor: Brand.accent
 
     ListView {
@@ -37,8 +35,7 @@ Kirigami.ScrollablePage {
 
             required property var modelData
 
-            // An outgoing call and an incoming one are the same row with the arrow
-            // pointing the other way.
+            // Outgoing and incoming are one row with the arrow turned round.
             icon.name: callRow.modelData.is_own === true ? "call-start" : "call-stop"
             text: callRow.modelData.sender || i18nc("@item call log entry with no name attached", "Unknown")
 

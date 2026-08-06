@@ -5,9 +5,6 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 
-// A file that arrived in the conversation: shown as itself if it is a picture,
-// and as a row with a name and an icon if it is not.
-//
 // Both cases are already a file on this machine - the transfer put it there - so
 // neither has a download step and both open with one click.
 ColumnLayout {
@@ -16,8 +13,6 @@ ColumnLayout {
     property string filePath: ""
     property string fileName: ""
     property bool isImage: false
-    // How wide the picture is allowed to get. The timeline passes its own
-    // content width down; a picture is never blown up past what the file holds.
     property real maxImageWidth: Kirigami.Units.gridUnit * 18
 
     signal imageActivated(string path)
@@ -28,9 +23,8 @@ ColumnLayout {
     Image {
         id: preview
 
-        // Sized off the cap rather than off its own width. A height that reads
-        // back the width the layout just gave it is the binding loop this is
-        // written around.
+        // Sized off the cap and not its own width: a height that reads back the
+        // width the layout just gave it is the binding loop this is written around.
         readonly property real shownWidth: Math.min(root.maxImageWidth,
                                                     sourceSize.width > 0 ? sourceSize.width : root.maxImageWidth)
 

@@ -8,14 +8,10 @@ import org.kde.kirigamiaddons.components as Components
 import org.kde.kirigamiaddons.formcard as FormCard
 import koutnet.app
 
-// The third column: who is on the other end of this conversation.
-//
-// A group messenger would put a member list here. A direct-connection messenger
-// has one member and something more interesting to say about them: which key
-// they proved they hold, whether the session is actually encrypted, and which
-// addresses their packets have really come from. All three are things a peer
-// cannot claim - they are what this client has verified - and all three are the
-// difference between "encrypted" as a marketing word and as a fact.
+// A group messenger would put a member list here. A direct-connection messenger has
+// one member and something more interesting to say about them: which key they proved
+// they hold, whether the session is really encrypted, and which addresses their
+// packets came from - all three verified here rather than claimed by the peer.
 Kirigami.ScrollablePage {
     id: root
 
@@ -25,9 +21,8 @@ Kirigami.ScrollablePage {
 
     property bool encryptionExpanded: true
     property bool systemExpanded: true
-    // Folded away to begin with, unlike the sections above it. The addresses
-    // are the one thing on this page that says where somebody is, and it should
-    // take a deliberate click rather than being on screen by default.
+    // Folded away to begin with: the addresses are the one thing here that says
+    // where somebody is, and that should take a deliberate click.
     property bool addressExpanded: false
     property bool aboutExpanded: true
 
@@ -41,17 +36,15 @@ Kirigami.ScrollablePage {
                 || i18nc("@info a peer that has published no name of its own", "Unknown peer")))
         : ""
 
-    // Re-read whenever anything could have changed them. These are function
-    // calls into the crypto engine rather than properties, so nothing notifies
-    // on its own; refresh() is what stands in for that.
+    // Function calls into the crypto engine rather than properties, so nothing
+    // notifies on its own and refresh() stands in for that.
     property string fingerprint: ""
     property bool encrypted: false
     property var addresses: []
 
     title: i18nc("@title:window information about the peer on the other end", "Peer details")
 
-    // See the note on Kirigami.Theme in Main.qml: a ScrollablePage starts a
-    // theme chain of its own.
+    // See Main.qml: a ScrollablePage starts a theme chain of its own.
     Kirigami.Theme.highlightColor: Brand.accent
 
     function refresh() {
@@ -72,8 +65,6 @@ Kirigami.ScrollablePage {
 
     Connections {
         target: networkManager
-        // A handshake happens on the back of presence, so this is the moment a
-        // fingerprint and a session first exist.
         function onUserOnline(peerInfo) {
             if (peerInfo.ip === root.peerIp)
                 root.refresh()
@@ -91,8 +82,7 @@ Kirigami.ScrollablePage {
     ColumnLayout {
         spacing: 0
 
-        // Who, at a glance. Not a banner: this column is fifteen grid units
-        // wide at its narrowest and a banner would be most of its height.
+        // Not a banner: this column is fifteen grid units wide at its narrowest.
         ColumnLayout {
             Layout.fillWidth: true
             Layout.topMargin: Kirigami.Units.largeSpacing
@@ -126,8 +116,7 @@ Kirigami.ScrollablePage {
                 color: Kirigami.Theme.disabledTextColor
             }
 
-            // RelativeTime.now is read so this ages on its own with the column
-            // open and nothing arriving.
+            // RelativeTime.now is read so this ages with the column open.
             QQC2.Label {
                 Layout.fillWidth: true
                 text: root.peer
@@ -174,9 +163,8 @@ Kirigami.ScrollablePage {
 
             FormCard.FormDelegateSeparator { above: sessionDelegate; below: fingerprintDelegate }
 
-            // The identity key, reduced to something two people can read to each
-            // other. Comparing it out of band is the only thing that turns
-            // trust-on-first-use into trust.
+            // Reduced to something two people can read to each other: comparing it
+            // out of band is the only thing that turns trust-on-first-use into trust.
             FormCard.AbstractFormDelegate {
                 id: fingerprintDelegate
                 Layout.fillWidth: true
@@ -198,8 +186,7 @@ Kirigami.ScrollablePage {
                         text: root.fingerprint.length > 0 && root.fingerprint !== "?"
                             ? root.fingerprint
                             : i18nc("@info the peer has never proved which key it holds", "Not established")
-                        // Fixed pitch so the groups line up against the copy the
-                        // other side is reading off their own screen.
+                        // Fixed pitch so the groups line up against the other copy.
                         font.family: "monospace"
                         wrapMode: Text.WrapAnywhere
                         color: root.fingerprint.length > 0 && root.fingerprint !== "?"
@@ -259,8 +246,7 @@ Kirigami.ScrollablePage {
 
                     icon.name: "network-wired"
                     text: modelData
-                    // Newest first, which is what makes the top one the address
-                    // a message will actually be sent to.
+                    // Newest first, so the top one is where a message will be sent.
                     description: index === 0
                         ? i18nc("@info:whatsthis the address most recently heard from", "Last heard from here")
                         : i18nc("@info:whatsthis an address this peer has used before", "Also seen here")
@@ -288,8 +274,6 @@ Kirigami.ScrollablePage {
                 readonly property bool hasBio: root.peer && root.peer.bio && root.peer.bio.length > 0
 
                 contentItem: Kirigami.SelectableLabel {
-                    // Markdown, as on the profile pages, so the same text reads
-                    // the same way wherever it is shown.
                     text: bioDelegate.hasBio
                         ? root.peer.bio
                         : i18nc("@info the peer wrote nothing about itself", "No description")

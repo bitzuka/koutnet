@@ -9,8 +9,6 @@
 #include <QVariantList>
 #include <QVariantMap>
 
-// Manages group chat metadata (name, creator, members, created date),
-// persisted as JSON.
 class GroupManager : public QObject
 {
     Q_OBJECT
@@ -31,8 +29,6 @@ public:
     Q_INVOKABLE void deleteGroup(const QString &gid);
     Q_INVOKABLE void rename(const QString &gid, const QString &newName);
     Q_INVOKABLE QVariantMap get(const QString &gid) const;
-    // Returns list of { gid, name, creator, members, created } maps
-    // for every group the given ip is a member of.
     Q_INVOKABLE QVariantList listFor(const QString &ip) const;
 
 Q_SIGNALS:
@@ -44,7 +40,6 @@ private:
     void save();
 
     QHash<QString, QVariantMap> m_groups; // gid -> group data
-    // set when groups.json exists but will not parse, which blocks saving so
-    // a corrupt file is never traded for an empty one
+    // set when groups.json exists but will not parse, which blocks saving
     bool m_loadFailed = false;
 };

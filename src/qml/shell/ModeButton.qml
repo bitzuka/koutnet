@@ -5,22 +5,16 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.delegates as Delegates
 
-// One connection mode in the rail: a round icon, and a tooltip that says which
-// mode it is and what state it is in.
-//
-// RoundedItemDelegate rather than a ToolButton because the rail wants the same
-// selected fill as the conversation list next to it, and that fill is the one
-// thing a rail of five identical circles has to get right - it is the only way
-// the current mode is visible at all.
+// RoundedItemDelegate rather than a ToolButton so the selected fill matches the
+// conversation list beside it - on a rail of identical circles that fill is the
+// only thing saying which mode is current.
 Delegates.RoundedItemDelegate {
     id: root
 
     // NetworkManager.ConnectionMode, as an int - the enum is not registered in
     // QML and the persisted setting is an int either way.
     required property int mode
-    // What the mode is called, one line, for the tooltip's first line.
     required property string modeName
-    // Why it cannot be picked, or empty when it can.
     property string unavailableReason: ""
     property bool current: false
 
@@ -32,9 +26,8 @@ Delegates.RoundedItemDelegate {
     // and has no current item, so it is said here instead.
     checked: root.current
     enabled: root.available
-    // An unreachable mode is greyed rather than hidden: the shape of the plan is
-    // the point of the rail, and a button that appears later moves everything
-    // under it.
+    // An unreachable mode is greyed rather than hidden: a button that appears
+    // later moves everything under it.
     opacity: root.available ? 1 : 0.45
 
     activeFocusOnTab: true
@@ -62,7 +55,6 @@ Delegates.RoundedItemDelegate {
         source: root.icon.name
         implicitWidth: Kirigami.Units.iconSizes.smallMedium
         implicitHeight: Kirigami.Units.iconSizes.smallMedium
-        // The current mode is the one thing on this rail worth an accent.
         color: root.current ? Kirigami.Theme.highlightColor : Kirigami.Theme.textColor
         isMask: true
     }

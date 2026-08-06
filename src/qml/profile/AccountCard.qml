@@ -6,17 +6,12 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
-// You at a glance, hung off your own row at the foot of the conversation list.
-//
-// The same card as a peer's - see qml/peer/PeerCard.qml, and the header both are
-// built out of - because clicking your own face asks the same question as
-// clicking somebody else's and deserves the same answer in the same shape. What
-// differs is that there is no reachability to report about yourself, and that the
-// two actions at the bottom write instead of reaching a peer.
-//
-// The name and handle are read straight off AppSettings rather than passed in:
-// the account row above does the same, and threading two strings through a popup
-// only to have them go stale is worse than the coupling.
+// The same card as a peer's - see qml/peer/PeerCard.qml - because clicking your own
+// face asks the same question as clicking somebody else's and deserves the same
+// answer in the same shape. What differs is that there is no reachability to report
+// about yourself and the two actions write. The name and handle are read straight off
+// AppSettings rather than passed in: threading two strings through a popup only to
+// have them go stale is worse than the coupling.
 QQC2.Popup {
     id: root
 
@@ -31,8 +26,7 @@ QQC2.Popup {
 
     implicitWidth: Kirigami.Units.gridUnit * 18
 
-    // See the note on Kirigami.Theme in Main.qml: a popup is reparented into the
-    // window overlay, which starts a theme chain of its own.
+    // See Main.qml: a popup is reparented into the overlay, which is its own chain.
     Kirigami.Theme.inherit: false
     Kirigami.Theme.highlightColor: Brand.accent
 
@@ -42,8 +36,7 @@ QQC2.Popup {
     closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
     padding: 0
 
-    // Above the row rather than below it: the account row is the last thing in
-    // the column, so there is nothing under it to open into.
+    // Above the row, because the account row is the last thing in the column.
     function openAt(item) {
         if (!item)
             return
@@ -63,9 +56,8 @@ QQC2.Popup {
         shadow.yOffset: 2
     }
 
-    // Copying goes through an off-screen editor because there is no clipboard
-    // object in QML without pulling in a C++ helper for it - the same trick the
-    // conversation uses to copy a message.
+    // Copying goes through an off-screen editor because QML has no clipboard object
+    // without a C++ helper - the same trick the conversation uses.
     TextEdit {
         id: clipboardHelper
         visible: false
@@ -84,8 +76,7 @@ QQC2.Popup {
 
             compact: true
             topCornerRadius: Kirigami.Units.cornerRadius
-            // Your own reachability is that the process is running, which is
-            // not worth a line.
+            // Your own reachability is that the process is running.
             showPresence: false
 
             displayName: root.shownName
@@ -118,8 +109,7 @@ QQC2.Popup {
                 }
             }
 
-            // The handle is how somebody else starts a conversation with you, so
-            // handing it over is the other thing this card is for.
+            // The handle is how somebody else starts a conversation with you.
             QQC2.Button {
                 Layout.fillWidth: true
                 icon.name: "edit-copy"

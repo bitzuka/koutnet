@@ -1,10 +1,7 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// KOutNet - audio device enumeration and the settings dialog test helpers.
-//
-// Separate from AudioEngine on purpose: the engine's lifetime follows call
-// state, these probes have to run with no call up. One shared QAudioSource
-// would let a mic test kill a live call.
+// separate from AudioEngine on purpose: these probes run with no call up,
+// and one shared QAudioSource would let a mic test kill a live call.
 #pragma once
 
 #include <QByteArray>
@@ -34,8 +31,6 @@ public:
     explicit AudioDevices(QObject *parent = nullptr);
     ~AudioDevices() override;
 
-    // Each entry is { id, description }. The id is what gets persisted;
-    // descriptions change between reboots on some backends.
     QVariantList inputs() const;
     QVariantList outputs() const;
 
@@ -52,7 +47,6 @@ public:
         return m_level;
     }
 
-    // An empty id means "whatever the system default is right now".
     Q_INVOKABLE void startMicTest(const QString &deviceId);
     Q_INVOKABLE void stopMicTest();
     Q_INVOKABLE void playTestTone(const QString &deviceId);

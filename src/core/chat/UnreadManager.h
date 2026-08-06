@@ -7,8 +7,6 @@
 #include <QQmlEngine>
 #include <QString>
 
-// Tracks unread message counts per chat_id.
-// chat_id is either an IP (private chat), "public", or "group_<gid>".
 class UnreadManager : public QObject
 {
     Q_OBJECT
@@ -30,10 +28,8 @@ public:
     Q_INVOKABLE void increment(const QString &chatId);
     Q_INVOKABLE void markRead(const QString &chatId);
     Q_INVOKABLE int get(const QString &chatId) const;
-    // Puts back a count that was persisted with the conversation list. Separate
-    // from increment() because it is not a new message arriving: it must not
-    // notify anything into thinking one did, and it must not stack on top of
-    // whatever this run has already counted.
+    // Separate from increment() because no message arrived: it must not notify,
+    // nor stack on this run's count.
     Q_INVOKABLE void restore(const QString &chatId, int count);
     int total() const;
 

@@ -6,18 +6,11 @@ import QtQuick.Controls as QQC2
 import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as Components
-// Deliberately not aliased: the image viewer's model has to be declared as
-// list<AlbumModelItem>, and a property type in a declaration cannot carry an
-// import namespace.
+// Deliberately not aliased: the viewer's model is declared list<AlbumModelItem>,
+// and a property type in a declaration cannot carry an import namespace.
 import org.kde.kirigamiaddons.labs.components
 import koutnet.app
 
-// The middle column: one conversation.
-//
-// The page itself is now not much more than plumbing. The timeline draws the
-// messages, the composer writes them, and the pickers and the viewer are windows
-// of their own; what is left here is the header, the wiring between those four,
-// and the one context menu the whole list shares.
 Kirigami.Page {
     id: root
 
@@ -25,8 +18,6 @@ Kirigami.Page {
     property var peerInfo: null
     property var messagesModel: null
     property bool peerTyping: false
-    // Passed down to the timeline so a message that names the reader says so,
-    // and so the reader's own messages are signed the way the peer's are.
     property string selfDisplayName: ""
     property string selfAvatarSource: ""
 
@@ -35,36 +26,24 @@ Kirigami.Page {
     signal callRequested()
     signal profileRequested()
     signal infoRequested()
-    // The header identity, clicked. The window owns the card; this only says
-    // which item to hang it off.
     signal peerCardRequested(Item anchorItem)
-    // Your own face in the timeline, clicked. The window holds the account card,
-    // and the item it is hung off belongs to a delegate, so nothing may keep it.
     signal ownProfileRequested(Item anchorItem)
     signal newChatRequested()
     signal forwardRequested(int row)
-    // Raised after the change has already been made to this page's own model.
-    // The window sends the peer its half, because it is the one that knows the
-    // address. The stamp rather than the row: a row number means nothing on the
-    // other side of a socket.
+    // Raised after this page's own model has already been changed. The stamp
+    // rather than the row: a row number means nothing on the other end of a socket.
     signal editCommitted(double stamp, string newText)
     signal deleteCommitted(double stamp)
     signal typingNotice()
-    // The window owns the one message strip, this page only asks for it.
     signal notifyRequested(string text)
-    // The newest message is on screen, so the backlog has been seen.
     signal readReached()
 
     readonly property bool hasChat: root.peerIp.length > 0 && root.messagesModel !== null
     readonly property bool isFavorites: root.peerInfo !== null && root.peerInfo.isFavorites === true
     readonly property alias atBottom: timeline.atBottom
 
-    // The name this client files its own reactions under. One constant rather
-    // than the string "me" written at each of the three call sites that used it.
     readonly property string selfReactionName: "me"
 
-    // What the image viewer is currently showing. The viewer needs a model, and
-    // a model of one item is still a model.
     property string viewerSource: ""
     property string viewerCaption: ""
 
@@ -75,29 +54,22 @@ Kirigami.Page {
         : i18nc("@title", "Chat")
     padding: 0
 
-    // Compact mode. The peer column does not exist there, so the action that asks
-    // for it goes - see Main.qml, which refuses the request itself as well.
+    // No peer column in compact mode, so the action that asks for one goes too.
     property bool compact: false
 
     // See the note on Kirigami.Theme in Main.qml.
     Kirigami.Theme.highlightColor: Brand.accent
 
-    // The one surface the wallpaper shows through. Every other page keeps its
-    // opaque background, because a form card or a toolbar over a photograph is a
-    // legibility problem and the conversation is both the largest surface and the
-    // one a wallpaper is for. The scrim that keeps the text readable sits between
-    // the picture and this - see Main.qml.
+    // The one surface the wallpaper shows through; every other page stays opaque,
+    // because a form card over a photograph is a legibility problem.
     //
-    // A transparent Rectangle rather than no background at all: Kirigami.Page
-    // draws whatever is here, and taking it away also takes the surface the
-    // timeline's own bubbles are read against.
+    // A transparent Rectangle rather than no background at all: taking it away
+    // also takes the surface the timeline's bubbles are read against.
     background: Rectangle {
         color: Kirigami.Theme.backgroundColor
         opacity: appSettings.wallpaperPath.length > 0 ? 0 : 1
     }
 
-    // Avatar, name and presence in the toolbar itself, which is where Kirigami
-    // puts a page's identity.
     titleDelegate: RowLayout {
         Layout.fillWidth: true
         spacing: Kirigami.Units.largeSpacing
@@ -136,10 +108,8 @@ Kirigami.Page {
                 }
             }
 
-            // Reachability is the flag; the stamp is only what it falls back to.
             // RelativeTime.now is read so this ages on its own: the label has to
-            // walk from "just now" to "2 minutes ago" with the window sitting
-            // open and nothing arriving.
+            // walk to "2 minutes ago" with the window open and nothing arriving.
             QQC2.Label {
                 Layout.fillWidth: true
                 visible: root.peerInfo && !root.isFavorites
@@ -161,8 +131,7 @@ Kirigami.Page {
         Kirigami.Action {
             text: i18nc("@action:button show who is on the other end of this conversation", "Details")
             icon.name: "documentinfo"
-            // The peer card and the full profile page are both still reachable in
-            // compact mode; it is only the third column that is not.
+            // The peer card is still reachable in compact mode, the column is not.
             visible: root.hasChat && !root.isFavorites && !root.compact
             onTriggered: root.infoRequested()
         },
@@ -186,10 +155,8 @@ Kirigami.Page {
         }
     }
 
-    // Click to dim and centre, with zoom, rotate and keyboard dismissal, none of
-    // it written here. One item rather than an album because a message carries
-    // one picture; the component takes a model either way, and the list has to
-    // be typed or the roles do not resolve.
+    // A message carries one picture, but the component takes a model either way,
+    // and the list has to be typed or the roles do not resolve.
     property list<AlbumModelItem> viewerItems: [
         AlbumModelItem {
             type: AlbumModelItem.Image
@@ -212,9 +179,8 @@ Kirigami.Page {
         title: root.title
         subtitle: root.viewerCaption
 
-        // The picture is already a file on this machine - the transfer put it
-        // there - so there is nothing to download and "save as" only has to hand
-        // it to whatever the desktop opens pictures with.
+        // The transfer already put the picture on this machine, so there is
+        // nothing to download and "save as" just hands it to the desktop.
         onSaveItem: Qt.openUrlExternally(root.viewerSource)
     }
 
@@ -224,8 +190,7 @@ Kirigami.Page {
         imageViewer.open()
     }
 
-    // One menu for the whole list rather than one per row, so scrolling a long
-    // conversation does not build a menu per message.
+    // One menu for the whole list, so scrolling does not build one per message.
     Components.ConvergentContextMenu {
         id: messageMenu
 
@@ -233,8 +198,6 @@ Kirigami.Page {
         property string body: ""
         property string author: ""
         property string msgId: ""
-        // Whether this message has anything fenced in it, which is what decides
-        // if the "copy the code" entry is worth offering.
         readonly property var codeBlocks: TextHandler.codeBlocks(messageMenu.body)
 
         Kirigami.Action {
@@ -318,9 +281,8 @@ Kirigami.Page {
             && root.messagesModel.data(idx, ChatModel.IsFileRole) !== true
     }
 
-    // Editing puts the old text back in the composer and remembers which row it
-    // came out of. Committing is the model's job first and the peer's second;
-    // nothing goes on the wire for a message the model refused to change.
+    // Committing is the model's job first and the peer's second; nothing goes on
+    // the wire for a message the model refused to change.
     function startEdit(row, body) {
         composer.startEdit(row, body)
     }
@@ -426,10 +388,8 @@ Kirigami.Page {
         onReadReached: root.readReached()
     }
 
-    // A conversation that is switched away from should not come back with half a
-    // reply to a message the reader has forgotten about - nor with an edit of a
-    // message that is no longer on the screen, which would land on whatever row
-    // now has that number in a different chat.
+    // A pending edit left over from another conversation would land on whatever
+    // row now has that number in this one.
     onPeerIpChanged: {
         root.clearReply()
         composer.cancelEdit()

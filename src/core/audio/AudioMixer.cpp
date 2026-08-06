@@ -1,6 +1,5 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// KOutNet - Per-peer jitter buffer + audio mixer
 #include "AudioMixer.h"
 
 #include <QMutexLocker>
@@ -19,10 +18,6 @@ void PeerBuffer::push(const QByteArray &data)
     if (frames >= kTargetFrames)
         m_ready = true;
 
-    // If the network throws more at us than we can play back (a burst after
-    // a stall, for example), we'd rather drop the oldest, stalest audio and
-    // keep latency bounded than let the buffer grow forever and have
-    // playback fall further and further behind live.
     const int cap = kFrameBytes * kMaxFrames;
     if (m_buf.size() > cap) {
         const int excess = m_buf.size() - cap;
@@ -39,9 +34,8 @@ QByteArray PeerBuffer::pull()
     const QByteArray frame = m_buf.left(kFrameBytes);
     m_buf.remove(0, kFrameBytes);
 
-    // Once we drop below half the target pre-fill, stop playing until we've
-    // built back up to a full buffer again - better a brief pause than
-    // stuttering frame-by-frame as the buffer runs dry.
+// below half the pre-fill, wait for a full buffer again: a brief pause
+// beats stutter.
     if (m_buf.size() / kFrameBytes < kTargetFrames / 2)
         m_ready = false;
 
@@ -73,8 +67,6 @@ PeerBuffer &AudioMixer::addPeer(const QString &ip)
 void AudioMixer::removePeer(const QString &ip)
 {
     QMutexLocker lock(&m_mutex);
-    // Drops our reference only. If the audio thread is mid-mix() holding a
-    // copy, the buffer outlives the call until that copy goes too.
     m_peers.take(ip);
 }
 
@@ -93,9 +85,8 @@ void AudioMixer::push(const QString &ip, const QByteArray &data)
 
 QByteArray AudioMixer::mix()
 {
-    // Snapshot the peers and drop the lock before mixing. Holding the mixer
-    // mutex through the mix would stall the GUI thread whenever it adds or
-    // removes a peer. Each buffer has its own mutex, so this is safe.
+// snapshot and unlock before mixing: holding the mixer mutex through the
+// mix would stall the gui thread on add/removePeer.
     QList<std::shared_ptr<PeerBuffer>> peers;
     {
         QMutexLocker lock(&m_mutex);
@@ -112,10 +103,8 @@ QByteArray AudioMixer::mix()
 
         const auto *src = reinterpret_cast<const qint16 *>(frame.constData());
         for (int i = 0; i < PeerBuffer::kFrameSamples; ++i) {
-            // Plain addition can overflow int16 once a few people talk at
-            // once, so we add in a wider int and clamp back down - this is
-            // what stops loud group calls from wrapping around into
-            // crackling noise instead of just getting louder.
+// sum in a wider int and clamp: plain int16 addition wraps once a few
+// people talk at once, which crackles instead of just getting louder.
             const int sum = int(outSamples[i]) + int(src[i]);
             outSamples[i] = static_cast<qint16>(std::clamp(sum, -32768, 32767));
         }

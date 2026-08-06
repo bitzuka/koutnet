@@ -14,7 +14,6 @@ class HistoryManager;
 class ReactionStore;
 class UnreadManager;
 
-// QML-facing list model for a single chat's messages.
 class ChatModel : public QAbstractListModel
 {
     Q_OBJECT
@@ -24,9 +23,8 @@ class ChatModel : public QAbstractListModel
     Q_PROPERTY(QObject *historyManager READ historyManagerObj WRITE setHistoryManagerObj NOTIFY historyManagerChanged)
     Q_PROPERTY(QObject *reactionStore READ reactionStoreObj WRITE setReactionStoreObj NOTIFY reactionStoreChanged)
     Q_PROPERTY(QObject *unreadManager READ unreadManagerObj WRITE setUnreadManagerObj NOTIFY unreadManagerChanged)
-    // Mirrors UnreadManager's count for this chat. The timeline's "jump to
-    // unread" needs both the number and a change signal, and reaching into the
-    // manager from QML gives it neither.
+    // Mirrors UnreadManager's count for this chat: "jump to unread" needs both
+    // the number and a change signal, which QML cannot get from the manager.
     Q_PROPERTY(int unreadCount READ unreadCount NOTIFY unreadCountChanged)
 
 public:
@@ -43,32 +41,21 @@ public:
         ReplyToIdRole,
         MsgIdRole,
         IsReadRole,
-        // Whether an outgoing message is still between the timeline and the
-        // socket. Transient and never loaded from the log; see MessageEntry.
         IsPendingRole,
         ReactionsRole,
         TimeStringRole,
         IsFileRole,
         FilePathRole,
         IsImageRole,
-        // The raw stamp behind TimeStringRole. The date separator and the
-        // "sent at" tooltip both need the instant, not the "HH:mm" of it.
         StampSecsRole,
-        // Whether this message opens a run rather than continuing one. Worked
-        // out here because it is a statement about the row before this one, and
-        // a delegate cannot see its neighbour without reaching back into the
-        // model by index - which goes wrong the moment the list is filtered or
-        // reordered.
+        // Worked out here because it is a statement about the row before this
+        // one, and a delegate cannot see its neighbour without reaching back
+        // into the model by index - which breaks once the list is reordered.
         ShowAuthorRole,
-        // Whether this message is the first of its calendar day, which is where
-        // the date separator goes. Same reason as above.
         ShowDayRole,
     };
     Q_ENUM(Roles)
 
-    // A pause longer than this breaks a run even when the sender has not
-    // changed: five minutes on, a message is a new thought and wants its own
-    // header and its own time.
     static constexpr double kRunGapSecs = 300.0;
 
     explicit ChatModel(QObject *parent = nullptr);
@@ -90,57 +77,40 @@ public:
     QObject *unreadManagerObj() const;
     void setUnreadManagerObj(QObject *obj);
 
-    // Both return the stamp of the row they appended, which is what the
-    // caller hands back to markSent() once the datagram is actually written.
-    // Zero means nothing was appended.
     Q_INVOKABLE double
     sendMessage(const QString &text, const QString &replyToText = QString(), const QString &replyToSender = QString(), const QString &replyToId = QString());
-    // Where a message with this id sits, or -1. What the quote above a reply is
-    // clicked to reach.
     Q_INVOKABLE int rowForMsgId(const QString &msgId) const;
     Q_INVOKABLE double sendFile(const QString &filePath, bool isImage);
-    // Resolves the hourglass to one tick. UDP has nothing to confirm a
-    // delivery with, so "sent" here means only that this end wrote the
-    // datagram - which is the most an outgoing mark is entitled to claim.
+    // UDP has nothing to confirm a delivery with, so "sent" here means only that
+    // this end wrote the datagram - the most an outgoing mark can claim.
     Q_INVOKABLE void markSent(double stamp);
     Q_INVOKABLE void receiveMessage(const QString &text, const QString &sender = QString());
     Q_INVOKABLE void receiveFile(const QString &filePath, bool isImage, const QString &sender = QString());
     Q_INVOKABLE void appendSystemMessage(const QString &text);
 
-    // Changing and unsending a message. Both are local only: the caller tells
-    // the peer, because only the window knows which address this chat is with,
-    // and a model that reached for NetworkManager would be one that could not be
-    // tested without a socket.
-    //
-    // The stamp is the identifier on the wire - see NetworkManager's
-    // sendMessageEdit() - so rowForStamp() is how an edit arriving from the peer
-    // finds the message it is about.
+    // Editing and unsending are local only: the caller tells the peer, because
+    // only the window knows this chat's address and a model reaching for
+    // NetworkManager could not be tested without a socket. The stamp is the
+    // identifier on the wire, so rowForStamp() resolves a peer's edit.
     Q_INVOKABLE double stampForRow(int row) const;
     Q_INVOKABLE int rowForStamp(double ts) const;
-    // False rather than silently nothing when the row cannot take it: a file has
-    // no text to change, and a system line is nobody's message.
     Q_INVOKABLE bool editMessage(int row, const QString &newText);
     Q_INVOKABLE bool deleteMessage(int row);
 
     Q_INVOKABLE void toggleReaction(int row, const QString &emoji, const QString &username);
-    // Marks every own outgoing message in this chat as read (called when
-    // a "read" receipt arrives from the peer).
     Q_INVOKABLE void markOwnMessagesRead();
     Q_INVOKABLE void markAllRead();
 
     int unreadCount() const;
-    // Row of the oldest message the user has not read, or -1 when there is
-    // none. Counted back from the end, because the unread tally is kept by
-    // UnreadManager and the messages themselves carry no incoming read flag.
+    // Counted back from the end, because the tally lives in UnreadManager and
+    // the messages carry no incoming read flag.
     Q_INVOKABLE int firstUnreadRow() const;
 
 Q_SIGNALS:
     void unreadCountChanged();
 
-    // A message joined this chat, in either direction. The conversation list is
-    // built from this rather than from HistoryManager::historyAppended, because
-    // that one is silent when history saving is off and the sidebar still has to
-    // show the chat.
+    // The conversation list is built from this rather than
+    // HistoryManager::historyAppended, which is silent when saving is off.
     void messageAdded(const QString &chatId, const QString &preview, bool isOwn, double ts);
 
     void chatIdChanged();
@@ -152,11 +122,9 @@ private:
     void reload();
     void appendEntry(MessageEntry e, bool persist);
     void refreshRow(int row);
-    // Rewrites the whole chat log from m_messages. The only way to change an
-    // entry that is already on disk, since HistoryManager appends.
+    // Rewrites the whole log from m_messages - the only way to change a stored
+    // entry, since HistoryManager appends.
     void persistAll();
-    // Both read m_messages[row - 1], so both are only ever called with a row
-    // this model actually holds.
     bool startsRun(int row) const;
     bool startsDay(int row) const;
 

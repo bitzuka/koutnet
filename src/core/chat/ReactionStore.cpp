@@ -97,9 +97,6 @@ QVariantList ReactionStore::summary(const QString &chatId, double ts) const
         QVariantMap m;
         m[QStringLiteral("emoji")] = p.first;
         m[QStringLiteral("count")] = p.second.size();
-        // Who, and not only how many. A pill with a number on it says the
-        // uninteresting half; the interesting half is whose reaction it is, and
-        // whether one of them is yours.
         m[QStringLiteral("users")] = p.second;
         out.append(m);
     }
@@ -123,8 +120,6 @@ void ReactionStore::save()
 
     const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(dataDir);
-    // debounced full rewrite, so it has to be atomic: the old file stays put
-    // until the new one is complete
     QSaveFile f(dataDir + QStringLiteral("/reactions.json"));
     if (!f.open(QIODevice::WriteOnly)) {
         qCWarning(KOUTNET_LOG_CHAT) << "save failed:" << f.fileName() << f.errorString();
@@ -150,8 +145,8 @@ void ReactionStore::load()
     QJsonParseError err;
     const QJsonDocument doc = QJsonDocument::fromJson(raw, &err);
     if (!doc.isObject()) {
-        // reactions the user actually made are in there somewhere, so keep the
-        // file and refuse to save rather than silently starting from empty
+        // keep the file and refuse to save rather than silently starting from
+        // empty
         m_loadFailed = true;
         qCWarning(KOUTNET_LOG_CHAT) << "refusing to overwrite unreadable" << f.fileName() << err.errorString();
         return;

@@ -1,8 +1,5 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// Tests for the parts of CryptoManager that only misbehave under attack.
-// A passphrase round trip is easy to check by hand; a replay window off by
-// one second, or a tag that is not actually verified, is not.
 
 #include <KLocalizedString>
 #include <QDateTime>
@@ -24,15 +21,10 @@ namespace
 {
 const QString kPass = QStringLiteral("correct horse battery staple");
 const QString kPeer = QStringLiteral("192.0.2.10");
-// The two addresses each side of a session believes the other one lives at.
 const QString kIpA = QStringLiteral("192.0.2.1");
 const QString kIpB = QStringLiteral("192.0.2.2");
-// A third address, for the peer at kIpB turning up somewhere else - a VPN
-// coming up, which is one interface more and the same person.
 const QString kIpC = QStringLiteral("192.0.2.3");
 
-// Two managers exchanging their real handshake payloads, which is what the
-// presence packet carries between two running instances.
 bool pairUp(CryptoManager &a, CryptoManager &b)
 {
     const bool aOk = a.processHandshake(kIpB, b.handshakePayload());
@@ -40,10 +32,8 @@ bool pairUp(CryptoManager &a, CryptoManager &b)
     return aOk && bOk;
 }
 
-// A handshake payload assembled by hand. processHandshake() refuses anything
-// whose dh_pub is not signed by the id_pub in the same packet, so putting a
-// chosen DH key in front of it - a garbage one, or the all-zero point - takes
-// an Ed25519 key of our own to sign with.
+// processHandshake() refuses any payload whose dh_pub is not signed by the id_pub
+// beside it, so offering a chosen DH key needs an Ed25519 key of our own.
 class ForgedPeer
 {
 public:
@@ -92,7 +82,6 @@ public:
         return ok ? sig.left(int(sigLen)) : QByteArray();
     }
 
-    // A well-formed packet advertising whatever DH key it is handed.
     QJsonObject payloadFor(const QByteArray &dhPub) const
     {
         QJsonObject o;
@@ -128,11 +117,10 @@ private Q_SLOTS:
         QVERIFY(!crypto.fingerprint().isEmpty());
     }
 
-    // The bug this guards against: the migration filled the wallet, called
-    // remove() on the config file, and nobody checked that the removal reached
-    // the disk. The keys are seeded the way the pre-wallet build wrote them -
-    // setValue() of a QByteArray, so the file reads @ByteArray(...) - because
-    // that is the form the deletion has to cope with.
+    // Guards a real bug: the migration filled the wallet and called remove() on
+    // the config file, and nobody checked the removal reached the disk. The keys
+    // are seeded in the pre-wallet form (@ByteArray(...)) the deletion must cope
+    // with.
     void plaintextKeysLeaveTheConfigFile()
     {
         const QStringList keys = {QStringLiteral("security/identity_priv_b64"), QStringLiteral("security/dh_priv_b64")};
@@ -154,11 +142,9 @@ private Q_SLOTS:
         const QByteArray contents = file.readAll();
         QVERIFY2(!contents.contains(QByteArrayLiteral("identity_priv_b64")), contents.constData());
         QVERIFY2(!contents.contains(QByteArrayLiteral("dh_priv_b64")), contents.constData());
-        // everything else in the file has to survive the deletion
         QVERIFY2(contents.contains(QByteArrayLiteral("tester")), contents.constData());
 
-        // Runs on every start, so an already clean file is a success, not a
-        // warning the user would learn to ignore.
+        // Runs on every start, so an already clean file has to count as success.
         QVERIFY(koutnet::SecretStore::purgePlaintextConfigKeys(keys, &detail));
     }
 
@@ -195,12 +181,9 @@ private Q_SLOTS:
         QVERIFY(crypto.decrypt(sealed, QStringLiteral("wrong")) != plain);
     }
 
-    // The point of AES-GCM. A flipped bit has to be refused outright rather
-    // than decrypted into something that merely looks wrong.
-    //
-    // The flip goes into the decoded bytes, not into the base64 text. Base64
-    // carries spare bits in places, so editing a character there can leave
-    // the bytes untouched and the test would then be measuring nothing.
+    // The point of AES-GCM: a flipped bit has to be refused outright rather than
+    // decrypted into something that merely looks wrong. The flip goes into the
+    // decoded bytes, not the base64 text, whose spare bits can absorb an edit.
     void tamperedCipherTextFails()
     {
         CryptoManager crypto;
@@ -212,7 +195,6 @@ private Q_SLOTS:
         const QByteArray body = QByteArray::fromBase64(sealed.mid(marker.length()).toLatin1());
         QVERIFY(body.size() > 64);
 
-        // Salt, nonce and tag all live in there, so hit each region once.
         for (qsizetype at : {qsizetype(2), body.size() / 2, body.size() - 2}) {
             QByteArray broken = body;
             broken[at] = char(broken.at(at) ^ 0x01);
@@ -243,8 +225,6 @@ private Q_SLOTS:
         crypto.decryptBytes(kPeer, junk.toUtf8(), &out);
     }
 
-    // A nonce may be used once. The second sighting is an attacker replaying
-    // a captured packet.
     void replayRejectsRepeats()
     {
         CryptoManager crypto;
@@ -254,8 +234,7 @@ private Q_SLOTS:
         QVERIFY(!crypto.checkReplay(kPeer, nonce, now));
     }
 
-    // Off by one here is invisible in normal use and fatal under attack, so
-    // both sides of the boundary get checked.
+    // Off by one here is invisible in normal use and fatal under attack.
     void replayWindowEdges()
     {
         CryptoManager crypto;
@@ -267,33 +246,26 @@ private Q_SLOTS:
         QVERIFY2(!crypto.checkReplay(kPeer, QStringLiteral("n3"), now + window + 2.0), "a packet from the future was accepted");
     }
 
-    // The replay cache is keyed on the source address and grew without limit in
-    // both directions: one peer sending fresh nonces faster than the TTL retires
-    // them, and a flood from spoofed addresses making a bucket each. Neither
-    // needs anything but a UDP socket, and neither is visible from outside
-    // except as a process that keeps getting bigger - so what is asserted here
-    // is that recent nonces still work after the flood, since a cap implemented
-    // by clearing the cache would let every one of them be replayed.
+    // The replay cache is keyed on the source address and grew without limit,
+    // from one peer outrunning the TTL or a flood of spoofed addresses. Asserting
+    // that recent nonces still fail proves the cap was not a wholesale cache
+    // clear.
     void aNonceFloodDoesNotDefeatTheReplayGuard()
     {
         CryptoManager crypto;
         const double now = QDateTime::currentMSecsSinceEpoch() / 1000.0;
         const QString peer = QStringLiteral("203.0.113.5");
 
-        // Enough to force the eviction to run more than once.
         const int flood = CryptoManager::kMaxNoncesPerPeer * 2 + 100;
         for (int i = 0; i < flood; ++i)
             crypto.checkReplay(peer, QStringLiteral("flood-%1").arg(i), now);
 
-        // The most recent ones are the ones a real replay would target, and they
-        // have to still be remembered.
         for (int i = flood - 8; i < flood; ++i) {
             QVERIFY2(!crypto.checkReplay(peer, QStringLiteral("flood-%1").arg(i), now),
                      "a nonce from the end of the flood was forgotten, so replaying "
                      "a just-captured packet would work");
         }
 
-        // A fresh one still gets through, so the guard has not simply closed.
         QVERIFY(crypto.checkReplay(peer, QStringLiteral("brand-new"), now));
     }
 
@@ -311,9 +283,6 @@ private Q_SLOTS:
             crypto.checkRate(spoofed);
         }
 
-        // Eviction is oldest first, and the address above was touched before all
-        // of them - so this is the one case where the guard is expected to have
-        // forgotten. What must hold is that it still works from here on.
         QVERIFY(crypto.checkReplay(real, QStringLiteral("after-the-flood"), now));
         QVERIFY(!crypto.checkReplay(real, QStringLiteral("after-the-flood"), now));
     }
@@ -330,12 +299,10 @@ private Q_SLOTS:
         QVERIFY2(accepted >= 10, "the rate limit refused traffic under the cap");
     }
 
-    // Handshake
-    // Everything below needs two managers in one process. They would otherwise
-    // load the same keypair out of the wallet - or the same plaintext leftovers
-    // out of the config file - and end up as the same peer, which is a test that
-    // passes while proving nothing. The storage scope keeps their identities in
-    // separate entries; nothing else about them differs from the application's.
+    // Two managers in one process would otherwise load the same keypair from the
+    // wallet - or the same plaintext leftovers - and end up as the same peer, a
+    // test that passes proving nothing. The storage scope separates their
+    // entries.
     void twoManagersHaveSeparateIdentities()
     {
         CryptoManager a(QStringLiteral("peer-a"));
@@ -355,15 +322,13 @@ private Q_SLOTS:
         QVERIFY(pairUp(a, b));
         QVERIFY(a.hasSession(kIpB));
         QVERIFY(b.hasSession(kIpA));
-        // Each side has to have pinned the key the other one actually holds.
         QCOMPARE(a.peerFingerprint(kIpB), b.fingerprint());
         QCOMPARE(b.peerFingerprint(kIpA), a.fingerprint());
         QCOMPARE(a.securityLevel(kIpB, false, false), koutnet::SecurityLevel::E2E);
     }
 
-    // The session is only worth having if the key both sides derived is the
-    // same one. ECDH failing quietly would leave two different keys and this is
-    // the only place that would notice.
+    // ECDH failing quietly would leave the two sides with different keys, and
+    // this is the only place that would notice.
     void sessionKeyIsUsableBothWays()
     {
         CryptoManager a(QStringLiteral("peer-a"));
@@ -379,7 +344,6 @@ private Q_SLOTS:
         const QString reply = QStringLiteral("no it is not");
         QCOMPARE(a.decrypt(b.encrypt(reply, QString(), kIpA), QString(), kIpB), reply);
 
-        // The voice path uses the same key without the base64 wrapper.
         const QByteArray frame = QByteArrayLiteral("\x01\x02\x03rawpcm");
         const QByteArray sealedFrame = a.encryptBytes(kIpB, frame);
         QVERIFY(!sealedFrame.isEmpty());
@@ -388,8 +352,7 @@ private Q_SLOTS:
         QCOMPARE(out, frame);
     }
 
-    // Runs for real now that a session exists. It used to QSKIP, which reads
-    // like a pass in the ctest output.
+    // This used to QSKIP, which reads like a pass in the ctest output.
     void packetSignaturesVerifyAcrossPeers()
     {
         CryptoManager a(QStringLiteral("peer-a"));
@@ -408,8 +371,6 @@ private Q_SLOTS:
         QVERIFY2(!b.verifyPacket(kIpA, payload, QStringLiteral("AAAA")), "a truncated signature verified");
         QVERIFY2(!b.verifyPacket(QStringLiteral("198.51.100.9"), payload, sig), "a signature verified against a peer we hold no session with");
 
-        // A third host with a session of its own holds a different key, so its
-        // signature over the same bytes must not pass as the first peer's.
         CryptoManager c(QStringLiteral("peer-c"));
         QVERIFY(c.processHandshake(kIpA, a.handshakePayload()));
         const QString foreignSig = c.signPacket(kIpA, payload);
@@ -419,8 +380,7 @@ private Q_SLOTS:
     }
 
     // Trust on first use. Presence is unauthenticated, so without the pin any
-    // host that can claim a known peer's address hands us its own identity key
-    // and takes the session over silently.
+    // host that can claim a known peer's address takes the session over silently.
     void identityPinSurvivesAnImpostor()
     {
         CryptoManager a(QStringLiteral("peer-a"));
@@ -440,24 +400,20 @@ private Q_SLOTS:
         QCOMPARE(args.at(1).toString(), pinned);
         QCOMPARE(args.at(2).toString(), impostor.fingerprint());
 
-        // The refusal must not have disturbed what was already there.
         QVERIFY(a.hasSession(kIpB));
         QCOMPARE(a.peerFingerprint(kIpB), pinned);
         const QString text = QStringLiteral("still talking to the same peer");
         QCOMPARE(b.decrypt(a.encrypt(text, QString(), kIpB), QString(), kIpA), text);
 
-        // Presence repeats every couple of seconds, so the warning is once per
-        // offending key rather than once per packet.
         QVERIFY(!a.processHandshake(kIpB, impostor.handshakePayload()));
         QCOMPARE(spy.count(), 1);
 
-        // The real peer is still welcome.
         QVERIFY(a.processHandshake(kIpB, b.handshakePayload()));
     }
 
-    // The session belongs to the identity key, not to the address the handshake
-    // happened over. Before this, a peer that sent from a second interface was a
-    // stranger, and everything it sent was dropped as unauthenticated.
+    // The session belongs to the identity key, not the address. Before this, a
+    // peer sending from a second interface was a stranger and its traffic was
+    // dropped.
     void sessionsFollowTheIdentityNotTheAddress()
     {
         CryptoManager a(QStringLiteral("peer-a"));
@@ -473,13 +429,9 @@ private Q_SLOTS:
         QVERIFY(!sig.isEmpty());
         QVERIFY2(a.verifyPacket(bId, payload, sig), "a signature could not be checked against the identity that made it");
 
-        // An address on its own still resolves to nothing, which is the point of
-        // calling it a hint: it neither grants nor denies anything by itself.
         QVERIFY(a.identityForAddress(kIpC).isEmpty());
         QVERIFY(!a.verifyPacket(kIpC, payload, sig));
 
-        // One handshake from the new interface and the address resolves as well,
-        // while the session, the pin and the old address are all untouched.
         QVERIFY(a.processHandshake(kIpC, b.handshakePayload()));
         QCOMPARE(a.identityForAddress(kIpC), bId);
         QVERIFY(a.verifyPacket(kIpC, payload, sig));
@@ -501,15 +453,15 @@ private Q_SLOTS:
         QVERIFY(a.checkReplay(kIpB, QStringLiteral("n1"), now));
         QVERIFY2(!a.checkReplay(bId, QStringLiteral("n1"), now), "the address and the identity had separate replay buckets");
 
-        // The same captured nonce arriving from the peer's other interface, which
-        // used to be a fresh bucket and one free replay per address.
+        // The same captured nonce from the peer's other interface used to land in
+        // a fresh bucket, which was one free replay per address.
         QVERIFY(a.processHandshake(kIpC, b.handshakePayload()));
         QVERIFY2(!a.checkReplay(kIpC, QStringLiteral("n1"), now), "a captured packet was accepted again from another address");
     }
 
-    // The impostor case at this level: the identity key is public, it goes out in
-    // every presence packet, so anyone can put a peer's id_pub in a handshake.
-    // What they cannot do is sign the DH key with it.
+    // The identity key is public - it ships in every presence packet - so anyone
+    // can put a peer's id_pub in a handshake. What they cannot do is sign the DH
+    // key.
     void aforgedSignatureUnderAKnownIdentityIsRefused()
     {
         CryptoManager a(QStringLiteral("peer-a"));
@@ -533,8 +485,7 @@ private Q_SLOTS:
     }
 
     // An address changing hands is refused while the peer sitting there is still
-    // live, because that slot is what the interface shows the user. It is not a
-    // verdict on the newcomer's identity, and anywhere else it is welcome.
+    // live, because that slot is what the interface shows the user.
     void anAddressChangingHandsIsRefusedButTheNewcomerIsNot()
     {
         CryptoManager a(QStringLiteral("peer-a"));
@@ -555,7 +506,6 @@ private Q_SLOTS:
         QCOMPARE(who, newcomer.ownIdentityId());
         QVERIFY(a.hasSession(who));
         QVERIFY(a.hasSession(kIpC));
-        // And the peer that was there all along is exactly where it was.
         QVERIFY(a.hasSession(kIpB));
         QCOMPARE(a.peerFingerprint(kIpB), b.fingerprint());
     }
@@ -606,21 +556,17 @@ private Q_SLOTS:
         QVERIFY(!crypto.hasSession(kIpB));
     }
 
-    // The all-zero X25519 public key is a small-subgroup point: the shared
-    // secret it produces is all zeroes, identical on every machine, so a session
-    // key derived from it is a constant an attacker knows. It gets a test of its
-    // own because the packet carrying it is otherwise completely well formed -
-    // the signature over dh_pub verifies, and only the derive step refuses.
+    // The all-zero X25519 public key is a small-subgroup point: the shared secret
+    // is all zeroes on every machine, so the session key is a constant an
+    // attacker knows. Its packet is otherwise well formed - only the derive step
+    // refuses.
     void handshakeRefusesDegenerateDhKeys_data()
     {
         QTest::addColumn<QByteArray>("dhPub");
-        // The four low-order points, little-endian as X25519 encodes them. Each
-        // one drives the shared secret to zero regardless of our private key.
         QTest::newRow("u = 0") << QByteArray(32, '\0');
         QTest::newRow("u = 1") << QByteArray::fromHex("0100000000000000000000000000000000000000000000000000000000000000");
         QTest::newRow("order 8") << QByteArray::fromHex("e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800");
         QTest::newRow("u = p - 1") << QByteArray::fromHex("ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f");
-        // Not 32 bytes at all, so the key never gets built in the first place.
         QTest::newRow("too short") << QByteArray(16, '\0');
         QTest::newRow("too long") << QByteArray(64, '\0');
     }
@@ -633,8 +579,6 @@ private Q_SLOTS:
 
         CryptoManager crypto(QStringLiteral("peer-a"));
         const QJsonObject payload = forged.payloadFor(dhPub);
-        // Sanity: the packet really is well formed apart from the DH key, so a
-        // refusal below is the derive check and not the signature check.
         QVERIFY(!payload.value(QStringLiteral("dh_pub_sig")).toString().isEmpty());
 
         QVERIFY2(!crypto.processHandshake(kIpB, payload), "a degenerate DH public key produced a session");
@@ -642,15 +586,13 @@ private Q_SLOTS:
     }
 };
 
-// QTEST_MAIN would run the tests against the real user configuration,
-// where CryptoManager keeps its keypair. Test mode moves QSettings and the
-// rest of QStandardPaths into a scratch directory instead.
+// QTEST_MAIN would run against the real user configuration, where CryptoManager
+// keeps its keypair; test mode moves QSettings into a scratch directory.
 int main(int argc, char *argv[])
 {
     QStandardPaths::setTestModeEnabled(true);
     QCoreApplication app(argc, argv);
-    // Without a domain ki18n warns on every single string, which buries
-    // the actual test output.
+    // Without a domain ki18n warns on every string, burying the test output.
     KLocalizedString::setApplicationDomain(QByteArrayLiteral("koutnet"));
     QCoreApplication::setOrganizationName(QStringLiteral("koutnet-tests"));
     QCoreApplication::setApplicationName(QStringLiteral("crypto-manager"));

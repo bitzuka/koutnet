@@ -7,13 +7,9 @@ import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.formcard as FormCard
 import koutnet.app
 
-// Startup screen, shown in place of the old 2.2 second splash. It does not decide
-// its own lifetime: the window pushes it as a layer and pops it when
-// continueRequested arrives.
-//
-// A FormCardPage rather than an Item pinned over the window overlay. The old one
-// had to fight the overlay's z-order to keep its own dialogs visible, and the two
-// options on it were a checkbox and a combo box floating on a bare Rectangle.
+// It does not decide its own lifetime: the window pushes it as a layer and pops it
+// when continueRequested arrives. A FormCardPage rather than an Item pinned over the
+// overlay, which the old one had to fight for z-order to keep its dialogs visible.
 FormCard.FormCardPage {
     id: root
 
@@ -22,11 +18,9 @@ FormCard.FormCardPage {
 
     title: i18nc("@title:window", "Welcome to KOutNet")
 
-    // See the note on Kirigami.Theme in Main.qml.
     Kirigami.Theme.highlightColor: Brand.accent
 
-    // Read from the about data rather than written down a second time. The version
-    // itself is not prose, so only the words around it are translated.
+    // Read from the about data rather than written down a second time.
     readonly property string buildLabel: i18nc("@info:status %1 is the version number",
                                                "Developer build %1", aboutData.version)
     readonly property string githubUrl: "https://github.com/bitzuka/koutnet"
@@ -51,9 +45,8 @@ FormCard.FormCardPage {
 
         Image {
             Layout.alignment: Qt.AlignHCenter
-            // Relative to this file inside the QML module resource tree, so it
-            // resolves the same whether the app runs from a build directory or an
-            // installed prefix.
+            // Relative to this file in the module resource tree, so a build directory
+            // resolves it the same as an installed prefix.
             source: "../../assets/512-apps-io.github.bitzuka.KOutNet.png"
             sourceSize.height: Kirigami.Units.gridUnit * 6
             fillMode: Image.PreserveAspectFit
@@ -76,8 +69,7 @@ FormCard.FormCardPage {
         FormCard.FormComboBoxDelegate {
             id: schemeCombo
             text: i18nc("@label:listbox", "Colour scheme")
-            // Same three options and the same index order as the settings page:
-            // the index is a ColorSchemeSelector.Mode.
+            // Same index order as the settings page: a ColorSchemeSelector.Mode.
             model: [
                 i18nc("@item:inlistbox colour scheme", "Follow the system"),
                 i18nc("@item:inlistbox colour scheme", "Light"),
@@ -92,8 +84,7 @@ FormCard.FormCardPage {
         FormCard.FormSwitchDelegate {
             id: updatesDelegate
             text: i18nc("@option:check", "Check for updates at startup")
-            // The flag persists, but nothing consumes it yet, so say so rather
-            // than implying the app will actually look for updates.
+            // The flag persists but nothing consumes it yet, so it says so.
             description: i18nc("@info:status this option does nothing yet", "In development")
             checked: appSettings.checkUpdatesOnStart
             onToggled: appSettings.checkUpdatesOnStart = updatesDelegate.checked

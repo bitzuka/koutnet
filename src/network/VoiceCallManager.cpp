@@ -22,13 +22,10 @@ VoiceCallManager::VoiceCallManager(NetworkManager *net, CryptoManager *crypto, Q
             cb(isSpeaking);
     });
 
-    // Route incoming voice bytes from the network layer, keyed by peer IP,
-    // into that peer's jitter buffer via AudioEngine.
     connect(m_net, &NetworkManager::voiceDataFrom, this, &VoiceCallManager::onPeerAudio);
 
-    // connectVoice() no longer blocks, so a refused or dropped voice socket is
-    // the only thing that tells us a call is over. hangup() ignores IPs it does
-    // not hold, which covers the peer that hung up first.
+    // connectVoice() no longer blocks, so a refused or dropped voice socket is the
+    // only thing that says a call is over. hangup() ignores IPs it does not hold.
     connect(m_net, &NetworkManager::voiceDisconnected, this, &VoiceCallManager::hangup);
 }
 
@@ -44,8 +41,6 @@ bool VoiceCallManager::call(const QString &ip)
 
     m_audio->mixer().addPeer(ip);
 
-    // Only a missing relay fails here now; a connect that cannot be made comes
-    // back later as NetworkManager::voiceDisconnected, handled in the ctor.
     if (!m_net->connectVoice(ip)) {
         m_audio->mixer().removePeer(ip);
         if (m_active.isEmpty())
@@ -83,8 +78,7 @@ void VoiceCallManager::hangupAll()
 void VoiceCallManager::setMute(bool muted)
 {
     m_muted = muted;
-    // Deafened outranks the mute flag: while it is on the microphone stays
-    // shut whatever this was set to.
+    // Deafened outranks the mute flag: while it is on the microphone stays shut.
     m_audio->setMuted(muted || m_deafened);
 }
 
@@ -92,8 +86,7 @@ void VoiceCallManager::setDeafen(bool deafened)
 {
     m_deafened = deafened;
     m_audio->setDeafened(deafened);
-    // Coming back out of it restores the mute the user had chosen, which is
-    // why m_muted was never overwritten on the way in.
+    // Restores the mute the user chose, which is why m_muted was not overwritten.
     m_audio->setMuted(m_muted || deafened);
 }
 
@@ -142,9 +135,8 @@ void VoiceCallManager::cleanup()
 
 void VoiceCallManager::onCaptured(const QByteArray &data)
 {
-    // Send mic audio to every active peer, encrypted with that peer's ECDH
-    // session key. A peer we have no key for is skipped rather than sent
-    // cleartext: a gap in the audio is recoverable, a leaked call is not.
+    // A peer we hold no session key for is skipped rather than sent cleartext:
+    // a gap in the audio is recoverable, a leaked call is not.
     if (!m_crypto)
         return;
 
@@ -158,7 +150,6 @@ void VoiceCallManager::onCaptured(const QByteArray &data)
 
 void VoiceCallManager::onPeerAudio(const QString &ip, const QByteArray &data)
 {
-    // Incoming audio from a peer -> decrypt -> push into their jitter buffer.
     if (!m_active.contains(ip) || !m_crypto)
         return;
 

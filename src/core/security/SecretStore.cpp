@@ -16,15 +16,14 @@ namespace
 
 QString g_lastError;
 
-// One folder for the whole application, created on first use.
 QString folderName()
 {
     return QStringLiteral("KOutNet");
 }
 
 // Returns an open wallet with our folder selected, or nullptr. The handle is
-// cached because openWallet() blocks on the daemon, but it is re-opened when
-// the daemon went away and came back mid-session.
+// cached because openWallet() blocks, and re-opened when the daemon went away
+// and came back.
 KWallet::Wallet *openFolder()
 {
     static KWallet::Wallet *wallet = nullptr;
@@ -112,9 +111,9 @@ bool SecretStore::remove(const QString &key)
 
 bool SecretStore::purgePlaintextConfigKeys(const QStringList &keys, QString *outDetail)
 {
-    // A QSettings of our own, with no group set, so the caller's keys are taken
-    // as the absolute paths they are - and so a caller that still holds an
-    // instance of its own does not get to decide when this write happens.
+    // No group set, so the caller's keys are taken as the absolute paths they
+    // are, and a caller's own QSettings instance cannot decide when this write
+    // happens.
     QSettings settings;
     const QString path = settings.fileName();
 
@@ -127,8 +126,8 @@ bool SecretStore::purgePlaintextConfigKeys(const QStringList &keys, QString *out
     }
 
     // Kept rather than returned on: a failed sync() does not always mean the
-    // file was left alone, so the checks below decide, and this only explains
-    // why when they find the plaintext still there.
+    // file was left alone, so the checks below decide and this only explains
+    // why.
     QString syncFailure;
     if (removedAny) {
         settings.sync();
@@ -139,10 +138,9 @@ bool SecretStore::purgePlaintextConfigKeys(const QStringList &keys, QString *out
         }
     }
 
-    // Keys that came from a fallback location (an organisation-wide
-    // ~/.config/<org>.conf, or a copy under /etc/xdg) survive remove() and
-    // sync() without any error at all, because QSettings only ever writes the
-    // primary file. A fresh instance still reading the key is the tell.
+    // Keys from a fallback location (an org-wide ~/.config/<org>.conf, or a
+    // copy under /etc/xdg) survive remove() and sync() with no error at all,
+    // because QSettings only ever writes the primary file.
     QSettings verify;
     for (const QString &key : keys) {
         if (!verify.contains(key))
@@ -156,11 +154,10 @@ bool SecretStore::purgePlaintextConfigKeys(const QStringList &keys, QString *out
         return false;
     }
 
-    // And the file itself has the last word, because both checks above go
-    // through QSettings' shared in-memory copy, which remembers a removal that
-    // never reached the disk and then answers "gone" for the rest of the
-    // process. Matching the bare key name is deliberately broader than the
-    // group-qualified path: any occurrence at all means it is still on disk.
+    // The file itself has the last word: both checks above go through
+    // QSettings' shared in-memory copy, which remembers a removal that never
+    // reached the disk. Matching the bare key name is deliberately broader than
+    // the qualified path.
     QFile file(path);
     if (!file.exists())
         return true;

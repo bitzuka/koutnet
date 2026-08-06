@@ -4,31 +4,23 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
-// TypingIndicator lives under qml/timeline; every QML file in this application
-// is registered into the one module, so the import is how it is reached.
+// TypingIndicator lives under qml/timeline; every file here is one module.
 import koutnet.app
 
-// Where a message is written: what it answers, then the field and the three
-// things that can be done to it.
-//
-// A TextArea and not a TextField. A one-line field turns a paragraph into a
-// horizontally scrolling slot that cannot be proof-read, and every messenger
-// worth using grows instead. It grows to a cap and then scrolls, because a
-// composer that can eat the conversation above it is its own problem.
+// A TextArea and not a TextField: a one-line field turns a paragraph into a
+// horizontally scrolling slot that cannot be proof-read. It grows to a cap and then
+// scrolls, because a composer that can eat the conversation above it is a problem.
 ColumnLayout {
     id: root
 
-    // Set while a reply is in progress. Cleared by the send, or by the cross.
     property string replyAuthor: ""
     property string replyExcerpt: ""
     property string replyId: ""
     property bool peerTyping: false
     property string peerName: ""
 
-    // Which message is being rewritten, or -1. An edit takes over the composer
-    // rather than opening a field of its own: the text is being written the same
-    // way it was written the first time, and a second editor on the screen is a
-    // second place to look for it.
+    // An edit takes over the composer rather than opening a field of its own: a
+    // second editor on the screen is a second place to look for the text.
     property int editingRow: -1
 
     readonly property bool replying: root.replyExcerpt.length > 0
@@ -40,9 +32,8 @@ ColumnLayout {
     signal attachRequested()
     signal emojiRequested()
     signal replyCancelled()
-    // Throttled: one notice per typingNoticeMs of continuous writing, not one
-    // per keystroke. A datagram per character is a keylogger with extra steps
-    // as far as the wire is concerned, and it floods the peer's rate limit.
+    // One notice per typingNoticeMs and not one per keystroke: a datagram per
+    // character is a keylogger as far as the wire is concerned, and it floods.
     signal typingNotice()
 
     readonly property int typingNoticeMs: 3000
@@ -54,8 +45,7 @@ ColumnLayout {
     }
 
     function startEdit(row, body) {
-        // An edit and a reply are two different things to be doing with the same
-        // field, so starting one puts the other away.
+        // One field, two jobs, so starting either puts the other away.
         root.replyCancelled()
         root.editingRow = row
         input.text = body
@@ -92,9 +82,8 @@ ColumnLayout {
         repeat: false
     }
 
-    // The peer's typing notice sits above the composer rather than in the
-    // timeline: floating it over the newest message covers the thing it is
-    // announcing, and here it is already where the eye is.
+    // Above the composer rather than in the timeline: floating it over the newest
+    // message covers the thing it is announcing.
     TypingIndicator {
         Layout.fillWidth: true
         Layout.leftMargin: Kirigami.Units.largeSpacing
@@ -104,8 +93,7 @@ ColumnLayout {
         peerName: root.peerName
     }
 
-    // What is being rewritten, with a way out of it. Same shape as the reply bar
-    // below, because it is the same kind of statement about the field.
+    // Same shape as the reply bar below, being the same kind of statement.
     QQC2.ToolBar {
         Layout.fillWidth: true
         visible: root.editing
@@ -141,7 +129,6 @@ ColumnLayout {
         }
     }
 
-    // What this message is answering, with a way out of it.
     QQC2.ToolBar {
         Layout.fillWidth: true
         visible: root.replying
@@ -227,8 +214,7 @@ ColumnLayout {
             QQC2.ScrollView {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignBottom
-                // Eight grid units is about five lines of the default font.
-                // Past that the composer is a text editor and can scroll.
+                // Eight grid units is five lines; past that it is a text editor.
                 Layout.maximumHeight: Kirigami.Units.gridUnit * 8
                 Layout.preferredHeight: Math.min(input.implicitHeight, Layout.maximumHeight)
 
@@ -239,13 +225,11 @@ ColumnLayout {
 
                     placeholderText: i18nc("@info:placeholder", "Write a message...")
                     wrapMode: TextEdit.Wrap
-                    // The toolbar already draws an edge round the whole row, and
-                    // a second frame inside it is a box in a box.
+                    // The toolbar already draws an edge round the whole row.
                     background: null
 
                     Keys.onPressed: (event) => {
-                        // Escape abandons an edit, which is what every other
-                        // field on the desktop does with it.
+                        // Escape abandons an edit, as every other field does.
                         if (event.key === Qt.Key_Escape && root.editing) {
                             root.cancelEdit()
                             event.accepted = true
@@ -254,9 +238,8 @@ ColumnLayout {
                         const isReturn = event.key === Qt.Key_Return || event.key === Qt.Key_Enter
                         if (!isReturn)
                             return
-                        // Shift+Enter is the newline, Enter is the send. The
-                        // other way round loses a message every time somebody
-                        // reaches for a second paragraph.
+                        // Shift+Enter newline, Enter send: the other way round loses
+                        // a message every time somebody wants a second paragraph.
                         if (event.modifiers & Qt.ShiftModifier)
                             return
                         root.send()
@@ -279,8 +262,7 @@ ColumnLayout {
                     : i18nc("@action:button", "Send")
                 icon.name: root.editing ? "document-save" : "document-send"
                 display: QQC2.AbstractButton.IconOnly
-                // Highlighted is what carries the accent here, so the button
-                // needs no background of its own.
+                // Highlighted carries the accent, so there is no background here.
                 highlighted: true
                 enabled: input.text.trim().length > 0
                 QQC2.ToolTip.visible: hovered

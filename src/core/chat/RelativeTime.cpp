@@ -33,8 +33,6 @@ QString RelativeTime::presenceLabel(bool online, double lastSeenSecs, qint64 now
     if (stamp <= 0)
         return i18nc("@info:status the peer has never been seen on the network", "offline");
 
-    // A clock that went backwards, or a peer whose presence is a second into the
-    // future. "just now" is the honest answer either way.
     const qint64 elapsed = qMax<qint64>(0, nowSecs - stamp);
 
     if (elapsed < 45)
@@ -48,9 +46,8 @@ QString RelativeTime::presenceLabel(bool online, double lastSeenSecs, qint64 now
                       int(minutes));
     }
 
-    // Calendar days rather than 86400-second blocks, or a peer last seen at
-    // 23:50 is "9 hours ago" at 09:00 instead of "yesterday", which is not how
-    // anybody reads a clock.
+    // Calendar days rather than 86400-second blocks: seen at 23:50 must read
+    // "yesterday" at 09:00, not "9 hours ago".
     const QDate seenOn = QDateTime::fromSecsSinceEpoch(stamp).date();
     const QDate today = QDateTime::fromSecsSinceEpoch(nowSecs).date();
     const qint64 hours = elapsed / 3600;
@@ -96,14 +93,9 @@ QString RelativeTime::chatStamp(double whenSecs, qint64 nowSecs) const
 
     const QDateTime when = QDateTime::fromSecsSinceEpoch(stamp);
     const QDate today = QDateTime::fromSecsSinceEpoch(nowSecs).date();
-    // Today is the common case and wants the clock, which is the one shape
-    // KFormat does not give: formatRelativeDate() answers "Today" for it.
     if (when.date() == today)
         return QLocale().toString(when.time(), QLocale::ShortFormat);
 
-    // Everything older is a day name or a date, which is exactly what
-    // formatRelativeDate() is for - and it knows the calendar of the current
-    // locale, which hand-written code here would not.
     return KFormat().formatRelativeDate(when.date(), QLocale::ShortFormat);
 }
 
@@ -113,9 +105,8 @@ QString RelativeTime::daySeparator(double whenSecs, qint64 nowSecs) const
     if (stamp <= 0)
         return {};
 
-    // nowSecs is taken and not read. The argument is what makes a caller's
-    // binding depend on now(), so the newest chip rewrites itself from "Today"
-    // to "Yesterday" at midnight with the window left open.
+    // nowSecs is taken and not read, so a caller's binding depends on now() and
+    // the newest chip rewrites itself at midnight with the window left open.
     Q_UNUSED(nowSecs)
     return KFormat().formatRelativeDate(QDateTime::fromSecsSinceEpoch(stamp).date(), QLocale::LongFormat);
 }

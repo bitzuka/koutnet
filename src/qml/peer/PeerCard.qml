@@ -6,24 +6,13 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
-// A peer at a glance, hung off whatever was clicked to ask for it.
-//
-// Not the third column and not a page: clicking a face in a list is a question
-// worth one card - who is this, are they about, and the two things most likely
-// to be wanted next. PeerInfoPage is still where the fingerprint, the operating
-// system and the addresses live, and the card has a way through to it.
-//
-// The shape is qml/profile/ProfileHeader.qml at card size - banner, the avatar
-// hanging off its lower-left, the name, the handle, the status, the presence -
-// then what is only ever true of somebody else, then the actions. The account
-// card beside it is the same component with your own identity in it, which is
-// what makes the two read as one design rather than as two.
-//
-// The popup itself has no padding, because the banner is full bleed and a padded
-// popup cannot do that. Every child below sets its own margins instead.
-//
-// No address on it. The chat is keyed on one, but that is routing and not
-// something to put under somebody's name.
+// Not the third column and not a page: clicking a face in a list is a question worth
+// one card, and PeerInfoPage is still where the fingerprint, the operating system and
+// the addresses live. The shape is qml/profile/ProfileHeader.qml at card size, and the
+// account card is the same component with your own identity in it, which is what makes
+// the two read as one design rather than two. The popup itself has no padding, because
+// the banner is full bleed and a padded popup cannot do that. No address on it: the
+// chat is keyed on one, but that is routing.
 QQC2.Popup {
     id: root
 
@@ -45,13 +34,11 @@ QQC2.Popup {
     readonly property bool online: root.peer ? root.peer.online === true : false
     readonly property string statusEmoji: root.peer ? (root.peer.statusEmoji || "") : ""
 
-    // Wide enough to be worth opening and narrow enough not to become a second
-    // window. Fixed rather than grown from the content, so a peer with a long
-    // name gets an elide instead of a card the width of the screen.
+    // Fixed rather than grown from the content, so a peer with a long name gets an
+    // elide instead of a card the width of the screen.
     implicitWidth: Kirigami.Units.gridUnit * 18
 
-    // See the note on Kirigami.Theme in Main.qml: a popup is reparented into
-    // the window overlay, which starts a theme chain of its own.
+    // See Main.qml: a popup is reparented into the overlay, which is its own chain.
     Kirigami.Theme.inherit: false
     Kirigami.Theme.highlightColor: Brand.accent
 
@@ -61,7 +48,6 @@ QQC2.Popup {
     closePolicy: QQC2.Popup.CloseOnEscape | QQC2.Popup.CloseOnPressOutside
     padding: 0
 
-    // Anchored to the thing that was clicked rather than centred on the window.
     // Reparenting is what makes x and y mean "beside that item"; it also gives
     // CloseOnPressOutsideParent something sensible to measure against.
     function openAt(item, peerInfo) {
@@ -91,9 +77,8 @@ QQC2.Popup {
             Layout.fillWidth: true
 
             compact: true
-            // The card's own background is rounded and the banner is full bleed,
-            // so the strip has to round its own top corners or it squares the
-            // card off.
+            // The card's background is rounded and the banner is full bleed, so the
+            // strip rounds its own top corners or it squares the card off.
             topCornerRadius: Kirigami.Units.cornerRadius
 
             displayName: root.shownName
@@ -109,8 +94,6 @@ QQC2.Popup {
             Layout.rightMargin: Kirigami.Units.largeSpacing
         }
 
-        // Whether there is a session, which is the one fact about a peer worth a
-        // whole line of its own before the actions.
         ProfileBlock {
             Layout.fillWidth: true
             Layout.leftMargin: Kirigami.Units.largeSpacing

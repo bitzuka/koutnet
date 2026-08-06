@@ -26,19 +26,15 @@ QString FileTransferHandler::sanitizeFilename(const QString &rawName)
 {
     const QString fallback = QStringLiteral("file_%1").arg(QDateTime::currentMSecsSinceEpoch());
 
-    // Cut at the last separator of either kind rather than through
-    // QFileInfo::fileName(), which on Unix only knows about "/" - a name like
-    // "..\..\secret" survives that whole, and is a real traversal the day those
-    // bytes are handed to a Windows peer.
+    // Cut at the last separator of either kind: QFileInfo::fileName() only knows the
+    // forward slash on Unix, so a backslash path survives it whole.
     QString name = rawName;
     const qsizetype cut = qMax(name.lastIndexOf(QLatin1Char('/')), name.lastIndexOf(QLatin1Char('\\')));
     if (cut >= 0)
         name = name.mid(cut + 1);
 
-    // NULs and control characters go before anything else looks at the string.
-    // Everything below reasons about the QString, while QFile hands the path to
-    // the C API, which stops at the first NUL - so a name carrying one means
-    // the path that was checked is not the path that gets opened.
+    // NULs and control characters go first: QFile hands the path to the C API, which
+    // stops at the first NUL, so the path checked is not the path opened.
     QString clean;
     clean.reserve(name.size());
     for (const QChar c : name) {
@@ -47,13 +43,9 @@ QString FileTransferHandler::sanitizeFilename(const QString &rawName)
     }
     name = clean;
 
-    // A name of nothing but dots is "." or ".." or a curiosity, and none of the
-    // three is a file the user asked for.
     if (name.isEmpty() || name.count(QLatin1Char('.')) == name.size())
         return fallback;
 
-    // The filesystem counts bytes, not characters, and refuses the whole write
-    // when the name is too long - so trim it rather than lose the transfer.
     while (name.toUtf8().size() > kMaxFilenameBytes && !name.isEmpty())
         name.chop(1);
     if (name.isEmpty() || name.count(QLatin1Char('.')) == name.size())
@@ -76,11 +68,8 @@ void FileTransferHandler::onMeta(const QJsonObject &meta)
     if (tid.isEmpty())
         return;
 
-    // Checked as a double before it becomes a qint64: "size" is whatever the
-    // peer put in the JSON, and narrowing a value the integer cannot hold - 1e300,
-    // or a NaN - is undefined behaviour, not a large number that then fails the
-    // range test below. A missing or non-numeric field is refused outright rather
-    // than read as zero, which is what isDouble() is for.
+    // Checked as a double first: narrowing 1e300 or a NaN from the peer JSON to
+    // qint64 is undefined behaviour, not a big number that fails the test below.
     const QJsonValue sizeValue = meta.value(QStringLiteral("size"));
     const double announced = sizeValue.toDouble(-1.0);
     if (!sizeValue.isDouble() || !qIsFinite(announced) || announced < 0.0 || announced > double(kMaxTransferBytes)) {
@@ -114,9 +103,8 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
     if (idx < 0 || total <= 0 || idx >= total)
         return;
 
-    // Reject a transfer that grows past the cap regardless of what the
-    // (attacker-controlled) meta claimed - protects against a peer sending
-    // meta.size=small but far more/larger chunks than announced.
+    // Reject a transfer that grows past the cap whatever the attacker-controlled
+    // meta claimed: meta.size=small with far more or larger chunks than announced.
     const qint64 maxChunks = (kMaxTransferBytes / 1024) + 1024; // generous upper bound
     if (total > maxChunks) {
         m_pending.remove(tid);
@@ -136,9 +124,8 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
         return;
     }
 
-    // Count the delta against what is already held for this index rather than
-    // only the first sighting: insert() replaces, so every index sent once at
-    // one byte and again at full size used to cost nothing.
+    // Count the delta against what is already held for this index: insert()
+    // replaces, so one byte now and full size later used to cost nothing.
     t.receivedBytes += chunk.size() - (held != t.chunks.constEnd() ? held->size() : 0);
     if (t.receivedBytes > kMaxTransferBytes) {
         m_pending.remove(tid);
@@ -150,7 +137,6 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
     if (t.chunks.size() < t.total)
         return; // still waiting on more chunks
 
-    // All chunks in - reassemble in order.
     QByteArray full;
     full.reserve(int(qMin<qint64>(t.receivedBytes, kMaxTransferBytes)));
     for (int i = 0; i < t.total; ++i) {
@@ -195,11 +181,9 @@ QString FileTransferHandler::saveToDisk(const QJsonObject &meta, const QByteArra
     if (!dir.mkpath(dirPath))
         return QString();
 
-    // Sanitized - never trust a peer-supplied filename directly in a disk
-    // path (path traversal). See sanitizeFilename().
+    // Never trust a peer-supplied filename in a disk path - see sanitizeFilename().
     const QString filename = sanitizeFilename(meta.value(QStringLiteral("filename")).toString());
 
-    // Avoid clobbering an existing file with the same name.
     QString candidate = dirPath + QLatin1Char('/') + filename;
     if (QFileInfo::exists(candidate)) {
         const QFileInfo fi(filename);
@@ -212,20 +196,15 @@ QString FileTransferHandler::saveToDisk(const QJsonObject &meta, const QByteArra
         } while (QFileInfo::exists(candidate));
     }
 
-    // Belt-and-suspenders: confirm the resolved path is still inside dirPath
-    // before writing, in case some future edge case slips past
-    // sanitizeFilename(). absoluteFilePath() only cleaned "." and ".." out of
-    // the string, so a symlink anywhere along the way still escaped; canonical
-    // paths resolve those. The candidate itself does not exist yet and would
-    // canonicalise to an empty string, so compare its parent instead.
+    // absoluteFilePath() only cleans "." and ".." out of the string, so a symlink
+    // along the way still escaped. Compare the parent: the candidate does not exist.
     const QString canonicalDir = QFileInfo(dirPath).canonicalFilePath();
     const QString candidateDir = QFileInfo(candidate).absolutePath();
     if (canonicalDir.isEmpty() || QFileInfo(candidateDir).canonicalFilePath() != canonicalDir)
         return QString();
 
-    // NewOnly, not WriteOnly: the exists() loop above ran a moment ago, and
-    // between then and now something could have created the path. Failing is
-    // better than overwriting whatever appeared.
+    // NewOnly, not WriteOnly: something could have created the path since the
+    // exists() loop ran, and failing beats overwriting whatever appeared.
     QFile out(candidate);
     if (!out.open(QIODevice::NewOnly))
         return QString();

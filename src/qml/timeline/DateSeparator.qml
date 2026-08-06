@@ -6,16 +6,12 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
-// The rule between two days of a conversation, with the date sitting in a gap in
-// the middle of it.
-//
-// Not Kirigami.Chip: that one is a control - checkable, closable, focusable -
-// and this is a label. Not ListSectionHeader either, which puts its text at the
-// leading edge and its rule after it; a timeline reads down the middle.
+// Not Kirigami.Chip: that one is a control - checkable, closable, focusable - and
+// this is a label. Not ListSectionHeader either, which puts its text at the leading
+// edge and its rule after it; a timeline reads down the middle.
 RowLayout {
     id: root
 
-    // Unix seconds of the first message of the day.
     required property double whenSecs
 
     spacing: Kirigami.Units.largeSpacing

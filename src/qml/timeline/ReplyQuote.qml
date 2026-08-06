@@ -5,19 +5,15 @@ import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 
-// The message this one is answering, drawn above it as a stripe and two lines.
-//
-// One line of the original and no more. A quote that wrapped to four lines would
-// be taller than the reply under it, which is the wrong way round: the point of
-// the quote is to say which message, not to say it again.
+// One line of the original and no more: a quote that wrapped to four lines would
+// be taller than the reply under it, and the point of it is to say which message,
+// not to say it again.
 RowLayout {
     id: root
 
     property string author: ""
     property string excerpt: ""
-    // Empty when the quoted message is not in this conversation's history -
-    // an old reply from before quotes carried an id, or one to a message that
-    // was never stored. The stripe still draws; it just does not lead anywhere.
+    // Empty for a reply from before quotes carried an id; the stripe leads nowhere.
     property string targetId: ""
 
     readonly property bool followable: root.targetId.length > 0

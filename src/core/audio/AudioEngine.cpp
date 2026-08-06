@@ -1,6 +1,5 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// KOutNet - Real-time voice engine (capture, mix, playback)
 #include "AudioEngine.h"
 
 #include <QAudioDevice>
@@ -15,9 +14,6 @@
 namespace koutnet
 {
 
-// Pull-mode playback device: QAudioSink calls readData() whenever it needs
-// more samples to keep the output buffer full. We hand it freshly mixed
-// frames from AudioMixer on demand - no separate playback thread needed.
 class AudioEngine::PlaybackDevice : public QIODevice
 {
 public:
@@ -35,11 +31,9 @@ public:
 protected:
     qint64 readData(char *data, qint64 maxlen) override
     {
-        // Deafened is answered here rather than by dropping frames on the way
-        // in, so it silences whatever is already sitting in the jitter buffers
-        // as well as what has not arrived yet. The buffers are still drained
-        // below, or un-deafening would play back the seconds that went past
-        // while nobody was listening.
+// deafen here rather than dropping on the way in, so it also silences what is
+// already buffered; still drain below, or un-deafening replays the missed
+// seconds.
         if (m_engine->deafened()) {
             qint64 dropped = 0;
             while (dropped + PeerBuffer::kFrameBytes <= maxlen) {
@@ -51,9 +45,8 @@ protected:
         }
 
         qint64 written = 0;
-        // Read once for the whole callback: the GUI thread can move the slider
-        // between two iterations, and half a buffer at one gain and half at
-        // another is audible.
+// read once per callback: the slider can move mid-loop, and half a buffer at
+// one gain and half at another is audible.
         const qreal volume = m_engine->volume();
         while (written + PeerBuffer::kFrameBytes <= maxlen) {
             QByteArray mixed = m_engine->m_mixer.mix();
@@ -112,8 +105,6 @@ static QAudioDevice pickDevice(const QList<QAudioDevice> &devices, const QString
         if (device.id() == wanted)
             return device;
     }
-    // Saved device is gone (unplugged headset), fall back rather than
-    // failing the call outright.
     return fallback;
 }
 
@@ -180,8 +171,7 @@ void AudioEngine::pushPeerAudio(const QString &ip, const QByteArray &data)
 
 bool AudioEngine::isSpeechAmplitude(const QByteArray &raw) const
 {
-    // Amplitude-based VAD fallback (matches the legacy Python fallback path
-    // used when webrtcvad isn't available - RMS threshold ~800).
+// amplitude vad fallback, rms threshold ~800 to match the legacy python path.
     const auto *samples = reinterpret_cast<const qint16 *>(raw.constData());
     const int count = raw.size() / 2;
     if (count == 0)
@@ -217,8 +207,8 @@ void AudioEngine::onCaptureReady()
         if (isSpeech)
             Q_EMIT audioCaptured(raw);
 
-        // Debounce speaking indicator: only emit on state change, checked
-        // every 4 frames (~128ms), matching the legacy engine.
+// only emit on state change, checked every 4 frames (~128ms), as the legacy
+// engine did.
         if (++m_speakFrameCtr >= 4) {
             m_speakFrameCtr = 0;
             if (isSpeech != m_speakLast) {

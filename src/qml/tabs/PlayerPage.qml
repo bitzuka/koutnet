@@ -9,27 +9,18 @@ import QtMultimedia
 import org.kde.kirigami as Kirigami
 import koutnet.app
 
-// Violla, the in-app media player.
-//
 // Qt Multimedia has used FFmpeg as its default backend on Linux since 6.8, so
-// MediaPlayer already decodes through libav here. A hand-written demux and
-// decode loop would buy control we have no use for yet.
-//
-// Two layouts over one player. Cinema hands the whole area to the picture and
-// gets out of the way; music has no picture to show, so it spends the space
-// on the track and the queue instead. The transport bar is shared and does
-// not move between them.
-//
-// The layout inside is deliberately left as it was: it is a media player, it works,
-// and the colours it asked the palette table for map onto Kirigami.Theme one for
-// one. Only the root type, the colours and the fixed radii have changed.
+// MediaPlayer already decodes through libav here; a hand-written demux and decode
+// loop would buy control we have no use for yet. Two layouts over one player:
+// cinema hands the whole area to the picture, and music has none to show so it
+// spends the space on the track and the queue. The layout inside is deliberately
+// left as it was - only the root type, the colours and the fixed radii changed.
 Kirigami.Page {
     id: root
 
     title: "Violla"
     padding: 0
 
-    // See the note on Kirigami.Theme in Main.qml.
     Kirigami.Theme.highlightColor: Brand.accent
 
     property int current: -1
@@ -40,9 +31,8 @@ Kirigami.Page {
     readonly property bool fullScreen: root.Window.window
         && root.Window.window.visibility === Window.FullScreen
 
-    // The extension answers immediately, which keeps the layout from flipping
-    // a beat after the file opens. MediaPlayer.hasVideo is authoritative but
-    // only once the media has loaded, and it corrects this below.
+    // The extension answers immediately, which keeps the layout from flipping a beat
+    // after the file opens; MediaPlayer.hasVideo corrects it once the media loads.
     function looksLikeVideo(url) {
         return /\.(mp4|mkv|webm|avi|mov|m4v|mpg|mpeg|wmv|flv|ts|ogv)$/i.test(String(url))
     }
@@ -96,8 +86,7 @@ Kirigami.Page {
         }
     }
 
-    // Cinema wants the picture, music wants the queue. Still a plain property
-    // so the toggle can override the default for the current track.
+    // A plain property, so the toggle can override the default for this track.
     onCinemaChanged: root.playlistOpen = !root.cinema
 
     ListModel { id: playlist }
@@ -110,15 +99,13 @@ Kirigami.Page {
             muted: muteButton.checked
         }
 
-        // Once the file is open the player knows for certain, so write the
-        // answer back and stop guessing for this entry.
+        // Once the file is open the player knows, so stop guessing for this entry.
         onHasVideoChanged: {
             if (root.current >= 0)
                 playlist.setProperty(root.current, "video", player.hasVideo)
         }
 
-        // Rolls onto the next entry on its own, which is the point of a
-        // playlist. Stops at the end rather than looping.
+        // Rolls onto the next entry, and stops at the end rather than looping.
         onMediaStatusChanged: {
             if (mediaStatus === MediaPlayer.EndOfMedia && root.current + 1 < playlist.count)
                 root.playAt(root.current + 1)
@@ -165,7 +152,6 @@ Kirigami.Page {
                 Layout.fillHeight: true
                 currentIndex: root.cinema ? 0 : 1
 
-                // Cinema.
                 Rectangle {
                     color: "black"
 
@@ -179,7 +165,6 @@ Kirigami.Page {
                     }
                 }
 
-                // Music.
                 Item {
                     ColumnLayout {
                         anchors.centerIn: parent
@@ -187,9 +172,8 @@ Kirigami.Page {
                                         Kirigami.Units.gridUnit * 22)
                         spacing: Kirigami.Units.largeSpacing
 
-                        // Cover art needs an image provider on the C++ side to
-                        // get a QImage out of the tags, so for now the slot is a
-                        // plate and a generic icon.
+                        // Cover art needs a C++ image provider to get a QImage out of
+                        // the tags, so for now the slot is a plate and an icon.
                         Rectangle {
                             Layout.alignment: Qt.AlignHCenter
                             Layout.preferredWidth: Kirigami.Units.gridUnit * 11
@@ -309,13 +293,11 @@ Kirigami.Page {
             }
         }
 
-        // One transport for both layouts. Moving it around when the mode
-        // changes would just make the controls hard to find.
+        // One transport: moving it when the mode changes hides the controls.
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: transport.implicitHeight + Kirigami.Units.largeSpacing
-            // Cinema keeps a near-black bar so the transport does not glow next to
-            // the picture; every other surface follows the colour scheme.
+            // Near-black in cinema so the transport does not glow next to the picture.
             color: root.cinema ? "#101010" : Kirigami.Theme.alternateBackgroundColor
 
             RowLayout {
@@ -362,8 +344,7 @@ Kirigami.Page {
                     enabled: player.seekable
                     from: 0
                     to: Math.max(1, player.duration)
-                    // Following position while the handle is held fights the
-                    // user for it, so only track playback when idle.
+                    // Following position while the handle is held fights the user.
                     value: pressed ? value : player.position
                     onMoved: player.position = value
                 }

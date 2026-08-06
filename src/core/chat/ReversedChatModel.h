@@ -5,26 +5,23 @@
 #include <QAbstractProxyModel>
 #include <QQmlEngine>
 
-// Turns a chat round: row 0 is the newest message and the last row is the
-// oldest. Roles are forwarded untouched.
+// Turns a chat round: row 0 is the newest message, the last row the oldest, and
+// roles are forwarded untouched.
 //
-// This exists for the timeline's ListView, which is laid out BottomToTop. A
-// bottom-to-top view is what stops a long conversation from drifting under the
-// reader: the newest message is the end of the content that the view is
-// actually resting against, and it is built out of rows that have been created
-// and measured, whereas the far end is a guess made from an average row height
-// - and a list holding both one-word replies and pictures has no useful average.
-// With the guess at the top, off the screen, nothing the reader is looking at
-// moves when it is corrected.
+// This exists for the timeline's ListView, laid out BottomToTop, which is what
+// stops a long conversation from drifting under the reader: the end the view
+// rests against is built out of rows that have been measured, while the far end
+// is a guess from an average row height that pictures and one-word replies never
+// share.
 //
-// ChatModel itself is left oldest-first. It is append-only, HistoryManager
-// round-trips it in that order and the tests read it in that order; inverting
-// it at the source would be inverting the log.
+// ChatModel itself is left oldest-first: it is append-only, HistoryManager
+// round-trips it in that order and the tests read it in that order; inverting it
+// at the source would be inverting the log.
 //
 // Row numbers here are the view's, not the model's, and the two must not be
 // confused when one is handed to the other - see toSourceRow() and
 // fromSourceRow(). MessageTimeline.qml is the only place that crosses the
-// boundary, so that everything above it keeps speaking in ChatModel rows.
+// boundary.
 class ReversedChatModel : public QAbstractProxyModel
 {
     Q_OBJECT
@@ -54,8 +51,8 @@ private:
     void connectSource();
     int sourceRowCount() const;
 
-    // Held from rowsAboutToBeInserted to rowsInserted, because the source's own
-    // count has already changed by the time the second one arrives and the
-    // proxy range has to be worked out from the count before the insert.
+    // Held from rowsAboutToBeInserted to rowsInserted: by the time the second
+    // arrives the source count has changed, and the range needs the count before
+    // it.
     int m_pendingSourceCount = 0;
 };

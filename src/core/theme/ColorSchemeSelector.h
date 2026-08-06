@@ -6,12 +6,9 @@
 #include <QQmlEngine>
 #include <QString>
 
-// Dark, light, or whatever the desktop is set to. This replaced a table of
-// thirteen hand-written palettes: the colours themselves belong to the Plasma
-// colour scheme, and Kirigami.Theme already reads them, so the only decision
-// left to the application is which of the three the user wants.
-//
-//   ColorSchemeSelector.mode = ColorSchemeSelector.Dark
+// Dark, light, or whatever the desktop is set to. This replaced thirteen
+// hand-written palettes: the colours belong to the Plasma scheme, which
+// Kirigami.Theme already reads.
 class ColorSchemeSelector : public QObject
 {
     Q_OBJECT
@@ -45,8 +42,6 @@ Q_SIGNALS:
     void modeChanged();
 
 private:
-    // Scheme id for a mode, empty for FollowSystem, which is how
-    // KColorSchemeManager spells "stop overriding".
     static QString schemeIdFor(Mode mode);
 
     Mode m_mode = FollowSystem;

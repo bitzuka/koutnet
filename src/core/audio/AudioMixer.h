@@ -1,6 +1,5 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// KOutNet - Per-peer jitter buffer + audio mixer
 #pragma once
 
 #include <QByteArray>
@@ -12,9 +11,6 @@
 namespace koutnet
 {
 
-// One peer's jitter buffer. Packets clump and stall depending on the route
-// they took, so playing each frame the moment it lands stutters. Let a small
-// backlog build up to kTargetFrames first, then drain at a steady pace.
 class PeerBuffer
 {
 public:
@@ -33,14 +29,9 @@ private:
     mutable QMutex m_mutex;
 };
 
-// Mixes every active peer into one stream for the speakers. mix() takes a
-// frame from each PeerBuffer and sums them with clipping, so three people
-// talking at once does not wrap around into noise.
-//
-// mix() runs on Qt Multimedia's audio thread. push(), addPeer() and
-// removePeer() run on the GUI thread. Buffers are shared_ptr because
-// removePeer() can free one while the audio thread is reading it, and that
-// race is close to impossible to reproduce on demand.
+// mix() runs on qt multimedia's audio thread while
+// push()/addPeer()/removePeer() run on the gui thread; shared_ptr because
+// removePeer() can free a buffer mid-read.
 class AudioMixer
 {
 public:
