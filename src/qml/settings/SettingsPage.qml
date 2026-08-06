@@ -8,19 +8,13 @@ import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.formcard as FormCard
 import koutnet.app
 
-// Settings, as FormCard sections rather than a tab bar full of bare labels and
-// text fields. Five groups down one scrollable page: it is a short list, and a
-// list this short reads better whole than split across pages the user has to
-// hunt through.
-//
-// The profile is the first of them rather than a page of its own. It was one,
-// and a page whose content was an identity block, six fields and a row of media
-// shelves with nothing behind them is a page that reads as empty. The fields
-// were settings all along.
-//
-// Nothing here writes the config file directly - AppSettings coalesces that. The
-// one exception is the Network group, which has a button, because switching mode
-// tears the relay tunnel up or down and should wait to be asked.
+// Six FormCard groups down one scrollable page: a list this short reads better
+// whole than split across pages the user has to hunt through. The profile is the
+// first of them rather than a page of its own - it was one, and a page whose
+// content was an identity block, six fields and a row of empty media shelves reads
+// as empty; the fields were settings all along. Nothing here writes the config file
+// directly, AppSettings coalesces that, except the Network group, which has a
+// button because switching mode tears the relay tunnel up or down.
 FormCard.FormCardPage {
     id: root
 
@@ -28,29 +22,22 @@ FormCard.FormCardPage {
 
     title: i18nc("@title:window", "Settings")
 
-    // See the note on Kirigami.Theme in Main.qml: FormCardPage and every FormCard
-    // inside it start theme chains of their own.
+    // See Main.qml: FormCardPage and every FormCard in it start their own chains.
     Kirigami.Theme.highlightColor: Brand.accent
 
     readonly property string shownName: appSettings.displayName.length > 0
         ? appSettings.displayName : appSettings.username
 
-    // A FormCard fills the row it is given and then draws its card centred at its
-    // own maximumWidth, leaving the rest of the row empty. Anything here that is
-    // not a FormCard has to be handed the same width and the same alignment or it
-    // starts at the window edge instead. Same value as FormCard.maximumWidth.
+    // A FormCard fills its row and then draws the card centred at its own
+    // maximumWidth. The identity block is the one thing here that is not a FormCard,
+    // so it needs the same width and alignment or it starts at the window edge.
     readonly property real kContentWidth: Kirigami.Units.gridUnit * 30
-    // What a form delegate puts round its text, so the blocks under the banner
-    // share one left edge with the cards below them.
-    readonly property real kContentPadding: Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing
 
-    // Relay and maintainer VDS are the two that route through a relay, so they
-    // are the two that need a host and port.
-    readonly property bool usesRelay: appSettings.connectionMode === 3
-                                   || appSettings.connectionMode === 4
+    // NetworkManager owns the enum; these two are the values with a field here.
+    readonly property bool usesKServer: appSettings.connectionMode === 1
+    readonly property bool usesRelay: appSettings.connectionMode === 2
 
-    // Prepends a "system default" row so an empty saved device id still selects
-    // something instead of leaving the combo blank.
+    // A "system default" row, so an empty saved device id still selects something.
     function deviceList(devices) {
         const out = [{ id: "", description: i18nc("@item:inlistbox audio device", "System default") }]
         for (let i = 0; i < devices.length; ++i)
@@ -58,8 +45,7 @@ FormCard.FormCardPage {
         return out
     }
 
-    // Leaving the mic open after the page closes would hold the device against
-    // the next call.
+    // Leaving the mic open would hold the device against the next call.
     Component.onDestruction: audioDevices.stopMicTest()
 
     FileDialog {
@@ -70,8 +56,7 @@ FormCard.FormCardPage {
         onAccepted: appSettings.wallpaperPath = selectedFile
     }
 
-    // GIFs are allowed here and not for the wallpaper: a banner is a strip the
-    // size of a postcard and the wallpaper is the whole window.
+    // GIFs here but not for the wallpaper: a banner is the size of a postcard.
     FileDialog {
         id: avatarDialog
         title: i18nc("@title:window", "Change avatar")
@@ -96,9 +81,8 @@ FormCard.FormCardPage {
         onAccepted: appSettings.nameBadgePath = selectedFile
     }
 
-    // The same panel the composer writes messages with, which is where the emoji
-    // data and the search already are. A picker of its own here would be a second
-    // copy of both.
+    // The composer's panel, which is where the emoji data and the search already
+    // are; a picker of its own here would be a second copy of both.
     EmojiPopup {
         id: statusSheet
         onPicked: (emoji) => appSettings.statusEmoji = emoji
@@ -108,15 +92,9 @@ FormCard.FormCardPage {
         title: i18nc("@title:group your own identity as other people see it", "Profile")
     }
 
-    // Banner, the avatar over its lower-left, the name and the handle - see
-    // qml/profile/ProfileHeader.qml, which the peer's profile and both cards are
-    // built out of too.
-    //
-    // No presence line: your own reachability is that the process is running,
-    // which is not news. There is no edit mode either. Everything below writes
-    // straight through, which is what a settings page does anyway, and an
-    // "Edit profile" button on a page of settings was a second word for "type
-    // here".
+    // No presence line: your own reachability is that the process is running. No
+    // edit mode either - everything below writes straight through, and an "Edit
+    // profile" button on a page of settings was a second word for "type here".
     ProfileHeader {
         Layout.fillWidth: true
         Layout.maximumWidth: root.kContentWidth
@@ -134,93 +112,13 @@ FormCard.FormCardPage {
         onBannerPickRequested: bannerDialog.open()
     }
 
-    ProfileBlock {
-        Layout.fillWidth: true
-        Layout.maximumWidth: root.kContentWidth
-        Layout.alignment: Qt.AlignHCenter
-        Layout.leftMargin: root.kContentPadding
-        Layout.rightMargin: root.kContentPadding
-
-        label: i18nc("@label:textbox caption over what somebody says they are up to", "Custom status")
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Kirigami.Units.smallSpacing
-
-            // Falls back to an icon rather than to a placeholder character: with
-            // nothing set there is no emoji to show, and a face is what says
-            // what the slot is for.
-            QQC2.ToolButton {
-                display: appSettings.statusEmoji.length > 0 ? QQC2.AbstractButton.TextOnly
-                                                            : QQC2.AbstractButton.IconOnly
-                icon.name: "face-smile"
-                text: appSettings.statusEmoji
-                font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize * 1.4)
-
-                Accessible.name: i18nc("@action:button", "Set a status emoji")
-                QQC2.ToolTip.visible: hovered
-                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-                QQC2.ToolTip.text: Accessible.name
-
-                onClicked: statusSheet.open()
-            }
-
-            // Device-local for now. The presence packet carries the emoji and
-            // repeats on a timer, so a line of free text is not something to put
-            // in it - see NetworkManager::setStatus.
-            QQC2.TextField {
-                Layout.fillWidth: true
-                text: appSettings.statusText
-                placeholderText: i18nc("@info:placeholder", "What are you up to?")
-                onEditingFinished: appSettings.statusText = text
-            }
-
-            QQC2.ToolButton {
-                display: QQC2.AbstractButton.IconOnly
-                icon.name: "edit-clear"
-                enabled: appSettings.statusEmoji.length > 0 || appSettings.statusText.length > 0
-                text: i18nc("@action:button remove the custom status emoji", "Clear status emoji")
-
-                QQC2.ToolTip.visible: hovered
-                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
-                QQC2.ToolTip.text: text
-
-                onClicked: {
-                    appSettings.statusEmoji = ""
-                    appSettings.statusText = ""
-                }
-            }
-        }
-    }
-
-    // The blocks between the banner and the cards carry their own gaps: the page
-    // lays its children out with no spacing, on the assumption that every one of
-    // them is a card with a FormHeader over it.
-    ProfileBlock {
-        Layout.fillWidth: true
-        Layout.maximumWidth: root.kContentWidth
-        Layout.alignment: Qt.AlignHCenter
-        Layout.leftMargin: root.kContentPadding
-        Layout.rightMargin: root.kContentPadding
-        Layout.topMargin: Kirigami.Units.largeSpacing
-
-        label: i18nc("@title:group free-form text about yourself", "About me")
-
-        // Plain TextArea rather than a rendered Markdown label with an edit mode
-        // behind it: this is the page where things are typed, so what is on
-        // screen is the source. It is a peer's copy that gets rendered.
-        QQC2.TextArea {
-            Layout.fillWidth: true
-            Layout.minimumHeight: Kirigami.Units.gridUnit * 5
-            wrapMode: TextEdit.Wrap
-            text: appSettings.bio
-            placeholderText: i18nc("@info:placeholder", "Tell us about yourself...")
-            onEditingFinished: appSettings.bio = text
-        }
-    }
-
+    // One card rather than two loose blocks above a card of three fields: the loose
+    // ones each carried their own width, alignment, padding and top margin to line up
+    // with the card below, four numbers per block that only ever agreed by hand.
     FormCard.FormCard {
-        Layout.topMargin: Kirigami.Units.largeSpacing
+        // FormHeader supplies its own gap above every other card here; this one has
+        // the identity block over it, and the page lays children out with no spacing.
+        Layout.topMargin: Kirigami.Units.smallSpacing
 
         FormCard.FormTextFieldDelegate {
             id: usernameField
@@ -239,7 +137,99 @@ FormCard.FormCardPage {
             onEditingFinished: appSettings.displayName = text
         }
 
-        FormCard.FormDelegateSeparator { above: displayNameField; below: badgeButton }
+        FormCard.FormDelegateSeparator { above: displayNameField; below: statusDelegate }
+
+        // No form delegate exists for a row of three controls, so this is an
+        // AbstractFormDelegate with the row inside, which keeps height and padding.
+        FormCard.AbstractFormDelegate {
+            id: statusDelegate
+            background: null
+
+            contentItem: ColumnLayout {
+                spacing: Kirigami.Units.smallSpacing
+
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    text: i18nc("@label:textbox caption over what somebody says they are up to", "Custom status")
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: Kirigami.Units.smallSpacing
+
+                    // An icon rather than a placeholder character: with nothing set
+                    // there is no emoji to show, and a face says what the slot is for.
+                    QQC2.ToolButton {
+                        display: appSettings.statusEmoji.length > 0 ? QQC2.AbstractButton.TextOnly
+                                                                    : QQC2.AbstractButton.IconOnly
+                        icon.name: "face-smile"
+                        text: appSettings.statusEmoji
+
+                        Accessible.name: i18nc("@action:button", "Set a status emoji")
+                        QQC2.ToolTip.visible: hovered
+                        QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                        QQC2.ToolTip.text: Accessible.name
+
+                        onClicked: statusSheet.open()
+                    }
+
+                    // Device-local for now: the presence packet carries the emoji and
+                    // repeats on a timer, so free text has no business in it.
+                    QQC2.TextField {
+                        Layout.fillWidth: true
+                        text: appSettings.statusText
+                        placeholderText: i18nc("@info:placeholder", "What are you up to?")
+                        onEditingFinished: appSettings.statusText = text
+                    }
+
+                    QQC2.ToolButton {
+                        display: QQC2.AbstractButton.IconOnly
+                        icon.name: "edit-clear"
+                        enabled: appSettings.statusEmoji.length > 0 || appSettings.statusText.length > 0
+                        text: i18nc("@action:button remove the custom status emoji", "Clear status emoji")
+
+                        QQC2.ToolTip.visible: hovered
+                        QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                        QQC2.ToolTip.text: text
+
+                        onClicked: {
+                            appSettings.statusEmoji = ""
+                            appSettings.statusText = ""
+                        }
+                    }
+                }
+            }
+        }
+
+        FormCard.FormDelegateSeparator { above: statusDelegate; below: bioDelegate }
+
+        FormCard.AbstractFormDelegate {
+            id: bioDelegate
+            background: null
+
+            contentItem: ColumnLayout {
+                spacing: Kirigami.Units.smallSpacing
+
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    text: i18nc("@title:group free-form text about yourself", "About me")
+                }
+
+                // Plain TextArea rather than rendered Markdown behind an edit mode:
+                // this is the page where things are typed, so what is on screen is the
+                // source. It is a peer's copy that gets rendered.
+                QQC2.TextArea {
+                    Layout.fillWidth: true
+                    Layout.minimumHeight: Math.round(Kirigami.Units.gridUnit * 3)
+                    wrapMode: TextEdit.Wrap
+                    text: appSettings.bio
+                    placeholderText: i18nc("@info:placeholder", "Tell us about yourself...")
+                    onEditingFinished: appSettings.bio = text
+                }
+            }
+        }
+
+        FormCard.FormDelegateSeparator { above: bioDelegate; below: badgeButton }
 
         FormCard.FormButtonDelegate {
             id: badgeButton
@@ -267,9 +257,8 @@ FormCard.FormCardPage {
         FormCard.FormRadioDelegate {
             id: globalRadio
             text: i18nc("@option:radio account scope, hosted on a K-Server", "Global")
-            // Local is always a valid identity - it is just this device, there is
-            // nothing to register. Only Global depends on a K-Server connection
-            // that does not exist yet, so only it gets the caption.
+            // Local is always valid - it is just this device. Only Global depends on
+            // a K-Server connection that does not exist yet, so only it is captioned.
             description: appSettings.globalAccountRegistered
                 ? i18nc("@info:whatsthis", "Synced through a K-Server.")
                 : i18nc("@info:status this identity has no K-Server account", "Not registered")
@@ -287,8 +276,7 @@ FormCard.FormCardPage {
             id: schemeCombo
             text: i18nc("@label:listbox", "Colour scheme")
             description: i18nc("@info:whatsthis", "Every other colour comes from the desktop's own scheme.")
-            // Index order matches ColorSchemeSelector.Mode, so the current mode
-            // is the index and back again without a lookup table.
+            // Index order matches ColorSchemeSelector.Mode, so no lookup table.
             model: [
                 i18nc("@item:inlistbox colour scheme", "Follow the system"),
                 i18nc("@item:inlistbox colour scheme", "Light"),
@@ -300,10 +288,8 @@ FormCard.FormCardPage {
 
         FormCard.FormDelegateSeparator { above: schemeCombo; below: wallpaperButton }
 
-        // Local decoration and nothing else: the picture is never put on the
-        // wire, and no peer is told it exists. Said here as well as in the kcfg
-        // because it is the sort of thing a user of an encrypted messenger is
-        // entitled to be told without reading the source.
+        // Said here as well as in the kcfg because a user of an encrypted messenger
+        // is entitled to know the picture never goes on the wire.
         FormCard.FormButtonDelegate {
             id: wallpaperButton
             text: i18nc("@action:button", "Wallpaper")
@@ -316,11 +302,8 @@ FormCard.FormCardPage {
 
         FormCard.FormDelegateSeparator { above: wallpaperButton; below: wallpaperOpacityDelegate }
 
-        // A slider rather than a spin box, because this is a value that is judged
-        // by looking at the result and not by typing a number. There is no slider
-        // among the form delegates at the version this targets, so it is an
-        // AbstractFormDelegate with one in it - the same shape as the microphone
-        // meter below, which keeps the row's height and padding.
+        // A slider because this value is judged by looking at the result, and an
+        // AbstractFormDelegate because the form delegates of this version have none.
         FormCard.AbstractFormDelegate {
             id: wallpaperOpacityDelegate
             background: null
@@ -345,25 +328,26 @@ FormCard.FormCardPage {
                         to: 100
                         stepSize: 1
                         value: appSettings.wallpaperOpacity
-                        // moved rather than valueChanged: the latter also fires
-                        // while the binding above is settling, which writes the
-                        // setting back over itself on every page open.
+                        // moved rather than valueChanged: the latter also fires while
+                        // the binding settles, rewriting the setting on every open.
                         onMoved: appSettings.wallpaperOpacity = Math.round(opacitySlider.value)
                     }
 
                     QQC2.Label {
                         text: i18nc("@info:status a percentage, %1 is a number", "%1%", appSettings.wallpaperOpacity)
                         color: Kirigami.Theme.disabledTextColor
+
+                        // The veil that keeps the text legible never reaches zero.
+                        QQC2.ToolTip.visible: opacityHover.hovered
+                        QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                        QQC2.ToolTip.text: i18nc("@info:tooltip", "A veil over the picture keeps the interface readable even at the top of the range.")
+
+                        HoverHandler {
+                            id: opacityHover
+                        }
                     }
                 }
 
-                QQC2.Label {
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    text: i18nc("@info:whatsthis", "The interface stays readable: a veil over the picture keeps its strength even at the top of the range.")
-                    font: Kirigami.Theme.smallFont
-                    color: Kirigami.Theme.disabledTextColor
-                }
             }
         }
 
@@ -396,11 +380,9 @@ FormCard.FormCardPage {
         FormCard.FormSwitchDelegate {
             id: trayDelegate
             text: i18nc("@option:check", "Show an icon in the system tray")
-            // Registering a status notifier item is a D-Bus name claim, and
-            // dropping it while the window was hidden would leave no way back to
-            // it, so the switch is read at start rather than applied live. Said
-            // out loud, because a switch that appears to do nothing is worse than
-            // one that admits when it takes effect.
+            // Registering a status notifier item is a D-Bus name claim, and dropping
+            // it while the window was hidden would leave no way back, so the switch is
+            // read at start rather than applied live - and says so.
             description: i18nc("@info:whatsthis", "Takes effect the next time KOutNet starts.")
             checked: appSettings.trayEnabled
             onToggled: appSettings.trayEnabled = trayDelegate.checked
@@ -418,10 +400,8 @@ FormCard.FormCardPage {
 
         FormCard.FormDelegateSeparator { above: minimizeDelegate; below: awayDelegate }
 
-        // What separates "the window is behind something" from "nobody is there",
-        // which is what decides whether an arriving message gets a popup, a
-        // sound, or both. The three cases themselves are switches in System
-        // Settings, next to every other application's, rather than here.
+        // The three cases themselves are switches in System Settings, next to every
+        // other application's, rather than here.
         FormCard.FormSpinBoxDelegate {
             id: awayDelegate
             label: i18nc("@label:spinbox minutes of no input before counting as away", "Count as away after (minutes)")
@@ -450,9 +430,7 @@ FormCard.FormCardPage {
 
         FormCard.FormDelegateSeparator { above: micCombo; below: micTestDelegate }
 
-        // A level meter is not one of the form delegates, so this is an
-        // AbstractFormDelegate with the meter as its content - which is what that
-        // class is for, and keeps the row the same height and padding as the rest.
+        // A level meter is not one of the form delegates, hence AbstractFormDelegate.
         FormCard.AbstractFormDelegate {
             id: micTestDelegate
             background: null
@@ -542,14 +520,12 @@ FormCard.FormCardPage {
         FormCard.FormComboBoxDelegate {
             id: modeCombo
             text: i18nc("@label:listbox", "Network mode")
-            // The unbuilt modes stay on the list so the shape of the plan is
-            // visible, but NetworkManager decides which can be picked.
+            // Unbuilt modes stay listed so the shape of the plan is visible, but
+            // NetworkManager decides what can be picked; the index is the enum value.
             model: [
                 i18nc("@item:inlistbox network mode", "Local network (LAN)"),
-                i18nc("@item:inlistbox network mode", "K-Server (self-hosted)"),
-                i18nc("@item:inlistbox network mode", "K-Server (join someone else's)"),
+                i18nc("@item:inlistbox network mode", "K-Server"),
                 i18nc("@item:inlistbox network mode", "Relay (not a K-Server)"),
-                i18nc("@item:inlistbox network mode", "Maintainer's VDS"),
             ]
             currentIndex: appSettings.connectionMode
             onActivated: (index) => {
@@ -560,7 +536,31 @@ FormCard.FormCardPage {
             }
         }
 
-        FormCard.FormDelegateSeparator { above: modeCombo; below: relayHostField }
+        FormCard.FormDelegateSeparator { above: modeCombo; below: kServerHostField }
+
+        // Empty means a K-Server on this machine, which is what self-hosting is.
+        FormCard.FormTextFieldDelegate {
+            id: kServerHostField
+            label: i18nc("@label:textbox", "K-Server address")
+            description: i18nc("@info:whatsthis", "Leave empty for a server running on this machine.")
+            enabled: root.usesKServer
+            text: appSettings.kServerHost
+            onEditingFinished: appSettings.kServerHost = text
+        }
+
+        FormCard.FormDelegateSeparator { above: kServerHostField; below: kServerPortField }
+
+        FormCard.FormSpinBoxDelegate {
+            id: kServerPortField
+            label: i18nc("@label:spinbox", "K-Server port")
+            enabled: root.usesKServer
+            from: 0
+            to: 65535
+            value: appSettings.kServerPort
+            onValueChanged: appSettings.kServerPort = kServerPortField.value
+        }
+
+        FormCard.FormDelegateSeparator { above: kServerPortField; below: relayHostField }
 
         FormCard.FormTextFieldDelegate {
             id: relayHostField
@@ -584,9 +584,8 @@ FormCard.FormCardPage {
 
         FormCard.FormDelegateSeparator { above: relayPortField; below: applyDelegate }
 
-        // AppSettings only persists; the running NetworkManager has to be told
-        // separately, and switching mode tears the relay tunnel up or down, so it
-        // waits for an explicit click.
+        // AppSettings only persists; the running NetworkManager is told separately,
+        // and switching mode tears the relay tunnel up or down, so it waits.
         FormCard.FormButtonDelegate {
             id: applyDelegate
             text: i18nc("@action:button apply the connection settings to the running network layer", "Apply connection settings")
