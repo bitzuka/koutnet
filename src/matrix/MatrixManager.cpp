@@ -29,6 +29,11 @@ QString deviceDisplayName()
 {
     return QStringLiteral("KOutNet");
 }
+
+QString joinDetail(const QString &message, const QString &details)
+{
+    return details.isEmpty() ? message : message + QLatin1Char(' ') + details;
+}
 } // namespace
 
 namespace koutnet
@@ -43,17 +48,38 @@ MatrixManager::MatrixManager(AppSettings *settings, QObject *parent)
     connect(&m_loginTimeout, &QTimer::timeout, this, [this]() {
         if (m_state != State::Connecting)
             return;
+        m_pendingUser.clear();
         m_pendingPassword.clear();
-        dropConnection();
-        setState(State::Failed, i18nc("@info:status Matrix login failed", "The homeserver did not answer in time."));
+
+        // The connection is deliberately left running. Aborting it here is what
+        // turned one slow homeserver into a screenful of "stopped without ready
+        // network reply" - our own cleanup, printed in libQuotient's voice and
+        // read for an hour as a network fault. The jobs get to finish or fail on
+        // their own, and a late success is still accepted below.
+        setState(State::Failed,
+                 i18nc("@info:status Matrix login failed",
+                       "The homeserver did not answer in time. Nothing was signed in; the attempt is still running and will report itself in the log."));
+
+        const QPointer<Quotient::Connection> attempt(m_connection);
+        QTimer::singleShot(kLoginAbandonMs, this, [this, attempt]() {
+            // Only if this same attempt is still the current one and still has
+            // not produced anything; a login that came good owns the slot now.
+            if (m_connection == nullptr || m_connection != attempt || m_state != State::Failed)
+                return;
+            retireConnection(QStringLiteral("the login attempt was given up on after it stopped answering"));
+        });
     });
+
+    m_syncTimeout.setSingleShot(true);
+    m_syncTimeout.setInterval(kSyncTimeoutMs);
+    connect(&m_syncTimeout, &QTimer::timeout, this, &MatrixManager::onSyncDeadline);
 }
 
 MatrixManager::~MatrixManager() = default;
 
 bool MatrixManager::loggedIn() const
 {
-    return m_state == State::Syncing || m_state == State::Online;
+    return m_state == State::Syncing || m_state == State::Online || m_state == State::Reconnecting;
 }
 
 bool MatrixManager::busy() const
@@ -82,6 +108,10 @@ QString MatrixManager::statusText() const
         return i18nc("@info:status Matrix connection state", "Syncing...");
     case State::Online:
         return i18nc("@info:status Matrix connection state, %1 is a Matrix user id", "Signed in as %1", userId());
+    case State::Reconnecting:
+        return m_lastError.isEmpty()
+            ? i18nc("@info:status Matrix connection state", "Reconnecting...")
+            : i18nc("@info:status Matrix connection state, %1 is what the homeserver or the network reported", "Reconnecting after: %1", m_lastError);
     case State::Failed:
         break;
     }
@@ -92,16 +122,23 @@ void MatrixManager::setState(State state, const QString &error)
 {
     if (m_state == state && m_lastError == error)
         return;
+    // Only the states that mean something went wrong are announced; the status
+    // line carries the rest, and a notification per reconnect is noise.
+    const bool announce = !error.isEmpty() && (state == State::Failed || state == State::Reconnecting);
     m_state = state;
     m_lastError = error;
     if (!error.isEmpty())
         qCWarning(KOUTNET_LOG_MATRIX) << "matrix session:" << error;
     Q_EMIT stateChanged();
+    // After stateChanged() so that whatever reads the manager while showing the
+    // message already agrees with it.
+    if (announce)
+        Q_EMIT sessionError(error);
 }
 
 Quotient::Connection *MatrixManager::makeConnection()
 {
-    dropConnection();
+    retireConnection(QStringLiteral("a new session is starting"));
 
     auto *c = new Quotient::Connection(this);
     // Explicitly off. libQuotient 0.9 always compiles E2EE in, so this is a
@@ -116,30 +153,69 @@ Quotient::Connection *MatrixManager::makeConnection()
 
     connect(c, &Quotient::Connection::connected, this, &MatrixManager::onConnected);
     connect(c, &Quotient::Connection::loginError, this, [this](const QString &message, const QString &details) {
+        m_pendingUser.clear();
         m_pendingPassword.clear();
         m_loginTimeout.stop();
-        dropConnection();
-        setState(State::Failed, details.isEmpty() ? message : message + QLatin1Char(' ') + details);
+        m_syncTimeout.stop();
+        const bool wasResume = m_resuming;
+        m_resuming = false;
+        const QString detail = joinDetail(message, details);
+
+        retireConnection(QStringLiteral("the homeserver rejected the sign-in"));
+        if (!wasResume) {
+            setState(State::Failed, detail);
+            return;
+        }
+        // The homeserver answered and the answer was no, so the stored session is
+        // the thing that is wrong. Kept, it would be retried on every start and
+        // fail the same way every time with nothing said.
+        clearStoredSession();
+        setState(State::Failed,
+                 i18nc("@info:status a stored Matrix session was refused, %1 is what the homeserver said",
+                       "The saved sign-in is no longer accepted (%1). Sign in again.",
+                       detail));
     });
     connect(c, &Quotient::Connection::resolveError, this, [this](const QString &error) {
+        m_pendingUser.clear();
         m_pendingPassword.clear();
         m_loginTimeout.stop();
-        dropConnection();
+        m_syncTimeout.stop();
+        m_resuming = false;
+        retireConnection(QStringLiteral("the homeserver address could not be resolved"));
         setState(State::Failed, error);
     });
     connect(c, &Quotient::Connection::syncDone, this, [this]() {
+        m_syncTimeout.stop();
+        m_lastSyncError.clear();
+        if (m_resuming) {
+            // The first completed sync is the only proof a resumed token is still
+            // good - see the note on m_resuming - so the session is confirmed here
+            // rather than in onConnected().
+            m_resuming = false;
+            storeSession();
+        }
         setState(State::Online);
     });
-    connect(c, &Quotient::Connection::syncError, this, [this](const QString &message) {
-        // Not a failure of the session: libQuotient retries by itself, and a
-        // dropped wifi must not throw away a token that is still good.
-        qCWarning(KOUTNET_LOG_MATRIX) << "sync error" << message;
-        setState(State::Syncing);
+    connect(c, &Quotient::Connection::syncError, this, [this](const QString &message, const QString &details) {
+        m_lastSyncError = joinDetail(message, details);
+        qCWarning(KOUTNET_LOG_MATRIX) << "sync error" << m_lastSyncError;
+        // Not a failure of the session by itself: libQuotient retries, and a
+        // dropped wifi must not throw away a token that is still good. What must
+        // not happen is the interface going on claiming messages are arriving,
+        // so the state moves and the deadline below decides when to give up.
+        if (m_state == State::Online || m_state == State::Reconnecting)
+            setState(State::Reconnecting, m_lastSyncError);
+        if (!m_syncTimeout.isActive())
+            armSyncDeadline();
     });
     connect(c, &Quotient::Connection::loggedOut, this, [this]() {
+        // Reached when the homeserver ends the session on its own - a token
+        // revoked from another device. Our own logout() detaches first.
         clearStoredSession();
-        dropConnection();
-        setState(State::LoggedOut);
+        retireConnection(QStringLiteral("the homeserver ended the session"));
+        // Left in Failed rather than moved on to LoggedOut: the two look the same
+        // to the sign-in page except that Failed still carries the reason.
+        setState(State::Failed, i18nc("@info:status", "The homeserver signed this device out."));
     });
 
     m_connection = c;
@@ -147,16 +223,42 @@ Quotient::Connection *MatrixManager::makeConnection()
     return c;
 }
 
-void MatrixManager::dropConnection()
+void MatrixManager::retireConnection(const QString &why)
 {
     if (!m_connection)
         return;
     auto *c = m_connection;
     m_connection = nullptr;
+    // Printed before the abort rather than after it: stopping the connection
+    // makes libQuotient log every job still in flight as "stopped without ready
+    // network reply", which reads as a server hanging up. This line is what says
+    // the hanging up was ours.
+    qCInfo(KOUTNET_LOG_MATRIX).noquote() << QStringLiteral("closing the Matrix connection -") << why
+                                         << QStringLiteral("- any 'stopped without ready network reply' below is this cleanup, not the homeserver");
     c->disconnect(this);
     c->stopSync();
     c->deleteLater();
     Q_EMIT connectionChanged();
+}
+
+void MatrixManager::armSyncDeadline()
+{
+    m_syncTimeout.start();
+}
+
+void MatrixManager::onSyncDeadline()
+{
+    if (m_state != State::Syncing && m_state != State::Reconnecting)
+        return;
+
+    const QString reason = m_lastSyncError.isEmpty()
+        ? i18nc("@info:status Matrix sync gave up with nothing reported", "The homeserver stopped answering; no messages are arriving.")
+        : i18nc("@info:status Matrix sync gave up, %1 is what libQuotient reported", "Syncing failed: %1", m_lastSyncError);
+
+    retireConnection(QStringLiteral("no sync completed before the deadline"));
+    // The stored session stays. A network that went away is not a token that was
+    // revoked, and the next start should be allowed to try it.
+    setState(State::Failed, reason);
 }
 
 void MatrixManager::login(const QString &homeserverUrl, const QString &userIdOrLocalpart, const QString &password)
@@ -165,6 +267,10 @@ void MatrixManager::login(const QString &homeserverUrl, const QString &userIdOrL
         setState(State::Failed, i18nc("@info:status Matrix login", "A user name and a password are needed."));
         return;
     }
+
+    m_resuming = false;
+    m_lastSyncError.clear();
+    m_syncTimeout.stop();
 
     auto *c = makeConnection();
     setState(State::Connecting);
@@ -189,7 +295,7 @@ void MatrixManager::login(const QString &homeserverUrl, const QString &userIdOrL
     }
     if (!target.contains(QLatin1Char(':'))) {
         m_loginTimeout.stop();
-        dropConnection();
+        retireConnection(QStringLiteral("no domain in the user id and no homeserver given"));
         setState(State::Failed,
                  i18nc("@info:status Matrix login", "Give a homeserver, or write the user ID in full as @name:server."));
         return;
@@ -259,10 +365,15 @@ bool MatrixManager::resumeSession()
     if (!koutnet::SecretStore::read(tokenWalletKey(), &token) || token.isEmpty()) {
         // The token is the session. Without it the recorded user id and device id
         // are litter that would make the interface claim a session that is gone.
-        qCWarning(KOUTNET_LOG_MATRIX) << "a Matrix session is recorded but its token is not in the wallet";
         clearStoredSession();
+        setState(State::Failed,
+                 i18nc("@info:status a stored Matrix session could not be reopened",
+                       "The saved sign-in could not be read back from the wallet. Sign in again."));
         return false;
     }
+
+    m_resuming = true;
+    m_lastSyncError.clear();
 
     auto *c = makeConnection();
     setState(State::Connecting);
@@ -272,6 +383,9 @@ bool MatrixManager::resumeSession()
         if (base.isValid())
             c->setHomeserver(base);
     }
+    // Reaches connected() before the token has been shown to anybody: this call
+    // sets the identity and checks it afterwards. Everything that treats the
+    // resume as unproven until the first sync hangs off m_resuming.
     c->assumeIdentity(user, device, token);
     return true;
 }
@@ -284,11 +398,15 @@ void MatrixManager::onConnected()
     if (!m_connection)
         return;
 
-    storeSession();
+    // A resume has nothing new to write and nothing yet to confirm; its session
+    // is stored again once a sync has proved the token still works.
+    if (!m_resuming)
+        storeSession();
     // Reads whatever the last run cached, so the room list is on screen before
     // the first sync comes back.
     m_connection->loadState();
     setState(State::Syncing);
+    armSyncDeadline();
     m_connection->syncLoop();
 }
 
@@ -326,15 +444,45 @@ void MatrixManager::clearStoredSession()
 
 void MatrixManager::logout()
 {
-    if (!m_connection) {
-        clearStoredSession();
-        setState(State::LoggedOut);
+    m_loginTimeout.stop();
+    m_syncTimeout.stop();
+    m_pendingUser.clear();
+    m_pendingPassword.clear();
+    m_resuming = false;
+    m_lastSyncError.clear();
+
+    // Local first, and whatever the homeserver does about it. Waiting for the
+    // round trip is what left the button doing nothing against a server that
+    // never answered: the token is out of the wallet and the ids out of the
+    // config before anything is asked of the network, so signing out always
+    // ends signed out.
+    auto *c = m_connection;
+    m_connection = nullptr;
+    clearStoredSession();
+    setState(State::LoggedOut);
+    Q_EMIT connectionChanged();
+
+    if (!c)
         return;
-    }
-    // The token is invalidated server-side by logout(); loggedOut() then clears
-    // the wallet entry. Dropping the connection here instead would leave a live
-    // token on the homeserver with nothing able to revoke it.
-    m_connection->logout();
+
+    // Detached before it is asked anything: its signals steer the state above,
+    // and a logout the server refuses would otherwise put the interface back
+    // where it started.
+    c->disconnect(this);
+    // Politeness, so the token stops working on the homeserver too. Nothing here
+    // depends on the answer; libQuotient deletes the connection itself when the
+    // job succeeds, and the timer below deals with the case where it never does.
+    c->logout();
+
+    const QPointer<Quotient::Connection> pending(c);
+    QTimer::singleShot(kLogoutGraceMs, this, [pending]() {
+        if (!pending)
+            return;
+        qCInfo(KOUTNET_LOG_MATRIX) << "the homeserver never acknowledged the sign-out; dropping the connection locally."
+                                   << "The token may still be live server-side - revoke the KOutNet device from another client if that matters.";
+        pending->stopSync();
+        pending->deleteLater();
+    });
 }
 
 } // namespace koutnet

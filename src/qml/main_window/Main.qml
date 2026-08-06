@@ -232,6 +232,12 @@ Kirigami.ApplicationWindow {
                               "Signed in, but the session could not be saved: %1", reason),
                         Kirigami.MessageType.Warning)
         }
+        // The sign-in page is where a session is started and almost never where
+        // the user is when one dies, so every failure is reported here too. The
+        // alternative was the window saying "Syncing..." for the rest of the day.
+        function onSessionError(message) {
+            root.reportError(message)
+        }
     }
 
     // peersModel.count is read only to register a dependency, so this

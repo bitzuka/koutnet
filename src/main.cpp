@@ -134,9 +134,10 @@ int main(int argc, char *argv[])
     // else, so a change to one cannot break the other. The session is resumed
     // whatever the current mode is - a user who switches back to LAN for an
     // afternoon has not signed out of their homeserver.
+    //
+    // Built here, resumed after the window exists - see below.
     auto *matrixManager = new koutnet::MatrixManager(appSettings, &app);
     auto *matrixRooms = new koutnet::MatrixRoomBridge(matrixManager, &app);
-    matrixManager->resumeSession();
 
     auto *audioDevices = new koutnet::AudioDevices(&app);
     // Owns the KNotification objects, so it has to outlive every window that
@@ -228,6 +229,12 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("aboutData"), about);
 
     engine.loadFromModule("koutnet.app", "Main");
+
+    // After the window, not before it. A stored session that cannot be reopened
+    // reports itself the moment it is tried, and resuming first meant nothing
+    // was connected to hear it - the start was silent and the interface sat in
+    // whatever state the failure had left behind.
+    matrixManager->resumeSession();
 
     return app.exec();
 }

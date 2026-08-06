@@ -11,6 +11,13 @@
 // never to the config file. A session on a machine with no wallet lasts for
 // that run and is not written down, which is the same rule CryptoManager
 // applies to the identity keys.
+//
+// Two rules the states below exist to keep. First, no failure is allowed to be
+// quiet: every way this can go wrong ends in Failed with a sentence, and every
+// state that is not a failure has a deadline behind it, because "Syncing..."
+// forever is a lie the interface told for two hours while a network block sat
+// underneath it. Second, nothing the user asks for waits on the homeserver's
+// permission: logout() clears the local session first and asks afterwards.
 #pragma once
 
 #include <QObject>
@@ -47,6 +54,10 @@ public:
         Connecting,
         Syncing,
         Online,
+        // Was Online and the sync loop started failing. A separate state because
+        // the token is probably still good and libQuotient retries by itself, but
+        // the interface must stop claiming everything is arriving.
+        Reconnecting,
         Failed,
     };
     Q_ENUM(State)
@@ -54,6 +65,18 @@ public:
     // A homeserver that never answers leaves the interface saying "Connecting"
     // for as long as the process lives, so the attempt is given a deadline.
     static constexpr int kLoginTimeoutMs = 30000;
+    // Syncing needs a deadline of its own and a longer one. It is the state a
+    // resumed session lands in before anything has verified the token, and the
+    // state a blocked network leaves a fresh login in, and until this existed
+    // both of those said "Syncing..." for the life of the process.
+    static constexpr int kSyncTimeoutMs = 60000;
+    // How long after a reported login timeout the connection is still kept
+    // alive. The jobs in flight are the evidence; they get to finish or fail on
+    // their own terms before anything of ours cancels them.
+    static constexpr int kLoginAbandonMs = 60000;
+    // How long a logout that has already been applied locally waits for the
+    // homeserver to acknowledge it before the connection is thrown away anyway.
+    static constexpr int kLogoutGraceMs = 15000;
 
     explicit MatrixManager(AppSettings *settings, QObject *parent = nullptr);
     ~MatrixManager() override;
@@ -93,11 +116,22 @@ Q_SIGNALS:
     // user believe the login will still be there tomorrow.
     void sessionNotPersisted(QString reason);
 
+    // Every way this session can go wrong, once, as a sentence. statusText()
+    // carries the same words for whoever is looking at the sign-in page; this is
+    // for the main window, which is where the user actually is when a sync dies.
+    void sessionError(QString message);
+
 private:
     void setState(State state, const QString &error = QString());
     Quotient::Connection *makeConnection();
-    void dropConnection();
+    // Closes the connection and says in the log that the closing was ours.
+    // libQuotient reports every job it aborts as "stopped without ready network
+    // reply", which reads exactly like a server that hung up, so the reason is
+    // printed first and in our own category.
+    void retireConnection(const QString &why);
     void onConnected();
+    void armSyncDeadline();
+    void onSyncDeadline();
     void storeSession();
     void clearStoredSession();
 
@@ -106,6 +140,18 @@ private:
     State m_state = State::LoggedOut;
     QString m_lastError;
     QTimer m_loginTimeout;
+    // Fires when nothing has synced for kSyncTimeoutMs. Separate from the login
+    // deadline because the two cover different halves of "the interface is
+    // waiting" and a resume passes straight from one to the other.
+    QTimer m_syncTimeout;
+    // Whatever the last syncError said. Kept so the deadline can report the
+    // reason libQuotient already knows instead of a bare "timed out".
+    QString m_lastSyncError;
+    // A resumed session is not proven by connected(): assumeIdentity() emits
+    // that the moment the identity is set, before the token has been shown to
+    // anybody. The first completed sync is the proof, and this says we are still
+    // waiting for it.
+    bool m_resuming = false;
     // Set while login() is waiting for the homeserver's login flows, so that the
     // password is not kept a moment longer than the round trip needs it.
     QString m_pendingUser;

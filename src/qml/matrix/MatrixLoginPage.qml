@@ -126,7 +126,11 @@ FormCard.FormCardPage {
         Layout.rightMargin: Kirigami.Units.largeSpacing
 
         type: Kirigami.MessageType.Error
-        visible: !matrixManager.loggedIn && !matrixManager.busy && matrixManager.lastError.length > 0
+        // No longer hidden while signed in: a sync that dies under a session the
+        // interface still calls signed in is precisely the failure this used to
+        // swallow. Every state that is not a failure clears lastError, so the
+        // message being there is enough on its own.
+        visible: !matrixManager.busy && matrixManager.lastError.length > 0
         text: matrixManager.lastError
     }
 
