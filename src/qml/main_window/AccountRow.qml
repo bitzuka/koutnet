@@ -6,13 +6,9 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as Components
 
-// Who you are, pinned to the bottom of the conversation list, with the two
-// controls that belong to you rather than to a conversation.
-//
 // The name and handle are read straight off AppSettings rather than passed in:
-// this is the one place in the window that shows them, and threading two strings
-// down from the window only to have them go stale is worse than the coupling.
-// Mute and deafen are passed in, because the window is what holds the call.
+// this is the one place that shows them, and threading two strings down only to
+// have them go stale is worse than the coupling. Mute and deafen are passed in.
 QQC2.ToolBar {
     id: root
 
@@ -24,8 +20,10 @@ QQC2.ToolBar {
     property bool micMuted: false
     property bool deafened: false
 
-    // The row itself travels with the request: the account card is anchored to
-    // it, and only this file knows which item that is.
+    // In compact mode the name and handle go: three icon-only controls beside a
+    // nine-unit column leave no room for two lines of text.
+    property bool compact: false
+
     signal profileRequested(Item anchorItem)
     signal settingsRequested()
     signal micToggled()
@@ -33,32 +31,28 @@ QQC2.ToolBar {
 
     position: QQC2.ToolBar.Footer
 
-    // More than the toolbar default, which is sized for a single line of icons.
-    // This row is two lines of text beside an avatar and it is on screen at all
-    // times, so it is the last place in the window that should look squeezed.
-    padding: Kirigami.Units.largeSpacing
+    // More than the toolbar default, which is sized for a single line of icons;
+    // this row is two lines of text beside an avatar and is always on screen.
+    padding: root.compact ? Kirigami.Units.smallSpacing : Kirigami.Units.largeSpacing
 
     contentItem: RowLayout {
-        // Nothing between the identity and the controls: the gap that separates
-        // them is the cluster's own left margin below, so the row reads as two
-        // groups rather than as four evenly spaced items.
+        // The gap between identity and controls is the cluster's own left margin
+        // below, so the row reads as two groups and not four spaced items.
         spacing: 0
 
         QQC2.ToolButton {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            // Both labels elide, but they still ask for the width of the whole
-            // name and a RowLayout honours that, so without a floor here this
-            // button shouldered the three controls off the end of a narrow column.
-            Layout.minimumWidth: Kirigami.Units.gridUnit * 4
+            // Both labels elide but still ask for the width of the whole name, and
+            // a RowLayout honours that, so without a floor this button shouldered
+            // the three controls off the end of a narrow column.
+            Layout.minimumWidth: root.compact ? 0 : Kirigami.Units.gridUnit * 4
 
-            // No tooltip: the content of this button is the name and the handle,
-            // so the tooltip repeated what was written underneath it and covered
+            // No tooltip: it repeated the name written on the button, and covered
             // it up while doing so.
             Accessible.name: i18nc("@action:button open your own profile", "My profile")
 
-            // The card is hung off the whole row rather than off this button, so
-            // it lines up with the column edge instead of with the avatar.
+            // Hung off the whole row so the card lines up with the column edge.
             onClicked: root.profileRequested(root)
 
             contentItem: RowLayout {
@@ -66,14 +60,12 @@ QQC2.ToolBar {
 
                 Components.Avatar {
                     Layout.alignment: Qt.AlignVCenter
-                    // Bigger than a conversation row's. This is the one face that
-                    // is always on screen, and it is what the row is anchored on.
-                    implicitWidth: Kirigami.Units.iconSizes.large
-                    implicitHeight: Kirigami.Units.iconSizes.large
-                    // The picture, falling back to the initial the way every
-                    // conversation row above does. This was the one place in the
-                    // window showing a blank circle to somebody who had gone to
-                    // the trouble of setting one.
+                    implicitWidth: root.compact
+                        ? Kirigami.Units.iconSizes.medium
+                        : Kirigami.Units.iconSizes.large
+                    implicitHeight: implicitWidth
+                    // Falls back to the initial the way the conversation rows do;
+                    // this used to show a blank circle to anybody who set a picture.
                     name: root.shownName
                     source: appSettings.avatarPath
                     asynchronous: true
@@ -82,6 +74,7 @@ QQC2.ToolBar {
                 ColumnLayout {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignVCenter
+                    visible: !root.compact
                     spacing: 0
 
                     QQC2.Label {
@@ -108,16 +101,13 @@ QQC2.ToolBar {
             }
         }
 
-        // What belongs to you rather than to a conversation: one cluster, held
-        // off the name.
         RowLayout {
             Layout.alignment: Qt.AlignVCenter
             Layout.leftMargin: Kirigami.Units.largeSpacing
             spacing: 0
 
             // Deafened holds the microphone down whatever the mute toggle says, so
-            // the icon follows both and the button itself goes quiet: a control
-            // that cannot change anything should not look as though it can.
+            // the icon follows both and the button itself goes quiet.
             QQC2.ToolButton {
                 display: QQC2.AbstractButton.IconOnly
                 icon.name: (root.micMuted || root.deafened)

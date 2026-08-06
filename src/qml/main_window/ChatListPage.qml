@@ -7,56 +7,42 @@ import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as Components
 import koutnet.app
 
-// The first column of the window: the connection rail, then the conversations,
-// then who you are.
-//
 // A plain Page with a RowLayout in it rather than a ScrollablePage, because the
 // rail runs the full height of the column beside a list that scrolls on its own,
 // and a ScrollablePage would scroll the rail with it.
 //
 // The section headings sit above the view rather than inside it, and the pinned
-// Favorites row with them. They used to be the ListView's header, and that is a
-// header whose height changes: folding one shrinks it, unfolding grows it again.
-// QQuickItemView answers a header resize with updateHeader() and fixupPosition()
-// and nothing else - it re-places the header above the first row and clamps
-// contentY into the new bounds. Shrinking puts contentY out of bounds and it is
-// pulled back; growing does not, so the height the header just got back appears
-// above the viewport and the section that was unfolded is off the top of the
-// list. Kept out of the view, a fold is a layout change and nothing else.
-//
-// The fold state still lives here rather than in the headings: the rows a
-// heading folds are somewhere else - inside a ListView delegate - and the one
-// copy of the state has to be visible to both.
+// Favorites row with them. As the ListView's header, folding one changed the
+// header's height, and QQuickItemView answers a header resize with
+// updateHeader() and fixupPosition() and nothing else: shrinking clamps contentY
+// back into bounds, growing does not, so the height the header just got back
+// appears above the viewport and the section that was unfolded is off the top.
 Kirigami.Page {
     id: root
 
-    // What ChatListModel produces. Kept as a property so the page does not have
-    // to know where the model was declared.
     property alias model: chatsView.model
     property string selectedChatId: ""
-    // The local "chat with yourself" row, which is pinned and is not a peer.
     property string favoritesChatId: ""
-    // AppSettings.connectionMode, mirrored so the rail has something to draw.
     property int connectionMode: 0
 
-    // Mirrored from the window so the account row can draw them; the window is
-    // what owns the call these actually act on.
     property bool micMuted: false
     property bool deafened: false
 
-    // Compact mode. The rail goes: it is a column of mode buttons beside a list
-    // that has been narrowed to eleven grid units, and every mode it offers is
-    // also on the settings page. The rows tighten - see ContactDelegate.
+    // In compact mode the rail goes - its modes are all on the settings page and
+    // the buttons are wider than the list - and so do the headings.
     property bool compact: false
 
     property bool favoritesExpanded: true
     property bool directExpanded: true
 
+    // Held open wherever the headings are not drawn: a fold with no chevron left
+    // to undo it is a row that has gone for good.
+    readonly property bool favoritesShown: root.compact || root.favoritesExpanded
+    readonly property bool directShown: root.compact || root.directExpanded
+
     signal chatActivated(string chatId)
     signal newChatRequested()
     signal forgetRequested(string chatId)
-    // The account row travels with the request: the account card is anchored to
-    // it, the same way a peer's card is anchored to the row that asked for it.
     signal profileRequested(Item anchorItem)
     signal settingsRequested()
     signal connectionModeRequested(int mode)
@@ -71,13 +57,11 @@ Kirigami.Page {
     title: i18nc("@title sidebar section, the list of conversations", "Chats")
     padding: 0
 
-    // See the note on Kirigami.Theme in Main.qml: the selected row is filled with
-    // the highlight, so the accent is restated wherever the theme chain restarts.
+    // See the note on Kirigami.Theme in Main.qml.
     Kirigami.Theme.highlightColor: Brand.accent
 
-    // Search and "new chat" go in the toolbar rather than a strip under it. The
-    // column is seventeen grid units wide; a row each is two rows the
-    // conversations do not get.
+    // Search and "new chat" go in the toolbar rather than a strip under it: in a
+    // seventeen unit column, a row each is two rows the conversations do not get.
     titleDelegate: RowLayout {
         Layout.fillWidth: true
         spacing: Kirigami.Units.smallSpacing
@@ -85,7 +69,9 @@ Kirigami.Page {
         Kirigami.SearchField {
             id: searchField
             Layout.fillWidth: true
-            placeholderText: i18nc("@info:placeholder filter the conversation list", "Search")
+            placeholderText: root.compact
+                ? ""
+                : i18nc("@info:placeholder filter the conversation list", "Search")
             // Folding a section hides rows, so typing has to unfold them again or
             // the search appears to find nothing.
             onTextChanged: if (text.length > 0) {
@@ -105,9 +91,8 @@ Kirigami.Page {
         }
     }
 
-    // Matching is on the name and on the address: an unnamed peer only has the
-    // second one. Here rather than in the delegate so the pinned row and the
-    // conversations are filtered by the same rule.
+    // Matches the address as well as the name, since an unnamed peer only has the
+    // former; here so the pinned row and the conversations use the same rule.
     function matchesSearch(displayName, chatId) {
         if (searchField.text.length === 0)
             return true
@@ -140,30 +125,32 @@ Kirigami.Page {
 
             ChatSection {
                 Layout.fillWidth: true
+                visible: !root.compact
                 text: root.favoritesName
                 itemCount: 1
                 expanded: root.favoritesExpanded
                 onToggleRequested: root.favoritesExpanded = !root.favoritesExpanded
             }
 
-            // Favorites is one pinned local row and not a chat with anybody, so
-            // it is not in the model. Wrapped in an Item because
-            // RoundedItemDelegate binds its own width - to the view it is the
-            // delegate of, and this one is the delegate of nothing - and a
-            // binding on width beats whatever a layout assigns the next time it
-            // re-evaluates. The wrapper is what the row takes its width from and
-            // what carries the fold, so nothing here fights the column.
+            // Wrapped in an Item because RoundedItemDelegate binds its own width
+            // to the view it is the delegate of, this one is the delegate of
+            // nothing, and a binding on width beats whatever a layout assigns.
+            //
+            // The fold is tested on the wrapper and nowhere else. Binding this
+            // item to favoritesRow.visible latched the section shut for the rest
+            // of the session: visible is effective visibility, so once the wrapper
+            // was down it held the row's reading of it at false however the row's
+            // own flag was set, and the binding never fired again.
             Item {
                 Layout.fillWidth: true
                 implicitHeight: favoritesRow.implicitHeight
-                visible: favoritesRow.visible
+                visible: root.favoritesShown
+                    && root.matchesSearch(root.favoritesName, root.favoritesChatId)
 
                 ContactDelegate {
                     id: favoritesRow
 
                     width: parent.width
-                    visible: root.favoritesExpanded
-                        && root.matchesSearch(root.favoritesName, root.favoritesChatId)
 
                     displayName: root.favoritesName
                     iconName: "bookmarks"
@@ -178,14 +165,13 @@ Kirigami.Page {
                 Layout.fillWidth: true
                 text: i18nc("@title:group conversation list section, one-to-one chats", "Direct messages")
                 itemCount: chatsView.count
-                visible: itemCount > 0
+                visible: !root.compact && itemCount > 0
                 expanded: root.directExpanded
                 onToggleRequested: root.directExpanded = !root.directExpanded
             }
 
-            // The placeholder is a sibling of the view rather than a child of it:
-            // a child of a Flickable is parented to its content item and would
-            // scroll away with the rows it is standing in for.
+            // The placeholder is a sibling of the view: a child of a Flickable is
+            // parented to its content item and would scroll away with the rows.
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -213,8 +199,6 @@ Kirigami.Page {
                         currentIndex: -1
                         clip: true
 
-                        // The model reorders rows as messages arrive, so the list has
-                        // somewhere to animate them to.
                         move: Transition {
                             NumberAnimation { properties: "y"; duration: Kirigami.Units.shortDuration }
                         }
@@ -222,9 +206,8 @@ Kirigami.Page {
                             NumberAnimation { properties: "y"; duration: Kirigami.Units.shortDuration }
                         }
 
-                        // Right-click and long-press on a row land here. One menu for the
-                        // whole list rather than one per delegate, so scrolling does not
-                        // build a hundred of them.
+                        // One menu for the whole list, so scrolling does not build
+                        // a hundred of them.
                         Components.ConvergentContextMenu {
                             id: rowMenu
 
@@ -246,13 +229,16 @@ Kirigami.Page {
                         delegate: ContactDelegate {
                             id: chatRow
 
-                            // model.* rather than required properties: every role below
-                            // shares its name with a property this delegate already has,
-                            // and a required property of the same name would bind to
-                            // itself.
-                            visible: root.directExpanded
+                            // model.* rather than required properties: every role
+                            // below shares its name with a property this delegate
+                            // already has, which would bind to itself.
+                            // The fold, named once and read twice: reading it back
+                            // off visible would read effective visibility, which is
+                            // the latch the pinned row above ran into.
+                            readonly property bool shown: root.directShown
                                 && root.matchesSearch(model.displayName, model.chatId)
-                            height: visible ? implicitHeight : 0
+                            visible: chatRow.shown
+                            height: chatRow.shown ? implicitHeight : 0
 
                             compact: root.compact
                             displayName: model.displayName
@@ -285,6 +271,7 @@ Kirigami.Page {
     }
 
     footer: AccountRow {
+        compact: root.compact
         micMuted: root.micMuted
         deafened: root.deafened
 

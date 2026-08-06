@@ -1,21 +1,14 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// KOutNet - application window
+// Up to three columns of a Kirigami.PageRow. PageRow folds to one column on a
+// narrow window and hands out its own back button, which is what the animated
+// Layout.preferredWidth and hand-drawn hamburger that used to be here reached for.
 //
-// The shell is up to three columns of a Kirigami.PageRow: the conversation list
-// with the connection rail down its edge, the conversation, and - when it is
-// asked for - who is on the other end of it. That is the whole of the layout.
-// PageRow folds to one column on a narrow window and hands out its own back
-// button, which is what the animated Layout.preferredWidth and the hand-drawn
-// hamburger that used to be here were reaching for.
+// The third column is pushed and popped rather than always present: a panel that
+// cannot be put away is a panel in the way, and pushing it gets the folding free.
 //
-// The third column is pushed and popped rather than always present. An
-// information panel that cannot be put away is a panel that is in the way, and
-// pushing it is also what gets it the folding for free.
-//
-// Everything that is not a conversation - settings, profiles, notes, the call
-// log, the player - goes on pageStack.layers, so it covers every column and
-// comes back with the back button rather than as a modal sheet.
+// Everything that is not a conversation goes on pageStack.layers, so it covers
+// every column and comes back with the back button rather than as a modal sheet.
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Window
@@ -29,70 +22,61 @@ Kirigami.ApplicationWindow {
     title: i18nc("@title:window", "KOutNet")
     width: Kirigami.Units.gridUnit * 55
     height: Kirigami.Units.gridUnit * 36
-    // Narrow enough that the page row folds to a single column, which is the
-    // layout being tested when it does.
+    // Narrow enough that the page row folds to a single column.
     minimumWidth: Kirigami.Units.gridUnit * 20
     minimumHeight: Kirigami.Units.gridUnit * 18
 
-    // The one thing this application says about colour. Everything else comes
-    // from the Plasma colour scheme through Kirigami.Theme.
-    //
-    // It has to be repeated on a few other items rather than set once here:
-    // Kirigami resolves a theme by walking up the parent chain, and anything
-    // that sets Kirigami.Theme.inherit false - every ScrollablePage, every
-    // FormCard, everything reparented into the window overlay - starts a chain
-    // of its own. Each of those is marked with a pointer back to this comment.
+    // The one thing this application says about colour. It has to be repeated
+    // rather than set once here: Kirigami resolves a theme by walking up the
+    // parent chain, and anything that sets Kirigami.Theme.inherit false starts a
+    // chain of its own. Each of those points back to this comment.
     Kirigami.Theme.inherit: false
     Kirigami.Theme.highlightColor: Brand.accent
 
-    // Compact mode: the conversation list and the conversation, tightened, and
-    // no peer column. A mode the user picks from the drawer and keeps, as opposed
-    // to what the page row already does by itself when the window is dragged
-    // narrow.
-    //
-    // It is the same layout tree, not a second one. Kirigami.Settings.isMobile,
-    // PageRow.wideMode and ApplicationWindow.wideScreen are all read-only - they
-    // are conclusions Kirigami draws, not switches - so what this actually does is
-    // change the two things that are writable: the width the list column asks for,
-    // and the size of the window. PageRow's own folding then follows, which is the
-    // point of not hand-rolling it.
+    // A mode the user picks and keeps, as opposed to what the page row already
+    // does by itself when the window is dragged narrow. Same layout tree, but not
+    // the same layout - see ChatListPage, ContactDelegate and AccountRow, which
+    // each hold their own half of it.
     readonly property bool compact: appSettings.compactMode
 
-    // The size to go back to when compact mode is switched off. Captured on the
-    // way in rather than guessed, so a maximised window does not come back as
-    // whatever looked like a sensible default.
-    property int roomyWidth: 0
-    property int roomyHeight: 0
+    // Two of the compact width is still under the width at which PageRow folds to
+    // a single column, so the list and the conversation both stay on screen.
+    readonly property real kCompactColumnWidth: Kirigami.Units.gridUnit * 9
+    readonly property real kRoomyColumnWidth: Kirigami.Units.gridUnit * 17
+
+    readonly property int kCompactWidth: Kirigami.Units.gridUnit * 24
+    readonly property int kCompactHeight: Kirigami.Units.gridUnit * 30
 
     function toggleCompact() {
         if (!root.compact) {
-            root.roomyWidth = root.width
-            root.roomyHeight = root.height
+            // Persisted rather than kept in memory: leaving compact mode after a
+            // restart used to come back to whatever the default width was.
+            appSettings.roomyWidth = root.width
+            appSettings.roomyHeight = root.height
             appSettings.compactMode = true
-            // The peer column is the third one, and compact mode does not have a
-            // third one.
+            // Compact mode has no third column.
             while (root.pageStack.depth > 2)
                 root.pageStack.pop()
-            root.width = Kirigami.Units.gridUnit * 26
-            root.height = Kirigami.Units.gridUnit * 30
+            root.applyCompactSize()
             return
         }
         appSettings.compactMode = false
-        if (root.roomyWidth > 0)
-            root.width = root.roomyWidth
-        if (root.roomyHeight > 0)
-            root.height = root.roomyHeight
+        if (appSettings.roomyWidth > 0)
+            root.width = appSettings.roomyWidth
+        if (appSettings.roomyHeight > 0)
+            root.height = appSettings.roomyHeight
     }
 
-    // Empty means no conversation is open, which the chat page draws as a
-    // placeholder rather than an empty bubble list.
+    function applyCompactSize() {
+        root.width = root.kCompactWidth
+        root.height = root.kCompactHeight
+    }
+
     property string currentPeerIp: ""
     readonly property string kSelfChatId: "__self__"
     property bool micMuted: false
-    // Deafen silences what comes in as well as what goes out, so it implies
-    // mute. The engine is told about both separately - see
-    // VoiceCallManager::setDeafen - because un-deafening has to put the
-    // microphone back the way the user left it, not simply unmute it.
+    // Deafen implies mute, but the engine is told about both separately, because
+    // un-deafening has to put the microphone back the way the user left it.
     property bool deafened: false
 
     function toggleMic() {
@@ -105,21 +89,17 @@ Kirigami.ApplicationWindow {
         voiceCallManager.setDeafen(root.deafened)
     }
 
-    // Whether the open conversation is scrolled to its newest message. A read
-    // receipt is a claim that somebody read something, so it is only sent for a
-    // message that was actually on the screen.
+    // A read receipt is a claim that somebody read something, so it is only sent
+    // for a message that was actually on the screen.
     property bool chatAtBottom: true
 
-    // Who is typing, and until when. The peer sends a notice every few seconds
-    // while it writes and nothing at all when it stops, so the timer is what
-    // ends the state - waiting for a "stopped typing" that a lost datagram can
-    // swallow leaves the dots up forever.
+    // The peer sends nothing at all when it stops, so the timer is what ends the
+    // state: waiting for a "stopped typing" a lost datagram can swallow leaves the
+    // dots up forever.
     property string typingChatId: ""
 
     Timer {
         id: typingTimeout
-        // Comfortably longer than the composer's own notice interval, so a
-        // steady writer never flickers.
         interval: 6000
         onTriggered: root.typingChatId = ""
     }
@@ -134,10 +114,8 @@ Kirigami.ApplicationWindow {
             m.reactionStore = ReactionStore
             m.unreadManager = UnreadManager
             m.chatId = ip
-            // Every message that lands in any chat, in either direction, from one
-            // place. Wiring the conversation list at the four call sites that send
-            // and receive instead would leave it wrong the first time a fifth one
-            // was added.
+            // Every message in any chat, in either direction, from one place;
+            // wiring the four send and receive sites instead breaks at the fifth.
             m.messageAdded.connect(root.onChatActivity)
             chatModels[ip] = m
         }
@@ -148,15 +126,12 @@ Kirigami.ApplicationWindow {
         chatList.noteMessage(chatId, preview, isOwn, ts)
     }
 
-    // Everything the user has read in this chat is read, and the peer is told so.
-    // Called both when a chat is opened and when a message arrives in the one
-    // already open - the second of those is what was missing, and it is why an
-    // outgoing message kept its "sent, not confirmed" arrow forever while the
-    // peer sat reading it with the window open.
+    // Called when a chat is opened and when a message arrives in the one already
+    // open; the second was missing, which kept an outgoing message's "sent, not
+    // confirmed" arrow up while the peer sat reading it.
     function markChatRead(ip) {
         if (ip.length === 0 || ip === root.kSelfChatId)
             return
-        // Read here means read, so the popup about it has served its purpose.
         notificationManager.clearChat(ip)
         root.modelForPeer(ip).markAllRead()
         networkManager.sendReadReceipt(ip, "dm")
@@ -183,23 +158,18 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // Who is reachable right now, straight off the presence broadcasts. This is a
-    // scanner and is not what the sidebar draws - it is the source for
-    // reachability, for the profile page, and for the peer picker in New chat.
     ListModel { id: peersModel }
 
-    // What the sidebar draws: the conversations the user actually has. Survives
-    // restarts and peers going offline, neither of which peersModel does.
+    // What the sidebar draws: survives restarts and peers going offline, neither
+    // of which peersModel does.
     ChatListModel {
         id: chatList
         historyManager: HistoryManager
         unreadManager: UnreadManager
     }
 
-    // Describes the peer at the top of ChatPage: username, os, e2e,
-    // avatarLetter, isFavorites, online, lastSeen. peersModel.count is read only
-    // to register a dependency, so this re-evaluates as peers come and go. Same
-    // idea as above, on a ListModel instead of a Q_PROPERTY.
+    // peersModel.count is read only to register a dependency, so this
+    // re-evaluates as peers come and go.
     function peerInfoFor(ip) {
         /* eslint-disable no-unused-expressions */
         peersModel.count
@@ -226,26 +196,19 @@ Kirigami.ApplicationWindow {
                     e2e: p.e2e === true,
                     avatarLetter: (p.username || root.unknownPeerName).charAt(0).toUpperCase(),
                     isFavorites: false,
-                    // What the peer says about itself, as opposed to whether it
-                    // is reachable. Rides in the presence packet - see
-                    // NetworkManager::setStatus.
                     statusEmoji: p.status_emoji || "",
                     presence: p.presence || 0,
                     // Being in peersModel is what reachable means: userOffline
-                    // takes a peer out of it as soon as NetworkManager stops
-                    // hearing presence.
+                    // takes a peer out as soon as presence stops arriving.
                     online: true,
-                    // Stamped by handlePresence() on arrival, not sent by the
-                    // peer - see kFieldLastSeen in network/Protocol.h. While the
-                    // peer is up it is always seconds old, so it only says
-                    // anything once "online" above has gone false.
+                    // Stamped by handlePresence() on arrival, not sent by the peer,
+                    // so it only says anything once "online" above has gone false.
                     lastSeen: p.last_seen || 0
                 }
             }
         }
-        // Not on the network. The conversation list is what remembers a peer that
-        // is switched off, which is the only thing that can still say when it was
-        // last around.
+        // Not on the network: the conversation list is the only thing that still
+        // remembers when a peer that is switched off was last around.
         const known = chatList.chatInfo(ip)
         return {
             ip: ip,
@@ -254,9 +217,6 @@ Kirigami.ApplicationWindow {
             e2e: false,
             avatarLetter: (known.displayName || root.unknownPeerName).charAt(0).toUpperCase(),
             isFavorites: false,
-            // A peer that is switched off is not saying anything about itself,
-            // and the last thing it said is not worth showing as though it were
-            // current.
             statusEmoji: "",
             presence: 0,
             online: false,
@@ -264,16 +224,13 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // Call windows. The incoming one is declared below instead: answering a call
-    // is a question with two answers, which is a dialog rather than a window.
+    // The incoming call is declared below as a dialog instead: answering is a
+    // question with two answers.
     property var outgoingCallWindow: null
     property var activeCallWindow: null
 
-    // The friendly name if the peer publishes one, then the handle, and then
-    // nothing. It used to fall through to the bare address, which put an IP in
+    // Nothing rather than the bare address at the end, which used to put an IP in
     // the window title, in every notification and in the conversation list.
-    // Same order the conversation list files a chat under, so opening a chat and
-    // hearing presence from it do not disagree about what to call it.
     function peerDisplayName(ip) {
         for (let i = 0; i < peersModel.count; ++i) {
             const p = peersModel.get(i)
@@ -283,8 +240,6 @@ Kirigami.ApplicationWindow {
         return ""
     }
 
-    // What to actually draw for a peer that has published no name. The address
-    // is what this client routes on, but it is not what it should say out loud.
     readonly property string unknownPeerName: i18nc("@info a peer that has published no name of its own", "Unknown peer")
 
     function peerLabel(ip) {
@@ -327,15 +282,13 @@ Kirigami.ApplicationWindow {
         if (root.outgoingCallWindow) { root.outgoingCallWindow.close(); root.outgoingCallWindow = null }
     }
 
-    // Referenced by type rather than by resource path. The old
-    // Qt.createComponent("qrc:/koutnet/app/qml/call/...") had the module's
-    // internal resource layout written into three string literals.
+    // By type rather than by resource path: the old Qt.createComponent() calls had
+    // the module's internal resource layout in three string literals.
     Component { id: outgoingCallComponent; OutgoingCallWindow {} }
     Component { id: activeCallComponent; ActiveCallWindow {} }
 
-    // One card, moved to whatever was clicked, rather than one per row. It is
-    // reparented by openAt(), so it must not be declared inside anything that
-    // gets destroyed under it - a delegate, for instance.
+    // One card, moved to whatever was clicked. openAt() reparents it, so it must
+    // not be declared inside anything that gets destroyed under it - a delegate.
     PeerCard {
         id: peerCard
 
@@ -354,9 +307,6 @@ Kirigami.ApplicationWindow {
         peerCard.openAt(anchorItem, root.peerInfoFor(chatId))
     }
 
-    // Your own card, which is the peer card with your identity in it. Declared
-    // beside that one and for the same reason: openAt() reparents it, so it must
-    // not live inside anything that can be destroyed under it.
     AccountCard {
         id: accountCard
 
@@ -381,14 +331,11 @@ Kirigami.ApplicationWindow {
 
     onCurrentPeerIpChanged: {
         if (currentPeerIp.length > 0 && currentPeerIp !== kSelfChatId) {
-            // Opening a chat is starting one, as far as the list is concerned.
             chatList.openChat(currentPeerIp, root.peerDisplayName(currentPeerIp))
             root.markChatRead(currentPeerIp)
         }
     }
 
-    // Opens a conversation and makes sure it is the column being looked at, which
-    // on a narrow window means the list slides out of the way.
     function openChat(chatId) {
         root.currentPeerIp = chatId
         while (pageStack.layers.depth > 1)
@@ -396,9 +343,8 @@ Kirigami.ApplicationWindow {
         pageStack.currentIndex = 1
     }
 
-    // The peer column, which is the third one when it is there at all. Its
-    // contents are bound to currentPeerIp rather than passed in, so switching
-    // conversation with it open re-points it instead of leaving the last peer up.
+    // The peer column's contents are bound to currentPeerIp rather than passed in,
+    // so switching conversation with it open re-points it.
     readonly property bool peerInfoOpen: pageStack.depth > 2
 
     function togglePeerInfo() {
@@ -406,18 +352,16 @@ Kirigami.ApplicationWindow {
             pageStack.pop()
             return
         }
-        // Compact mode is two columns by definition. The actions that ask for
-        // this are hidden there, so this is the belt to that pair of braces -
-        // a keyboard shortcut or a peer card could still get here.
+        // The actions that ask for this are hidden in compact mode, but a keyboard
+        // shortcut or a peer card can still get here.
         if (root.compact)
             return
         pageStack.push(peerInfoComponent)
         pageStack.currentIndex = pageStack.depth - 1
     }
 
-    // Everything that used to open a modal "not wired up yet" sheet says it here
-    // instead. An InlineMessage in the window footer reports the same thing
-    // without taking the window away from whoever was using it.
+    // An InlineMessage in the footer rather than the modal sheet this used to be,
+    // which took the window away from whoever was using it.
     function notify(text, type) {
         notification.text = text
         notification.type = type
@@ -436,22 +380,14 @@ Kirigami.ApplicationWindow {
         pageStack.layers.push(page, properties)
     }
 
-    // The wallpaper, behind everything. Local decoration: it is never put on the
-    // wire, no peer is told it exists, and nothing outside this window reads the
-    // setting.
+    // Local decoration: never put on the wire, and nothing outside this window
+    // reads the setting.
     //
-    // It shows through the conversation column, whose background is bound to the
-    // same setting - see ChatPage. Every other surface stays opaque on purpose:
-    // a form card or a toolbar over a photograph is a legibility problem, and the
-    // conversation is both the largest surface and the one a wallpaper is for.
+    // Kirigami.Page draws an opaque background, so every page and layer covers
+    // this by itself - until one of them replaces that background with something
+    // of its own, which is what once put the picture behind the profile page.
     //
-    // Kirigami.Page already draws an opaque background, so that holds by itself
-    // for every page and every layer. It stops holding the moment one of them
-    // replaces the background with something of its own, which is what once put
-    // this picture behind the whole of the profile page.
-    //
-    // z is negative so this sits under the page row, which is the window's other
-    // child and has no z of its own.
+    // z is negative so this sits under the page row, which has no z of its own.
     Item {
         anchors.fill: parent
         z: -1
@@ -468,11 +404,9 @@ Kirigami.ApplicationWindow {
             sourceSize.height: parent.height
         }
 
-        // The scrim. Its strength is the complement of the opacity setting, so
-        // turning the wallpaper up turns the veil over it down - but it is floored
-        // rather than allowed to reach zero. At zero the text in the conversation
-        // sits directly on an arbitrary photograph, and no colour scheme can be
-        // legible against every one of those.
+        // The scrim is floored rather than allowed to reach zero: at zero the
+        // conversation's text sits on an arbitrary photograph, and no colour
+        // scheme is legible against every one of those.
         Rectangle {
             anchors.fill: parent
             color: Kirigami.Theme.backgroundColor
@@ -492,8 +426,7 @@ Kirigami.ApplicationWindow {
     globalDrawer: Kirigami.GlobalDrawer {
         title: i18nc("@title:window", "KOutNet")
         titleIcon: "io.github.bitzuka.KOutNet"
-        // A drawer that stays put would eat a third of a narrow window, and the
-        // two columns behind it are the content.
+        // A drawer that stays put would eat a third of a narrow window.
         modal: true
 
         actions: [
@@ -524,17 +457,13 @@ Kirigami.ApplicationWindow {
             },
             Kirigami.Action { separator: true },
             // Not checkable on purpose: triggering a checkable action writes its
-            // own checked property, which drops the binding to micMuted, and the
-            // footer button would stop agreeing with the drawer. The label carries
-            // the state instead.
+            // own checked property, which drops the binding to micMuted and lets
+            // the footer button stop agreeing with the drawer.
             Kirigami.Action {
                 text: root.micMuted
                     ? i18nc("@action:inmenu let your microphone be heard again", "Unmute microphone")
                     : i18nc("@action:inmenu silence your own microphone", "Mute microphone")
                 icon.name: (root.micMuted || root.deafened) ? "microphone-sensitivity-muted" : "audio-input-microphone"
-                // Deafened already holds the microphone down, so offering to
-                // unmute it while it cannot be heard either way would be a
-                // control that does nothing.
                 enabled: !root.deafened
                 onTriggered: root.toggleMic()
             },
@@ -552,10 +481,8 @@ Kirigami.ApplicationWindow {
                 onTriggered: root.endAllCalls()
             },
             Kirigami.Action { separator: true },
-            // The profile is the first section of the settings page rather than
-            // a page of its own - see SettingsPage - so this and the entry below
-            // it open the same layer. Both are kept: "My profile" is what
-            // somebody looking for their own name reaches for.
+            // The profile is the first section of the settings page, so this and
+            // the entry below it open the same layer on purpose.
             Kirigami.Action {
                 text: i18nc("@action:inmenu", "My profile")
                 icon.name: "user-identity"
@@ -572,9 +499,7 @@ Kirigami.ApplicationWindow {
                 icon.name: "help-about"
                 onTriggered: root.showLayer(aboutPageComponent)
             },
-            // Not checkable, for the same reason as the microphone entry above:
-            // triggering a checkable action writes its own checked property,
-            // which drops the binding to the setting. The label carries it.
+            // Not checkable, for the same reason as the microphone entry above.
             Kirigami.Action {
                 text: root.compact
                     ? i18nc("@action:inmenu go back to the full three-column layout", "Leave compact mode")
@@ -601,9 +526,6 @@ Kirigami.ApplicationWindow {
         ]
     }
 
-    // Status strip plus whatever the network last had to say. Two items in one
-    // footer because the window has one footer slot; the message hides itself
-    // when there is nothing to report, so the strip is normally all that shows.
     footer: ColumnLayout {
         spacing: 0
 
@@ -616,17 +538,9 @@ Kirigami.ApplicationWindow {
             type: Kirigami.MessageType.Information
         }
 
-        // A peer count is the first thing to go when the window is deliberately
-        // small: it is the least of what is on the screen and it costs a whole
-        // row.
-        //
-        // It also goes when there is nobody to count, which is the strip of
-        // empty grey that used to sit under every page in the application. A
-        // toolbar with an invisible label in it is not an empty toolbar: the
-        // desktop style gives its background an implicit height of forty pixels
-        // whatever is inside it, so hiding the only label left forty pixels of
-        // nothing being held at the bottom of the window. Hiding the bar itself
-        // takes the footer layout to zero, and a zero-height footer is no footer.
+        // The bar itself is hidden, not just its label: the desktop style gives a
+        // toolbar background an implicit forty pixels whatever is inside it, which
+        // is the strip of empty grey that used to sit under every page.
         QQC2.ToolBar {
             Layout.fillWidth: true
             visible: !root.compact && peersModel.count > 0
@@ -635,9 +549,8 @@ Kirigami.ApplicationWindow {
             contentItem: RowLayout {
                 spacing: Kirigami.Units.largeSpacing
 
-                // The empty case used to say it was searching, which is true of
-                // every second the application is running and so worth saying in
-                // none of them.
+                // The empty case used to say it was searching, which is true every
+                // second the application runs and so worth saying in none of them.
                 QQC2.Label {
                     Layout.fillWidth: true
                     elide: Text.ElideRight
@@ -647,10 +560,7 @@ Kirigami.ApplicationWindow {
                                  "%1 peer on the network", "%1 peers on the network", peersModel.count)
                 }
 
-                // No address here. This used to print the host's own IP in the
-                // corner of every screenshot, and the microphone button that
-                // sat beside it now lives next to the account row, which is
-                // where somebody reaches for it.
+                // No address: this used to print the host's own IP in every shot.
             }
         }
     }
@@ -667,14 +577,12 @@ Kirigami.ApplicationWindow {
         }
         function onUserOffline(ip) {
             root.removePeer(ip)
-            // The stamp is deliberately not touched here: the last presence that
-            // arrived is when the peer was last seen, and "now" would be a lie
-            // that grows into "last seen just now" for a peer that has gone.
+            // The stamp is deliberately not touched: the last presence that arrived
+            // is when the peer was last seen, and "now" grows into "just now".
             chatList.setPresence(ip, false, 0, "")
         }
-        // The peer is writing. from_ip is what files it under a conversation;
-        // the username in the packet is a string the peer chose for itself and
-        // two of them can say the same thing.
+        // Filed under from_ip, not the username in the packet: the peer chose that
+        // for itself and two of them can say the same thing.
         function onTyping(username, chatId, fromIp) {
             if (fromIp.length === 0)
                 return
@@ -684,28 +592,21 @@ Kirigami.ApplicationWindow {
         function onMessage(msg) {
             if (msg.type === "private") {
                 root.modelForPeer(msg.from_ip).receiveMessage(msg.text, msg.from_ip)
-                // Always told; the manager decides what that turns into. A
-                // popup when the window is behind something, a sound when it
-                // is in front, both when nobody is at the machine - whether
-                // the application is active is a question about the process
-                // rather than about this window, which is why it is asked
-                // there and not here.
+                // Always told; the manager decides what that turns into, because
+                // whether the application is active is a question about the
+                // process rather than about this window.
                 notificationManager.notifyMessage(msg.from_ip,
                                                   root.peerLabel(msg.from_ip),
                                                   msg.text)
-                // The message that was being typed has arrived.
                 if (root.typingChatId === msg.from_ip)
                     root.typingChatId = ""
-                // Reading it is what the peer is waiting to hear about - but
-                // only if it was really read. A message that landed below the
-                // fold of a conversation somebody scrolled up out of has not
-                // been, and the receipt for it would be this client's own lie.
+                // A message that landed below the fold of a conversation somebody
+                // scrolled up out of has not been read, whatever the receipt says.
                 if (msg.from_ip === root.currentPeerIp && root.chatAtBottom)
                     root.markChatRead(msg.from_ip)
             } else if (msg.type === "edit") {
-                // The peer changed something it had already sent. msg_ts is the
-                // stamp of the original, which is the only identifier the two
-                // ends share - see NetworkManager::sendMessageEdit.
+                // msg_ts is the stamp of the original, which is the only identifier
+                // the two ends share - see NetworkManager::sendMessageEdit.
                 const editModel = root.modelForPeer(msg.from_ip)
                 const editRow = editModel.rowForStamp(msg.msg_ts)
                 if (editRow >= 0)
@@ -716,9 +617,8 @@ Kirigami.ApplicationWindow {
                 if (delRow >= 0)
                     delModel.deleteMessage(delRow)
             } else if (msg.type === "read") {
-                // from_ip has been rewritten by dispatch() to the address this
-                // peer is filed under, which is the same string the chat is keyed
-                // on - see the note above the rewrite in NetworkManager.
+                // dispatch() has rewritten from_ip to the address this peer is
+                // filed under, which is the string the chat is keyed on.
                 root.modelForPeer(msg.from_ip).markOwnMessagesRead()
             }
         }
@@ -744,28 +644,24 @@ Kirigami.ApplicationWindow {
             notificationManager.clearCall(ip)
             if (root.outgoingCallWindow) { root.outgoingCallWindow.close(); root.outgoingCallWindow = null }
             if (root.activeCallWindow) { root.activeCallWindow.close(); root.activeCallWindow = null }
-            // The caller giving up has to take the question away as well. The old
-            // dialog had a callRejected() for this that nothing ever called, so an
-            // abandoned call left the prompt sitting there.
+            // The old dialog had a callRejected() nothing ever called, so a caller
+            // giving up left the prompt sitting there.
             incomingCall.callRejected()
             voiceCallManager.hangup(ip)
         }
-        // These used to go nowhere, so a bind failure or a dropped tunnel
-        // looked exactly like an idle network.
+        // These used to go nowhere, so a bind failure looked like an idle network.
         function onErrorOccurred(message) {
             root.reportError(message)
         }
     }
 
-    // The notification is the only part of this application that can be clicked
-    // while the window is behind something else, so everything it offers has to
-    // bring the window back first.
+    // A notification is the only thing here that can be clicked while the window
+    // is behind something else, so everything it offers raises the window first.
     Connections {
         target: notificationManager
 
-        // The activation token the compositor wants is dealt with on the C++
-        // side before these arrive - see NotificationManager::adoptActivationToken
-        // - so requestActivate() here is allowed to do something.
+        // The compositor's activation token is adopted on the C++ side before these
+        // arrive, so requestActivate() is allowed to do something.
         function onChatRequested(chatId) {
             root.show()
             root.raise()
@@ -816,48 +712,32 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // The two places that guess at a file being a picture used to carry the same
-    // six extensions each. They still guess, but only once.
     function looksLikeImage(path) {
         return /\.(png|jpg|jpeg|gif|bmp|webp)$/i.test(path)
     }
 
-    // Two columns, always both present. defaultColumnWidth is what every column
-    // gets unless it says otherwise, and "otherwise" is
-    // Kirigami.ColumnView.fillWidth on the conversation - set on ChatPage below.
-    // Being last is not enough on its own, which is what left the conversation
-    // seventeen grid units wide with the rest of a full-screen window empty
-    // beside it. PageRow folds to one column by itself once the window is
-    // narrower than two of them.
+    // defaultColumnWidth is what every column gets unless it says otherwise, and
+    // "otherwise" is Kirigami.ColumnView.fillWidth on the conversation below.
+    // Being last is not enough on its own, which left the conversation seventeen
+    // grid units wide with the rest of a full-screen window empty beside it.
     //
-    // Handed the two page objects rather than two Components on purpose.
-    // PageRow.initPage() instantiates a Component with
-    // pageComp.createObject(pagesLogic, ...), and pagesLogic is a QtObject - so
-    // the page is briefly a graphical item whose parent is not in the scene, and
-    // QQmlComponent says so:
-    //   Main.qml:...: QML ChatListPage: Created graphical object was not placed
-    //   in the graphics scene.
-    // It is adopted a line later by columnView.insertItem() and works fine, but
-    // the warning is real and printed at every start. Given an Item instead,
-    // getPageComponent() returns nothing, the createObject call never happens,
-    // and the same insertItem picks the page up from the window's contentData.
+    // Handed the two page objects rather than two Components on purpose:
+    // PageRow.initPage() instantiates a Component under pagesLogic, a QtObject, so
+    // the page is briefly a graphical item outside the scene and QQmlComponent
+    // warns about it at every start. Given an Item, getPageComponent() returns
+    // nothing, and insertItem picks the page up from the window's contentData.
     pageStack.initialPage: [chatListPage, chatPage]
-    // The one number compact mode actually changes. Narrower than two of these
-    // and PageRow folds to a single column on its own, which is why the compact
-    // window size above is set relative to this rather than to nothing.
-    pageStack.defaultColumnWidth: root.compact ? Kirigami.Units.gridUnit * 11
-                                               : Kirigami.Units.gridUnit * 17
+    pageStack.defaultColumnWidth: root.compact ? root.kCompactColumnWidth
+                                               : root.kRoomyColumnWidth
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.ToolBar
     pageStack.globalToolBar.showNavigationButtons: Kirigami.ApplicationHeaderStyle.ShowBackButton
 
-    // The tray, when there is one. trayIcon is null if the setting was off at
-    // start - see the note in main.cpp about why it is not built later - so
-    // everything that touches it is guarded.
+    // trayIcon is null if the setting was off at start - see main.cpp on why it is
+    // not built later - so everything that touches it is guarded.
     readonly property bool hasTray: typeof trayIcon !== "undefined" && trayIcon !== null
 
-    // Bindings into the item rather than a Connections block: these are all
-    // "what the window already knows, drawn on the icon", and a signal handler
-    // per property would be four places for them to fall out of step.
+    // Bindings rather than a Connections block: a signal handler per property
+    // would be four places for these to fall out of step.
     Binding {
         target: root.hasTray ? trayIcon : null
         property: "unreadCount"
@@ -915,9 +795,8 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // Close means "put it away" while there is a tray to put it into, and means
-    // close otherwise. main.cpp turns off quitOnLastWindowClosed, so the second
-    // branch has to say Qt.quit() out loud - see the note there.
+    // main.cpp turns off quitOnLastWindowClosed, so the branch that really closes
+    // has to say Qt.quit() out loud - see the note there.
     onClosing: (close) => {
         if (root.hasTray && appSettings.minimizeToTray) {
             close.accepted = false
@@ -931,6 +810,10 @@ Kirigami.ApplicationWindow {
     Component.onCompleted: {
         if (root.hasTray)
             trayIcon.attachWindow(root)
+        // The setting survives a restart on its own, the size does not, so the
+        // application used to reopen as a compact layout in a full-width window.
+        if (root.compact)
+            root.applyCompactSize()
         if (appSettings.showWelcome)
             pageStack.layers.push(welcomeComponent)
     }
@@ -958,9 +841,8 @@ Kirigami.ApplicationWindow {
             if (root.currentPeerIp === chatId)
                 root.currentPeerIp = ""
         }
-        // The rail picks a mode; applying it is the same two calls the
-        // settings page makes, because switching mode raises or drops the
-        // relay tunnel and half of that is not a state to be in.
+        // The same two calls the settings page makes, because switching mode
+        // raises or drops the relay tunnel and half of that is not a state to be in.
         onConnectionModeRequested: (mode) => {
             if (!networkManager.modeAvailable(mode))
                 return
@@ -975,9 +857,7 @@ Kirigami.ApplicationWindow {
 
         readonly property bool isSelfChat: peerIp === root.kSelfChatId
 
-        // The column that grows. Without this the conversation is handed
-        // defaultColumnWidth like the list beside it - see the note above
-        // pageStack.initialPage.
+        // Without this the conversation is handed defaultColumnWidth like the list.
         Kirigami.ColumnView.fillWidth: true
 
         compact: root.compact
@@ -985,8 +865,6 @@ Kirigami.ApplicationWindow {
         peerInfo: root.currentPeerIp.length > 0 ? root.peerInfoFor(root.currentPeerIp) : null
         messagesModel: root.currentPeerIp.length > 0 ? root.modelForPeer(root.currentPeerIp) : null
         peerTyping: root.typingChatId.length > 0 && root.typingChatId === root.currentPeerIp
-        // What the timeline highlights as a mention of the reader, and what it
-        // signs the reader's own messages with.
         selfDisplayName: appSettings.displayName || appSettings.username
         selfAvatarSource: appSettings.avatarPath
 
@@ -997,13 +875,11 @@ Kirigami.ApplicationWindow {
             if (!isSelfChat)
                 root.startOutgoingCall(peerIp)
         }
-        // The row goes in first and the datagram second, which is the order
-        // the hourglass needs: appending after the write would leave nothing
-        // on screen to be in flight. markSent() is what turns it into a tick.
+        // The row goes in first and the datagram second, or there is nothing on
+        // screen for the hourglass to sit on; markSent() turns it into a tick.
         onSendRequested: function(text, replyExcerpt, replyAuthor, replyId) {
-            // The quote is stored with the message but not put on the wire:
-            // the protocol has no reply field, so sending one would only
-            // teach the peer to ignore it.
+            // The quote is stored with the message but not put on the wire: the
+            // protocol has no reply field.
             const stamp = messagesModel.sendMessage(text, replyExcerpt, replyAuthor, replyId)
             if (stamp === 0)
                 return
@@ -1030,10 +906,8 @@ Kirigami.ApplicationWindow {
         onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
         onForwardRequested: root.notify(i18nc("@info", "Forwarding messages is not implemented yet."),
                                        Kirigami.MessageType.Information)
-        // The page has already changed its own copy by the time these arrive -
-        // it is the one holding the model. What is left is telling the peer,
-        // which needs the address, and only the window has that. The stamp is
-        // the identifier both ends agree on; see NetworkManager::sendMessageEdit.
+        // The page has already changed its own copy by the time these arrive; what
+        // is left is telling the peer, which needs the address only the window has.
         onEditCommitted: (stamp, newText) => {
             if (!isSelfChat)
                 networkManager.sendMessageEdit(peerIp, peerIp, stamp, newText)
@@ -1080,9 +954,8 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // The welcome screen is a layer rather than an item pinned over the window
-    // overlay. The old arrangement needed a negative z to stay out of the way of
-    // every popup in the application, and got it wrong twice.
+    // A layer rather than an item pinned over the window overlay: that needed a
+    // negative z to stay out of the way of every popup, and got it wrong twice.
     Component {
         id: welcomeComponent
 
