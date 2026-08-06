@@ -125,6 +125,15 @@ Item {
     implicitHeight: layout.implicitHeight
     height: implicitHeight
 
+    // The view reassigns every required property on reuse, so anything bound to a
+    // role puts itself right. These two were set by hand and would arrive on the
+    // next message still holding the last one's answer - a revealed spoiler and a
+    // hover strip stuck open.
+    ListView.onReused: {
+        root.spoilerRevealed = false
+        hoverActions.stripHovered = false
+    }
+
     ColumnLayout {
         id: layout
 

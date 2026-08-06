@@ -181,9 +181,19 @@ Item {
         spacing: 0
         topMargin: Kirigami.Units.smallSpacing
         bottomMargin: Kirigami.Units.smallSpacing
-        // Delegates carry a hover strip and per-row state; recycling them makes
-        // that state land on the wrong message.
-        reuseItems: false
+        // On, and it is the fix for the stall rather than a saving. A destroyed
+        // delegate is rebuilt from nothing, and it enters the view short - the
+        // Loaders are inactive and an Image has no sourceSize yet - then grows once
+        // it has measured itself. Every one of those rebuilds moves the average row
+        // height QQuickListView extrapolates the rows it has never built from, and
+        // the whole coordinate system slides with it: measured at 1200px of drift in
+        // originY + contentHeight over one scroll up and back, against 3px with
+        // reuse on. Sliding away from the reader is what the stall was - scrolling
+        // down moved the newest message down by nearly as much as it moved the view.
+        // Recycled delegates keep the heights they already resolved, so the estimate
+        // holds still. See onReused in MessageDelegate for the state that has to be
+        // put back by hand.
+        reuseItems: true
 
         QQC2.ScrollBar.vertical: QQC2.ScrollBar {
             id: verticalScrollBar
