@@ -19,6 +19,9 @@ FormCard.FormCardPage {
     id: root
 
     signal saved()
+    // Pushed by the window rather than from here: layers are one deep by
+    // design, and a page that pushes over itself is the exception that broke it.
+    signal matrixAccountRequested()
 
     title: i18nc("@title:window", "Settings")
 
@@ -274,6 +277,19 @@ FormCard.FormCardPage {
                 : i18nc("@info:status this identity has no K-Server account", "Not registered")
             checked: appSettings.globalAccount
             onToggled: if (globalRadio.checked) appSettings.globalAccount = true
+        }
+
+        FormCard.FormDelegateSeparator { above: globalRadio; below: matrixButton }
+
+        // The sign-in is a page of its own rather than three fields here: it has
+        // a session state to report and a sign-out, neither of which belongs
+        // between two radio buttons.
+        FormCard.FormButtonDelegate {
+            id: matrixButton
+            icon.name: "network-server"
+            text: i18nc("@action:button", "K-Server account...")
+            description: matrixManager.statusText
+            onClicked: root.matrixAccountRequested()
         }
     }
 

@@ -189,9 +189,12 @@ bool NetworkManager::modeAvailable(int mode) const
     case ConnectionMode::Relay:
         return true;
     case ConnectionMode::KServer:
-        // No K-Server exists in any form yet, at any address - which is why the three
-        // modes that differed only by address merged without losing a capability.
-        return false;
+        // K-Server means Matrix. Its transport is libQuotient's and lives in
+        // matrix/, so this class still has nothing behind the mode - but the
+        // mode itself now leads somewhere. The build refuses to configure
+        // without libQuotient, so there is no variant of it that says yes here
+        // and then finds nothing to talk to.
+        return true;
     }
     return false;
 }

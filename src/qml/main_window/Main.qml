@@ -85,6 +85,14 @@ Kirigami.ApplicationWindow {
     // un-deafening has to put the microphone back the way the user left it.
     property bool deafened: false
 
+    // The only thing in the interface that knows there is more than one
+    // transport. Everything downstream of it - the models, the timeline, the
+    // conversation list, the history on disk - is handed the same chat id
+    // whichever side it came from. core/chat/ChatAddress.h owns the prefix.
+    function isMatrixChat(chatId) {
+        return chatId.startsWith("mx:")
+    }
+
     function toggleMic() {
         root.micMuted = !root.micMuted
         voiceCallManager.setMute(root.micMuted)
@@ -140,6 +148,12 @@ Kirigami.ApplicationWindow {
             return
         notificationManager.clearChat(ip)
         root.modelForPeer(ip).markAllRead()
+        if (root.isMatrixChat(ip)) {
+            // The receipt goes to the homeserver, not into a datagram addressed
+            // to a string that is not an address.
+            matrixRooms.markRead(ip)
+            return
+        }
         networkManager.sendReadReceipt(ip, "dm")
     }
 
@@ -172,6 +186,52 @@ Kirigami.ApplicationWindow {
         id: chatList
         historyManager: HistoryManager
         unreadManager: UnreadManager
+    }
+
+    // The Matrix side reaches the same two models as everything else, through
+    // the same two calls a LAN peer's traffic makes. MatrixRoomBridge holds all
+    // the libQuotient there is; nothing below this block knows the difference.
+    Connections {
+        target: matrixRooms
+
+        function onRoomListed(chatId, displayName) {
+            // openChat() is idempotent and never reorders, so a sync that lists
+            // forty rooms does not shuffle the conversation the user is reading.
+            chatList.openChat(chatId, displayName)
+        }
+        function onRoomMessage(chatId, eventId, text, sender, isOwn, ts, isSystem) {
+            const model = root.modelForPeer(chatId)
+            // False means the model already had this event id, which is the
+            // normal case for the backlog replayed after every reconnect. The
+            // conversation list is fed by messageAdded from inside the model, so
+            // there is nothing to do on either branch here.
+            if (!model.ingestRemoteMessage(eventId, text, sender, isOwn, ts, isSystem))
+                return
+            if (isSystem || isOwn)
+                return
+            notificationManager.notifyMessage(chatId, root.peerLabel(chatId), text)
+            if (chatId === root.currentPeerIp && root.chatAtBottom)
+                root.markChatRead(chatId)
+        }
+        function onRoomLeft(chatId) {
+            // The row stays: a room that was left still has a log, exactly as a
+            // peer that was switched off does.
+            root.modelForPeer(chatId).appendSystemMessage(
+                i18nc("@info in-timeline notice", "You are no longer in this room."))
+        }
+        function onSendFailed(chatId, reason) {
+            root.reportError(reason)
+        }
+    }
+
+    Connections {
+        target: matrixManager
+
+        function onSessionNotPersisted(reason) {
+            root.notify(i18nc("@info:status %1 is the reason the wallet gave",
+                              "Signed in, but the session could not be saved: %1", reason),
+                        Kirigami.MessageType.Warning)
+        }
     }
 
     // peersModel.count is read only to register a dependency, so this
@@ -249,11 +309,23 @@ Kirigami.ApplicationWindow {
     readonly property string unknownPeerName: i18nc("@info a peer that has published no name of its own", "Unknown peer")
 
     function peerLabel(ip) {
-        return root.peerDisplayName(ip) || root.unknownPeerName
+        const named = root.peerDisplayName(ip)
+        if (named.length > 0)
+            return named
+        // The conversation list remembers a name for a peer that is switched
+        // off, and it is the only place a Matrix room's name lives at all.
+        const known = chatList.chatInfo(ip)
+        return known.displayName || root.unknownPeerName
     }
 
     function startOutgoingCall(ip) {
         if (root.outgoingCallWindow) return
+        if (root.isMatrixChat(ip)) {
+            // Voice is the LAN protocol's own, peer to peer over TCP. There is
+            // no Matrix call here and pretending otherwise would ring nothing.
+            root.reportError(i18nc("@info:status", "Calls are not available in Matrix rooms."))
+            return
+        }
         networkManager.sendCallRequest(ip)
         const win = outgoingCallComponent.createObject(
             root, { peerName: root.peerLabel(ip), peerIp: ip })
@@ -677,6 +749,10 @@ Kirigami.ApplicationWindow {
         function onReplyRequested(chatId, text) {
             if (text.trim().length === 0)
                 return
+            if (root.isMatrixChat(chatId)) {
+                matrixRooms.sendText(chatId, text)
+                return
+            }
             const replyModel = root.modelForPeer(chatId)
             const replyStamp = replyModel.sendMessage(text)
             networkManager.sendPrivate(text, chatId)
@@ -883,6 +959,16 @@ Kirigami.ApplicationWindow {
         // The row goes in first and the datagram second, or there is nothing on
         // screen for the hourglass to sit on; markSent() turns it into a tick.
         onSendRequested: function(text, replyExcerpt, replyAuthor, replyId) {
+            if (root.isMatrixChat(peerIp)) {
+                // No local row first, unlike the LAN path below. The homeserver
+                // echoes the message back through sync carrying the event id the
+                // whole room sees, and that id is what the timeline is keyed on;
+                // a row invented here would have to be reconciled with it, and
+                // the reconciliation is what duplicates messages in every client
+                // that has tried it. sendFailed() reports whatever went wrong.
+                matrixRooms.sendText(peerIp, text)
+                return
+            }
             // The quote is stored with the message but not put on the wire: the
             // protocol has no reply field.
             const stamp = messagesModel.sendMessage(text, replyExcerpt, replyAuthor, replyId)
@@ -893,13 +979,17 @@ Kirigami.ApplicationWindow {
             messagesModel.markSent(stamp)
         }
         onAttachRequested: function(localFilePath) {
+            if (root.isMatrixChat(peerIp)) {
+                root.reportError(i18nc("@info:status", "Sending files to Matrix rooms is not supported yet."))
+                return
+            }
             const stamp = messagesModel.sendFile(localFilePath, root.looksLikeImage(localFilePath))
             if (!isSelfChat)
                 networkManager.sendFile(peerIp, localFilePath)
             messagesModel.markSent(stamp)
         }
         onTypingNotice: {
-            if (!isSelfChat)
+            if (!isSelfChat && !root.isMatrixChat(peerIp))
                 networkManager.sendTyping(peerIp, peerIp)
         }
         onReadReached: root.markChatRead(peerIp)
@@ -938,8 +1028,11 @@ Kirigami.ApplicationWindow {
 
         SettingsPage {
             onSaved: root.notify(i18nc("@info:status", "Settings saved"), Kirigami.MessageType.Positive)
+            onMatrixAccountRequested: root.pageStack.layers.push(matrixLoginComponent)
         }
     }
+
+    Component { id: matrixLoginComponent; MatrixLoginPage {} }
 
     Component { id: aboutPageComponent; AboutPage {} }
     Component { id: notesPageComponent; NotesPage {} }

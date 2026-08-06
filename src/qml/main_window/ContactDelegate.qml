@@ -29,6 +29,11 @@ Delegates.RoundedItemDelegate {
     property string iconName: ""
     property bool showPresence: true
 
+    // "lan", "matrix" or "reserved", straight off ChatListModel's transport
+    // role. The only thing this row is told about where the conversation lives,
+    // and it spends all of it on the small mark over the avatar.
+    property string transport: "lan"
+
     // In compact mode the preview and the stamp go, which is what takes the row
     // from two lines to one, and the avatar comes down a size.
     property bool compact: false
@@ -105,6 +110,26 @@ Delegates.RoundedItemDelegate {
                 color: root.online ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.disabledTextColor
                 border.color: Kirigami.Theme.backgroundColor
                 border.width: 1
+            }
+
+            // A conversation that is not on this network says so, because
+            // everything else about the row - the name, the preview, the unread
+            // count - is deliberately identical to a LAN peer's. Top corner
+            // rather than bottom: the presence dot owns the bottom one, and a
+            // Matrix room has no presence to show there.
+            Kirigami.Icon {
+                width: Math.round(Kirigami.Units.iconSizes.small * 0.7)
+                height: width
+                anchors.right: parent.right
+                anchors.top: parent.top
+                visible: root.transport === "matrix"
+                source: "network-server"
+                color: Kirigami.Theme.highlightColor
+
+                QQC2.ToolTip.visible: hoverHandler.hovered
+                QQC2.ToolTip.text: i18nc("@info:tooltip conversation list badge", "Matrix room on a K-Server")
+
+                HoverHandler { id: hoverHandler }
             }
         }
 

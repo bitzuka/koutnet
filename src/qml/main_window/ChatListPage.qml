@@ -260,6 +260,11 @@ Kirigami.Page {
                             lastSeenSecs: model.lastSeenSecs
                             unreadCount: model.unreadCount
                             online: model.online
+                            transport: model.transport
+                            // A Matrix room has no presence to report, and a
+                            // permanently grey dot reads as a peer that is
+                            // switched off rather than as one that is not asked.
+                            showPresence: model.transport !== "matrix"
                             selected: model.chatId === root.selectedChatId
 
                             function openRowMenu() {
