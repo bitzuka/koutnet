@@ -37,6 +37,11 @@ Item {
     required property bool isFile
     required property string filePath
     required property bool isImage
+    required property string mediaKind
+    required property string mediaUrl
+    required property int mediaWidth
+    required property int mediaHeight
+    required property int mediaDuration
     required property bool showAuthor
     required property bool showDay
 
@@ -46,6 +51,9 @@ Item {
     property string peerName: ""
     property string selfDisplayName: ""
     property string selfAvatarSource: ""
+    // False in a Matrix room: an edit that never reaches the homeserver is a
+    // private disagreement with what everybody else can still read.
+    property bool canEditMessages: true
     // Per-message: revealing one spoiler should not reveal the whole backlog.
     property bool spoilerRevealed: false
     property bool flashing: false
@@ -58,8 +66,9 @@ Item {
     signal menuRequested(int row, string author, string body, string msgId)
     signal reactionToggled(int row, string emoji)
     signal jumpRequested(string msgId)
-    signal imageActivated(string path)
-    signal fileActivated(string path)
+    // A URL rather than a path: the attachment may never have been on this disk.
+    signal imageActivated(string source)
+    signal fileActivated(string source)
     signal avatarClicked(bool own, Item anchorItem)
 
     // Your own name and not the word "You", because this is also what a reply
@@ -318,12 +327,17 @@ Item {
 
                         sourceComponent: AttachmentBlock {
                             filePath: root.filePath
+                            mediaUrl: root.mediaUrl
+                            mediaKind: root.mediaKind
+                            mediaWidth: root.mediaWidth
+                            mediaHeight: root.mediaHeight
+                            mediaDurationMs: root.mediaDuration
                             fileName: root.text
                             isImage: root.isImage
                             maxImageWidth: Math.min(Kirigami.Units.gridUnit * 18,
                                                     root.contentWidth - root.gutterWidth - Kirigami.Units.largeSpacing * 2)
-                            onImageActivated: (path) => root.imageActivated(path)
-                            onFileActivated: (path) => root.fileActivated(path)
+                            onImageActivated: (source) => root.imageActivated(source)
+                            onFileActivated: (source) => root.fileActivated(source)
                         }
                     }
 
@@ -415,7 +429,7 @@ Item {
 
                 sourceComponent: MessageActions {
                     hoverEnabled: true
-                    canEdit: root.isOwn && !root.isFile
+                    canEdit: root.canEditMessages && root.isOwn && !root.isFile
 
                     onHoveredChanged: hoverActions.stripHovered = hovered
                     // Or a strip unloaded while the pointer was still on it

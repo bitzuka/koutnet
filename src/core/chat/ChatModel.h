@@ -6,6 +6,7 @@
 #include <QPointer>
 #include <QQmlEngine>
 #include <QString>
+#include <QVariantMap>
 #include <QVector>
 
 #include "MessageEntry.h"
@@ -47,6 +48,16 @@ public:
         IsFileRole,
         FilePathRole,
         IsImageRole,
+        // An attachment that is still on a server. Kept apart from
+        // FilePathRole because that one is a path and this one is a URL, and
+        // the delegate has to know which of the two it was handed.
+        MediaKindRole,
+        MediaUrlRole,
+        MediaMimeRole,
+        MediaSizeRole,
+        MediaWidthRole,
+        MediaHeightRole,
+        MediaDurationRole,
         StampSecsRole,
         // Worked out here because it is a statement about the row before this
         // one, and a delegate cannot see its neighbour without reaching back
@@ -96,6 +107,17 @@ public:
     // false when the message was already here.
     Q_INVOKABLE bool
     ingestRemoteMessage(const QString &remoteId, const QString &text, const QString &sender, bool isOwn, double ts, bool isSystem = false);
+
+    // The same contract for an attachment. media carries the keys
+    // MatrixRoomBridge::roomAttachment() fills: kind, url, name, mime, size,
+    // width, height, duration.
+    Q_INVOKABLE bool
+    ingestRemoteAttachment(const QString &remoteId, const QVariantMap &media, const QString &sender, bool isOwn, double ts);
+
+    // An m.replace that arrived for a message already here. False when the
+    // original is not in this conversation, which is the normal case for an
+    // edit of something older than the loaded backlog.
+    Q_INVOKABLE bool applyRemoteEdit(const QString &remoteId, const QString &newText);
 
     // Editing and unsending are local only: the caller tells the peer, because
     // only the window knows this chat's address and a model reaching for

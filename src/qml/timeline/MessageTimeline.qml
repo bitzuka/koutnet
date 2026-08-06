@@ -27,6 +27,7 @@ Item {
     property string peerName: ""
     property string selfDisplayName: ""
     property string selfAvatarSource: ""
+    property bool canEditMessages: true
 
     // Rows crossing this boundary go through toSourceRow()/fromSourceRow(); every
     // signal this item raises carries a ChatModel row, so nothing above it has to
@@ -78,8 +79,9 @@ Item {
     signal reactRequested(int row)
     signal menuRequested(int row, string author, string body, string msgId)
     signal reactionToggled(int row, string emoji)
-    signal imageActivated(string path)
-    signal fileActivated(string path)
+    // A URL rather than a path: the attachment may never have been on this disk.
+    signal imageActivated(string source)
+    signal fileActivated(string source)
     signal readReached()
     // the anchor item belongs to a delegate, so nothing may hold on to it.
     signal avatarActivated(bool own, Item anchorItem)
@@ -251,6 +253,7 @@ Item {
             peerName: root.peerName
             selfDisplayName: root.selfDisplayName
             selfAvatarSource: root.selfAvatarSource
+            canEditMessages: root.canEditMessages
             flashing: flashTarget.msgId.length > 0 && flashTarget.msgId === messageRow.msgId
 
             onReplyRequested: (row, author, excerpt, msgId) =>
@@ -261,8 +264,8 @@ Item {
                 root.menuRequested(reversed.toSourceRow(row), author, body, msgId)
             onReactionToggled: (row, emoji) => root.reactionToggled(reversed.toSourceRow(row), emoji)
             onJumpRequested: (msgId) => root.jumpToMessage(msgId)
-            onImageActivated: (path) => root.imageActivated(path)
-            onFileActivated: (path) => root.fileActivated(path)
+            onImageActivated: (source) => root.imageActivated(source)
+            onFileActivated: (source) => root.fileActivated(source)
             onAvatarClicked: (own, anchorItem) => root.avatarActivated(own, anchorItem)
         }
     }

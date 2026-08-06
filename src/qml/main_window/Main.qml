@@ -93,6 +93,25 @@ Kirigami.ApplicationWindow {
         return chatId.startsWith("mx:")
     }
 
+    // What the open conversation is, when it is a room: MatrixRoomBridge's map,
+    // or null for a LAN chat. Pulled rather than pushed - see the note at the
+    // top of MatrixRoomBridge.h - so it has to be refreshed by hand whenever the
+    // conversation changes or the room does.
+    property var currentRoomInfo: null
+    readonly property bool currentIsRoom: root.currentRoomInfo !== null
+
+    function refreshRoomInfo() {
+        if (!root.isMatrixChat(root.currentPeerIp)) {
+            root.currentRoomInfo = null
+            return
+        }
+        const info = matrixRooms.roomInfo(root.currentPeerIp)
+        // An empty map means the session has not synced this room yet. Kept as
+        // a room all the same: the header must not fall back to peer furniture
+        // for the second between opening the row and the state arriving.
+        root.currentRoomInfo = info && info.roomId ? info : {}
+    }
+
     function toggleMic() {
         root.micMuted = !root.micMuted
         voiceCallManager.setMute(root.micMuted)
@@ -212,6 +231,25 @@ Kirigami.ApplicationWindow {
             notificationManager.notifyMessage(chatId, root.peerLabel(chatId), text)
             if (chatId === root.currentPeerIp && root.chatAtBottom)
                 root.markChatRead(chatId)
+        }
+        function onRoomAttachment(chatId, eventId, media, sender, isOwn, ts) {
+            const model = root.modelForPeer(chatId)
+            if (!model.ingestRemoteAttachment(eventId, media, sender, isOwn, ts))
+                return
+            if (isOwn)
+                return
+            notificationManager.notifyMessage(chatId, root.peerLabel(chatId), media.name || "")
+            if (chatId === root.currentPeerIp && root.chatAtBottom)
+                root.markChatRead(chatId)
+        }
+        // Never a new row: the corrected text replaces what is already on the
+        // screen, and false means the original is older than the loaded backlog.
+        function onRoomMessageEdited(chatId, eventId, newText) {
+            root.modelForPeer(chatId).applyRemoteEdit(eventId, newText)
+        }
+        function onRoomInfoChanged(chatId) {
+            if (chatId === root.currentPeerIp)
+                root.refreshRoomInfo()
         }
         function onRoomLeft(chatId) {
             // The row stays: a room that was left still has a log, exactly as a
@@ -385,10 +423,36 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // A room member is not a peer, so clicking one does not open the peer card.
+    // The two cards are the same shape on purpose and hold different things,
+    // because the questions they answer are different ones.
+    RoomMemberCard {
+        id: roomMemberCard
+
+        onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
+    }
+
     function showPeerCard(chatId, anchorItem) {
         if (chatId.length === 0 || chatId === root.kSelfChatId)
             return
+        if (root.isMatrixChat(chatId)) {
+            // The row in the conversation list is the room, not a person; the
+            // room's own column is what has anybody in it.
+            root.openChat(chatId)
+            if (!root.peerInfoOpen)
+                root.togglePeerInfo()
+            return
+        }
         peerCard.openAt(anchorItem, root.peerInfoFor(chatId))
+    }
+
+    function showRoomMemberCard(userId, anchorItem) {
+        if (userId.length === 0 || !root.isMatrixChat(root.currentPeerIp))
+            return
+        const info = matrixRooms.memberInfo(root.currentPeerIp, userId)
+        if (!info || !info.userId)
+            return
+        roomMemberCard.openAt(anchorItem, info)
     }
 
     AccountCard {
@@ -418,6 +482,14 @@ Kirigami.ApplicationWindow {
             chatList.openChat(currentPeerIp, root.peerDisplayName(currentPeerIp))
             root.markChatRead(currentPeerIp)
         }
+        root.refreshRoomInfo()
+        // The third column is a different page for a room than for a peer, and
+        // it is bound to the conversation rather than pushed with one, so
+        // moving between the two kinds has to replace it rather than re-point it.
+        if (root.peerInfoOpen) {
+            pageStack.pop()
+            root.togglePeerInfo()
+        }
     }
 
     function openChat(chatId) {
@@ -440,7 +512,7 @@ Kirigami.ApplicationWindow {
         // shortcut or a peer card can still get here.
         if (root.compact)
             return
-        pageStack.push(peerInfoComponent)
+        pageStack.push(root.currentIsRoom ? roomInfoComponent : peerInfoComponent)
         pageStack.currentIndex = pageStack.depth - 1
     }
 
@@ -923,6 +995,7 @@ Kirigami.ApplicationWindow {
         onNewChatRequested: root.showLayer(newChatPageComponent)
         onProfileRequested: (anchorItem) => root.showAccountCard(anchorItem)
         onSettingsRequested: root.showLayer(settingsPageComponent)
+        onLeaveRoomRequested: (chatId) => matrixRooms.leaveRoom(chatId)
         onForgetRequested: (chatId) => {
             chatList.removeChat(chatId)
             if (root.currentPeerIp === chatId)
@@ -948,6 +1021,8 @@ Kirigami.ApplicationWindow {
         Kirigami.ColumnView.fillWidth: true
 
         compact: root.compact
+        isRoom: root.currentIsRoom
+        roomInfo: root.currentRoomInfo
         peerIp: root.currentPeerIp
         peerInfo: root.currentPeerIp.length > 0 ? root.peerInfoFor(root.currentPeerIp) : null
         messagesModel: root.currentPeerIp.length > 0 ? root.modelForPeer(root.currentPeerIp) : null
@@ -986,7 +1061,11 @@ Kirigami.ApplicationWindow {
         }
         onAttachRequested: function(localFilePath) {
             if (root.isMatrixChat(peerIp)) {
-                root.reportError(i18nc("@info:status", "Sending files to Matrix rooms is not supported yet."))
+                // No local row first, for the same reason as a text message
+                // above: the homeserver echoes the event back through sync
+                // carrying the id the whole room sees, and that id is what the
+                // timeline is keyed on.
+                matrixRooms.sendFile(peerIp, localFilePath)
                 return
             }
             const stamp = messagesModel.sendFile(localFilePath, root.looksLikeImage(localFilePath))
@@ -1026,6 +1105,17 @@ Kirigami.ApplicationWindow {
             peer: root.currentPeerIp.length > 0 ? root.peerInfoFor(root.currentPeerIp) : null
             onProfileRequested: root.showLayer(otherProfileComponent,
                                                { peer: root.peerInfoFor(root.currentPeerIp) })
+        }
+    }
+
+    Component {
+        id: roomInfoComponent
+
+        RoomInfoPage {
+            chatId: root.currentPeerIp
+            onMemberActivated: (userId, anchorItem) => root.showRoomMemberCard(userId, anchorItem)
+            onLeaveRequested: (chatId) => matrixRooms.leaveRoom(chatId)
+            onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
         }
     }
 

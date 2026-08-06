@@ -219,6 +219,9 @@ qt_add_executable(KOutNet
 # single constant and nothing outside QML ever reads it. Has to be marked before
 # qt_add_qml_module, which is where the type registration is generated.
 set_source_files_properties(qml/Brand.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+# Two words and two icon names shared by the member list and the member card,
+# which have to agree about what a power level of 50 is called.
+set_source_files_properties(qml/matrix/RoomRoles.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 qt_add_qml_module(KOutNet
     URI koutnet.app
@@ -256,6 +259,9 @@ qt_add_qml_module(KOutNet
         qml/settings/SettingsPage.qml
         qml/settings/AboutPage.qml
         qml/matrix/MatrixLoginPage.qml
+        qml/matrix/RoomRoles.qml
+        qml/matrix/RoomInfoPage.qml
+        qml/matrix/RoomMemberCard.qml
         qml/tabs/NotesPage.qml
         qml/tabs/CallLogPage.qml
         qml/tabs/PlayerPage.qml

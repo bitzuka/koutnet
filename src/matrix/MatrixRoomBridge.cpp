@@ -9,13 +9,31 @@
 #include <KLocalizedString>
 
 #include <QDateTime>
+#include <QFileInfo>
+#include <QImage>
+#include <QJsonObject>
+#include <QMimeDatabase>
+#include <QSize>
+#include <QUrl>
 
+#include <algorithm>
+#include <memory>
 #include <utility>
 
 #include <Quotient/connection.h>
 #include <Quotient/eventitem.h>
 #include <Quotient/events/encryptedevent.h>
+#include <Quotient/events/encryptionevent.h>
+#include <Quotient/events/eventcontent.h>
+#include <Quotient/events/eventrelation.h>
+#include <Quotient/events/roomavatarevent.h>
+#include <Quotient/events/roomcanonicalaliasevent.h>
+#include <Quotient/events/roomcreateevent.h>
+#include <Quotient/events/roommemberevent.h>
 #include <Quotient/events/roommessageevent.h>
+#include <Quotient/events/roompowerlevelsevent.h>
+#include <Quotient/events/simplestateevents.h>
+#include <Quotient/events/stateevent.h>
 #include <Quotient/room.h>
 #include <Quotient/roommember.h>
 
@@ -23,14 +41,189 @@ using namespace Quotient;
 
 namespace
 {
-// Only the three text msgtypes render as a message in this pass. An m.image or
-// an m.file is reported as an attachment rather than dropped, because a message
-// that is simply missing from the timeline is the bug this whole class is meant
-// not to have.
+using koutnet::matrix::MediaKind;
+using koutnet::matrix::StateChange;
+
 bool isTextLike(RoomMessageEvent::MsgType type)
 {
     return type == RoomMessageEvent::MsgType::Text || type == RoomMessageEvent::MsgType::Notice
         || type == RoomMessageEvent::MsgType::Emote;
+}
+
+MediaKind mediaKindOf(RoomMessageEvent::MsgType type)
+{
+    switch (type) {
+    case RoomMessageEvent::MsgType::Image:
+        return MediaKind::Image;
+    case RoomMessageEvent::MsgType::Video:
+        return MediaKind::Video;
+    case RoomMessageEvent::MsgType::Audio:
+        return MediaKind::Audio;
+    case RoomMessageEvent::MsgType::File:
+        return MediaKind::File;
+    default:
+        return MediaKind::None;
+    }
+}
+
+// A name and not the enumerator's number, because the other end of this map is
+// QML and a number there is unreadable.
+QString mediaKindName(MediaKind kind)
+{
+    switch (kind) {
+    case MediaKind::Image:
+        return QStringLiteral("image");
+    case MediaKind::Video:
+        return QStringLiteral("video");
+    case MediaKind::Audio:
+        return QStringLiteral("audio");
+    case MediaKind::File:
+        return QStringLiteral("file");
+    case MediaKind::None:
+        break;
+    }
+    return QString();
+}
+
+// The room-local display name, falling back to the id. Never blank: a state
+// line that begins with a space is what the fallback is here to prevent.
+QString memberLabel(const Room *room, const QString &userId)
+{
+    if (room == nullptr || userId.isEmpty())
+        return userId;
+    const QString name = room->member(userId).displayName();
+    return name.isEmpty() ? userId : name;
+}
+
+// Which of the member-event cases this is. The distinctions - and which ones
+// are worth drawing at all - are NeoChat's, from src/libneochat/eventhandler.cpp
+// (EventHandler::genericBody) by James Graham.
+StateChange classifyMember(const Room *room, const RoomMemberEvent &event, QString &subject)
+{
+    const bool aboutSomeoneElse = event.senderId() != event.userId();
+
+    switch (event.membership()) {
+    case Membership::Invite:
+        subject = memberLabel(room, event.userId());
+        return StateChange::Invited;
+
+    case Membership::Join: {
+        if (event.changesMembership())
+            return StateChange::Joined;
+
+        // Already joined, so this is a profile change rather than an arrival.
+        // Names before pictures: a picture that changed in the same event is
+        // the less interesting half and does not earn a line of its own.
+        if (event.isRename()) {
+            if (!event.newDisplayName())
+                return StateChange::DisplayNameCleared;
+            if (!event.prevContent() || !event.prevContent()->displayName)
+                return StateChange::DisplayNameSet;
+            subject = *event.prevContent()->displayName;
+            return StateChange::DisplayNameChanged;
+        }
+        if (event.isAvatarUpdate())
+            return StateChange::MemberAvatarChanged;
+        // A join event that changed nothing. NeoChat says so out loud; here it
+        // is dropped, because it is a sync artefact rather than an event.
+        return StateChange::None;
+    }
+
+    case Membership::Leave:
+        subject = memberLabel(room, event.userId());
+        if (event.prevContent() && event.prevContent()->membership == Membership::Invite)
+            return aboutSomeoneElse ? StateChange::InviteWithdrawn : StateChange::InviteRejected;
+        if (event.prevContent() && event.prevContent()->membership == Membership::Ban)
+            return aboutSomeoneElse ? StateChange::Unbanned : StateChange::SelfUnbanned;
+        return aboutSomeoneElse ? StateChange::Kicked : StateChange::Left;
+
+    case Membership::Ban:
+        subject = memberLabel(room, event.userId());
+        return aboutSomeoneElse ? StateChange::Banned : StateChange::SelfBanned;
+
+    case Membership::Knock:
+        return StateChange::KnockRequested;
+
+    default:
+        break;
+    }
+    return StateChange::Unknown;
+}
+
+// Which state change an event is, and what its one substituted string is. None
+// means the event earns no line in the timeline.
+StateChange classifyState(const Room *room, const RoomEvent *event, QString &subject)
+{
+    if (!event->isStateEvent())
+        return StateChange::None;
+
+    // A state event that restates what the room already said is a sync
+    // artefact. Checked first: every branch below would otherwise print a
+    // duplicate line after each reconnect.
+    if (const auto *state = eventCast<const StateEvent>(event); state && state->repeatsState())
+        return StateChange::None;
+
+    if (const auto *member = eventCast<const RoomMemberEvent>(event))
+        return classifyMember(room, *member, subject);
+
+    if (const auto *name = eventCast<const RoomNameEvent>(event)) {
+        subject = name->name();
+        return subject.isEmpty() ? StateChange::RoomNameCleared : StateChange::RoomNameSet;
+    }
+    if (const auto *topic = eventCast<const RoomTopicEvent>(event)) {
+        // Flattened: the topic gets one line of the timeline, and a topic of
+        // three paragraphs would otherwise take three paragraphs of it.
+        subject = topic->topic().simplified();
+        return subject.isEmpty() ? StateChange::TopicCleared : StateChange::TopicSet;
+    }
+    if (const auto *alias = eventCast<const RoomCanonicalAliasEvent>(event)) {
+        subject = alias->alias();
+        return subject.isEmpty() ? StateChange::AliasCleared : StateChange::AliasSet;
+    }
+    if (is<RoomAvatarEvent>(*event))
+        return StateChange::RoomAvatarChanged;
+    if (is<EncryptionEvent>(*event))
+        return StateChange::EncryptionEnabled;
+    if (const auto *create = eventCast<const RoomCreateEvent>(event))
+        return create->isUpgrade() ? StateChange::RoomUpgraded : StateChange::RoomCreated;
+    if (is<RoomPowerLevelsEvent>(*event))
+        return StateChange::PowerLevelsChanged;
+
+    // Some other state event: a widget, a server ACL, a call member. Named as
+    // unknown rather than skipped, so the timeline never has a silent gap.
+    return StateChange::Unknown;
+}
+
+void fillMedia(const Room *room, const RoomMessageEvent &message, koutnet::matrix::RawEvent &raw)
+{
+    const auto content = message.get<EventContent::FileContentBase>();
+    if (!content)
+        return;
+
+    const EventContent::FileInfo info = content->commonInfo();
+    raw.mediaName = info.originalName;
+    raw.mediaMime = info.mimeType.name();
+    raw.mediaSize = info.payloadSize;
+
+    // makeMediaUrl() asserts on the scheme, and an encrypted attachment or a
+    // malformed event can carry something that is not an mxc URI.
+    const QUrl source = content->url();
+    if (source.scheme() == QLatin1String("mxc") && room != nullptr && room->connection() != nullptr)
+        raw.mediaUrl = room->makeMediaUrl(message.id(), source).toString();
+
+    // The dimensions matter: without them a picture is laid out at whatever the
+    // decoder reports once the download finishes, which moves the timeline
+    // under whoever is reading it.
+    if (const auto image = message.get<EventContent::ImageContent>()) {
+        raw.mediaWidth = image->imageSize.width();
+        raw.mediaHeight = image->imageSize.height();
+    } else if (const auto video = message.get<EventContent::VideoContent>()) {
+        raw.mediaWidth = video->imageSize.width();
+        raw.mediaHeight = video->imageSize.height();
+        raw.mediaDurationMs = video->duration;
+    } else if (const auto audio = message.get<EventContent::AudioContent>()) {
+        raw.mediaDurationMs = audio->duration;
+    }
 }
 
 koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
@@ -43,13 +236,39 @@ koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
     raw.isOwn = !raw.senderId.isEmpty() && room->connection() != nullptr && raw.senderId == room->connection()->userId();
     raw.redacted = event->isRedacted();
 
+    raw.state = classifyState(room, event, raw.stateSubject);
+    if (raw.state != StateChange::None)
+        return raw;
+    // A state event classified as None has nothing to show. Cleared rather than
+    // left to fall through, or it would be drawn as an empty message.
+    if (event->isStateEvent()) {
+        raw.eventId.clear();
+        return raw;
+    }
+
     if (const auto *message = eventCast<const RoomMessageEvent>(event)) {
         raw.body = message->plainBody();
         raw.textLike = isTextLike(message->msgtype());
+        raw.media = mediaKindOf(message->msgtype());
+        if (raw.media != MediaKind::None && !raw.redacted)
+            fillMedia(room, *message, raw);
     } else if (is<EncryptedEvent>(*event)) {
         raw.encrypted = true;
+    } else {
+        // A reaction, a redaction event itself, a call signal: not a row.
+        raw.eventId.clear();
     }
     return raw;
+}
+
+// The corrected text of an m.replace. The replacement's own body is the
+// "* corrected text" fallback for clients that do not understand edits, and
+// showing that is how the asterisk ends up in the timeline.
+QString replacementBody(const RoomMessageEvent &message)
+{
+    const QJsonObject newContent = message.contentJson().value(QLatin1String("m.new_content")).toObject();
+    const QString body = newContent.value(QLatin1String("body")).toString();
+    return body.isEmpty() ? message.plainBody() : body;
 }
 } // namespace
 
@@ -143,6 +362,16 @@ void MatrixRoomBridge::trackRoom(Room *room)
         announceEncryption(room);
     });
 
+    // The room's own column reads all four of these through roomInfo(), so they
+    // share one signal rather than getting a property each.
+    const auto announceInfo = [this, room]() {
+        Q_EMIT roomInfoChanged(chatid::matrixChatId(room->id()));
+    };
+    connect(room, &Room::topicChanged, this, announceInfo);
+    connect(room, &Room::avatarChanged, this, announceInfo);
+    connect(room, &Room::memberListChanged, this, announceInfo);
+    connect(room, &Room::namesChanged, this, announceInfo);
+
     publishRoom(room);
 
     // Whatever is already in the timeline from the state cache. Indices run from
@@ -153,7 +382,9 @@ void MatrixRoomBridge::trackRoom(Room *room)
 
 void MatrixRoomBridge::publishRoom(Room *room)
 {
-    Q_EMIT roomListed(chatid::matrixChatId(room->id()), matrix::conversationTitle(room->displayName(), room->id()));
+    const QString chatId = chatid::matrixChatId(room->id());
+    Q_EMIT roomListed(chatId, matrix::conversationTitle(room->displayName(), room->id()));
+    Q_EMIT roomInfoChanged(chatId);
     if (room->usesEncryption())
         announceEncryption(room);
 }
@@ -192,6 +423,19 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
         return;
 
     const QString chatId = chatid::matrixChatId(room->id());
+
+    // An edit is dealt with before anything else and never becomes a row: it is
+    // a statement about a message that is already on the screen.
+    if (const auto *message = eventCast<const RoomMessageEvent>(event)) {
+        const QString replaced = message->replacedEvent();
+        if (!replaced.isEmpty()) {
+            const QString body = replacementBody(*message);
+            if (!body.isEmpty())
+                Q_EMIT roomMessageEdited(chatId, replaced, body);
+            return;
+        }
+    }
+
     const matrix::Row row = matrix::rowFor(flatten(room, event));
     switch (row.kind) {
     case matrix::RowKind::Skip:
@@ -199,24 +443,27 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
     case matrix::RowKind::Text:
         Q_EMIT roomMessage(chatId, row.msgId, row.text, row.sender, row.isOwn, row.ts, false);
         break;
+    case matrix::RowKind::System:
+        Q_EMIT roomMessage(chatId, row.msgId, row.text, row.sender, row.isOwn, row.ts, true);
+        break;
     case matrix::RowKind::Encrypted:
         // One notice for the room rather than one per unreadable event: the
         // point is to say why the room looks quiet, not to fill it.
         announceEncryption(room);
         break;
-    case matrix::RowKind::Unsupported:
-        Q_EMIT roomMessage(chatId,
-                           row.msgId,
-                           row.text.isEmpty()
-                               ? i18nc("@info in-timeline notice, a Matrix message this build cannot render", "Unsupported message")
-                               : i18nc("@info in-timeline notice, %1 is the message description sent with an attachment",
-                                       "Attachment (not supported yet): %1",
-                                       row.text),
-                           row.sender,
-                           row.isOwn,
-                           row.ts,
-                           true);
+    case matrix::RowKind::Attachment: {
+        QVariantMap media;
+        media.insert(QStringLiteral("kind"), mediaKindName(row.media));
+        media.insert(QStringLiteral("url"), row.mediaUrl);
+        media.insert(QStringLiteral("name"), row.mediaName);
+        media.insert(QStringLiteral("mime"), row.mediaMime);
+        media.insert(QStringLiteral("size"), QVariant::fromValue(row.mediaSize));
+        media.insert(QStringLiteral("width"), row.mediaWidth);
+        media.insert(QStringLiteral("height"), row.mediaHeight);
+        media.insert(QStringLiteral("duration"), row.mediaDurationMs);
+        Q_EMIT roomAttachment(chatId, row.msgId, media, row.sender, row.isOwn, row.ts);
         break;
+    }
     }
 }
 
@@ -280,10 +527,153 @@ bool MatrixRoomBridge::sendText(const QString &chatId, const QString &text)
     return true;
 }
 
+bool MatrixRoomBridge::sendFile(const QString &chatId, const QString &localFilePath)
+{
+    Room *room = roomFor(chatId);
+    if (!room) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status", "That Matrix room is not available in this session."));
+        return false;
+    }
+    if (room->usesEncryption()) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status", "This room is end-to-end encrypted. KOutNet cannot send here yet."));
+        return false;
+    }
+
+    const QFileInfo file(localFilePath);
+    if (!file.exists() || !file.isReadable()) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status %1 is a file name", "%1 could not be read, so nothing was sent.", file.fileName()));
+        return false;
+    }
+
+    const QUrl localUrl = QUrl::fromLocalFile(file.absoluteFilePath());
+    const QMimeType mime = QMimeDatabase().mimeTypeForFile(file);
+    const QString mimeName = mime.name();
+
+    // The msgtype comes from the content type rather than the extension,
+    // because that is what every other client in the room reads it back as. No
+    // poster frame is generated for a video: doing that properly means decoding
+    // a frame and uploading it as a second piece of media, and a video with no
+    // poster still plays.
+    std::unique_ptr<EventContent::FileContentBase> content;
+    if (mimeName.startsWith(QLatin1String("image/"))) {
+        const QImage image(file.absoluteFilePath());
+        content = std::make_unique<EventContent::ImageContent>(localUrl, file.size(), mime, image.size(), file.fileName());
+    } else if (mimeName.startsWith(QLatin1String("audio/"))) {
+        auto audio = std::make_unique<EventContent::AudioContent>(localUrl, file.size(), mime, file.fileName());
+        // Set by hand: the duration member belongs to libQuotient's playable
+        // content and only its JSON constructor fills it in, so one built from
+        // a local file starts out holding whatever was on the stack, and that
+        // number goes out in the event.
+        audio->duration = 0;
+        content = std::move(audio);
+    } else if (mimeName.startsWith(QLatin1String("video/"))) {
+        auto video = std::make_unique<EventContent::VideoContent>(localUrl, file.size(), mime, QSize(), file.fileName());
+        video->duration = 0;
+        content = std::move(video);
+    } else {
+        content = std::make_unique<EventContent::FileContent>(localUrl, file.size(), mime, file.fileName());
+    }
+
+    room->postFile(file.fileName(), std::move(content));
+    return true;
+}
+
 void MatrixRoomBridge::markRead(const QString &chatId)
 {
     if (Room *room = roomFor(chatId))
         room->markAllMessagesAsRead();
+}
+
+void MatrixRoomBridge::leaveRoom(const QString &chatId)
+{
+    if (Room *room = roomFor(chatId))
+        room->leaveRoom();
+}
+
+QVariantMap MatrixRoomBridge::roomInfo(const QString &chatId) const
+{
+    QVariantMap info;
+    const Room *room = roomFor(chatId);
+    if (room == nullptr)
+        return info;
+
+    info.insert(QStringLiteral("roomId"), room->id());
+    info.insert(QStringLiteral("displayName"), matrix::conversationTitle(room->displayName(), room->id()));
+    info.insert(QStringLiteral("topic"), room->topic());
+    info.insert(QStringLiteral("canonicalAlias"), room->canonicalAlias());
+    info.insert(QStringLiteral("altAliases"), room->altAliases());
+    info.insert(QStringLiteral("joinedCount"), room->joinedCount());
+    info.insert(QStringLiteral("invitedCount"), room->invitedCount());
+    info.insert(QStringLiteral("encrypted"), room->usesEncryption());
+    info.insert(QStringLiteral("version"), room->version());
+    info.insert(QStringLiteral("isDirect"), room->isDirectChat());
+    // What this session is allowed to do here. The column hides the actions it
+    // would only be refused for rather than offering them and reporting the
+    // refusal afterwards.
+    info.insert(QStringLiteral("ownPowerLevel"), room->memberEffectivePowerLevel());
+
+    const QUrl avatar = room->avatarUrl();
+    info.insert(QStringLiteral("avatarUrl"),
+                (avatar.scheme() == QLatin1String("mxc") && room->connection() != nullptr)
+                    ? room->connection()->makeMediaUrl(avatar).toString()
+                    : QString());
+
+    return info;
+}
+
+QVariantList MatrixRoomBridge::roomMembers(const QString &chatId) const
+{
+    QVariantList list;
+    const Room *room = roomFor(chatId);
+    if (room == nullptr)
+        return list;
+
+    // joinedMembers() rather than members(): a list that also holds everybody
+    // who ever left is a list of a different thing.
+    QList<RoomMember> members = room->joinedMembers();
+    std::sort(members.begin(), members.end(), [](const RoomMember &left, const RoomMember &right) {
+        if (left.powerLevel() != right.powerLevel())
+            return left.powerLevel() > right.powerLevel();
+        return left.displayName().localeAwareCompare(right.displayName()) < 0;
+    });
+
+    list.reserve(members.size());
+    for (const RoomMember &member : std::as_const(members)) {
+        QVariantMap entry;
+        entry.insert(QStringLiteral("userId"), member.id());
+        entry.insert(QStringLiteral("displayName"), member.displayName().isEmpty() ? member.id() : member.displayName());
+        entry.insert(QStringLiteral("powerLevel"), member.powerLevel());
+        const QUrl avatar = member.avatarUrl();
+        entry.insert(QStringLiteral("avatarUrl"),
+                     (avatar.scheme() == QLatin1String("mxc") && room->connection() != nullptr)
+                         ? room->connection()->makeMediaUrl(avatar).toString()
+                         : QString());
+        list.append(entry);
+    }
+    return list;
+}
+
+QVariantMap MatrixRoomBridge::memberInfo(const QString &chatId, const QString &userId) const
+{
+    QVariantMap info;
+    const Room *room = roomFor(chatId);
+    if (room == nullptr || userId.isEmpty())
+        return info;
+
+    const RoomMember member = room->member(userId);
+    if (member.isEmpty())
+        return info;
+
+    info.insert(QStringLiteral("userId"), member.id());
+    info.insert(QStringLiteral("displayName"), member.displayName().isEmpty() ? member.id() : member.displayName());
+    info.insert(QStringLiteral("powerLevel"), member.powerLevel());
+    info.insert(QStringLiteral("isLocalMember"), member.isLocalMember());
+    const QUrl avatar = member.avatarUrl();
+    info.insert(QStringLiteral("avatarUrl"),
+                (avatar.scheme() == QLatin1String("mxc") && room->connection() != nullptr)
+                    ? room->connection()->makeMediaUrl(avatar).toString()
+                    : QString());
+    return info;
 }
 
 } // namespace koutnet

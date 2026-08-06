@@ -58,6 +58,20 @@ QVariant ChatModel::data(const QModelIndex &index, int role) const
         return m.filePath;
     case IsImageRole:
         return m.isImage;
+    case MediaKindRole:
+        return m.mediaKind;
+    case MediaUrlRole:
+        return m.mediaUrl;
+    case MediaMimeRole:
+        return m.mediaMime;
+    case MediaSizeRole:
+        return QVariant::fromValue(m.mediaSize);
+    case MediaWidthRole:
+        return m.mediaWidth;
+    case MediaHeightRole:
+        return m.mediaHeight;
+    case MediaDurationRole:
+        return m.mediaDurationMs;
     case ReactionsRole:
         return m_reactions ? m_reactions->summary(m.chatId.isEmpty() ? QStringLiteral("public") : m.chatId, m.ts) : QVariantList();
     case TimeStringRole:
@@ -121,6 +135,13 @@ QHash<int, QByteArray> ChatModel::roleNames() const
         {IsFileRole, "isFile"},
         {FilePathRole, "filePath"},
         {IsImageRole, "isImage"},
+        {MediaKindRole, "mediaKind"},
+        {MediaUrlRole, "mediaUrl"},
+        {MediaMimeRole, "mediaMime"},
+        {MediaSizeRole, "mediaSize"},
+        {MediaWidthRole, "mediaWidth"},
+        {MediaHeightRole, "mediaHeight"},
+        {MediaDurationRole, "mediaDuration"},
         {StampSecsRole, "stampSecs"},
         {ShowAuthorRole, "showAuthor"},
         {ShowDayRole, "showDay"},
@@ -363,6 +384,56 @@ bool ChatModel::ingestRemoteMessage(const QString &remoteId, const QString &text
     // Persisted like any other, which is what makes the duplicate check survive
     // a restart: reload() puts these ids back before the first sync arrives.
     appendEntry(e, true);
+    return true;
+}
+
+bool ChatModel::ingestRemoteAttachment(const QString &remoteId, const QVariantMap &media, const QString &sender, bool isOwn, double ts)
+{
+    if (remoteId.isEmpty() || rowForMsgId(remoteId) >= 0)
+        return false;
+
+    MessageEntry e;
+    e.msgId = remoteId;
+    e.sender = sender;
+    e.ts = ts > 0.0 ? ts : QDateTime::currentMSecsSinceEpoch() / 1000.0;
+    e.isOwn = isOwn;
+    e.msgType = QStringLiteral("private");
+    e.isRead = isOwn;
+
+    // isFile as well as mediaKind: the timeline's own rules about attachments -
+    // no editing, no emoji-only sizing, a name instead of a body - are written
+    // against isFile, and a Matrix attachment obeys every one of them.
+    e.isFile = true;
+    e.mediaKind = media.value(QStringLiteral("kind")).toString();
+    e.isImage = e.mediaKind == QStringLiteral("image");
+    e.mediaUrl = media.value(QStringLiteral("url")).toString();
+    e.mediaMime = media.value(QStringLiteral("mime")).toString();
+    e.mediaSize = media.value(QStringLiteral("size")).toLongLong();
+    e.mediaWidth = media.value(QStringLiteral("width")).toInt();
+    e.mediaHeight = media.value(QStringLiteral("height")).toInt();
+    e.mediaDurationMs = media.value(QStringLiteral("duration")).toInt();
+    // The label, in the same field a LAN attachment puts its file name in.
+    e.text = media.value(QStringLiteral("name")).toString();
+
+    appendEntry(e, true);
+    return true;
+}
+
+bool ChatModel::applyRemoteEdit(const QString &remoteId, const QString &newText)
+{
+    const int row = rowForMsgId(remoteId);
+    if (row < 0 || newText.isEmpty())
+        return false;
+
+    MessageEntry &m = m_messages[row];
+    if (m.text == newText)
+        return false;
+
+    m.text = newText;
+    m.isEdited = true;
+    const QModelIndex idx = index(row);
+    Q_EMIT dataChanged(idx, idx, {TextRole, IsEditedRole});
+    persistAll();
     return true;
 }
 

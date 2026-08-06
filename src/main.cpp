@@ -12,7 +12,10 @@
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQmlNetworkAccessManagerFactory>
 #include <QVariantMap>
+
+#include <Quotient/networkaccessmanager.h>
 
 #include "core/security/CryptoManager.h"
 #include "network/FileTransferHandler.h"
@@ -34,6 +37,20 @@
 #include "koutnet_app_debug.h"
 #include "koutnet_crypto_debug.h"
 #include "koutnet_network_debug.h"
+
+namespace
+{
+// One per thread, which is what instance() already returns; the factory exists
+// only because QQmlEngine will not ask libQuotient for it on its own.
+class MatrixNetworkAccessManagerFactory : public QQmlNetworkAccessManagerFactory
+{
+public:
+    QNetworkAccessManager *create(QObject *) override
+    {
+        return Quotient::NetworkAccessManager::instance();
+    }
+};
+} // namespace
 
 int main(int argc, char *argv[])
 {
@@ -185,7 +202,19 @@ int main(int argc, char *argv[])
     // setting is only built when the settings page is first opened.
     KColorSchemeManager::instance();
 
+    // Declared before the engine so that it is still alive while the engine is
+    // being torn down: the engine keeps a bare pointer to it.
+    MatrixNetworkAccessManagerFactory matrixNamFactory;
+
     QQmlApplicationEngine engine;
+
+    // What makes an mxc:// URI loadable by an ordinary Image or MediaPlayer.
+    // libQuotient's network manager rewrites mxc into an authenticated request
+    // against the homeserver the URI's user_id names; the engine's own manager
+    // does not know the scheme and would report every room picture and every
+    // attachment as an unsupported URL. NeoChat installs the same factory for
+    // the same reason - the shape of the class is Qt's, not theirs.
+    engine.setNetworkAccessManagerFactory(&matrixNamFactory);
 
     // Gives QML the i18n family of functions; without it every string fails to resolve.
     KLocalization::setupLocalizedContext(&engine);

@@ -6,12 +6,62 @@
 // event into RawEvent and this decides what the timeline shows, which is the
 // half of the Matrix path that can be tested without a homeserver - or, for
 // that matter, without libQuotient installed at all.
+//
+// The state-change wording lives here for the same reason. "Who did what to
+// this room" is a sentence; sentences are the part that gets said wrong, and a
+// sentence can be checked where a Quotient::RoomMemberEvent cannot.
 #pragma once
 
 #include <QString>
 
 namespace koutnet::matrix
 {
+
+// What an m.room.message with a non-text msgtype carries.
+enum class MediaKind {
+    None,
+    Image,
+    Video,
+    Audio,
+    File,
+};
+
+// The state changes worth a line in a conversation. Anything a room can do to
+// itself that is not named here becomes Unknown rather than nothing: a timeline
+// with a silent gap in it is what this enum exists to prevent.
+//
+// The classification is the bridge's, because only it has the event and its
+// prev_content. The wording is stateSentence()'s.
+enum class StateChange {
+    None,
+    Joined,
+    Left,
+    Invited,
+    InviteWithdrawn,
+    InviteRejected,
+    Kicked,
+    Banned,
+    SelfBanned,
+    Unbanned,
+    SelfUnbanned,
+    KnockRequested,
+    DisplayNameSet,
+    DisplayNameChanged,
+    DisplayNameCleared,
+    MemberAvatarChanged,
+    RoomCreated,
+    RoomUpgraded,
+    RoomNameSet,
+    RoomNameCleared,
+    TopicSet,
+    TopicCleared,
+    AliasSet,
+    AliasCleared,
+    RoomAvatarChanged,
+    EncryptionEnabled,
+    PowerLevelsChanged,
+    Unknown,
+};
 
 struct RawEvent {
     QString eventId;
@@ -23,13 +73,32 @@ struct RawEvent {
     bool redacted = false;
     bool encrypted = false; // an m.room.encrypted this build cannot open
     bool textLike = false; // m.text, m.notice or m.emote
+
+    // An attachment, once the bridge has turned the event's mxc:// source into
+    // a URL the interface can load. A media kind with an empty mediaUrl means
+    // the event named a file this session cannot reach, which is said in words
+    // rather than drawn as a broken picture.
+    MediaKind media = MediaKind::None;
+    QString mediaUrl;
+    QString mediaName;
+    QString mediaMime;
+    qint64 mediaSize = 0;
+    int mediaWidth = 0;
+    int mediaHeight = 0;
+    int mediaDurationMs = 0;
+
+    // Room state. subject is the member a change is about when that is somebody
+    // other than the sender: a kick, a ban, a withdrawn invitation.
+    StateChange state = StateChange::None;
+    QString stateSubject;
 };
 
 enum class RowKind {
     Skip, //!< nothing goes in the timeline for this event
     Text, //!< an ordinary message
     Encrypted, //!< say so; never show an empty bubble
-    Unsupported, //!< an attachment or a msgtype this pass does not render
+    Attachment, //!< a picture, a recording or a file
+    System, //!< the room talking about itself
 };
 
 struct Row {
@@ -39,6 +108,15 @@ struct Row {
     QString sender;
     double ts = 0.0;
     bool isOwn = false;
+
+    MediaKind media = MediaKind::None;
+    QString mediaUrl;
+    QString mediaName;
+    QString mediaMime;
+    qint64 mediaSize = 0;
+    int mediaWidth = 0;
+    int mediaHeight = 0;
+    int mediaDurationMs = 0;
 };
 
 // The stable msgId of a room's one "this room is encrypted" notice. Stable so
@@ -47,6 +125,14 @@ struct Row {
 QString encryptionNoticeId(const QString &roomId);
 
 Row rowFor(const RawEvent &event);
+
+// One sentence per state change, in the room's own voice. actor is who did it;
+// subject is who it was done to, where the two differ.
+QString stateSentence(StateChange change, const QString &actor, const QString &subject);
+
+// The name an attachment goes by when it has none of its own, and what the
+// conversation list shows for a row with no words in it.
+QString mediaLabel(MediaKind kind, const QString &name);
 
 // A room with no name and no canonical alias comes back from libQuotient with
 // a display name already worked out; this is only the last resort, so that a

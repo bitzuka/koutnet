@@ -234,6 +234,7 @@ void ChatListModel::openChat(const QString &chatId, const QString &displayName)
     beginInsertRows(QModelIndex(), at, at);
     m_rows.insert(at, e);
     endInsertRows();
+    Q_EMIT countsChanged();
     scheduleSave();
 }
 
@@ -255,6 +256,7 @@ void ChatListModel::noteMessage(const QString &chatId, const QString &preview, b
         beginInsertRows(QModelIndex(), at, at);
         m_rows.insert(at, e);
         endInsertRows();
+        Q_EMIT countsChanged();
         scheduleSave();
         return;
     }
@@ -306,6 +308,18 @@ void ChatListModel::setPresence(const QString &chatId, bool online, double lastS
         scheduleSave();
 }
 
+int ChatListModel::roomCount() const
+{
+    return int(std::count_if(m_rows.cbegin(), m_rows.cend(), [](const Entry &e) {
+        return koutnet::chatid::isMatrix(e.chatId);
+    }));
+}
+
+int ChatListModel::directCount() const
+{
+    return m_rows.size() - roomCount();
+}
+
 void ChatListModel::removeChat(const QString &chatId)
 {
     const int row = indexOfChat(chatId);
@@ -314,6 +328,7 @@ void ChatListModel::removeChat(const QString &chatId)
     beginRemoveRows(QModelIndex(), row, row);
     m_rows.remove(row);
     endRemoveRows();
+    Q_EMIT countsChanged();
     scheduleSave();
 }
 
@@ -352,6 +367,7 @@ void ChatListModel::load()
     beginResetModel();
     m_rows = loaded;
     endResetModel();
+    Q_EMIT countsChanged();
 
     // UnreadManager starts empty every run, so restored counts have to be put
     // back into it or the badge and the total would disagree.

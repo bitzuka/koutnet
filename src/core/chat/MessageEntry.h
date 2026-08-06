@@ -25,6 +25,20 @@ struct MessageEntry {
     QString filePath; // local path once downloaded/attached
     bool isImage = false;
 
+    // An attachment that lives on a server rather than on this disk. A LAN
+    // transfer has already put its file here and fills filePath instead; these
+    // are the Matrix side, where the bytes are fetched by whatever loads the
+    // URL and there is no local path to point at. Never both at once.
+    QString mediaKind; // "", "image", "video", "audio" or "file"
+    QString mediaUrl;
+    QString mediaMime;
+    qint64 mediaSize = 0;
+    // As the sender reported them. Used to reserve the right space before the
+    // download finishes, so the timeline does not jump under whoever is reading.
+    int mediaWidth = 0;
+    int mediaHeight = 0;
+    int mediaDurationMs = 0;
+
     bool isRead = false;
 
     // True between an outgoing message appearing in the timeline and its

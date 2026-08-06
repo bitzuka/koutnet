@@ -8,6 +8,7 @@
 // support that need a server are not testable and are not tested; the parts
 // that decide where a conversation is filed and what a message turns into are
 // the parts that lose data when they are wrong.
+#include <QSet>
 #include <QTest>
 
 #include "../core/chat/ChatAddress.h"
@@ -33,11 +34,16 @@ private Q_SLOTS:
     void rowForPlainText();
     void rowForOwnMessage();
     void rowFallsBackToTheSenderId();
-    void rowSkipsRedacted();
+    void rowReportsRedacted();
     void rowSkipsEventsWithNoId();
     void rowSkipsEmptyText();
     void rowReportsEncrypted();
     void rowReportsUnsupported();
+    void rowCarriesAnAttachment();
+    void rowNamesAnAttachmentThatHasNoName();
+    void rowRendersStateEvents();
+    void stateSentencesAreDistinct();
+    void stateSentencesNameTheActor();
 
     void timestampConversion();
     void conversationTitleFallsBackToTheRoomId();
@@ -182,11 +188,17 @@ void MatrixWiringTest::rowFallsBackToTheSenderId()
     QCOMPARE(matrix::rowFor(e).sender, QStringLiteral("@alice:example.org"));
 }
 
-void MatrixWiringTest::rowSkipsRedacted()
+void MatrixWiringTest::rowReportsRedacted()
 {
     matrix::RawEvent e = textEvent();
     e.redacted = true;
-    QCOMPARE(matrix::rowFor(e).kind, matrix::RowKind::Skip);
+
+    const matrix::Row row = matrix::rowFor(e);
+    // Said out loud rather than dropped: a message that disappears without a
+    // trace reads as one that was never sent.
+    QCOMPARE(row.kind, matrix::RowKind::System);
+    QCOMPARE(row.msgId, e.eventId);
+    QVERIFY(row.text.contains(QStringLiteral("Alice")));
 }
 
 void MatrixWiringTest::rowSkipsEventsWithNoId()
@@ -226,8 +238,126 @@ void MatrixWiringTest::rowReportsUnsupported()
     e.body = QStringLiteral("holiday.png");
 
     const matrix::Row row = matrix::rowFor(e);
-    QCOMPARE(row.kind, matrix::RowKind::Unsupported);
+    // A msgtype with no renderer here is named rather than dropped, and it is
+    // the room talking rather than the sender, so it is a system row.
+    QCOMPARE(row.kind, matrix::RowKind::System);
+    QVERIFY(row.text.contains(QStringLiteral("holiday.png")));
+}
+
+void MatrixWiringTest::rowCarriesAnAttachment()
+{
+    matrix::RawEvent e = textEvent();
+    e.textLike = false;
+    e.body = QStringLiteral("holiday.png");
+    e.media = matrix::MediaKind::Image;
+    e.mediaUrl = QStringLiteral("mxc://example.org/abc?user_id=@alice:example.org");
+    e.mediaName = QStringLiteral("holiday.png");
+    e.mediaMime = QStringLiteral("image/png");
+    e.mediaSize = 4096;
+    e.mediaWidth = 800;
+    e.mediaHeight = 600;
+
+    const matrix::Row row = matrix::rowFor(e);
+    QCOMPARE(row.kind, matrix::RowKind::Attachment);
+    QCOMPARE(row.media, matrix::MediaKind::Image);
+    QCOMPARE(row.mediaUrl, e.mediaUrl);
+    QCOMPARE(row.mediaWidth, 800);
+    QCOMPARE(row.mediaHeight, 600);
+    QCOMPARE(row.mediaSize, 4096);
+    // The label is also the row's text, which is what the timeline draws
+    // beside a file and what the conversation list previews.
+    QCOMPARE(row.mediaName, QStringLiteral("holiday.png"));
     QCOMPARE(row.text, QStringLiteral("holiday.png"));
+}
+
+void MatrixWiringTest::rowNamesAnAttachmentThatHasNoName()
+{
+    matrix::RawEvent e = textEvent();
+    e.textLike = false;
+    e.body.clear();
+    e.media = matrix::MediaKind::Audio;
+
+    const matrix::Row row = matrix::rowFor(e);
+    QCOMPARE(row.kind, matrix::RowKind::Attachment);
+    // Never blank: a nameless attachment would be an empty row with a click
+    // target nobody could see.
+    QVERIFY(!row.text.isEmpty());
+    QVERIFY(!row.mediaName.isEmpty());
+}
+
+void MatrixWiringTest::rowRendersStateEvents()
+{
+    matrix::RawEvent e = textEvent();
+    e.textLike = false;
+    e.body.clear();
+    e.state = matrix::StateChange::Joined;
+
+    const matrix::Row row = matrix::rowFor(e);
+    QCOMPARE(row.kind, matrix::RowKind::System);
+    QCOMPARE(row.msgId, e.eventId);
+    QVERIFY(row.text.contains(QStringLiteral("Alice")));
+
+    // A redacted state event still happened. Deleting the event does not undo
+    // the join, so the line stays.
+    e.redacted = true;
+    QCOMPARE(matrix::rowFor(e).kind, matrix::RowKind::System);
+}
+
+void MatrixWiringTest::stateSentencesAreDistinct()
+{
+    // Two changes that read the same are two changes the timeline cannot tell
+    // apart, which is the whole failure mode this enum exists to avoid.
+    const QList<matrix::StateChange> changes = {
+        matrix::StateChange::Joined,
+        matrix::StateChange::Left,
+        matrix::StateChange::Invited,
+        matrix::StateChange::InviteWithdrawn,
+        matrix::StateChange::InviteRejected,
+        matrix::StateChange::Kicked,
+        matrix::StateChange::Banned,
+        matrix::StateChange::SelfBanned,
+        matrix::StateChange::Unbanned,
+        matrix::StateChange::SelfUnbanned,
+        matrix::StateChange::KnockRequested,
+        matrix::StateChange::DisplayNameSet,
+        matrix::StateChange::DisplayNameChanged,
+        matrix::StateChange::DisplayNameCleared,
+        matrix::StateChange::MemberAvatarChanged,
+        matrix::StateChange::RoomCreated,
+        matrix::StateChange::RoomUpgraded,
+        matrix::StateChange::RoomNameSet,
+        matrix::StateChange::RoomNameCleared,
+        matrix::StateChange::TopicSet,
+        matrix::StateChange::TopicCleared,
+        matrix::StateChange::AliasSet,
+        matrix::StateChange::AliasCleared,
+        matrix::StateChange::RoomAvatarChanged,
+        matrix::StateChange::EncryptionEnabled,
+        matrix::StateChange::PowerLevelsChanged,
+        matrix::StateChange::Unknown,
+    };
+
+    QSet<QString> seen;
+    for (matrix::StateChange change : changes) {
+        const QString sentence = matrix::stateSentence(change, QStringLiteral("Alice"), QStringLiteral("Bob"));
+        QVERIFY2(!sentence.isEmpty(), qPrintable(QString::number(int(change))));
+        QVERIFY2(!seen.contains(sentence), qPrintable(sentence));
+        seen.insert(sentence);
+    }
+
+    // None is the one that says nothing, because it is the absence of a change.
+    QVERIFY(matrix::stateSentence(matrix::StateChange::None, QStringLiteral("Alice"), QString()).isEmpty());
+}
+
+void MatrixWiringTest::stateSentencesNameTheActor()
+{
+    QVERIFY(matrix::stateSentence(matrix::StateChange::Joined, QStringLiteral("Alice"), QString())
+                .contains(QStringLiteral("Alice")));
+    // An actor that could not be resolved still has to read as a sentence
+    // rather than begin with a space.
+    const QString anonymous = matrix::stateSentence(matrix::StateChange::Joined, QString(), QString());
+    QVERIFY(!anonymous.isEmpty());
+    QVERIFY(!anonymous.startsWith(QLatin1Char(' ')));
 }
 
 void MatrixWiringTest::timestampConversion()

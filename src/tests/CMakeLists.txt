@@ -84,7 +84,7 @@ ecm_add_test(
     ${KOUTNET_LOGGING_SRCS}
     TEST_NAME matrix-wiring
     NAME_PREFIX koutnet-
-    LINK_LIBRARIES Qt6::Test Qt6::Core Qt6::Qml
+    LINK_LIBRARIES Qt6::Test Qt6::Core Qt6::Qml KF6::I18n
 )
 # HistoryManager.cpp includes its logging category header, which is generated
 # into the parent directory's build tree and not into this one.

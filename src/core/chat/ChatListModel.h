@@ -28,6 +28,12 @@ class ChatListModel : public QAbstractListModel
 
     Q_PROPERTY(QObject *historyManager READ historyManagerObj WRITE setHistoryManagerObj NOTIFY historyManagerChanged)
     Q_PROPERTY(QObject *unreadManager READ unreadManagerObj WRITE setUnreadManagerObj NOTIFY unreadManagerChanged)
+    // How many rows of each kind there are, for the two section headings the
+    // conversation list is split into. Properties rather than an invokable
+    // because a heading has to re-count when a room arrives, and a function
+    // call in a binding never does.
+    Q_PROPERTY(int directCount READ directCount NOTIFY countsChanged)
+    Q_PROPERTY(int roomCount READ roomCount NOTIFY countsChanged)
 
 public:
     enum Roles {
@@ -58,6 +64,9 @@ public:
     QObject *unreadManagerObj() const;
     void setUnreadManagerObj(QObject *obj);
 
+    int directCount() const;
+    int roomCount() const;
+
     // Idempotent, and it never moves an existing chat up the list: opening an old
     // conversation is not activity in it.
     Q_INVOKABLE void openChat(const QString &chatId, const QString &displayName = QString());
@@ -70,6 +79,7 @@ public:
 Q_SIGNALS:
     void historyManagerChanged();
     void unreadManagerChanged();
+    void countsChanged();
 
 private:
     struct Entry {

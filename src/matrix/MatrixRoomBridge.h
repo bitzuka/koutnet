@@ -1,16 +1,22 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// KOutNet - Matrix rooms as ordinary conversations.
+// KOutNet - Matrix rooms as conversations, and as rooms.
 //
-// This is the whole seam. It does not own a model and it does not know one
-// exists: it turns libQuotient's room and timeline signals into the same four
-// statements the LAN path already makes about a conversation - this chat
-// exists, it is called this, a message arrived in it, it went away - and
+// This is the whole seam. It turns libQuotient's room and timeline signals into
+// the statements the LAN path already makes about a conversation - this chat
+// exists, it is called this, something arrived in it, it went away - and
 // Main.qml feeds those to the same ChatListModel and ChatModel as everything
 // else. Nothing below this class has a Quotient type in it.
 //
-// The reverse direction is sendText(), which Main.qml calls instead of
-// NetworkManager::sendPrivate() when the chat id carries the "mx:" prefix.
+// What a room has and a LAN peer has not - a topic, an address, members with
+// power levels - does not fit through those signals and is not forced through
+// them. It is asked for instead, by roomInfo() and roomMembers(), which the
+// room's own column calls and calls again when roomInfoChanged() says to. A
+// pull rather than a push because that column is usually shut, and a member
+// list nobody is looking at should cost nothing.
+//
+// The reverse direction is sendText() and sendFile(), which Main.qml calls
+// instead of NetworkManager's equivalents when the chat id carries "mx:".
 #pragma once
 
 #include <QHash>
@@ -18,6 +24,8 @@
 #include <QPointer>
 #include <QSet>
 #include <QString>
+#include <QVariantList>
+#include <QVariantMap>
 
 namespace Quotient
 {
@@ -38,11 +46,28 @@ class MatrixRoomBridge : public QObject
 public:
     explicit MatrixRoomBridge(MatrixManager *manager, QObject *parent = nullptr);
 
-    // Both refuse quietly when the chat id is not a Matrix one or the room is
-    // not in this session: the window branches on the id prefix, and a session
-    // that has not synced yet must not turn a keystroke into an error.
+    // All of these refuse quietly when the chat id is not a Matrix one or the
+    // room is not in this session: the window branches on the id prefix, and a
+    // session that has not synced yet must not turn a keystroke into an error.
     Q_INVOKABLE bool sendText(const QString &chatId, const QString &text);
+    // The upload and the event that follows it are libQuotient's to sequence;
+    // this only decides which content type the file becomes. False means it was
+    // refused here, and sendFailed() has already said why.
+    Q_INVOKABLE bool sendFile(const QString &chatId, const QString &localFilePath);
     Q_INVOKABLE void markRead(const QString &chatId);
+    Q_INVOKABLE void leaveRoom(const QString &chatId);
+
+    // Everything the room column shows, in one map, because a dozen properties
+    // would be a dozen change signals for one sync. An empty map when the chat
+    // id names no room in this session, which QML tests by looking at "roomId".
+    Q_INVOKABLE QVariantMap roomInfo(const QString &chatId) const;
+    // Members, most powerful first and then by name - the order a member list
+    // is read in. Invited members are included and marked, because "who is in
+    // this room" and "who has been asked" are both answers it has to give.
+    Q_INVOKABLE QVariantList roomMembers(const QString &chatId) const;
+    // One member, in the shape the member card wants. An empty map when the
+    // user is not known to the room.
+    Q_INVOKABLE QVariantMap memberInfo(const QString &chatId, const QString &userId) const;
 
 Q_SIGNALS:
     // A room the conversation list has not been told about yet, or one whose
@@ -51,10 +76,23 @@ Q_SIGNALS:
     void roomListed(QString chatId, QString displayName);
     void roomLeft(QString chatId);
 
-    // One signal for every kind of row, because ChatModel takes them all
+    // One signal for every kind of text row, because ChatModel takes them all
     // through one call and the duplicate check is keyed on eventId. System rows
     // carry a synthetic id so that a restart does not stack another copy.
     void roomMessage(QString chatId, QString eventId, QString text, QString sender, bool isOwn, double ts, bool isSystem);
+
+    // A picture, a recording or a file. A map rather than nine parameters: the
+    // shape is ChatModel::ingestRemoteAttachment()'s, and both ends move
+    // together. Keys: kind, url, name, mime, size, width, height, duration.
+    void roomAttachment(QString chatId, QString eventId, QVariantMap media, QString sender, bool isOwn, double ts);
+
+    // An m.replace arrived for an event already in the timeline. Never a row of
+    // its own: showing it as one is how a corrected typo becomes two messages.
+    void roomMessageEdited(QString chatId, QString eventId, QString newText);
+
+    // The topic, the name, the member list, the address or the picture moved.
+    // Deliberately coarse - whoever is showing the room asks again.
+    void roomInfoChanged(QString chatId);
 
     void sendFailed(QString chatId, QString reason);
 

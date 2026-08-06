@@ -20,7 +20,8 @@ import koutnet.app
 Kirigami.Page {
     id: root
 
-    property alias model: chatsView.model
+    // Handed to both views below rather than to one, so it cannot be an alias.
+    property var model: null
     property string selectedChatId: ""
     property string favoritesChatId: ""
     property int connectionMode: 0
@@ -34,15 +35,21 @@ Kirigami.Page {
 
     property bool favoritesExpanded: true
     property bool directExpanded: true
+    property bool roomsExpanded: true
 
     // Held open wherever the headings are not drawn: a fold with no chevron left
     // to undo it is a row that has gone for good.
     readonly property bool favoritesShown: root.compact || root.favoritesExpanded
     readonly property bool directShown: root.compact || root.directExpanded
+    readonly property bool roomsShown: root.compact || root.roomsExpanded
+
+    readonly property int directCount: root.model ? root.model.directCount : 0
+    readonly property int roomCount: root.model ? root.model.roomCount : 0
 
     signal chatActivated(string chatId)
     signal newChatRequested()
     signal forgetRequested(string chatId)
+    signal leaveRoomRequested(string chatId)
     signal profileRequested(Item anchorItem)
     signal settingsRequested()
     signal connectionModeRequested(int mode)
@@ -67,6 +74,7 @@ Kirigami.Page {
     onSearchTextChanged: if (root.searchText.length > 0) {
         root.favoritesExpanded = true
         root.directExpanded = true
+        root.roomsExpanded = true
     }
 
     title: i18nc("@title sidebar section, the list of conversations", "Chats")
@@ -174,17 +182,9 @@ Kirigami.Page {
                 }
             }
 
-            ChatSection {
-                Layout.fillWidth: true
-                text: i18nc("@title:group conversation list section, one-to-one chats", "Direct messages")
-                itemCount: chatsView.count
-                visible: !root.compact && itemCount > 0
-                expanded: root.directExpanded
-                onToggleRequested: root.directExpanded = !root.directExpanded
-            }
-
-            // The placeholder is a sibling of the view: a child of a Flickable is
-            // parented to its content item and would scroll away with the rows.
+            // The placeholder is a sibling of the scroll area: a child of a
+            // Flickable is parented to its content item and would scroll away
+            // with the rows.
             Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -192,7 +192,7 @@ Kirigami.Page {
                 Kirigami.PlaceholderMessage {
                     anchors.centerIn: parent
                     width: parent.width - Kirigami.Units.largeSpacing * 4
-                    visible: chatsView.count === 0
+                    visible: root.directCount === 0 && root.roomCount === 0
                     icon.name: "dialog-messages"
                     text: i18nc("@info there are no conversations yet", "No chats yet")
                     explanation: i18nc("@info", "Start one from the button in the toolbar, or wait for someone to write to you.")
@@ -203,86 +203,177 @@ Kirigami.Page {
                     }
                 }
 
+                // Two sections, so two groups over the same model, each
+                // collapsing the rows that are not its own. One view could not
+                // do it: the model is ordered by activity, so rooms and direct
+                // chats are interleaved in it and a section heading drawn from
+                // that order would repeat down the column.
+                //
+                // Repeaters rather than two ListViews. A ListView sized to its
+                // own contentHeight inside a layout starts at zero height,
+                // creates no delegates because nothing is visible, and so stays
+                // at zero. The rows here are a conversation list rather than a
+                // timeline - tens of items, not thousands - so building all of
+                // them is cheaper than the arithmetic that would avoid it.
                 QQC2.ScrollView {
+                    id: chatsScroll
                     anchors.fill: parent
+                    contentWidth: availableWidth
 
-                    ListView {
-                        id: chatsView
+                    ColumnLayout {
+                        width: chatsScroll.availableWidth
+                        spacing: 0
 
-                        currentIndex: -1
-                        clip: true
-
-                        move: Transition {
-                            NumberAnimation { properties: "y"; duration: Kirigami.Units.shortDuration }
-                        }
-                        displaced: Transition {
-                            NumberAnimation { properties: "y"; duration: Kirigami.Units.shortDuration }
-                        }
-
-                        // One menu for the whole list, so scrolling does not build
-                        // a hundred of them.
-                        Components.ConvergentContextMenu {
-                            id: rowMenu
-
-                            property string chatId: ""
-                            property string chatName: ""
-
-                            Kirigami.Action {
-                                text: i18nc("@action:inmenu open this conversation", "Open")
-                                icon.name: "document-open"
-                                onTriggered: root.chatActivated(rowMenu.chatId)
-                            }
-                            Kirigami.Action {
-                                text: i18nc("@action:inmenu remove the conversation from the list, keeping the history", "Forget this chat")
-                                icon.name: "list-remove"
-                                onTriggered: root.forgetRequested(rowMenu.chatId)
-                            }
+                        ChatSection {
+                            Layout.fillWidth: true
+                            text: i18nc("@title:group conversation list section, one-to-one chats", "Direct messages")
+                            itemCount: root.directCount
+                            visible: !root.compact && root.directCount > 0
+                            expanded: root.directExpanded
+                            onToggleRequested: root.directExpanded = !root.directExpanded
                         }
 
-                        delegate: ContactDelegate {
-                            id: chatRow
+                        // The group carries the two facts that tell one section
+                        // from the other, and the shared delegate reads them off
+                        // its parent - which is this, because a Repeater parents
+                        // what it builds to its own parent rather than to itself.
+                        ColumnLayout {
+                            id: directGroup
 
-                            // model.* rather than required properties: every role
-                            // below shares its name with a property this delegate
-                            // already has, which would bind to itself.
-                            // The fold, named once and read twice: reading it back
-                            // off visible would read effective visibility, which is
-                            // the latch the pinned row above ran into.
-                            readonly property bool shown: root.directShown
-                                && root.matchesSearch(model.displayName, model.chatId)
-                            visible: chatRow.shown
-                            height: chatRow.shown ? implicitHeight : 0
+                            readonly property bool roomsOnly: false
+                            readonly property bool sectionShown: root.directShown
 
-                            compact: root.compact
-                            displayName: model.displayName
-                            preview: model.preview
-                            stampSecs: model.stampSecs
-                            lastSeenSecs: model.lastSeenSecs
-                            unreadCount: model.unreadCount
-                            online: model.online
-                            transport: model.transport
-                            // A Matrix room has no presence to report, and a
-                            // permanently grey dot reads as a peer that is
-                            // switched off rather than as one that is not asked.
-                            showPresence: model.transport !== "matrix"
-                            selected: model.chatId === root.selectedChatId
+                            Layout.fillWidth: true
+                            spacing: 0
 
-                            function openRowMenu() {
-                                rowMenu.chatId = model.chatId
-                                rowMenu.chatName = model.displayName
-                                rowMenu.popup()
+                            Repeater {
+                                model: root.model
+                                delegate: chatRowComponent
                             }
+                        }
 
-                            onClicked: root.chatActivated(model.chatId)
-                            onPressAndHold: chatRow.openRowMenu()
-                            onAvatarClicked: (anchorItem) => root.peerCardRequested(model.chatId, anchorItem)
+                        ChatSection {
+                            Layout.fillWidth: true
+                            text: i18nc("@title:group conversation list section, Matrix rooms", "Rooms")
+                            itemCount: root.roomCount
+                            visible: !root.compact && root.roomCount > 0
+                            expanded: root.roomsExpanded
+                            onToggleRequested: root.roomsExpanded = !root.roomsExpanded
+                        }
 
-                            TapHandler {
-                                acceptedButtons: Qt.RightButton
-                                onTapped: chatRow.openRowMenu()
+                        ColumnLayout {
+                            id: roomsGroup
+
+                            readonly property bool roomsOnly: true
+                            readonly property bool sectionShown: root.roomsShown
+
+                            Layout.fillWidth: true
+                            spacing: 0
+
+                            Repeater {
+                                model: root.model
+                                delegate: chatRowComponent
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // One menu for both groups, so a long list does not build a hundred of them.
+    Components.ConvergentContextMenu {
+        id: rowMenu
+
+        property string chatId: ""
+        property string chatName: ""
+        property bool isRoom: false
+
+        Kirigami.Action {
+            text: i18nc("@action:inmenu open this conversation", "Open")
+            icon.name: "document-open"
+            onTriggered: root.chatActivated(rowMenu.chatId)
+        }
+        Kirigami.Action {
+            text: i18nc("@action:inmenu remove the conversation from the list, keeping the history", "Forget this chat")
+            icon.name: "list-remove"
+            // A room is left rather than forgotten: dropping the row would put
+            // it straight back on the next sync, because the homeserver still
+            // has this account in it.
+            visible: !rowMenu.isRoom
+            onTriggered: root.forgetRequested(rowMenu.chatId)
+        }
+        Kirigami.Action {
+            text: i18nc("@action:inmenu leave a Matrix room", "Leave room")
+            icon.name: "window-close"
+            visible: rowMenu.isRoom
+            onTriggered: root.leaveRoomRequested(rowMenu.chatId)
+        }
+    }
+
+    // One delegate for both groups. Which group it is in decides which rows it
+    // draws; everything else about a row is the same either way, because a room
+    // and a LAN chat are the same thing in this list - a conversation with
+    // something new in it - and only differ once one is opened.
+    //
+    // Wrapped in an Item for the reason the pinned row above is: a
+    // RoundedItemDelegate binds its own width to the view it is the delegate
+    // of, this one is the delegate of no view, and a binding on width beats
+    // whatever a layout assigns.
+    Component {
+        id: chatRowComponent
+
+        Item {
+            id: rowWrapper
+
+            // model.* rather than required properties: every role below shares
+            // its name with a property ContactDelegate already has, which would
+            // bind to itself.
+            readonly property bool isRoom: model.transport === "matrix"
+            // The group this was built into - see the note beside directGroup.
+            readonly property bool inThisSection: rowWrapper.parent !== null
+                && rowWrapper.isRoom === rowWrapper.parent.roomsOnly
+            readonly property bool shown: rowWrapper.inThisSection
+                && rowWrapper.parent.sectionShown
+                && root.matchesSearch(model.displayName, model.chatId)
+
+            Layout.fillWidth: true
+            implicitHeight: rowWrapper.shown ? chatRow.implicitHeight : 0
+            visible: rowWrapper.shown
+
+            ContactDelegate {
+                id: chatRow
+
+                width: parent.width
+
+                compact: root.compact
+                displayName: model.displayName
+                preview: model.preview
+                stampSecs: model.stampSecs
+                lastSeenSecs: model.lastSeenSecs
+                unreadCount: model.unreadCount
+                online: model.online
+                transport: model.transport
+                // A Matrix room has no presence to report, and a permanently
+                // grey dot reads as a peer that is switched off rather than as
+                // one that is not asked.
+                showPresence: !rowWrapper.isRoom
+                selected: model.chatId === root.selectedChatId
+
+                function openRowMenu() {
+                    rowMenu.chatId = model.chatId
+                    rowMenu.chatName = model.displayName
+                    rowMenu.isRoom = rowWrapper.isRoom
+                    rowMenu.popup()
+                }
+
+                onClicked: root.chatActivated(model.chatId)
+                onPressAndHold: chatRow.openRowMenu()
+                onAvatarClicked: (anchorItem) => root.peerCardRequested(model.chatId, anchorItem)
+
+                TapHandler {
+                    acceptedButtons: Qt.RightButton
+                    onTapped: chatRow.openRowMenu()
                 }
             }
         }

@@ -21,6 +21,15 @@ Kirigami.Page {
     property string selfDisplayName: ""
     property string selfAvatarSource: ""
 
+    // A Matrix room, as opposed to a peer on the local network. The two are
+    // deliberately not made to look alike: a room has a name, a topic, an
+    // address and members, and a LAN peer has a person at the other end of it.
+    // Everything below that branches on this says which of the two it is drawing.
+    property bool isRoom: false
+    // MatrixRoomBridge::roomInfo()'s map, or null. Keys used here: displayName,
+    // topic, joinedCount, avatarUrl, encrypted.
+    property var roomInfo: null
+
     signal sendRequested(string text, string replyExcerpt, string replyAuthor, string replyId)
     signal attachRequested(string localFilePath)
     signal callRequested()
@@ -47,11 +56,19 @@ Kirigami.Page {
     property string viewerSource: ""
     property string viewerCaption: ""
 
+    readonly property string roomName: root.roomInfo ? (root.roomInfo.displayName || "") : ""
+    readonly property string roomTopic: root.roomInfo ? (root.roomInfo.topic || "") : ""
+    readonly property int roomMemberCount: root.roomInfo ? (root.roomInfo.joinedCount || 0) : 0
+
     // Never the address. peerInfoFor() already substitutes a name for a peer
     // that has published none, so the fallback here is only for having no peer.
-    title: root.peerInfo
-        ? (root.peerInfo.username || i18nc("@title a peer that has published no name of its own", "Unknown peer"))
-        : i18nc("@title", "Chat")
+    title: root.isRoom
+        ? (root.roomName.length > 0
+            ? root.roomName
+            : i18nc("@title a Matrix room whose name has not been synced yet", "Room"))
+        : (root.peerInfo
+            ? (root.peerInfo.username || i18nc("@title a peer that has published no name of its own", "Unknown peer"))
+            : i18nc("@title", "Chat"))
     padding: 0
 
     // No peer column in compact mode, so the action that asks for one goes too.
@@ -81,6 +98,9 @@ Kirigami.Page {
             implicitHeight: Kirigami.Units.iconSizes.medium
             name: root.isFavorites ? "" : root.title
             iconSource: root.isFavorites ? "bookmarks" : ""
+            // A room usually has a picture and a LAN peer never does - peers
+            // publish a name and a bio and nothing else.
+            source: root.isRoom && root.roomInfo ? (root.roomInfo.avatarUrl || "") : ""
         }
 
         ColumnLayout {
@@ -101,29 +121,49 @@ Kirigami.Page {
                     cursorShape: Qt.PointingHandCursor
                 }
 
+                // A room's name opens the room, a peer's name opens the peer.
+                // The same gesture, two different things behind it, because the
+                // two headers are describing two different kinds of thing.
                 TapHandler {
                     enabled: !root.isFavorites
                     acceptedButtons: Qt.LeftButton
-                    onTapped: root.peerCardRequested(headerName)
+                    onTapped: {
+                        if (root.isRoom)
+                            root.infoRequested()
+                        else
+                            root.peerCardRequested(headerName)
+                    }
                 }
             }
 
-            // RelativeTime.now is read so this ages on its own: the label has to
-            // walk to "2 minutes ago" with the window open and nothing arriving.
+            // A room's second line is what the room is for; a peer's is whether
+            // the person is there. RelativeTime.now is read in the second case
+            // so the label ages on its own: it has to walk to "2 minutes ago"
+            // with the window open and nothing arriving.
             QQC2.Label {
                 Layout.fillWidth: true
                 // The second line of the header goes in compact mode: when the
                 // window is this short every line spent on furniture is a message.
-                visible: root.peerInfo && !root.isFavorites && !root.compact
+                visible: !root.isFavorites && !root.compact && text.length > 0
                 elide: Text.ElideRight
                 textFormat: Text.PlainText
-                text: root.peerInfo
-                    ? RelativeTime.presenceLabel(root.peerInfo.online === true,
-                                                 root.peerInfo.lastSeen || 0,
-                                                 RelativeTime.now)
-                    : ""
+                text: {
+                    if (root.isRoom) {
+                        if (root.roomTopic.length > 0)
+                            return root.roomTopic.replace(/\s+/g, " ")
+                        return root.roomMemberCount > 0
+                            ? i18ncp("@info:status %1 is how many people are in a Matrix room",
+                                     "%1 member", "%1 members", root.roomMemberCount)
+                            : ""
+                    }
+                    return root.peerInfo
+                        ? RelativeTime.presenceLabel(root.peerInfo.online === true,
+                                                     root.peerInfo.lastSeen || 0,
+                                                     RelativeTime.now)
+                        : ""
+                }
                 font: Kirigami.Theme.smallFont
-                color: (root.peerInfo && root.peerInfo.online === true)
+                color: (!root.isRoom && root.peerInfo && root.peerInfo.online === true)
                     ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.disabledTextColor
             }
         }
@@ -131,7 +171,9 @@ Kirigami.Page {
 
     actions: [
         Kirigami.Action {
-            text: i18nc("@action:button show who is on the other end of this conversation", "Details")
+            text: root.isRoom
+                ? i18nc("@action:button show the room's topic, address and members", "Room information")
+                : i18nc("@action:button show who is on the other end of this conversation", "Details")
             icon.name: "documentinfo"
             // The peer card is still reachable in compact mode, the column is not.
             visible: root.hasChat && !root.isFavorites && !root.compact
@@ -142,7 +184,9 @@ Kirigami.Page {
             icon.name: "call-start"
             // Compact mode keeps what is needed to read a message and answer it and
             // nothing else; a call still starts from the peer card or the drawer.
-            visible: root.hasChat && !root.isFavorites && !root.compact
+            // Never in a room: voice here is the LAN protocol's own, peer to
+            // peer, and there is no Matrix call behind the button.
+            visible: root.hasChat && !root.isFavorites && !root.compact && !root.isRoom
             onTriggered: root.callRequested()
         }
     ]
@@ -188,9 +232,14 @@ Kirigami.Page {
         onSaveItem: Qt.openUrlExternally(root.viewerSource)
     }
 
-    function showImage(localPath) {
-        root.viewerSource = "file://" + localPath
-        root.viewerCaption = localPath.substring(localPath.lastIndexOf("/") + 1)
+    // Already a URL when it arrives: a LAN attachment was turned into a file://
+    // one by AttachmentBlock, and a room's picture never had a path to begin
+    // with. The caption is the last path segment with any query string cut off,
+    // because an authenticated mxc URL carries one.
+    function showImage(source) {
+        root.viewerSource = source
+        const withoutQuery = source.split("?")[0]
+        root.viewerCaption = decodeURIComponent(withoutQuery.substring(withoutQuery.lastIndexOf("/") + 1))
         imageViewer.open()
     }
 
@@ -248,6 +297,10 @@ Kirigami.Page {
         Kirigami.Action {
             text: i18nc("@action:inmenu delete this message", "Delete")
             icon.name: "edit-delete"
+            // Not offered in a room. Deleting here only removes the local copy,
+            // and a message that is gone from this window and still in
+            // everybody else's is worse than one that is still in both.
+            visible: !root.isRoom
             onTriggered: deleteConfirm.open()
         }
     }
@@ -277,8 +330,10 @@ Kirigami.Page {
     }
 
     // Only your own text can be changed, and a file has no text to change.
+    // Never in a room, for the reason on the Delete action above: an edit that
+    // does not reach the homeserver is a private disagreement with the record.
     function canEditRow(row) {
-        if (!root.messagesModel || row < 0)
+        if (!root.messagesModel || row < 0 || root.isRoom)
             return false
         const idx = root.messagesModel.index(row, 0)
         return root.messagesModel.data(idx, ChatModel.IsOwnRole) === true
@@ -365,6 +420,7 @@ Kirigami.Page {
         peerName: root.title
         selfDisplayName: root.selfDisplayName
         selfAvatarSource: root.selfAvatarSource
+        canEditMessages: !root.isRoom
 
         onAvatarActivated: (own, anchorItem) => {
             if (own)
@@ -387,8 +443,8 @@ Kirigami.Page {
             if (root.messagesModel)
                 root.messagesModel.toggleReaction(row, emoji, root.selfReactionName)
         }
-        onImageActivated: (path) => root.showImage(path)
-        onFileActivated: (path) => Qt.openUrlExternally("file://" + path)
+        onImageActivated: (source) => root.showImage(source)
+        onFileActivated: (source) => Qt.openUrlExternally(source)
         onReadReached: root.readReached()
     }
 

@@ -21,6 +21,15 @@ MessageEntry MessageEntry::fromJson(const QJsonObject &o)
     e.isFile = o.value(QStringLiteral("is_file")).toBool();
     e.filePath = o.value(QStringLiteral("file_path")).toString();
     e.isImage = o.value(QStringLiteral("is_image")).toBool();
+    e.mediaKind = o.value(QStringLiteral("media_kind")).toString();
+    e.mediaUrl = o.value(QStringLiteral("media_url")).toString();
+    e.mediaMime = o.value(QStringLiteral("media_mime")).toString();
+    // Through a double, because QJsonValue has no 64-bit integer of its own and
+    // a file larger than two gigabytes must not come back negative.
+    e.mediaSize = qint64(o.value(QStringLiteral("media_size")).toDouble());
+    e.mediaWidth = o.value(QStringLiteral("media_width")).toInt();
+    e.mediaHeight = o.value(QStringLiteral("media_height")).toInt();
+    e.mediaDurationMs = o.value(QStringLiteral("media_duration_ms")).toInt();
     e.isRead = o.value(QStringLiteral("is_read")).toBool();
     e.ensureMsgId();
     return e;
@@ -45,6 +54,13 @@ QJsonObject MessageEntry::toJson() const
     o[QStringLiteral("is_file")] = isFile;
     o[QStringLiteral("file_path")] = filePath;
     o[QStringLiteral("is_image")] = isImage;
+    o[QStringLiteral("media_kind")] = mediaKind;
+    o[QStringLiteral("media_url")] = mediaUrl;
+    o[QStringLiteral("media_mime")] = mediaMime;
+    o[QStringLiteral("media_size")] = double(mediaSize);
+    o[QStringLiteral("media_width")] = mediaWidth;
+    o[QStringLiteral("media_height")] = mediaHeight;
+    o[QStringLiteral("media_duration_ms")] = mediaDurationMs;
     o[QStringLiteral("is_read")] = isRead;
     return o;
 }
