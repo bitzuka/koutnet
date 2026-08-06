@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "ChatListModel.h"
+#include "ChatAddress.h"
 #include "HistoryManager.h"
 #include "UnreadManager.h"
 
@@ -79,6 +80,8 @@ QVariant ChatListModel::data(const QModelIndex &index, int role) const
         return e.unread;
     case OnlineRole:
         return e.online;
+    case TransportRole:
+        return koutnet::chatid::transportName(e.chatId);
     default:
         return {};
     }
@@ -95,6 +98,7 @@ QHash<int, QByteArray> ChatListModel::roleNames() const
         {LastSeenSecsRole, "lastSeenSecs"},
         {UnreadCountRole, "unreadCount"},
         {OnlineRole, "online"},
+        {TransportRole, "transport"},
     };
 }
 
@@ -169,6 +173,7 @@ QVariantMap ChatListModel::chatInfo(const QString &chatId) const
     m[QStringLiteral("lastSeenSecs")] = e.lastSeen;
     m[QStringLiteral("unreadCount")] = e.unread;
     m[QStringLiteral("online")] = e.online;
+    m[QStringLiteral("transport")] = koutnet::chatid::transportName(e.chatId);
     return m;
 }
 

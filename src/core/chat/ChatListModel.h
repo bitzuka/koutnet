@@ -39,6 +39,11 @@ public:
         LastSeenSecsRole,
         UnreadCountRole,
         OnlineRole,
+        // Where the row came from, worked out from the chat id alone rather than
+        // stored: it is a property of the id, and a stored copy could disagree
+        // with it. The only thing the interface is told about transport, and it
+        // spends it on a badge.
+        TransportRole,
     };
     Q_ENUM(Roles)
 
