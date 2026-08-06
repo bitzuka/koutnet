@@ -148,9 +148,17 @@ Three suites, built by default; pass `-DBUILD_TESTING=OFF` to skip them.
 ctest --test-dir build --output-on-failure
 ```
 
-They need no display and no `kwalletd`. Running without a wallet is not a
-workaround, it is one of the paths under test: the keys have to stay in memory
-rather than quietly land in a config file.
+They need no display and no `kwalletd`, and they will not touch one that is
+running either: `SecretStore` is switched to an in-memory store for the length
+of a test run. That is a fix rather than politeness - there is one wallet per
+session and `QStandardPaths` test mode does not move it, so runs before this
+wrote their throwaway identity keys into the developer's own keyring and left
+them there. Keys staying in memory rather than quietly landing in a config file
+is still one of the paths under test.
+
+If an earlier run left entries behind, `tools/wallet-cleanup.sh` lists them and,
+given `--remove`, deletes them. `kwallet-query` can read an entry but not remove
+one, so it goes through the same D-Bus interface KWallet itself uses.
 
 ## Contributing
 
