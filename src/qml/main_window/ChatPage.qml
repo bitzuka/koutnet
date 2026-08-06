@@ -112,7 +112,9 @@ Kirigami.Page {
             // walk to "2 minutes ago" with the window open and nothing arriving.
             QQC2.Label {
                 Layout.fillWidth: true
-                visible: root.peerInfo && !root.isFavorites
+                // The second line of the header goes in compact mode: when the
+                // window is this short every line spent on furniture is a message.
+                visible: root.peerInfo && !root.isFavorites && !root.compact
                 elide: Text.ElideRight
                 textFormat: Text.PlainText
                 text: root.peerInfo
@@ -138,7 +140,9 @@ Kirigami.Page {
         Kirigami.Action {
             text: i18nc("@action:button start a voice call", "Call")
             icon.name: "call-start"
-            visible: root.hasChat && !root.isFavorites
+            // Compact mode keeps what is needed to read a message and answer it and
+            // nothing else; a call still starts from the peer card or the drawer.
+            visible: root.hasChat && !root.isFavorites && !root.compact
             onTriggered: root.callRequested()
         }
     ]

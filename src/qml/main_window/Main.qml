@@ -39,13 +39,19 @@ Kirigami.ApplicationWindow {
     // each hold their own half of it.
     readonly property bool compact: appSettings.compactMode
 
-    // Two of the compact width is still under the width at which PageRow folds to
-    // a single column, so the list and the conversation both stay on screen.
-    readonly property real kCompactColumnWidth: Kirigami.Units.gridUnit * 9
-    readonly property real kRoomyColumnWidth: Kirigami.Units.gridUnit * 17
+    // One conversation and no furniture. A narrower copy of the three-column
+    // desktop window is still a desktop window; what somebody who wants the
+    // messenger out of the way needs on screen is the messages and a way to answer
+    // them, so compact mode shows the conversation alone and leaves the list a back
+    // button away. PageRow.wideMode is readonly and derived from this, so the fold
+    // is asked for by making one column as wide as the window rather than set.
+    readonly property real kRoomyColumnWidth: root.compact
+        ? root.width
+        : Math.min(Math.max(Kirigami.Units.gridUnit * 17, Math.round(root.width * 0.2)),
+                   Kirigami.Units.gridUnit * 26)
 
-    readonly property int kCompactWidth: Kirigami.Units.gridUnit * 24
-    readonly property int kCompactHeight: Kirigami.Units.gridUnit * 30
+    readonly property int kCompactWidth: Kirigami.Units.gridUnit * 22
+    readonly property int kCompactHeight: Kirigami.Units.gridUnit * 28
 
     function toggleCompact() {
         if (!root.compact) {
@@ -727,8 +733,7 @@ Kirigami.ApplicationWindow {
     // warns about it at every start. Given an Item, getPageComponent() returns
     // nothing, and insertItem picks the page up from the window's contentData.
     pageStack.initialPage: [chatListPage, chatPage]
-    pageStack.defaultColumnWidth: root.compact ? root.kCompactColumnWidth
-                                               : root.kRoomyColumnWidth
+    pageStack.defaultColumnWidth: root.kRoomyColumnWidth
     pageStack.globalToolBar.style: Kirigami.ApplicationHeaderStyle.ToolBar
     pageStack.globalToolBar.showNavigationButtons: Kirigami.ApplicationHeaderStyle.ShowBackButton
 
