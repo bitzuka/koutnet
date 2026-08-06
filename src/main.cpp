@@ -27,6 +27,9 @@
 #include "core/constructor/AppSettings.h"
 #include "core/notify/NotificationManager.h"
 #include "core/tray/TrayIcon.h"
+#include "matrix/MatrixManager.h"
+#include "matrix/MatrixRoomBridge.h"
+
 #include "koutnet-version.h"
 #include "koutnet_app_debug.h"
 #include "koutnet_crypto_debug.h"
@@ -126,6 +129,15 @@ int main(int argc, char *argv[])
         QObject::connect(appSettings, signal, network, publishProfile);
     }
 
+    // K-Server mode is Matrix. Deliberately not built into NetworkManager and
+    // not talking to it either: the two transports share the models and nothing
+    // else, so a change to one cannot break the other. The session is resumed
+    // whatever the current mode is - a user who switches back to LAN for an
+    // afternoon has not signed out of their homeserver.
+    auto *matrixManager = new koutnet::MatrixManager(appSettings, &app);
+    auto *matrixRooms = new koutnet::MatrixRoomBridge(matrixManager, &app);
+    matrixManager->resumeSession();
+
     auto *audioDevices = new koutnet::AudioDevices(&app);
     // Owns the KNotification objects, so it has to outlive every window that
     // can raise one; parented to the application for that reason.
@@ -194,6 +206,8 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("voiceCallManager"), voice);
     engine.rootContext()->setContextProperty(QStringLiteral("fileTransferHandler"), fileTransfer);
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), appSettings);
+    engine.rootContext()->setContextProperty(QStringLiteral("matrixManager"), matrixManager);
+    engine.rootContext()->setContextProperty(QStringLiteral("matrixRooms"), matrixRooms);
     engine.rootContext()->setContextProperty(QStringLiteral("audioDevices"), audioDevices);
     engine.rootContext()->setContextProperty(QStringLiteral("notificationManager"), notifications);
     // Null when the tray is switched off. Main.qml checks for that, which is also what

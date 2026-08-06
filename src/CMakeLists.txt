@@ -72,6 +72,37 @@ if(NOT KF6KirigamiAddons_FOUND)
         "and configure again.")
 endif()
 
+# K-Server mode is Matrix, and libQuotient is the Qt SDK for it - the same one
+# NeoChat is built on, so a room here and a room there are the same room and
+# neither this project nor its author has to invent federation. Required rather
+# than optional: a mode present in the interface with nothing behind it is
+# exactly the state this replaces.
+#
+# 0.9 rather than any version: Connection::assumeIdentity(), which is what
+# resumes a stored session without asking for the password again, arrived in
+# 0.7.2, and Room::postText() deprecated postPlainText() in 0.9. The package is
+# named after the Qt major version it was built against, which is also why there
+# is no Qt 5 fallback here.
+#
+# On the C++ standard: libQuotient publishes cxx_std_23 as an interface
+# requirement, so linking it raises this target past the 20 set at the top
+# level. That is libQuotient's floor, not a choice made here.
+find_package(QuotientQt6 0.9 CONFIG)
+set_package_properties(QuotientQt6 PROPERTIES
+    DESCRIPTION "Qt SDK for the Matrix protocol"
+    URL "https://github.com/quotient-im/libQuotient"
+    TYPE REQUIRED
+    PURPOSE "K-Server mode: Matrix login, sync, room list and messages"
+)
+if(NOT QuotientQt6_FOUND)
+    message(FATAL_ERROR
+        "libQuotient 0.9 or newer was not found. It is what K-Server mode is made of. "
+        "Install it (package names: net-libs/libquotient on Gentoo, libquotient, "
+        "libquotient-devel, libQuotient-dev) and configure again. It brings libolm, "
+        "qtkeychain built for Qt 6 and Qt6::Sql with it; those are its dependencies "
+        "rather than this project's.")
+endif()
+
 qt_standard_project_setup(REQUIRES 6.4)
 
 # One category per subsystem, so a bug report can be asked for
@@ -107,6 +138,13 @@ ecm_qt_declare_logging_category(KOUTNET_LOGGING_SRCS
     EXPORT KOUTNET
 )
 ecm_qt_declare_logging_category(KOUTNET_LOGGING_SRCS
+    HEADER koutnet_matrix_debug.h
+    IDENTIFIER KOUTNET_LOG_MATRIX
+    CATEGORY_NAME koutnet.matrix
+    DESCRIPTION "KOutNet K-Server mode: the Matrix session, rooms and sync"
+    EXPORT KOUTNET
+)
+ecm_qt_declare_logging_category(KOUTNET_LOGGING_SRCS
     HEADER koutnet_app_debug.h
     IDENTIFIER KOUTNET_LOG_APP
     CATEGORY_NAME koutnet.app
@@ -130,6 +168,8 @@ qt_add_executable(KOutNet
     core/security/SecretStore.h
     core/constructor/AppSettings.cpp
     core/constructor/AppSettings.h
+    core/chat/ChatAddress.cpp
+    core/chat/ChatAddress.h
     core/chat/MessageEntry.cpp
     core/chat/MessageEntry.h
     core/chat/HistoryManager.cpp
@@ -167,6 +207,12 @@ qt_add_executable(KOutNet
     network/VoiceCallManager.h
     network/FileTransferHandler.cpp
     network/FileTransferHandler.h
+    matrix/MatrixTranslate.cpp
+    matrix/MatrixTranslate.h
+    matrix/MatrixManager.cpp
+    matrix/MatrixManager.h
+    matrix/MatrixRoomBridge.cpp
+    matrix/MatrixRoomBridge.h
 )
 
 # The one brand colour is a QML singleton rather than a C++ one: it holds a
@@ -209,6 +255,7 @@ qt_add_qml_module(KOutNet
         qml/peer/PeerInfoPage.qml
         qml/settings/SettingsPage.qml
         qml/settings/AboutPage.qml
+        qml/matrix/MatrixLoginPage.qml
         qml/tabs/NotesPage.qml
         qml/tabs/CallLogPage.qml
         qml/tabs/PlayerPage.qml
@@ -251,6 +298,7 @@ target_link_libraries(KOutNet PRIVATE
     KF6::Notifications
     KF6::StatusNotifierItem
     KF6::Wallet
+    QuotientQt6
 )
 
 install(TARGETS KOutNet ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
@@ -287,6 +335,10 @@ set_target_properties(KOutNet PROPERTIES
 # categories and the generated settings class from this directory's build tree.
 set(KOUTNET_GENERATED_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(KOutNet PRIVATE
+    # matrix/ reaches core/ the way main.cpp does, by path from the source root.
+    # Without this a quoted include from a subdirectory resolves against that
+    # subdirectory and nowhere else.
+    ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/core/theme
     ${CMAKE_CURRENT_SOURCE_DIR}/core/chat
     ${CMAKE_CURRENT_SOURCE_DIR}/core/emoji

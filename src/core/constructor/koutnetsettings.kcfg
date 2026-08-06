@@ -55,6 +55,19 @@
       <default>0</default>
     </entry>
 
+    <!-- K-Server mode is Matrix, so a K-Server account is a Matrix session.
+         These three are the part of one that is not a secret: the homeserver
+         base URL, the full MXID, and the device id the homeserver issued. The
+         access token is the fourth part and is deliberately absent - it is a
+         bearer credential, so MatrixManager puts it in KWallet through
+         SecretStore, the rule the identity keys and the group passphrase already
+         follow. An empty user id or device id means there is nothing to resume,
+         and the homeserver is kept past a logout because it is not a secret and
+         it is what the login form should offer next time. -->
+    <entry name="matrixHomeserver" key="matrix_homeserver" type="String"/>
+    <entry name="matrixUserId" key="matrix_user_id" type="String"/>
+    <entry name="matrixDeviceId" key="matrix_device_id" type="String"/>
+
     <entry name="language" key="language" type="String">
       <default>ru</default>
     </entry>
