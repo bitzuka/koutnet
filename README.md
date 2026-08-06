@@ -44,8 +44,22 @@ as unsupported until somebody says otherwise.
   scheme; the only choice the app makes for itself is dark, light or follow the
   desktop. Every user-visible string goes through ki18n; the catalogs are in
   `po/`.
+- **K-Server mode, which is Matrix.** Signing in to a homeserver puts your
+  joined rooms in the same conversation list as the peers found on the local
+  network, marked with a badge and otherwise identical; plain text messages
+  read and send, and the session is resumed on the next start without asking
+  again. It is libQuotient underneath, the same library NeoChat is built on, so
+  a room here and a room there are the same room and this project does not have
+  to invent federation. LAN mode is untouched by any of it and stays entirely
+  KOutNet's own protocol.
 
 ## What does not work yet
+
+- **Encrypted Matrix rooms.** The session is opened with encryption switched
+  off, so an end-to-end encrypted room shows one notice saying so instead of
+  its messages, and refuses to send rather than posting in the clear. Device
+  verification, key backup, attachments, reactions, invites, room creation and
+  spaces over Matrix are all still to come, as are Matrix voice calls.
 
 - **Relay / VDS mode.** The transport is written and the reconnect backoff
   works, but no relay host ships with the app, so the mode needs a server you
@@ -71,6 +85,12 @@ as unsupported until somebody says otherwise.
   delegates for the conversation rows, the maximize component for the image
   viewer and the convergent context menu for the per-message menu. CMake fails
   at configure time with the package name if it is missing.
+- **libQuotient 0.9+**, built for Qt 6: the Matrix SDK behind K-Server mode, and
+  the same one NeoChat uses. Required, not optional - CMake fails at configure
+  time with the package name if it is missing. It brings libolm, qtkeychain for
+  Qt 6 and Qt6::Sql along as its own dependencies. Note that it publishes
+  `cxx_std_23` as an interface requirement, so linking it raises this project
+  past the C++20 it otherwise asks for.
 - **OpenSSL** (libcrypto).
 - **extra-cmake-modules** 6.8+ and CMake 3.21+.
 
@@ -80,7 +100,12 @@ On Debian or Ubuntu, roughly:
 qt6-base-dev qt6-declarative-dev qt6-multimedia-dev libkf6config-dev
 libkf6coreaddons-dev libkf6i18n-dev libkf6kirigami-dev libkf6kirigamiaddons-dev
 libkf6colorscheme-dev libkf6wallet-dev extra-cmake-modules libssl-dev
+libquotient-dev
 ```
+
+On Gentoo, `net-libs/libquotient` (which pulls `dev-libs/olm` and
+`dev-libs/qtkeychain[qt6]`) alongside the usual `dev-qt` and `kde-frameworks`
+packages.
 
 Distro packages tend to lag behind what `.kde-ci.yml` asks for, so an older
 release may not carry new enough Frameworks.
