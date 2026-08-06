@@ -10,7 +10,10 @@
 
 #include <QDateTime>
 
+#include <utility>
+
 #include <Quotient/connection.h>
+#include <Quotient/eventitem.h>
 #include <Quotient/events/encryptedevent.h>
 #include <Quotient/events/roommessageevent.h>
 #include <Quotient/room.h>
@@ -59,6 +62,14 @@ MatrixRoomBridge::MatrixRoomBridge(MatrixManager *manager, QObject *parent)
 {
     if (m_manager) {
         connect(m_manager, &MatrixManager::connectionChanged, this, [this]() {
+            // Detached by hand rather than left to the rooms being destroyed: a
+            // connection on its way out lives until the homeserver answers or
+            // gives up, and until then its rooms would go on filing messages
+            // into a session the user has already left.
+            for (const QPointer<QObject> &room : std::as_const(m_tracked)) {
+                if (room)
+                    room->disconnect(this);
+            }
             m_tracked.clear();
             m_encryptionAnnounced.clear();
             attach(m_manager ? m_manager->connection() : nullptr);
@@ -112,6 +123,19 @@ void MatrixRoomBridge::trackRoom(Room *room)
     connect(room, &Room::addedMessages, this, [this, room](int fromIndex, int toIndex) {
         publishRange(room, fromIndex, toIndex);
     });
+    // This is how an outgoing message gets into the timeline, and the only way.
+    // addedMessages() is emitted for the span of a sync that is *not* an echo of
+    // something this client sent; Room::Private::mergePendingEvent() folds our
+    // own message straight into its pending item and emits these two instead. A
+    // message typed here was posted, accepted by the homeserver and seen by
+    // every other client in the room, and never appeared on this screen.
+    connect(room, &Room::pendingEventAboutToMerge, this, [this, room](RoomEvent *serverEvent, int) {
+        publishEvent(room, serverEvent);
+    });
+    // The other half of the same silence: a send libQuotient gave up on.
+    connect(room, &Room::pendingEventChanged, this, [this, room](int index) {
+        reportPendingFailure(room, index);
+    });
     connect(room, &Room::displaynameChanged, this, [this, room]() {
         publishRoom(room);
     });
@@ -154,43 +178,68 @@ void MatrixRoomBridge::announceEncryption(Room *room)
 
 void MatrixRoomBridge::publishRange(Room *room, int fromIndex, int toIndex)
 {
-    const QString chatId = chatid::matrixChatId(room->id());
-
     for (int i = fromIndex; i <= toIndex; ++i) {
         const auto it = room->findInTimeline(i);
         if (it == room->historyEdge())
             continue;
-        const RoomEvent *event = it->event();
-        if (event == nullptr)
-            continue;
-
-        const matrix::Row row = matrix::rowFor(flatten(room, event));
-        switch (row.kind) {
-        case matrix::RowKind::Skip:
-            break;
-        case matrix::RowKind::Text:
-            Q_EMIT roomMessage(chatId, row.msgId, row.text, row.sender, row.isOwn, row.ts, false);
-            break;
-        case matrix::RowKind::Encrypted:
-            // One notice for the room rather than one per unreadable event: the
-            // point is to say why the room looks quiet, not to fill it.
-            announceEncryption(room);
-            break;
-        case matrix::RowKind::Unsupported:
-            Q_EMIT roomMessage(chatId,
-                               row.msgId,
-                               row.text.isEmpty()
-                                   ? i18nc("@info in-timeline notice, a Matrix message this build cannot render", "Unsupported message")
-                                   : i18nc("@info in-timeline notice, %1 is the message description sent with an attachment",
-                                           "Attachment (not supported yet): %1",
-                                           row.text),
-                               row.sender,
-                               row.isOwn,
-                               row.ts,
-                               true);
-            break;
-        }
+        publishEvent(room, it->event());
     }
+}
+
+void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
+{
+    if (room == nullptr || event == nullptr)
+        return;
+
+    const QString chatId = chatid::matrixChatId(room->id());
+    const matrix::Row row = matrix::rowFor(flatten(room, event));
+    switch (row.kind) {
+    case matrix::RowKind::Skip:
+        break;
+    case matrix::RowKind::Text:
+        Q_EMIT roomMessage(chatId, row.msgId, row.text, row.sender, row.isOwn, row.ts, false);
+        break;
+    case matrix::RowKind::Encrypted:
+        // One notice for the room rather than one per unreadable event: the
+        // point is to say why the room looks quiet, not to fill it.
+        announceEncryption(room);
+        break;
+    case matrix::RowKind::Unsupported:
+        Q_EMIT roomMessage(chatId,
+                           row.msgId,
+                           row.text.isEmpty()
+                               ? i18nc("@info in-timeline notice, a Matrix message this build cannot render", "Unsupported message")
+                               : i18nc("@info in-timeline notice, %1 is the message description sent with an attachment",
+                                       "Attachment (not supported yet): %1",
+                                       row.text),
+                           row.sender,
+                           row.isOwn,
+                           row.ts,
+                           true);
+        break;
+    }
+}
+
+void MatrixRoomBridge::reportPendingFailure(Room *room, int pendingIndex)
+{
+    if (room == nullptr || pendingIndex < 0)
+        return;
+    const auto &pending = room->pendingEvents();
+    if (size_t(pendingIndex) >= pending.size())
+        return;
+
+    const auto &item = pending[size_t(pendingIndex)];
+    // Every other status is progress and says itself in the timeline.
+    if (item.deliveryStatus() != EventStatus::SendingFailed)
+        return;
+
+    const QString reason = item.annotation();
+    Q_EMIT sendFailed(chatid::matrixChatId(room->id()),
+                      reason.isEmpty()
+                          ? i18nc("@info:status a Matrix message was not accepted and nothing said why", "The message could not be sent to this room.")
+                          : i18nc("@info:status a Matrix message was not accepted, %1 is what the homeserver reported",
+                                  "The message could not be sent: %1",
+                                  reason));
 }
 
 Room *MatrixRoomBridge::roomFor(const QString &chatId) const
@@ -205,6 +254,14 @@ bool MatrixRoomBridge::sendText(const QString &chatId, const QString &text)
 {
     if (text.trimmed().isEmpty())
         return false;
+
+    // Split from the lookup below so the two are not reported as one thing: a
+    // session that is not up and a room that is not joined need different
+    // answers from the user, and "not available" was the same sentence for both.
+    if (!m_manager || !m_manager->connection()) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status", "Not signed in to the K-Server, so this message was not sent."));
+        return false;
+    }
 
     Room *room = roomFor(chatId);
     if (!room) {

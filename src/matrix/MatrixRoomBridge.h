@@ -23,6 +23,7 @@ namespace Quotient
 {
 class Connection;
 class Room;
+class RoomEvent;
 }
 
 namespace koutnet
@@ -62,6 +63,10 @@ private:
     void trackRoom(Quotient::Room *room);
     void publishRoom(Quotient::Room *room);
     void publishRange(Quotient::Room *room, int fromIndex, int toIndex);
+    void publishEvent(Quotient::Room *room, const Quotient::RoomEvent *event);
+    // Turns a pending event libQuotient has given up on into something the user
+    // sees. Without it a refused send is exactly as quiet as a delivered one.
+    void reportPendingFailure(Quotient::Room *room, int pendingIndex);
     void announceEncryption(Quotient::Room *room);
     Quotient::Room *roomFor(const QString &chatId) const;
 
@@ -69,7 +74,9 @@ private:
     // Room id to the object whose timeline signals are already connected.
     // libQuotient replaces the object when a room changes join state, so the id
     // alone cannot say whether the connections are still live - the pointer can.
-    QHash<QString, QObject *> m_tracked;
+    // Guarded, because a room is a child of its Connection and a Connection can
+    // be deleted from under this without leftRoom() ever being emitted.
+    QHash<QString, QPointer<QObject>> m_tracked;
     QSet<QString> m_encryptionAnnounced;
 };
 
