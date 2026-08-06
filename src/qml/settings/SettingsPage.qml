@@ -30,8 +30,14 @@ FormCard.FormCardPage {
 
     // A FormCard fills its row and then draws the card centred at its own
     // maximumWidth. The identity block is the one thing here that is not a FormCard,
-    // so it needs the same width and alignment or it starts at the window edge.
-    readonly property real kContentWidth: Kirigami.Units.gridUnit * 30
+    // so it needs the same width and alignment or it starts at the window edge -
+    // which is why every card below is handed this as well, instead of keeping its
+    // own default. Thirty grid units is that default, and a form that narrow leaves
+    // two thirds of a desktop monitor empty either side; this grows with the window
+    // and stops at forty-eight, roughly a hundred characters of the interface font,
+    // which is still one column the eye can track without losing the line.
+    readonly property real kContentWidth: Math.max(Kirigami.Units.gridUnit * 20,
+        Math.min(root.width - Kirigami.Units.largeSpacing * 4, Kirigami.Units.gridUnit * 48))
 
     // NetworkManager owns the enum; these two are the values with a field here.
     readonly property bool usesKServer: appSettings.connectionMode === 1
@@ -89,6 +95,7 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormHeader {
+        maximumWidth: root.kContentWidth
         title: i18nc("@title:group your own identity as other people see it", "Profile")
     }
 
@@ -116,6 +123,7 @@ FormCard.FormCardPage {
     // ones each carried their own width, alignment, padding and top margin to line up
     // with the card below, four numbers per block that only ever agreed by hand.
     FormCard.FormCard {
+        maximumWidth: root.kContentWidth
         // FormHeader supplies its own gap above every other card here; this one has
         // the identity block over it, and the page lays children out with no spacing.
         Layout.topMargin: Kirigami.Units.smallSpacing
@@ -240,10 +248,12 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormHeader {
+        maximumWidth: root.kContentWidth
         title: i18nc("@title:group where the account lives", "Account")
     }
 
     FormCard.FormCard {
+        maximumWidth: root.kContentWidth
         FormCard.FormRadioDelegate {
             id: localRadio
             text: i18nc("@option:radio account scope, this device only", "Local")
@@ -268,10 +278,12 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormHeader {
+        maximumWidth: root.kContentWidth
         title: i18nc("@title:group", "Appearance")
     }
 
     FormCard.FormCard {
+        maximumWidth: root.kContentWidth
         FormCard.FormComboBoxDelegate {
             id: schemeCombo
             text: i18nc("@label:listbox", "Colour scheme")
@@ -373,10 +385,12 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormHeader {
+        maximumWidth: root.kContentWidth
         title: i18nc("@title:group the system tray icon and notifications", "Tray and notifications")
     }
 
     FormCard.FormCard {
+        maximumWidth: root.kContentWidth
         FormCard.FormSwitchDelegate {
             id: trayDelegate
             text: i18nc("@option:check", "Show an icon in the system tray")
@@ -414,10 +428,12 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormHeader {
+        maximumWidth: root.kContentWidth
         title: i18nc("@title:group", "Audio")
     }
 
     FormCard.FormCard {
+        maximumWidth: root.kContentWidth
         FormCard.FormComboBoxDelegate {
             id: micCombo
             text: i18nc("@label:listbox", "Microphone")
@@ -513,10 +529,12 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormHeader {
+        maximumWidth: root.kContentWidth
         title: i18nc("@title:group", "Network")
     }
 
     FormCard.FormCard {
+        maximumWidth: root.kContentWidth
         FormCard.FormComboBoxDelegate {
             id: modeCombo
             text: i18nc("@label:listbox", "Network mode")

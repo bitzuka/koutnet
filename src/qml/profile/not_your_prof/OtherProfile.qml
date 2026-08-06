@@ -31,8 +31,10 @@ Kirigami.ScrollablePage {
 
     // A FormCard fills its row and then draws the card centred at its own
     // maximumWidth, so anything here that is not a FormCard needs the same width and
-    // alignment or it starts at the window edge.
-    readonly property real kContentWidth: Kirigami.Units.gridUnit * 30
+    // alignment or it starts at the window edge. Grown to match the settings page,
+    // where the reasoning for the number is written out.
+    readonly property real kContentWidth: Math.max(Kirigami.Units.gridUnit * 20,
+        Math.min(root.width - Kirigami.Units.largeSpacing * 4, Kirigami.Units.gridUnit * 48))
     // What a form delegate puts round its text, so the blocks share a left edge.
     readonly property real kContentPadding: Kirigami.Units.largeSpacing + Kirigami.Units.smallSpacing
 
@@ -98,12 +100,14 @@ Kirigami.ScrollablePage {
 
         FormCard.FormHeader {
             Layout.fillWidth: true
+            maximumWidth: root.kContentWidth
             title: i18nc("@title:group", "Session")
         }
 
         // Reachability and session state have no equivalent on your own profile.
         FormCard.FormCard {
             Layout.fillWidth: true
+            maximumWidth: root.kContentWidth
 
             FormCard.FormTextDelegate {
                 id: e2eDelegate
