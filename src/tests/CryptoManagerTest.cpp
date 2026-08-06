@@ -107,6 +107,26 @@ class CryptoManagerTest : public QObject
     Q_OBJECT
 
 private Q_SLOTS:
+    // First, because everything under it makes keys and this is the promise that
+    // none of them reach the user's keyring. These suites used to fill the real
+    // KWallet with identity_priv_b64_peer-a and its friends, and the unscoped
+    // cases wrote over the developer's own entries with test keys.
+    void secretsStayOutOfTheRealWallet()
+    {
+        QVERIFY2(koutnet::SecretStore::isInMemoryOnly(),
+                 "SecretStore is talking to KWallet; this run would write test keys "
+                 "into the session keyring and leave them there");
+        QVERIFY(koutnet::SecretStore::isAvailable());
+
+        const QString key = QStringLiteral("wallet_isolation_probe");
+        QVERIFY(koutnet::SecretStore::write(key, QStringLiteral("value")));
+        QString readBack;
+        QVERIFY(koutnet::SecretStore::read(key, &readBack));
+        QCOMPARE(readBack, QStringLiteral("value"));
+        QVERIFY(koutnet::SecretStore::remove(key));
+        QVERIFY2(!koutnet::SecretStore::read(key, &readBack), "a removed secret was still readable");
+    }
+
     void keysLoad()
     {
         CryptoManager crypto;
@@ -591,6 +611,11 @@ private Q_SLOTS:
 int main(int argc, char *argv[])
 {
     QStandardPaths::setTestModeEnabled(true);
+    // Test mode does not move KWallet - there is one per session - so this is
+    // what keeps a run of these tests out of the user's real keyring. Said out
+    // loud rather than left to the default, because the whole suite constructs
+    // CryptoManagers whose keys would otherwise be filed next to the real ones.
+    koutnet::SecretStore::setInMemoryOnly(true);
     QCoreApplication app(argc, argv);
     // Without a domain ki18n warns on every string, burying the test output.
     KLocalizedString::setApplicationDomain(QByteArrayLiteral("koutnet"));

@@ -5,10 +5,14 @@
 # shared library. The project builds a single executable, so there is no
 # library to link against yet.
 #
-# Headless CI has no kwalletd, so SecretStore refuses to store anything and
-# CryptoManager falls back to a keypair that lives only for the run. That is
-# the path these tests exercise, and it is the one that must not quietly turn
-# into writing secrets to a config file.
+# Every suite that links SecretStore.cpp puts it in its in-memory mode in
+# main(). There is one KWallet per session and QStandardPaths test mode does not
+# move it, so until that call these tests wrote their throwaway identity keys
+# into whatever keyring the developer running them had open, and left them
+# there. It also makes a run here and a run on headless CI take the same path,
+# where before they differed for want of a kwalletd. What must never happen
+# either way is a secret quietly landing in a config file instead.
+# tools/wallet-cleanup.sh clears out what an older build left behind.
 ecm_add_test(
     CryptoManagerTest.cpp
     ../core/security/CryptoManager.cpp

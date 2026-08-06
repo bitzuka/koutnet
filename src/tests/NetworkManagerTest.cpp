@@ -16,6 +16,7 @@
 #include <limits>
 
 #include "../core/security/CryptoManager.h"
+#include "../core/security/SecretStore.h"
 #include "../network/NetworkManager.h"
 #include "../network/Protocol.h"
 
@@ -824,6 +825,9 @@ private Q_SLOTS:
 int main(int argc, char *argv[])
 {
     QStandardPaths::setTestModeEnabled(true);
+    // See CryptoManagerTest's main(): test mode does not move KWallet, and the
+    // impostor identities below are not things to leave in a real keyring.
+    koutnet::SecretStore::setInMemoryOnly(true);
     QCoreApplication app(argc, argv);
     // Without a domain ki18n warns on every string, burying the test output.
     KLocalizedString::setApplicationDomain(QByteArrayLiteral("koutnet"));

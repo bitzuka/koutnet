@@ -4,7 +4,9 @@
 
 #include <QDebug>
 #include <QFile>
+#include <QHash>
 #include <QSettings>
+#include <QStandardPaths>
 
 #include <KWallet>
 
@@ -15,6 +17,34 @@ namespace
 {
 
 QString g_lastError;
+
+// Auto until somebody says otherwise, at which point QStandardPaths test mode
+// stops being consulted. See the note on setInMemoryOnly().
+enum class StoreMode {
+    Auto,
+    Memory,
+    Wallet,
+};
+StoreMode g_mode = StoreMode::Auto;
+
+QHash<QString, QString> &memoryStore()
+{
+    static QHash<QString, QString> store;
+    return store;
+}
+
+bool inMemoryOnly()
+{
+    switch (g_mode) {
+    case StoreMode::Memory:
+        return true;
+    case StoreMode::Wallet:
+        return false;
+    case StoreMode::Auto:
+        break;
+    }
+    return QStandardPaths::isTestModeEnabled();
+}
 
 QString folderName()
 {
@@ -60,13 +90,38 @@ KWallet::Wallet *openFolder()
 
 } // namespace
 
+void SecretStore::setInMemoryOnly(bool enabled)
+{
+    g_mode = enabled ? StoreMode::Memory : StoreMode::Wallet;
+    if (enabled)
+        memoryStore().clear();
+}
+
+bool SecretStore::isInMemoryOnly()
+{
+    return inMemoryOnly();
+}
+
 bool SecretStore::isAvailable()
 {
+    if (inMemoryOnly())
+        return true;
     return openFolder() != nullptr;
 }
 
 bool SecretStore::read(const QString &key, QString *outValue)
 {
+    if (inMemoryOnly()) {
+        const auto it = memoryStore().constFind(key);
+        if (it == memoryStore().constEnd()) {
+            g_lastError = QStringLiteral("no in-memory entry named %1").arg(key);
+            return false;
+        }
+        if (outValue)
+            *outValue = it.value();
+        return true;
+    }
+
     KWallet::Wallet *wallet = openFolder();
     if (!wallet)
         return false;
@@ -83,6 +138,12 @@ bool SecretStore::read(const QString &key, QString *outValue)
 
 bool SecretStore::write(const QString &key, const QString &value)
 {
+    if (inMemoryOnly()) {
+        memoryStore().insert(key, value);
+        g_lastError.clear();
+        return true;
+    }
+
     KWallet::Wallet *wallet = openFolder();
     if (!wallet)
         return false;
@@ -96,6 +157,12 @@ bool SecretStore::write(const QString &key, const QString &value)
 
 bool SecretStore::remove(const QString &key)
 {
+    if (inMemoryOnly()) {
+        memoryStore().remove(key);
+        g_lastError.clear();
+        return true;
+    }
+
     KWallet::Wallet *wallet = openFolder();
     if (!wallet)
         return false;
