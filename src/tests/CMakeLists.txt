@@ -62,3 +62,25 @@ ecm_add_test(
     NAME_PREFIX koutnet-
     LINK_LIBRARIES Qt6::Test Qt6::Core Qt6::Qml
 )
+
+# The Matrix path with no homeserver, no network and - deliberately - no
+# libQuotient linked in: MatrixTranslate.cpp is kept free of Quotient types
+# exactly so the decisions worth checking can be checked here. What is left is
+# the addressing scheme and the file naming it has to survive, which is where a
+# mistake quietly files a conversation under the wrong name or merges two of
+# them into one log. MatrixManager and MatrixRoomBridge are absent because
+# everything they do is a round trip to a server.
+#
+# Qt6::Qml is for the QML_ELEMENT marker in HistoryManager's header.
+ecm_add_test(
+    MatrixWiringTest.cpp
+    ../core/chat/ChatAddress.cpp
+    ../core/chat/HistoryManager.cpp
+    ../matrix/MatrixTranslate.cpp
+    TEST_NAME matrix-wiring
+    NAME_PREFIX koutnet-
+    LINK_LIBRARIES Qt6::Test Qt6::Core Qt6::Qml
+)
+# HistoryManager.cpp includes its logging category header, which is generated
+# into the parent directory's build tree and not into this one.
+target_include_directories(matrix-wiring PRIVATE ${KOUTNET_GENERATED_INCLUDE_DIR})
