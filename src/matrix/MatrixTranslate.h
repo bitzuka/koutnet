@@ -71,7 +71,7 @@ struct RawEvent {
     qint64 originTimestampMs = 0;
     bool isOwn = false;
     bool redacted = false;
-    bool encrypted = false; // an m.room.encrypted this build cannot open
+    bool encrypted = false; // an m.room.encrypted no key arrived for
     bool textLike = false; // m.text, m.notice or m.emote
 
     // An attachment, once the bridge has turned the event's mxc:// source into
@@ -96,7 +96,7 @@ struct RawEvent {
 enum class RowKind {
     Skip, //!< nothing goes in the timeline for this event
     Text, //!< an ordinary message
-    Encrypted, //!< say so; never show an empty bubble
+    Encrypted, //!< there is a message here and no key for it; say so
     Attachment, //!< a picture, a recording or a file
     System, //!< the room talking about itself
 };
@@ -118,11 +118,6 @@ struct Row {
     int mediaHeight = 0;
     int mediaDurationMs = 0;
 };
-
-// The stable msgId of a room's one "this room is encrypted" notice. Stable so
-// that ChatModel's duplicate check swallows it on every run after the first
-// rather than stacking a copy per restart.
-QString encryptionNoticeId(const QString &roomId);
 
 Row rowFor(const RawEvent &event);
 

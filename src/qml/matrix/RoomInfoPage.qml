@@ -236,7 +236,7 @@ Kirigami.ScrollablePage {
                     : i18nc("@info:status the room is not encrypted", "Not encrypted")
                 description: root.encrypted
                     ? i18nc("@info:whatsthis",
-                            "Messages here are encrypted for their recipients. KOutNet cannot read or write them yet, so this room appears empty.")
+                            "Messages here are encrypted for the devices in the room, so the homeserver stores them but cannot read them. Messages sent before this device joined stay unreadable, because their keys were never sent to it.")
                     : i18nc("@info:whatsthis",
                             "Messages here are readable by the homeserver and by anybody it federates with.")
             }

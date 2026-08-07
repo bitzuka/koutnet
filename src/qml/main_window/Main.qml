@@ -247,6 +247,12 @@ Kirigami.ApplicationWindow {
         function onRoomMessageEdited(chatId, eventId, newText) {
             root.modelForPeer(chatId).applyRemoteEdit(eventId, newText)
         }
+        // The same replacement without the "edited" mark: the key for an
+        // encrypted message turned up and the placeholder row can finally say
+        // what it always said. Nobody edited it.
+        function onRoomMessageRevealed(chatId, eventId, text) {
+            root.modelForPeer(chatId).applyRemoteEdit(eventId, text, false)
+        }
         function onRoomInfoChanged(chatId) {
             if (chatId === root.currentPeerIp)
                 root.refreshRoomInfo()

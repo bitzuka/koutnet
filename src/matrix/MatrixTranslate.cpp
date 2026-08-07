@@ -15,11 +15,6 @@
 namespace koutnet::matrix
 {
 
-QString encryptionNoticeId(const QString &roomId)
-{
-    return QStringLiteral("mx-encryption:") + roomId;
-}
-
 double secondsFromMs(qint64 ms)
 {
     if (ms <= 0)
@@ -149,8 +144,16 @@ Row rowFor(const RawEvent &event)
         return row;
     }
 
+    // An m.room.encrypted that is still an m.room.encrypted by the time it gets
+    // here is one libQuotient could not open - it substitutes the decrypted
+    // event in place when it can. Almost always a missing megolm key: history
+    // from before this device existed, or a sender who has not shared with it.
+    // Said in the timeline rather than skipped, because a message that leaves no
+    // trace reads as one that was never sent, and never claimed as unreadable
+    // for the room as a whole - the rest of it may read perfectly well.
     if (event.encrypted) {
         row.kind = RowKind::Encrypted;
+        row.text = i18nc("@info in-timeline notice, an encrypted message that could not be decrypted", "An encrypted message this device has no key for.");
         return row;
     }
 

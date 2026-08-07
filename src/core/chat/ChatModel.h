@@ -117,7 +117,13 @@ public:
     // An m.replace that arrived for a message already here. False when the
     // original is not in this conversation, which is the normal case for an
     // edit of something older than the loaded backlog.
-    Q_INVOKABLE bool applyRemoteEdit(const QString &remoteId, const QString &newText);
+    //
+    // markEdited false replaces the text without the "edited" mark, which is
+    // for the one caller that is not an edit: an encrypted message whose key
+    // arrived late, where the row had a placeholder in it and now has what was
+    // always there. Nobody changed that message and the interface must not say
+    // somebody did.
+    Q_INVOKABLE bool applyRemoteEdit(const QString &remoteId, const QString &newText, bool markEdited = true);
 
     // Editing and unsending are local only: the caller tells the peer, because
     // only the window knows this chat's address and a model reaching for

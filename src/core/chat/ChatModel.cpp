@@ -419,7 +419,7 @@ bool ChatModel::ingestRemoteAttachment(const QString &remoteId, const QVariantMa
     return true;
 }
 
-bool ChatModel::applyRemoteEdit(const QString &remoteId, const QString &newText)
+bool ChatModel::applyRemoteEdit(const QString &remoteId, const QString &newText, bool markEdited)
 {
     const int row = rowForMsgId(remoteId);
     if (row < 0 || newText.isEmpty())
@@ -430,9 +430,16 @@ bool ChatModel::applyRemoteEdit(const QString &remoteId, const QString &newText)
         return false;
 
     m.text = newText;
-    m.isEdited = true;
+    if (markEdited)
+        m.isEdited = true;
+    // A revealed message stops being a system notice: it is an ordinary message
+    // that could not be read until now, and leaving it styled as a notice would
+    // keep it looking like something the room said rather than something a
+    // person wrote.
+    if (!markEdited)
+        m.isSystem = false;
     const QModelIndex idx = index(row);
-    Q_EMIT dataChanged(idx, idx, {TextRole, IsEditedRole});
+    Q_EMIT dataChanged(idx, idx, {TextRole, IsEditedRole, IsSystemRole});
     persistAll();
     return true;
 }

@@ -22,7 +22,6 @@
 #include <QHash>
 #include <QObject>
 #include <QPointer>
-#include <QSet>
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
@@ -90,6 +89,13 @@ Q_SIGNALS:
     // its own: showing it as one is how a corrected typo becomes two messages.
     void roomMessageEdited(QString chatId, QString eventId, QString newText);
 
+    // A message that went into the timeline as "no key for this" has been
+    // decrypted, because the key turned up afterwards. Separate from
+    // roomMessageEdited() for one reason: nobody edited anything, and marking
+    // the row as edited would be this interface telling a small lie about a
+    // message whose whole point is that it is now being told truthfully.
+    void roomMessageRevealed(QString chatId, QString eventId, QString text);
+
     // The topic, the name, the member list, the address or the picture moved.
     // Deliberately coarse - whoever is showing the room asks again.
     void roomInfoChanged(QString chatId);
@@ -105,7 +111,8 @@ private:
     // Turns a pending event libQuotient has given up on into something the user
     // sees. Without it a refused send is exactly as quiet as a delivered one.
     void reportPendingFailure(Quotient::Room *room, int pendingIndex);
-    void announceEncryption(Quotient::Room *room);
+    // A timeline event libQuotient has swapped for its decrypted self.
+    void revealEvent(Quotient::Room *room, const Quotient::RoomEvent *event);
     Quotient::Room *roomFor(const QString &chatId) const;
 
     QPointer<MatrixManager> m_manager;
@@ -115,7 +122,6 @@ private:
     // Guarded, because a room is a child of its Connection and a Connection can
     // be deleted from under this without leftRoom() ever being emitted.
     QHash<QString, QPointer<QObject>> m_tracked;
-    QSet<QString> m_encryptionAnnounced;
 };
 
 } // namespace koutnet

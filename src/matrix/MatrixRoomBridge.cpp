@@ -85,6 +85,24 @@ QString mediaKindName(MediaKind kind)
     return QString();
 }
 
+// Whether a send into this room can be protected the way the room requires.
+// An unencrypted room is always yes. An encrypted room is yes only while the
+// session actually has its key store: libQuotient drops the event on the floor
+// otherwise, and posting it in the clear instead is never the answer, because
+// every other client in the room would show it with a warning.
+bool canSendEncrypted(const Room *room)
+{
+    if (room == nullptr || !room->usesEncryption())
+        return true;
+    return room->connection() != nullptr && room->connection()->encryptionEnabled();
+}
+
+QString encryptionUnavailableReason()
+{
+    return i18nc("@info:status a message for an encrypted room was not sent because the session has no keys",
+                 "This room is end-to-end encrypted and this session could not open its encryption keys, so nothing was sent.");
+}
+
 // The room-local display name, falling back to the id. Never blank: a state
 // line that begins with a space is what the fallback is here to prevent.
 QString memberLabel(const Room *room, const QString &userId)
@@ -290,7 +308,6 @@ MatrixRoomBridge::MatrixRoomBridge(MatrixManager *manager, QObject *parent)
                     room->disconnect(this);
             }
             m_tracked.clear();
-            m_encryptionAnnounced.clear();
             attach(m_manager ? m_manager->connection() : nullptr);
         });
         attach(m_manager->connection());
@@ -358,16 +375,24 @@ void MatrixRoomBridge::trackRoom(Room *room)
     connect(room, &Room::displaynameChanged, this, [this, room]() {
         publishRoom(room);
     });
-    connect(room, &Room::encryption, this, [this, room]() {
-        announceEncryption(room);
+    // A megolm key that turned up after the message it opens. libQuotient
+    // swaps the decrypted event into the timeline in place and says so here;
+    // without this the placeholder row stays a placeholder for the rest of the
+    // run even though the text is sitting right there.
+    connect(room, &Room::replacedEvent, this, [this, room](const RoomEvent *newEvent, const RoomEvent *) {
+        revealEvent(room, newEvent);
     });
 
-    // The room's own column reads all four of these through roomInfo(), so they
+    // The room's own column reads all of these through roomInfo(), so they
     // share one signal rather than getting a property each.
     const auto announceInfo = [this, room]() {
         Q_EMIT roomInfoChanged(chatid::matrixChatId(room->id()));
     };
     connect(room, &Room::topicChanged, this, announceInfo);
+    // A room that has just turned encryption on changes what the room column
+    // must say about it. The timeline line for the same event comes from the
+    // m.room.encryption state event like any other state change.
+    connect(room, &Room::encryption, this, announceInfo);
     connect(room, &Room::avatarChanged, this, announceInfo);
     connect(room, &Room::memberListChanged, this, announceInfo);
     connect(room, &Room::namesChanged, this, announceInfo);
@@ -385,26 +410,6 @@ void MatrixRoomBridge::publishRoom(Room *room)
     const QString chatId = chatid::matrixChatId(room->id());
     Q_EMIT roomListed(chatId, matrix::conversationTitle(room->displayName(), room->id()));
     Q_EMIT roomInfoChanged(chatId);
-    if (room->usesEncryption())
-        announceEncryption(room);
-}
-
-void MatrixRoomBridge::announceEncryption(Room *room)
-{
-    // Once per room per run. ChatModel drops the repeat across runs by itself,
-    // because the notice carries a msgId derived from the room id.
-    if (m_encryptionAnnounced.contains(room->id()))
-        return;
-    m_encryptionAnnounced.insert(room->id());
-
-    Q_EMIT roomMessage(chatid::matrixChatId(room->id()),
-                       matrix::encryptionNoticeId(room->id()),
-                       i18nc("@info in-timeline notice about a Matrix room",
-                             "This room is end-to-end encrypted. KOutNet cannot read or send messages here yet."),
-                       QString(),
-                       false,
-                       matrix::secondsFromMs(QDateTime::currentMSecsSinceEpoch()),
-                       true);
 }
 
 void MatrixRoomBridge::publishRange(Room *room, int fromIndex, int toIndex)
@@ -447,9 +452,9 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
         Q_EMIT roomMessage(chatId, row.msgId, row.text, row.sender, row.isOwn, row.ts, true);
         break;
     case matrix::RowKind::Encrypted:
-        // One notice for the room rather than one per unreadable event: the
-        // point is to say why the room looks quiet, not to fill it.
-        announceEncryption(room);
+        // Per event, not per room. The room is readable; this one message is
+        // not, and saying it about the room would be a lie about the rest.
+        Q_EMIT roomMessage(chatId, row.msgId, row.text, row.sender, row.isOwn, row.ts, true);
         break;
     case matrix::RowKind::Attachment: {
         QVariantMap media;
@@ -465,6 +470,28 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
         break;
     }
     }
+}
+
+void MatrixRoomBridge::revealEvent(Room *room, const RoomEvent *event)
+{
+    if (room == nullptr || event == nullptr)
+        return;
+    // Only a decryption. libQuotient emits replacedEvent() for an m.replace as
+    // well, and that path is already handled where the replacement arrives; the
+    // original event is kept only when the swap was a decryption.
+    if (event->originalEvent() == nullptr)
+        return;
+
+    const matrix::Row row = matrix::rowFor(flatten(room, event));
+    if (row.kind == matrix::RowKind::Skip || row.kind == matrix::RowKind::Encrypted || row.text.isEmpty())
+        return;
+
+    // Text for an attachment too. The row went into the model as a placeholder
+    // line and a line is what it can become again; turning it into a picture
+    // would mean replacing the entry, and an attachment that arrives with its
+    // key late is rare enough not to earn that. It is named rather than left
+    // saying there is no key for it, which would be untrue once there is.
+    Q_EMIT roomMessageRevealed(chatid::matrixChatId(room->id()), row.msgId, row.text);
 }
 
 void MatrixRoomBridge::reportPendingFailure(Room *room, int pendingIndex)
@@ -515,14 +542,15 @@ bool MatrixRoomBridge::sendText(const QString &chatId, const QString &text)
         Q_EMIT sendFailed(chatId, i18nc("@info:status", "That Matrix room is not available in this session."));
         return false;
     }
-    if (room->usesEncryption()) {
-        // Refused rather than sent in the clear: posting an unencrypted event
-        // into an encrypted room is a message the other clients will show with a
-        // warning, and it is not what anybody asked for.
-        Q_EMIT sendFailed(chatId, i18nc("@info:status", "This room is end-to-end encrypted. KOutNet cannot send here yet."));
+    if (!canSendEncrypted(room)) {
+        Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
         return false;
     }
 
+    // Nothing here encrypts anything. libQuotient does the whole of it inside
+    // the send: Room::Private::doSendEvent() makes or rotates the outbound
+    // megolm session, ships the session key to every device that has not got
+    // it, and puts an m.room.encrypted on the wire instead of the message.
     room->postText(text);
     return true;
 }
@@ -534,8 +562,8 @@ bool MatrixRoomBridge::sendFile(const QString &chatId, const QString &localFileP
         Q_EMIT sendFailed(chatId, i18nc("@info:status", "That Matrix room is not available in this session."));
         return false;
     }
-    if (room->usesEncryption()) {
-        Q_EMIT sendFailed(chatId, i18nc("@info:status", "This room is end-to-end encrypted. KOutNet cannot send here yet."));
+    if (!canSendEncrypted(room)) {
+        Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
         return false;
     }
 

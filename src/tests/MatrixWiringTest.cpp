@@ -38,6 +38,7 @@ private Q_SLOTS:
     void rowSkipsEventsWithNoId();
     void rowSkipsEmptyText();
     void rowReportsEncrypted();
+    void redactionOutranksAMissingKey();
     void rowReportsUnsupported();
     void rowCarriesAnAttachment();
     void rowNamesAnAttachmentThatHasNoName();
@@ -47,7 +48,6 @@ private Q_SLOTS:
 
     void timestampConversion();
     void conversationTitleFallsBackToTheRoomId();
-    void encryptionNoticeIdIsPerRoom();
 };
 
 void MatrixWiringTest::addressRoundTrip()
@@ -225,10 +225,27 @@ void MatrixWiringTest::rowReportsEncrypted()
     e.encrypted = true;
 
     const matrix::Row row = matrix::rowFor(e);
-    // Reported rather than skipped: a room that is simply quiet and a room this
-    // build cannot read must not look the same.
+    // Reported rather than skipped: a message nothing can open and a message
+    // that was never sent must not look the same. An event only reaches here
+    // still encrypted when libQuotient had no key for it.
     QCOMPARE(row.kind, matrix::RowKind::Encrypted);
     QCOMPARE(row.msgId, e.eventId);
+    // The row has to carry words of its own now that no room-wide notice
+    // explains the gap.
+    QVERIFY(!row.text.isEmpty());
+}
+
+void MatrixWiringTest::redactionOutranksAMissingKey()
+{
+    matrix::RawEvent e = textEvent();
+    e.textLike = false;
+    e.body.clear();
+    e.encrypted = true;
+    e.redacted = true;
+
+    // A withdrawn message is withdrawn whether or not this device could have
+    // read it, and "no key for this" would send the reader looking for one.
+    QCOMPARE(matrix::rowFor(e).kind, matrix::RowKind::System);
 }
 
 void MatrixWiringTest::rowReportsUnsupported()
@@ -374,15 +391,6 @@ void MatrixWiringTest::conversationTitleFallsBackToTheRoomId()
     QCOMPARE(matrix::conversationTitle(QStringLiteral("Kitchen"), QStringLiteral("!k:e.org")), QStringLiteral("Kitchen"));
     QCOMPARE(matrix::conversationTitle(QStringLiteral("  "), QStringLiteral("!k:e.org")), QStringLiteral("!k:e.org"));
     QCOMPARE(matrix::conversationTitle(QString(), QStringLiteral("!k:e.org")), QStringLiteral("!k:e.org"));
-}
-
-void MatrixWiringTest::encryptionNoticeIdIsPerRoom()
-{
-    const QString a = matrix::encryptionNoticeId(QStringLiteral("!a:e.org"));
-    const QString b = matrix::encryptionNoticeId(QStringLiteral("!b:e.org"));
-    QVERIFY(a != b);
-    // Stable, which is what stops the notice stacking a copy per restart.
-    QCOMPARE(a, matrix::encryptionNoticeId(QStringLiteral("!a:e.org")));
 }
 
 QTEST_GUILESS_MAIN(MatrixWiringTest)
