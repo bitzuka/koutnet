@@ -68,6 +68,21 @@
     <entry name="matrixUserId" key="matrix_user_id" type="String"/>
     <entry name="matrixDeviceId" key="matrix_device_id" type="String"/>
 
+    <!-- Whether a homeserver typed into the sign-in form is allowed to redirect
+         this client somewhere else. Matrix servers publish a
+         .well-known/matrix/client record naming the address clients should
+         actually talk to, and libQuotient follows it whenever it is asked to
+         resolve a server from an MXID; matrix.org points at
+         matrix-client.matrix.org that way. Off by default, and deliberately:
+         some networks carry the plain domain and drop the delegated name, and a
+         client that insists on following the record cannot be used on one of
+         them at all. Only has any say when a homeserver was typed - with the
+         field left blank there is nothing to take at its word and the record is
+         the only way to find the server. -->
+    <entry name="matrixFollowDelegation" key="matrix_follow_delegation" type="Bool">
+      <default>false</default>
+    </entry>
+
     <entry name="language" key="language" type="String">
       <default>ru</default>
     </entry>

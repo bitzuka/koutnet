@@ -54,7 +54,28 @@ FormCard.FormCardPage {
             statusMessage: i18nc("@info:whatsthis", "Optional if the user ID below is written in full.")
         }
 
-        FormCard.FormDelegateSeparator { above: homeserverField; below: userField }
+        FormCard.FormDelegateSeparator { above: homeserverField; below: delegationSwitch }
+
+        // Only means anything when there is an address above to take at its
+        // word. With the field blank the server can only be found through the
+        // record, so the switch is disabled rather than quietly ignored.
+        FormCard.FormSwitchDelegate {
+            id: delegationSwitch
+            text: i18nc("@option:check whether to follow a homeserver's .well-known redirect",
+                        "Follow the server's published address")
+            description: homeserverField.text.trim().length === 0
+                ? i18nc("@info:whatsthis",
+                        "With no homeserver typed above, the address has to come from the server's published record, so this cannot be turned off.")
+                : i18nc("@info:whatsthis",
+                        "Matrix servers can publish a different address for clients to use. Leave this off to connect to exactly what you typed, which is what to do if the published address is blocked on your network.")
+            checked: appSettings.matrixFollowDelegation
+            enabled: !matrixManager.loggedIn && !matrixManager.busy && homeserverField.text.trim().length > 0
+            // No explicit save: AppSettings connects every generated property's
+            // notifier to its coalescing writer.
+            onToggled: appSettings.matrixFollowDelegation = checked
+        }
+
+        FormCard.FormDelegateSeparator { above: delegationSwitch; below: userField }
 
         FormCard.FormTextFieldDelegate {
             id: userField

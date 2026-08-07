@@ -344,7 +344,13 @@ void MatrixManager::login(const QString &homeserverUrl, const QString &userIdOrL
         return;
     }
 
-    if (server.isEmpty()) {
+    // Delegation is followed in two cases: when the user asked for it, and when
+    // there is nothing else to go on. An empty homeserver field leaves only the
+    // MXID's domain, and finding the server from that is exactly what the
+    // .well-known record is for, so the switch has no say here - see the note
+    // on matrixFollowDelegation in the kcfg.
+    const bool followDelegation = m_settings && m_settings->matrixFollowDelegation();
+    if (server.isEmpty() || followDelegation) {
         m_pendingUser = target;
         m_pendingPassword = password;
         connect(
@@ -365,9 +371,16 @@ void MatrixManager::login(const QString &homeserverUrl, const QString &userIdOrL
         return;
     }
 
-    // An address typed by hand is taken at its word. matrix.org delegates to
-    // matrix-client.matrix.org, which some networks do not carry while the
-    // plain domain answers fine.
+    // An address typed by hand, with delegation turned off: taken at its word.
+    // matrix.org delegates to matrix-client.matrix.org, which some networks do
+    // not carry while the plain domain answers fine.
+    //
+    // setHomeserver() plus a wait for the flows is what actually suppresses the
+    // lookup, and the wait is the load-bearing half. libQuotient only skips
+    // resolveServer() when the base URL is valid *and* the password flow is
+    // already known to be supported (Connection::Private::ensureHomeserver);
+    // with the flows not yet in, loginWithPassword() resolves the server from
+    // the MXID and follows the record after all.
     QUrl base = QUrl::fromUserInput(server);
     if (base.scheme().isEmpty())
         base.setScheme(QStringLiteral("https"));
@@ -380,13 +393,28 @@ void MatrixManager::login(const QString &homeserverUrl, const QString &userIdOrL
         c,
         &Quotient::Connection::loginFlowsChanged,
         this,
-        [this]() {
+        [this, base]() {
             if (!m_connection || m_pendingPassword.isEmpty())
                 return;
             const QString user = m_pendingUser;
             const QString pass = m_pendingPassword;
             m_pendingUser.clear();
             m_pendingPassword.clear();
+            // The other half of the invariant above. Flows that came back empty
+            // - the address is not a homeserver, or the network ate the
+            // request - would send loginWithPassword() down the resolve path
+            // and quietly undo the setting the user just chose. Better to stop
+            // and say which address failed than to sign in somewhere else.
+            if (!m_connection->supportsPasswordAuth()) {
+                m_loginTimeout.stop();
+                retireConnection(QStringLiteral("the typed homeserver offered no password login"));
+                setState(State::Failed,
+                         i18nc("@info:status a homeserver typed by hand did not answer usefully, %1 is that address",
+                               "%1 did not offer a password sign-in. Check the address, or turn on following the "
+                               "server's redirect so that the address it publishes is used instead.",
+                               base.toString()));
+                return;
+            }
             m_connection->loginWithPassword(user, pass, deviceDisplayName());
         },
         Qt::SingleShotConnection);
@@ -421,6 +449,11 @@ bool MatrixManager::resumeSession()
     auto *c = makeConnection();
     setState(State::Connecting);
     m_loginTimeout.start();
+    // A stored session never resolves anything: assumeIdentity() asks for no
+    // particular login flow, so libQuotient is satisfied by a valid base URL
+    // alone and never reaches for the .well-known record. The address that
+    // worked last time is the address used again, whichever way the delegation
+    // setting is turned.
     if (!server.isEmpty()) {
         const QUrl base = QUrl::fromUserInput(server);
         if (base.isValid())
