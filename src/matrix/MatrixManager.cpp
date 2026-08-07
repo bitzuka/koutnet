@@ -51,14 +51,27 @@ MatrixManager::MatrixManager(AppSettings *settings, QObject *parent)
         m_pendingUser.clear();
         m_pendingPassword.clear();
 
+        // With E2EE on, connected() is emitted only after libQuotient has been
+        // to the keychain for the pickle key and unpickled the Olm account, so a
+        // fresh login that already holds a token is not waiting on the network
+        // at all - it is waiting on a wallet that has probably put a prompt
+        // somewhere. Blaming the homeserver for that was the wrong sentence.
+        // Only for a fresh login: assumeIdentity() sets the token before it has
+        // asked anybody anything, so a resume cannot be told apart this way.
+        const bool serverAnswered = !m_resuming && m_connection && m_connection->isLoggedIn();
+
         // The connection is deliberately left running. Aborting it here is what
         // turned one slow homeserver into a screenful of "stopped without ready
         // network reply" - our own cleanup, printed in libQuotient's voice and
         // read for an hour as a network fault. The jobs get to finish or fail on
         // their own, and a late success is still accepted below.
         setState(State::Failed,
-                 i18nc("@info:status Matrix login failed",
-                       "The homeserver did not answer in time. Nothing was signed in; the attempt is still running and will report itself in the log."));
+                 serverAnswered
+                     ? i18nc("@info:status Matrix login stalled after the password was accepted",
+                             "The sign-in was accepted but the encryption keys could not be opened in time. "
+                             "Unlock the wallet if it is asking, and try again.")
+                     : i18nc("@info:status Matrix login failed",
+                             "The homeserver did not answer in time. Nothing was signed in; the attempt is still running and will report itself in the log."));
 
         const QPointer<Quotient::Connection> attempt(m_connection);
         QTimer::singleShot(kLoginAbandonMs, this, [this, attempt]() {
@@ -85,6 +98,11 @@ bool MatrixManager::loggedIn() const
 bool MatrixManager::busy() const
 {
     return m_state == State::Connecting;
+}
+
+bool MatrixManager::encryptionActive() const
+{
+    return m_connection && m_connection->encryptionEnabled();
 }
 
 QString MatrixManager::userId() const
@@ -141,17 +159,39 @@ Quotient::Connection *MatrixManager::makeConnection()
     retireConnection(QStringLiteral("a new session is starting"));
 
     auto *c = new Quotient::Connection(this);
-    // Explicitly off. libQuotient 0.9 always compiles E2EE in, so this is a
-    // decision rather than a limitation: device verification and key backup are
-    // out of scope for this pass, and a half-built E2EE that silently fails to
-    // decrypt is worse than an honest refusal. MatrixRoomBridge says so in the
-    // room rather than showing empty bubbles.
-    c->enableEncryption(false);
+    // Before anything else, and before any login: enableEncryption() refuses to
+    // do anything once the connection holds a token, and says so only in a
+    // warning nobody reads. Most of Matrix is encrypted - a direct chat is by
+    // default - so a client that cannot open an encrypted room is a client that
+    // cannot open most rooms.
+    c->enableEncryption(true);
+    // Left alone deliberately. Whether a new direct chat is created encrypted is
+    // a decision this build does not make yet, because it does not create direct
+    // chats; libQuotient's default stands until it does.
+
     // Without the cache every start is a full initial sync of every room.
     c->setCacheState(true);
     c->setLazyLoading(true);
 
     connect(c, &Quotient::Connection::connected, this, &MatrixManager::onConnected);
+    // libQuotient turns encryption off by itself when the key store cannot be
+    // set up - an unreachable keychain, a pickle key of the wrong length, an Olm
+    // account that will not unpickle. The session carries on unencrypted, which
+    // is survivable, but only if it is said out loud: everything downstream
+    // decides what to draw from encryptionActive(), and an encrypted room in a
+    // session like this can be neither read nor written.
+    connect(c, &Quotient::Connection::encryptionChanged, this, [this](bool enabled) {
+        Q_EMIT encryptionActiveChanged();
+        if (enabled)
+            return;
+        // Reported rather than made a state: the session still works and the
+        // state machine has nowhere honest to put "signed in but unencrypted".
+        const QString message = i18nc("@info:status the Matrix session could not set up its encryption key store",
+                                      "Encryption could not be started for this session, so encrypted rooms will stay unreadable. "
+                                      "This usually means the wallet could not be opened.");
+        qCWarning(KOUTNET_LOG_MATRIX) << "matrix session:" << message;
+        Q_EMIT sessionError(message);
+    });
     connect(c, &Quotient::Connection::loginError, this, [this](const QString &message, const QString &details) {
         m_pendingUser.clear();
         m_pendingPassword.clear();
@@ -220,6 +260,9 @@ Quotient::Connection *MatrixManager::makeConnection()
 
     m_connection = c;
     Q_EMIT connectionChanged();
+    // The connection object is what encryptionActive() reads, so replacing or
+    // dropping it moves that answer too.
+    Q_EMIT encryptionActiveChanged();
     return c;
 }
 
@@ -239,6 +282,7 @@ void MatrixManager::retireConnection(const QString &why)
     c->stopSync();
     c->deleteLater();
     Q_EMIT connectionChanged();
+    Q_EMIT encryptionActiveChanged();
 }
 
 void MatrixManager::armSyncDeadline()
@@ -461,6 +505,7 @@ void MatrixManager::logout()
     clearStoredSession();
     setState(State::LoggedOut);
     Q_EMIT connectionChanged();
+    Q_EMIT encryptionActiveChanged();
 
     if (!c)
         return;

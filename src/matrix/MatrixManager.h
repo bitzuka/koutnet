@@ -12,6 +12,20 @@
 // that run and is not written down, which is the same rule CryptoManager
 // applies to the identity keys.
 //
+// The Olm pickle key is the one secret in this class that does not follow that
+// rule, and cannot. libQuotient 0.9 owns it end to end: connectionencryptiondata_p.cpp
+// generates it, stores it through QtKeychain under the service name qAppName()
+// and the entry "<mxid>-Pickle", and reads it back before unpickling the Olm
+// account. There is no setter and no signal, so SecretStore is not offered the
+// chance. On a KDE session QtKeychain talks to the same Secret Service that
+// backs KWallet, so the key does land in the user's wallet - just under a name
+// this code did not choose. Two things follow and both are invariants. The
+// application name set in main() must never change, because the pickle key is
+// filed under it and a renamed application cannot find its own Olm account.
+// And a wallet that cannot be written leaves libQuotient with no key store, at
+// which point it turns encryption off underneath us - which is what
+// encryptionActive() is for.
+//
 // Two rules the states below exist to keep. First, no failure is allowed to be
 // quiet: every way this can go wrong ends in Failed with a sentence, and every
 // state that is not a failure has a deadline behind it, because "Syncing..."
@@ -47,6 +61,11 @@ class MatrixManager : public QObject
     Q_PROPERTY(QString homeserver READ homeserver NOTIFY stateChanged)
     Q_PROPERTY(QString statusText READ statusText NOTIFY stateChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY stateChanged)
+    // Whether this session can actually do end-to-end encryption, as opposed to
+    // having asked to. False before there is a connection, and false again if
+    // libQuotient gave up on the key store. Nothing may draw a padlock without
+    // reading this first.
+    Q_PROPERTY(bool encryptionActive READ encryptionActive NOTIFY encryptionActiveChanged)
 
 public:
     enum class State {
@@ -83,6 +102,7 @@ public:
 
     bool loggedIn() const;
     bool busy() const;
+    bool encryptionActive() const;
     QString userId() const;
     QString homeserver() const;
     QString statusText() const;
@@ -112,6 +132,9 @@ Q_SIGNALS:
     // The connection object itself was replaced or dropped, as opposed to its
     // state changing. Everything holding a Quotient::Connection * must re-read.
     void connectionChanged();
+    // encryptionActive() moved. Separate from stateChanged() because E2EE is
+    // settled after connected() and long before the session is Online.
+    void encryptionActiveChanged();
     // A wallet-less session. The interface has to say so rather than let the
     // user believe the login will still be there tomorrow.
     void sessionNotPersisted(QString reason);
