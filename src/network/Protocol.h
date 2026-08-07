@@ -53,8 +53,7 @@ struct RelayServer {
 // their own server via NetworkManager::setRelayServer().
 inline const QVector<RelayServer> &builtinRelays()
 {
-    static const QVector<RelayServer> relays = {
-    };
+    static const QVector<RelayServer> relays = {};
     return relays;
 }
 

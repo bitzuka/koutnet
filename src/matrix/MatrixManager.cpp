@@ -340,8 +340,7 @@ void MatrixManager::login(const QString &homeserverUrl, const QString &userIdOrL
     if (!target.contains(QLatin1Char(':'))) {
         m_loginTimeout.stop();
         retireConnection(QStringLiteral("no domain in the user id and no homeserver given"));
-        setState(State::Failed,
-                 i18nc("@info:status Matrix login", "Give a homeserver, or write the user ID in full as @name:server."));
+        setState(State::Failed, i18nc("@info:status Matrix login", "Give a homeserver, or write the user ID in full as @name:server."));
         return;
     }
 
@@ -410,9 +409,9 @@ bool MatrixManager::resumeSession()
         // The token is the session. Without it the recorded user id and device id
         // are litter that would make the interface claim a session that is gone.
         clearStoredSession();
-        setState(State::Failed,
-                 i18nc("@info:status a stored Matrix session could not be reopened",
-                       "The saved sign-in could not be read back from the wallet. Sign in again."));
+        setState(
+            State::Failed,
+            i18nc("@info:status a stored Matrix session could not be reopened", "The saved sign-in could not be read back from the wallet. Sign in again."));
         return false;
     }
 

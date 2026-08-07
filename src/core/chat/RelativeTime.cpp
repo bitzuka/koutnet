@@ -62,10 +62,7 @@ QString RelativeTime::presenceLabel(bool online, double lastSeenSecs, qint64 now
     if (days <= 1)
         return i18nc("@info:status the peer was last reachable on the previous day", "last seen yesterday");
     if (days < 7) {
-        return i18ncp("@info:status how long ago a peer was last reachable, %1 is a number of days",
-                      "last seen a day ago",
-                      "last seen %1 days ago",
-                      int(days));
+        return i18ncp("@info:status how long ago a peer was last reachable, %1 is a number of days", "last seen a day ago", "last seen %1 days ago", int(days));
     }
     if (days < 31) {
         return i18ncp("@info:status how long ago a peer was last reachable, %1 is a number of weeks",

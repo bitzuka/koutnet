@@ -368,8 +368,7 @@ void MatrixWiringTest::stateSentencesAreDistinct()
 
 void MatrixWiringTest::stateSentencesNameTheActor()
 {
-    QVERIFY(matrix::stateSentence(matrix::StateChange::Joined, QStringLiteral("Alice"), QString())
-                .contains(QStringLiteral("Alice")));
+    QVERIFY(matrix::stateSentence(matrix::StateChange::Joined, QStringLiteral("Alice"), QString()).contains(QStringLiteral("Alice")));
     // An actor that could not be resolved still has to read as a sentence
     // rather than begin with a space.
     const QString anonymous = matrix::stateSentence(matrix::StateChange::Joined, QString(), QString());

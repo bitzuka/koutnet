@@ -71,7 +71,8 @@ QVariant ChatListModel::data(const QModelIndex &index, int role) const
             return QString();
         // Composed here, not in the delegate, so the whole line is one string a
         // translator can reorder.
-        return e.previewIsOwn ? i18nc("@info:status conversation list preview of a message this user sent, %1 is the message", "You: %1", e.preview) : e.preview;
+        return e.previewIsOwn ? i18nc("@info:status conversation list preview of a message this user sent, %1 is the message", "You: %1", e.preview)
+                              : e.preview;
     case StampSecsRole:
         return e.lastActivity;
     case LastSeenSecsRole:

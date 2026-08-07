@@ -31,9 +31,9 @@ public:
 protected:
     qint64 readData(char *data, qint64 maxlen) override
     {
-// deafen here rather than dropping on the way in, so it also silences what is
-// already buffered; still drain below, or un-deafening replays the missed
-// seconds.
+        // deafen here rather than dropping on the way in, so it also silences what is
+        // already buffered; still drain below, or un-deafening replays the missed
+        // seconds.
         if (m_engine->deafened()) {
             qint64 dropped = 0;
             while (dropped + PeerBuffer::kFrameBytes <= maxlen) {
@@ -45,8 +45,8 @@ protected:
         }
 
         qint64 written = 0;
-// read once per callback: the slider can move mid-loop, and half a buffer at
-// one gain and half at another is audible.
+        // read once per callback: the slider can move mid-loop, and half a buffer at
+        // one gain and half at another is audible.
         const qreal volume = m_engine->volume();
         while (written + PeerBuffer::kFrameBytes <= maxlen) {
             QByteArray mixed = m_engine->m_mixer.mix();
@@ -171,7 +171,7 @@ void AudioEngine::pushPeerAudio(const QString &ip, const QByteArray &data)
 
 bool AudioEngine::isSpeechAmplitude(const QByteArray &raw) const
 {
-// amplitude vad fallback, rms threshold ~800 to match the legacy python path.
+    // amplitude vad fallback, rms threshold ~800 to match the legacy python path.
     const auto *samples = reinterpret_cast<const qint16 *>(raw.constData());
     const int count = raw.size() / 2;
     if (count == 0)
@@ -207,8 +207,8 @@ void AudioEngine::onCaptureReady()
         if (isSpeech)
             Q_EMIT audioCaptured(raw);
 
-// only emit on state change, checked every 4 frames (~128ms), as the legacy
-// engine did.
+        // only emit on state change, checked every 4 frames (~128ms), as the legacy
+        // engine did.
         if (++m_speakFrameCtr >= 4) {
             m_speakFrameCtr = 0;
             if (isSpeech != m_speakLast) {

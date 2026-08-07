@@ -199,8 +199,8 @@ void AudioDevices::readMicChunk()
     const QByteArray chunk = m_capture->readAll();
     if (chunk.isEmpty())
         return;
-// square root keeps quiet speech visible; raw rms barely moves for normal
-// talking.
+    // square root keeps quiet speech visible; raw rms barely moves for normal
+    // talking.
     setLevel(qBound(0.0, qSqrt(rmsOf(chunk, m_source->format())) * 1.6, 1.0));
 }
 

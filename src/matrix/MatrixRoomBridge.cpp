@@ -46,8 +46,7 @@ using koutnet::matrix::StateChange;
 
 bool isTextLike(RoomMessageEvent::MsgType type)
 {
-    return type == RoomMessageEvent::MsgType::Text || type == RoomMessageEvent::MsgType::Notice
-        || type == RoomMessageEvent::MsgType::Emote;
+    return type == RoomMessageEvent::MsgType::Text || type == RoomMessageEvent::MsgType::Notice || type == RoomMessageEvent::MsgType::Emote;
 }
 
 MediaKind mediaKindOf(RoomMessageEvent::MsgType type)
@@ -523,12 +522,11 @@ void MatrixRoomBridge::reportPendingFailure(Room *room, int pendingIndex)
         return;
 
     const QString reason = item.annotation();
-    Q_EMIT sendFailed(chatid::matrixChatId(room->id()),
-                      reason.isEmpty()
-                          ? i18nc("@info:status a Matrix message was not accepted and nothing said why", "The message could not be sent to this room.")
-                          : i18nc("@info:status a Matrix message was not accepted, %1 is what the homeserver reported",
-                                  "The message could not be sent: %1",
-                                  reason));
+    Q_EMIT sendFailed(
+        chatid::matrixChatId(room->id()),
+        reason.isEmpty()
+            ? i18nc("@info:status a Matrix message was not accepted and nothing said why", "The message could not be sent to this room.")
+            : i18nc("@info:status a Matrix message was not accepted, %1 is what the homeserver reported", "The message could not be sent: %1", reason));
 }
 
 Room *MatrixRoomBridge::roomFor(const QString &chatId) const
@@ -670,9 +668,7 @@ QVariantMap MatrixRoomBridge::roomInfo(const QString &chatId) const
 
     const QUrl avatar = room->avatarUrl();
     info.insert(QStringLiteral("avatarUrl"),
-                (avatar.scheme() == QLatin1String("mxc") && room->connection() != nullptr)
-                    ? room->connection()->makeMediaUrl(avatar).toString()
-                    : QString());
+                (avatar.scheme() == QLatin1String("mxc") && room->connection() != nullptr) ? room->connection()->makeMediaUrl(avatar).toString() : QString());
 
     return info;
 }
@@ -701,9 +697,8 @@ QVariantList MatrixRoomBridge::roomMembers(const QString &chatId) const
         entry.insert(QStringLiteral("powerLevel"), member.powerLevel());
         const QUrl avatar = member.avatarUrl();
         entry.insert(QStringLiteral("avatarUrl"),
-                     (avatar.scheme() == QLatin1String("mxc") && room->connection() != nullptr)
-                         ? room->connection()->makeMediaUrl(avatar).toString()
-                         : QString());
+                     (avatar.scheme() == QLatin1String("mxc") && room->connection() != nullptr) ? room->connection()->makeMediaUrl(avatar).toString()
+                                                                                                : QString());
         list.append(entry);
     }
     return list;
@@ -749,9 +744,7 @@ QVariantMap MatrixRoomBridge::memberInfo(const QString &chatId, const QString &u
     info.insert(QStringLiteral("verifiedDeviceCount"), verifiedDeviceCount);
     const QUrl avatar = member.avatarUrl();
     info.insert(QStringLiteral("avatarUrl"),
-                (avatar.scheme() == QLatin1String("mxc") && room->connection() != nullptr)
-                    ? room->connection()->makeMediaUrl(avatar).toString()
-                    : QString());
+                (avatar.scheme() == QLatin1String("mxc") && room->connection() != nullptr) ? room->connection()->makeMediaUrl(avatar).toString() : QString());
     return info;
 }
 

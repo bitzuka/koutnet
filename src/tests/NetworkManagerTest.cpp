@@ -659,8 +659,7 @@ private Q_SLOTS:
         QCOMPARE(messages.count(), 1);
         const QJsonObject got = messages.at(0).at(0).toJsonObject();
         QVERIFY(got.value(QStringLiteral("type")).toString() == protocol::kMsgRead);
-        QVERIFY2(got.value(QStringLiteral("from_ip")).toString() == kPeerIp,
-                 "the receipt reached the interface under an address no chat is keyed on");
+        QVERIFY2(got.value(QStringLiteral("from_ip")).toString() == kPeerIp, "the receipt reached the interface under an address no chat is keyed on");
     }
 
     // Unsigned, anybody could mark somebody else's messages as read.

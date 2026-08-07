@@ -40,8 +40,8 @@ public:
         return m_running;
     }
 
-// written on the gui thread, read by PlaybackDevice::readData() on qt's audio
-// thread: a torn read of a plain qreal lands as a volume nobody asked for.
+    // written on the gui thread, read by PlaybackDevice::readData() on qt's audio
+    // thread: a torn read of a plain qreal lands as a volume nobody asked for.
     void setMuted(bool muted)
     {
         m_muted.store(muted, std::memory_order_relaxed);
@@ -69,7 +69,7 @@ public:
         return m_volume.load(std::memory_order_relaxed);
     }
 
-// read at startCapture(): a change during a call takes effect on the next one.
+    // read at startCapture(): a change during a call takes effect on the next one.
     void setInputDeviceId(const QString &id)
     {
         m_inputId = id;

@@ -263,12 +263,7 @@ void ReversedChatModelTest::insertsABlockInOnePiece()
     QCOMPARE(inserted.first().at(1).toInt(), 3);
     QCOMPARE(inserted.first().at(2).toInt(), 4);
     QCOMPARE(bodies(proxy),
-             QStringList({QStringLiteral("d"),
-                          QStringLiteral("c"),
-                          QStringLiteral("b"),
-                          QStringLiteral("y"),
-                          QStringLiteral("x"),
-                          QStringLiteral("a")}));
+             QStringList({QStringLiteral("d"), QStringLiteral("c"), QStringLiteral("b"), QStringLiteral("y"), QStringLiteral("x"), QStringLiteral("a")}));
 }
 
 void ReversedChatModelTest::removalMapsToTheOtherEnd()

@@ -18,9 +18,9 @@ using namespace Qt::StringLiterals;
 // anchor it has already written.
 namespace TextRegex
 {
-static const QRegularExpression plainUrl(
-    uR"(<a.*?<\/a>(*SKIP)(*F)|\b((www\.(?!\.)(?!(\w|\.|-)+@)|(https?|ftp):(//)?\w)(&(?![lg]t;)|[^&\s<>"])+(&(?![lg]t;)|[^?&!,.\s<>"\]):])))"_s,
-    QRegularExpression::CaseInsensitiveOption | QRegularExpression::UseUnicodePropertiesOption);
+static const QRegularExpression
+    plainUrl(uR"(<a.*?<\/a>(*SKIP)(*F)|\b((www\.(?!\.)(?!(\w|\.|-)+@)|(https?|ftp):(//)?\w)(&(?![lg]t;)|[^&\s<>"])+(&(?![lg]t;)|[^?&!,.\s<>"\]):])))"_s,
+             QRegularExpression::CaseInsensitiveOption | QRegularExpression::UseUnicodePropertiesOption);
 static const QRegularExpression emailAddress(uR"(<a.*?<\/a>(*SKIP)(*F)|\b(mailto:)?((\w|\.|-)+@(\w|\.|-)+\.\w+\b))"_s,
                                              QRegularExpression::CaseInsensitiveOption | QRegularExpression::UseUnicodePropertiesOption);
 }
@@ -295,7 +295,7 @@ QString TextHandler::toRichText(const QString &plain, const QVariantMap &options
         }
         const auto bg = options.value(u"codeBackground"_s).toString();
         out += u"<pre style=\"background-color:%1;\"><code>%2</code></pre>"_s.arg(bg.isEmpty() ? u"#00000018"_s : bg,
-                                                                                 escapeHtml(body.trimmed()).replace(u'\n', u"<br />"_s));
+                                                                                  escapeHtml(body.trimmed()).replace(u'\n', u"<br />"_s));
     }
     return out;
 }

@@ -34,8 +34,8 @@ QByteArray PeerBuffer::pull()
     const QByteArray frame = m_buf.left(kFrameBytes);
     m_buf.remove(0, kFrameBytes);
 
-// below half the pre-fill, wait for a full buffer again: a brief pause
-// beats stutter.
+    // below half the pre-fill, wait for a full buffer again: a brief pause
+    // beats stutter.
     if (m_buf.size() / kFrameBytes < kTargetFrames / 2)
         m_ready = false;
 
@@ -85,8 +85,8 @@ void AudioMixer::push(const QString &ip, const QByteArray &data)
 
 QByteArray AudioMixer::mix()
 {
-// snapshot and unlock before mixing: holding the mixer mutex through the
-// mix would stall the gui thread on add/removePeer.
+    // snapshot and unlock before mixing: holding the mixer mutex through the
+    // mix would stall the gui thread on add/removePeer.
     QList<std::shared_ptr<PeerBuffer>> peers;
     {
         QMutexLocker lock(&m_mutex);
@@ -103,8 +103,8 @@ QByteArray AudioMixer::mix()
 
         const auto *src = reinterpret_cast<const qint16 *>(frame.constData());
         for (int i = 0; i < PeerBuffer::kFrameSamples; ++i) {
-// sum in a wider int and clamp: plain int16 addition wraps once a few
-// people talk at once, which crackles instead of just getting louder.
+            // sum in a wider int and clamp: plain int16 addition wraps once a few
+            // people talk at once, which crackles instead of just getting louder.
             const int sum = int(outSamples[i]) + int(src[i]);
             outSamples[i] = static_cast<qint16>(std::clamp(sum, -32768, 32767));
         }
