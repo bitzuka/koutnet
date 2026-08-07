@@ -77,6 +77,7 @@ ecm_add_test(
     ../core/chat/ChatAddress.cpp
     ../core/chat/HistoryManager.cpp
     ../matrix/MatrixTranslate.cpp
+    ${KOUTNET_LOGGING_SRCS}
     TEST_NAME matrix-wiring
     NAME_PREFIX koutnet-
     LINK_LIBRARIES Qt6::Test Qt6::Core Qt6::Qml

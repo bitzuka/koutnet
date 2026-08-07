@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "MatrixManager.h"
 
+#include <QTimer>
+
 #include "core/constructor/AppSettings.h"
 #include "core/security/SecretStore.h"
 
@@ -168,27 +170,62 @@ void MatrixManager::login(const QString &homeserverUrl, const QString &userIdOrL
     setState(State::Connecting);
     m_loginTimeout.start();
 
-    if (homeserverUrl.trimmed().isEmpty()) {
-        // No server given, so the domain has to come out of a full MXID.
-        // loginWithPassword() resolves it for us; if there is no domain either,
-        // it reports through loginError.
-        c->loginWithPassword(userIdOrLocalpart, password, deviceDisplayName());
-        return;
+    // resolveServer handles the .well-known delegation that setHomeserver
+    // skips, and matrix.org does delegate. Given no server, the domain has to
+    // come out of the MXID.
+    // resolveServer wants an MXID and takes the domain out of it, so a
+    // homeserver typed on its own has to be pasted back onto the user name.
+    const QString server = homeserverUrl.trimmed();
+    QString target = userIdOrLocalpart.trimmed();
+    if (!target.startsWith(QLatin1Char('@')))
+        target.prepend(QLatin1Char('@'));
+    if (!target.contains(QLatin1Char(':')) && !server.isEmpty()) {
+        QString host = server;
+        host.remove(QStringLiteral("https://"));
+        host.remove(QStringLiteral("http://"));
+        while (host.endsWith(QLatin1Char('/')))
+            host.chop(1);
+        target += QLatin1Char(':') + host;
     }
-
-    // fromUserInput so "matrix.org" reaches the homeserver as https://matrix.org
-    // rather than as a relative path.
-    const QUrl base = QUrl::fromUserInput(homeserverUrl.trimmed());
-    if (!base.isValid()) {
+    if (!target.contains(QLatin1Char(':'))) {
         m_loginTimeout.stop();
         dropConnection();
-        setState(State::Failed, i18nc("@info:status Matrix login, %1 is what the user typed", "%1 is not a valid homeserver address.", homeserverUrl));
+        setState(State::Failed,
+                 i18nc("@info:status Matrix login", "Give a homeserver, or write the user ID in full as @name:server."));
         return;
     }
 
-    // The password is held only until the login flows come back, which is the
-    // first moment loginWithPassword() can be called against a known server.
-    m_pendingUser = userIdOrLocalpart;
+    if (server.isEmpty()) {
+        m_pendingUser = target;
+        m_pendingPassword = password;
+        connect(
+            c,
+            &Quotient::Connection::homeserverChanged,
+            this,
+            [this](const QUrl &) {
+                if (!m_connection || m_pendingPassword.isEmpty())
+                    return;
+                const QString user = m_pendingUser;
+                const QString pass = m_pendingPassword;
+                m_pendingUser.clear();
+                m_pendingPassword.clear();
+                m_connection->loginWithPassword(user, pass, deviceDisplayName());
+            },
+            Qt::SingleShotConnection);
+        c->resolveServer(target);
+        return;
+    }
+
+    // An address typed by hand is taken at its word. matrix.org delegates to
+    // matrix-client.matrix.org, which some networks do not carry while the
+    // plain domain answers fine.
+    QUrl base = QUrl::fromUserInput(server);
+    if (base.scheme().isEmpty())
+        base.setScheme(QStringLiteral("https"));
+    // Wait for the flows before logging in. loginWithPassword derives the
+    // server from the MXID when they are not loaded yet, which throws away
+    // both the scheme and the port of whatever was typed here.
+    m_pendingUser = target;
     m_pendingPassword = password;
     connect(
         c,
