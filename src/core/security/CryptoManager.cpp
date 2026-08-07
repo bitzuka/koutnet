@@ -13,18 +13,54 @@
 
 #include <algorithm> // nth_element, for the replay cache eviction
 #include <cmath>
+#include <cstring> // memcmp, for the crypto_kx role tiebreak
 
-#include <openssl/crypto.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
-#include <openssl/kdf.h>
-#include <openssl/rand.h>
+#include <sodium.h>
 
 namespace koutnet
 {
 
+// The wire and the wallet both assume these, so a libsodium that disagreed would
+// have to be found here rather than in a packet that will not open.
+static_assert(CryptoManager::kSaltLen == crypto_pwhash_SALTBYTES);
+static_assert(CryptoManager::kNonceLen == crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
+static_assert(CryptoManager::kTagLen == crypto_aead_xchacha20poly1305_ietf_ABYTES);
+static_assert(CryptoManager::kKeyLen == crypto_aead_xchacha20poly1305_ietf_KEYBYTES);
+static_assert(CryptoManager::kKeyLen == crypto_kx_SESSIONKEYBYTES);
+static_assert(CryptoManager::kKeyLen == crypto_auth_KEYBYTES);
+
 namespace
 {
+
+// Everything below is undefined before this has run, so it gates construction
+// rather than being left to whoever writes the next main(). The static makes it
+// once per process and thread-safe; sodium_init() returns 1 when already done
+// and only a negative result means the library cannot be used.
+bool sodiumReady()
+{
+    static const bool ok = sodium_init() >= 0;
+    return ok;
+}
+
+// Argon2id at the interactive setting: 64 MiB and 2 passes. Deliberately not
+// MODERATE, because a decrypting peer derives against a salt the *sender* chose,
+// so every message with an unseen salt is a fresh derivation - the memory cost
+// is an amplifier pointed at us, not only at an attacker guessing the passphrase.
+constexpr unsigned long long kPwhashOps = crypto_pwhash_OPSLIMIT_INTERACTIVE;
+constexpr size_t kPwhashMem = crypto_pwhash_MEMLIMIT_INTERACTIVE;
+
+// Domain tags, bound as AEAD associated data so that a ciphertext only opens in
+// the slot it was sealed for. Also the wire type byte for the two message forms.
+constexpr char kAadSessionMessage = 0x01;
+constexpr char kAadPassphraseMessage = 0x02;
+constexpr char kAadVoiceFrame = 0x10;
+
+// Bumped from KNC1 when the primitives changed. A peer on the old build now gets
+// "cleartext on a keyed channel" instead of a Poly1305 failure it cannot explain.
+QString wireMarker()
+{
+    return QStringLiteral("KNC2:");
+}
 
 double nowEpoch()
 {
@@ -40,13 +76,13 @@ double nowEpoch()
 void cleanse(QByteArray &buf)
 {
     if (!buf.isEmpty())
-        OPENSSL_cleanse(buf.data(), size_t(buf.size()));
+        sodium_memzero(buf.data(), size_t(buf.size()));
 }
 
 void cleanse(QString &str)
 {
     if (!str.isEmpty())
-        OPENSSL_cleanse(str.data(), size_t(str.size()) * sizeof(QChar));
+        sodium_memzero(str.data(), size_t(str.size()) * sizeof(QChar));
 }
 
 // Same thing at every exit path of a function, which is the part that gets
@@ -119,6 +155,13 @@ CryptoManager::CryptoManager(const QString &storageScope, QObject *parent)
     : QObject(parent)
     , m_storageScope(storageScope)
 {
+    if (!sodiumReady()) {
+        qCCritical(KOUTNET_LOG_CRYPTO,
+                   "sodium_init() failed - libsodium is unusable, so this process has no "
+                   "cryptography at all. Every call below refuses.");
+        return;
+    }
+
     m_valid = initKeypairs();
     if (!m_valid) {
         qCCritical(KOUTNET_LOG_CRYPTO,
@@ -130,13 +173,13 @@ CryptoManager::CryptoManager(const QString &storageScope, QObject *parent)
 
 CryptoManager::~CryptoManager()
 {
-    if (m_identityPriv)
-        EVP_PKEY_free(m_identityPriv);
-    if (m_dhPriv)
-        EVP_PKEY_free(m_dhPriv);
+    cleanse(m_identitySk);
+    cleanse(m_dhSk);
 
-    for (auto it = m_sessionKeys.begin(); it != m_sessionKeys.end(); ++it)
-        cleanse(*it);
+    for (auto it = m_sessionKeys.begin(); it != m_sessionKeys.end(); ++it) {
+        cleanse(it->rx);
+        cleanse(it->tx);
+    }
     for (auto it = m_passphraseKeyCache.begin(); it != m_passphraseKeyCache.end(); ++it)
         cleanse(*it);
 }
@@ -144,10 +187,9 @@ CryptoManager::~CryptoManager()
 QByteArray CryptoManager::randomBytes(int n)
 {
     QByteArray buf(n, 0);
-    // an exhausted entropy pool would otherwise hand back a buffer of zeroes,
-    // which is a perfectly usable nonce as far as the caller can tell
-    if (RAND_bytes(reinterpret_cast<unsigned char *>(buf.data()), n) != 1)
-        return {};
+    // randombytes_buf has no failure to report: libsodium aborts rather than
+    // return short, so there is no path here that hands back a buffer of zeroes.
+    randombytes_buf(buf.data(), size_t(n));
     return buf;
 }
 
@@ -160,47 +202,34 @@ bool CryptoManager::initKeypairs()
             return false;
     }
 
-    size_t len = 0;
-    if (EVP_PKEY_get_raw_public_key(m_dhPriv, nullptr, &len) != 1 || len == 0)
-        return false;
-    m_dhPubBytes.resize(int(len));
-    if (EVP_PKEY_get_raw_public_key(m_dhPriv, reinterpret_cast<unsigned char *>(m_dhPubBytes.data()), &len) != 1)
+    if (m_identitySk.size() != crypto_sign_SECRETKEYBYTES || m_dhSk.size() != crypto_kx_SECRETKEYBYTES)
         return false;
 
-    len = 0;
-    if (EVP_PKEY_get_raw_public_key(m_identityPriv, nullptr, &len) != 1 || len == 0)
-        return false;
-    m_identityPubBytes.resize(int(len));
-    if (EVP_PKEY_get_raw_public_key(m_identityPriv, reinterpret_cast<unsigned char *>(m_identityPubBytes.data()), &len) != 1)
-        return false;
-
-    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
-    if (!mdctx)
+    // The public halves are recomputed from the secrets rather than stored, so a
+    // wallet entry that was tampered with cannot make us advertise a key we
+    // cannot sign or agree with.
+    m_dhPubBytes.resize(crypto_kx_PUBLICKEYBYTES);
+    if (crypto_scalarmult_base(reinterpret_cast<unsigned char *>(m_dhPubBytes.data()), reinterpret_cast<const unsigned char *>(m_dhSk.constData())) != 0)
         return false;
 
-    bool ok = EVP_DigestSignInit(mdctx, nullptr, nullptr, nullptr, m_identityPriv) == 1;
-
-    size_t sigLen = 0;
-    if (ok && EVP_DigestSign(mdctx, nullptr, &sigLen, reinterpret_cast<const unsigned char *>(m_dhPubBytes.constData()), m_dhPubBytes.size()) != 1) {
-        ok = false;
+    m_identityPubBytes.resize(crypto_sign_PUBLICKEYBYTES);
+    if (crypto_sign_ed25519_sk_to_pk(reinterpret_cast<unsigned char *>(m_identityPubBytes.data()),
+                                     reinterpret_cast<const unsigned char *>(m_identitySk.constData()))
+        != 0) {
+        return false;
     }
 
-    if (ok) {
-        m_dhPubSig.resize(int(sigLen));
-        if (EVP_DigestSign(mdctx,
-                           reinterpret_cast<unsigned char *>(m_dhPubSig.data()),
-                           &sigLen,
-                           reinterpret_cast<const unsigned char *>(m_dhPubBytes.constData()),
-                           m_dhPubBytes.size())
-            != 1) {
-            ok = false;
-        } else {
-            m_dhPubSig.resize(int(sigLen));
-        }
+    m_dhPubSig.resize(crypto_sign_BYTES);
+    unsigned long long sigLen = 0;
+    if (crypto_sign_detached(reinterpret_cast<unsigned char *>(m_dhPubSig.data()),
+                             &sigLen,
+                             reinterpret_cast<const unsigned char *>(m_dhPubBytes.constData()),
+                             static_cast<unsigned long long>(m_dhPubBytes.size()),
+                             reinterpret_cast<const unsigned char *>(m_identitySk.constData()))
+        != 0) {
+        return false;
     }
-
-    EVP_MD_CTX_free(mdctx);
-    return ok;
+    return sigLen == crypto_sign_BYTES;
 }
 
 bool CryptoManager::migrateLegacyKeys(QString *outIdentityB64, QString *outDhB64)
@@ -338,55 +367,31 @@ bool CryptoManager::loadStoredKeys()
     Wiper wipeIdRaw(idRaw);
     Wiper wipeDhRaw(dhRaw);
 
-    // Ed25519/X25519 private keys are always exactly 32 raw bytes - guard
-    // against a truncated/corrupted stored entry producing a garbage key.
-    if (idRaw.size() != 32 || dhRaw.size() != 32)
+    // The wallet holds the Ed25519 seed and the X25519 scalar, both 32 bytes -
+    // the same encoding the OpenSSL build wrote, so an existing identity and its
+    // fingerprint survive this change. Guard against a truncated or corrupted
+    // entry expanding into a garbage key.
+    if (idRaw.size() != crypto_sign_SEEDBYTES || dhRaw.size() != crypto_kx_SECRETKEYBYTES)
         return false;
 
-    m_identityPriv = EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, nullptr, reinterpret_cast<const unsigned char *>(idRaw.constData()), idRaw.size());
-    m_dhPriv = EVP_PKEY_new_raw_private_key(EVP_PKEY_X25519, nullptr, reinterpret_cast<const unsigned char *>(dhRaw.constData()), dhRaw.size());
-
-    if (!m_identityPriv || !m_dhPriv) {
-        if (m_identityPriv) {
-            EVP_PKEY_free(m_identityPriv);
-            m_identityPriv = nullptr;
-        }
-        if (m_dhPriv) {
-            EVP_PKEY_free(m_dhPriv);
-            m_dhPriv = nullptr;
-        }
+    m_identitySk.resize(crypto_sign_SECRETKEYBYTES);
+    QByteArray idPub(crypto_sign_PUBLICKEYBYTES, 0);
+    if (crypto_sign_seed_keypair(reinterpret_cast<unsigned char *>(idPub.data()),
+                                 reinterpret_cast<unsigned char *>(m_identitySk.data()),
+                                 reinterpret_cast<const unsigned char *>(idRaw.constData()))
+        != 0) {
+        cleanse(m_identitySk);
+        m_identitySk.clear();
         return false;
     }
+
+    m_dhSk = dhRaw;
     return true;
 }
 
 bool CryptoManager::generateAndStoreKeys()
 {
-    EVP_PKEY_CTX *idCtx = EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, nullptr);
-    if (!idCtx)
-        return false;
-    if (EVP_PKEY_keygen_init(idCtx) != 1 || EVP_PKEY_keygen(idCtx, &m_identityPriv) != 1) {
-        EVP_PKEY_CTX_free(idCtx);
-        return false;
-    }
-    EVP_PKEY_CTX_free(idCtx);
-
-    EVP_PKEY_CTX *dhCtx = EVP_PKEY_CTX_new_id(EVP_PKEY_X25519, nullptr);
-    if (!dhCtx) {
-        EVP_PKEY_free(m_identityPriv);
-        m_identityPriv = nullptr;
-        return false;
-    }
-    if (EVP_PKEY_keygen_init(dhCtx) != 1 || EVP_PKEY_keygen(dhCtx, &m_dhPriv) != 1) {
-        EVP_PKEY_CTX_free(dhCtx);
-        EVP_PKEY_free(m_identityPriv);
-        m_identityPriv = nullptr;
-        return false;
-    }
-    EVP_PKEY_CTX_free(dhCtx);
-
-    size_t len = 0;
-    QByteArray idRaw;
+    QByteArray idRaw = randomBytes(crypto_sign_SEEDBYTES);
     QByteArray dhRaw;
     QString idB64;
     QString dhB64;
@@ -395,18 +400,27 @@ bool CryptoManager::generateAndStoreKeys()
     Wiper wipeIdB64(idB64);
     Wiper wipeDhB64(dhB64);
 
-    if (EVP_PKEY_get_raw_private_key(m_identityPriv, nullptr, &len) != 1 || len == 0)
+    // The seed is what gets stored; the expanded 64-byte secret is derived from
+    // it on every start, here and in loadStoredKeys() alike.
+    m_identitySk.resize(crypto_sign_SECRETKEYBYTES);
+    QByteArray idPub(crypto_sign_PUBLICKEYBYTES, 0);
+    if (crypto_sign_seed_keypair(reinterpret_cast<unsigned char *>(idPub.data()),
+                                 reinterpret_cast<unsigned char *>(m_identitySk.data()),
+                                 reinterpret_cast<const unsigned char *>(idRaw.constData()))
+        != 0) {
+        cleanse(m_identitySk);
+        m_identitySk.clear();
         return false;
-    idRaw.resize(int(len));
-    if (EVP_PKEY_get_raw_private_key(m_identityPriv, reinterpret_cast<unsigned char *>(idRaw.data()), &len) != 1)
-        return false;
+    }
 
-    len = 0;
-    if (EVP_PKEY_get_raw_private_key(m_dhPriv, nullptr, &len) != 1 || len == 0)
+    dhRaw.resize(crypto_kx_SECRETKEYBYTES);
+    QByteArray dhPub(crypto_kx_PUBLICKEYBYTES, 0);
+    if (crypto_kx_keypair(reinterpret_cast<unsigned char *>(dhPub.data()), reinterpret_cast<unsigned char *>(dhRaw.data())) != 0) {
+        cleanse(m_identitySk);
+        m_identitySk.clear();
         return false;
-    dhRaw.resize(int(len));
-    if (EVP_PKEY_get_raw_private_key(m_dhPriv, reinterpret_cast<unsigned char *>(dhRaw.data()), &len) != 1)
-        return false;
+    }
+    m_dhSk = dhRaw;
 
     idB64 = QString::fromLatin1(idRaw.toBase64());
     dhB64 = QString::fromLatin1(dhRaw.toBase64());
@@ -509,29 +523,19 @@ CryptoManager::HandshakeOutcome CryptoManager::processHandshakeFrom(const QStrin
     const QByteArray peerDhBytes = QByteArray::fromBase64(data.value(QStringLiteral("dh_pub")).toString().toLatin1());
     const QByteArray peerIdBytes = QByteArray::fromBase64(data.value(QStringLiteral("id_pub")).toString().toLatin1());
     const QByteArray peerDhSig = QByteArray::fromBase64(data.value(QStringLiteral("dh_pub_sig")).toString().toLatin1());
-    if (peerDhBytes.isEmpty() || peerIdBytes.isEmpty() || peerDhSig.isEmpty())
-        return HandshakeOutcome::Refused;
-
-    EVP_PKEY *peerIdPub =
-        EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, nullptr, reinterpret_cast<const unsigned char *>(peerIdBytes.constData()), peerIdBytes.size());
-    if (!peerIdPub)
-        return HandshakeOutcome::Refused;
-
-    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
-    if (!mdctx) {
-        EVP_PKEY_free(peerIdPub);
+    // Lengths first, and exactly rather than at least: the OpenSSL key objects
+    // this replaced rejected a wrong-sized key on construction, whereas libsodium
+    // takes a bare pointer and would read past a short buffer.
+    if (!m_valid || peerDhBytes.size() != crypto_kx_PUBLICKEYBYTES || peerIdBytes.size() != crypto_sign_PUBLICKEYBYTES
+        || peerDhSig.size() != crypto_sign_BYTES) {
         return HandshakeOutcome::Refused;
     }
-    const int verifyRc = EVP_DigestVerifyInit(mdctx, nullptr, nullptr, nullptr, peerIdPub) != 1
-        ? 0
-        : EVP_DigestVerify(mdctx,
-                           reinterpret_cast<const unsigned char *>(peerDhSig.constData()),
-                           peerDhSig.size(),
-                           reinterpret_cast<const unsigned char *>(peerDhBytes.constData()),
-                           peerDhBytes.size());
-    EVP_MD_CTX_free(mdctx);
-    if (verifyRc != 1) {
-        EVP_PKEY_free(peerIdPub);
+
+    if (crypto_sign_verify_detached(reinterpret_cast<const unsigned char *>(peerDhSig.constData()),
+                                    reinterpret_cast<const unsigned char *>(peerDhBytes.constData()),
+                                    static_cast<unsigned long long>(peerDhBytes.size()),
+                                    reinterpret_cast<const unsigned char *>(peerIdBytes.constData()))
+        != 0) {
         return HandshakeOutcome::Refused;
     }
 
@@ -544,10 +548,8 @@ CryptoManager::HandshakeOutcome CryptoManager::processHandshakeFrom(const QStrin
     // Trust on first use, on the identity. The id is a digest of the key, so a pin
     // that disagrees with it is unreachable - cheaper to refuse than to reason about.
     const auto pinned = m_peerIdPub.constFind(peerId);
-    if (pinned != m_peerIdPub.constEnd() && *pinned != peerIdBytes) {
-        EVP_PKEY_free(peerIdPub);
+    if (pinned != m_peerIdPub.constEnd() && *pinned != peerIdBytes)
         return HandshakeOutcome::Refused;
-    }
 
     // Someone else is already at this address and still has a live session. The
     // identity above is not in doubt, so this is not a trust decision - but handing a
@@ -560,65 +562,51 @@ CryptoManager::HandshakeOutcome CryptoManager::processHandshakeFrom(const QStrin
             m_warnedIdPub[observedAddress] = peerIdBytes;
             Q_EMIT peerIdentityChanged(observedAddress, bytesToFingerprint(m_peerIdPub.value(sitting)), bytesToFingerprint(peerIdBytes));
         }
-        EVP_PKEY_free(peerIdPub);
         return HandshakeOutcome::AddressTaken; // the session we already had stays live and usable
     }
 
-    EVP_PKEY *peerDhPub =
-        EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, nullptr, reinterpret_cast<const unsigned char *>(peerDhBytes.constData()), peerDhBytes.size());
-    if (!peerDhPub) {
-        EVP_PKEY_free(peerIdPub);
+    // crypto_kx is asymmetric: one end must run the client half and the other the
+    // server half, or the rx/tx pairs do not line up. Ordering the two public keys
+    // decides that without a round trip and gives the same answer on both sides.
+    const int order = std::memcmp(m_dhPubBytes.constData(), peerDhBytes.constData(), crypto_kx_PUBLICKEYBYTES);
+    if (order == 0) {
+        // Our own DH key came back at us, so this is a reflection - and there
+        // would be no role left for the other end to take.
         return HandshakeOutcome::Refused;
     }
 
-    EVP_PKEY_CTX *dctx = EVP_PKEY_CTX_new(m_dhPriv, nullptr);
-    if (!dctx) {
-        EVP_PKEY_free(peerDhPub);
-        EVP_PKEY_free(peerIdPub);
+    QByteArray rx(kKeyLen, 0);
+    QByteArray tx(kKeyLen, 0);
+    Wiper wipeRx(rx);
+    Wiper wipeTx(tx);
+
+    // Also where a degenerate peer key dies: crypto_kx runs the scalar
+    // multiplication, and libsodium refuses an all-zero result rather than
+    // handing back a shared secret every machine would agree on.
+    auto *rxp = reinterpret_cast<unsigned char *>(rx.data());
+    auto *txp = reinterpret_cast<unsigned char *>(tx.data());
+    const auto *ourPk = reinterpret_cast<const unsigned char *>(m_dhPubBytes.constData());
+    const auto *ourSk = reinterpret_cast<const unsigned char *>(m_dhSk.constData());
+    const auto *theirPk = reinterpret_cast<const unsigned char *>(peerDhBytes.constData());
+    const int kxRc =
+        order < 0 ? crypto_kx_client_session_keys(rxp, txp, ourPk, ourSk, theirPk) : crypto_kx_server_session_keys(rxp, txp, ourPk, ourSk, theirPk);
+    if (kxRc != 0)
         return HandshakeOutcome::Refused;
-    }
 
-    // a failed derive leaves sharedSecret full of zeroes, and the session key
-    // built from it would then be the same on every machine
-    size_t secretLen = 0;
-    QByteArray sharedSecret;
-    // The one buffer here worth reading out of a core dump: every session key with
-    // this peer comes out of these bytes until one side regenerates its keypair.
-    Wiper wipeSecret(sharedSecret);
-    bool derived =
-        EVP_PKEY_derive_init(dctx) == 1 && EVP_PKEY_derive_set_peer(dctx, peerDhPub) == 1 && EVP_PKEY_derive(dctx, nullptr, &secretLen) == 1 && secretLen > 0;
-    if (derived) {
-        sharedSecret.resize(int(secretLen));
-        derived = EVP_PKEY_derive(dctx, reinterpret_cast<unsigned char *>(sharedSecret.data()), &secretLen) == 1;
-        if (derived)
-            sharedSecret.resize(int(secretLen));
-    }
-    EVP_PKEY_CTX_free(dctx);
-    EVP_PKEY_free(peerDhPub);
-
-    if (!derived) {
-        EVP_PKEY_free(peerIdPub);
-        return HandshakeOutcome::Refused;
-    }
-
-    QByteArray sessionKey = hkdfSha256(sharedSecret, QByteArrayLiteral("-v2-session"), kKeyLen);
-    if (sessionKey.size() != kKeyLen) {
-        cleanse(sessionKey);
-        EVP_PKEY_free(peerIdPub);
-        return HandshakeOutcome::Refused;
-    }
-
-    // The key this replaces goes first: a repeat handshake would otherwise leave the
-    // previous one unwiped in the heap. Moved rather than copied, so the hash owns the
-    // only copy - the destructor is where that one gets wiped.
+    // The keys this replaces go first: a repeat handshake would otherwise leave the
+    // previous pair unwiped in the heap. The hash then owns the only copy, and the
+    // destructor is where that one gets wiped.
     const auto existing = m_sessionKeys.find(peerId);
-    if (existing != m_sessionKeys.end())
-        cleanse(*existing);
+    if (existing != m_sessionKeys.end()) {
+        cleanse(existing->rx);
+        cleanse(existing->tx);
+    }
 
-    m_sessionKeys[peerId] = std::move(sessionKey);
+    // Moved, not copied, so the hash owns the only copy and the Wipers above turn
+    // into no-ops on this path while still covering every refusal before it.
+    m_sessionKeys[peerId] = SessionKeys{std::move(rx), std::move(tx)};
     m_peerIdPub[peerId] = peerIdBytes;
     noteObservedAddress(peerId, observedAddress);
-    EVP_PKEY_free(peerIdPub);
     return HandshakeOutcome::Established;
 }
 
@@ -649,113 +637,67 @@ SecurityLevel CryptoManager::securityLevel(const QString &peerRef, bool encrypti
     return SecurityLevel::Plain;
 }
 
-QByteArray CryptoManager::hkdfSha256(const QByteArray &secret, const QByteArray &info, int outLen)
+// XChaCha20-Poly1305 rather than crypto_secretstream: this is a datagram
+// protocol. secretstream is a single ordered byte stream with per-message state,
+// so a lost or reordered UDP packet - routine for voice - desynchronises the
+// receiver permanently, and it offers nothing to a protocol whose frames are
+// already independent. The 192-bit nonce is the point of the choice: it is wide
+// enough to draw at random per frame, so there is no counter to persist across
+// restarts and no way for two frames to collide on one.
+QByteArray CryptoManager::aeadSeal(const QByteArray &key, const QByteArray &plaintext, char aad)
 {
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr);
-    if (!ctx)
+    if (key.size() != kKeyLen)
         return {};
 
-    // RFC 5869 default salt (no salt provided) = HashLen zero bytes.
-    const QByteArray zeroSalt(32, 0);
+    const QByteArray nonce = randomBytes(kNonceLen);
+    QByteArray sealed(plaintext.size() + kTagLen, 0);
+    unsigned long long sealedLen = 0;
 
-    QByteArray out(outLen, 0);
-    size_t len = size_t(outLen);
-    // an unchecked failure here returns all zeroes, which downstream code
-    // cannot tell apart from a real key
-    const bool ok = EVP_PKEY_derive_init(ctx) == 1 && EVP_PKEY_CTX_set_hkdf_md(ctx, EVP_sha256()) == 1
-        && EVP_PKEY_CTX_set1_hkdf_salt(ctx, reinterpret_cast<const unsigned char *>(zeroSalt.constData()), zeroSalt.size()) == 1
-        && EVP_PKEY_CTX_set1_hkdf_key(ctx, reinterpret_cast<const unsigned char *>(secret.constData()), secret.size()) == 1
-        && EVP_PKEY_CTX_add1_hkdf_info(ctx, reinterpret_cast<const unsigned char *>(info.constData()), info.size()) == 1
-        && EVP_PKEY_derive(ctx, reinterpret_cast<unsigned char *>(out.data()), &len) == 1;
-    EVP_PKEY_CTX_free(ctx);
-
-    if (!ok || len != size_t(outLen)) {
-        // a partial derive leaves part of a real key in there
-        cleanse(out);
+    if (crypto_aead_xchacha20poly1305_ietf_encrypt(reinterpret_cast<unsigned char *>(sealed.data()),
+                                                   &sealedLen,
+                                                   reinterpret_cast<const unsigned char *>(plaintext.constData()),
+                                                   static_cast<unsigned long long>(plaintext.size()),
+                                                   reinterpret_cast<const unsigned char *>(&aad),
+                                                   1,
+                                                   nullptr,
+                                                   reinterpret_cast<const unsigned char *>(nonce.constData()),
+                                                   reinterpret_cast<const unsigned char *>(key.constData()))
+        != 0) {
         return {};
     }
-    return out;
-}
-
-QByteArray CryptoManager::gcmEncrypt(const QByteArray &key, const QByteArray &plaintext)
-{
-    const QByteArray nonce = randomBytes(kNonceLen);
-    if (nonce.size() != kNonceLen)
-        return {}; // no nonce, no encryption - reusing a fixed one breaks GCM outright
-
-    QByteArray ciphertext(plaintext.size(), 0);
-    QByteArray tag(kTagLen, 0);
-
-    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    if (!ctx)
+    if (sealedLen != static_cast<unsigned long long>(plaintext.size() + kTagLen))
         return {};
 
-    int outLen = 0;
-    int finalLen = 0;
-    const bool ok = EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) == 1
-        && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, kNonceLen, nullptr) == 1
-        && EVP_EncryptInit_ex(ctx,
-                              nullptr,
-                              nullptr,
-                              reinterpret_cast<const unsigned char *>(key.constData()),
-                              reinterpret_cast<const unsigned char *>(nonce.constData()))
-            == 1
-        && EVP_EncryptUpdate(ctx,
-                             reinterpret_cast<unsigned char *>(ciphertext.data()),
-                             &outLen,
-                             reinterpret_cast<const unsigned char *>(plaintext.constData()),
-                             plaintext.size())
-            == 1
-        && EVP_EncryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(ciphertext.data()) + outLen, &finalLen) == 1
-        && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, kTagLen, tag.data()) == 1;
-    EVP_CIPHER_CTX_free(ctx);
-
-    if (!ok)
-        return {};
-
-    return nonce + ciphertext.left(outLen + finalLen) + tag; // matches legacy wire layout
+    return nonce + sealed;
 }
 
-bool CryptoManager::gcmDecrypt(const QByteArray &key, const QByteArray &data, QByteArray *outPlain)
+bool CryptoManager::aeadOpen(const QByteArray &key, const QByteArray &data, char aad, QByteArray *outPlain)
 {
-    if (data.size() < kNonceLen + kTagLen)
+    if (key.size() != kKeyLen || data.size() < kNonceLen + kTagLen)
         return false;
 
     const QByteArray nonce = data.left(kNonceLen);
-    const QByteArray tag = data.right(kTagLen);
-    const QByteArray ciphertext = data.mid(kNonceLen, data.size() - kNonceLen - kTagLen);
+    const QByteArray sealed = data.mid(kNonceLen);
 
-    QByteArray plaintext(ciphertext.size(), 0);
-    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
-    if (!ctx)
-        return false;
+    QByteArray plaintext(sealed.size() - kTagLen, 0);
+    unsigned long long plainLen = 0;
 
-    int outLen = 0;
-    int finalLen = 0;
-    // a skipped setup step means the tag is never actually checked, so setup
-    // failures have to be as fatal as a tag mismatch
-    const bool ok = EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) == 1
-        && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_IVLEN, kNonceLen, nullptr) == 1
-        && EVP_DecryptInit_ex(ctx,
-                              nullptr,
-                              nullptr,
-                              reinterpret_cast<const unsigned char *>(key.constData()),
-                              reinterpret_cast<const unsigned char *>(nonce.constData()))
-            == 1
-        && EVP_DecryptUpdate(ctx,
-                             reinterpret_cast<unsigned char *>(plaintext.data()),
-                             &outLen,
-                             reinterpret_cast<const unsigned char *>(ciphertext.constData()),
-                             ciphertext.size())
-            == 1
-        && EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, kTagLen, const_cast<char *>(tag.constData())) == 1
-        && EVP_DecryptFinal_ex(ctx, reinterpret_cast<unsigned char *>(plaintext.data()) + outLen, &finalLen) == 1;
-    EVP_CIPHER_CTX_free(ctx);
+    // One call, and its result is the tag check - there is no setup step here
+    // that could be skipped and leave the tag unverified.
+    if (crypto_aead_xchacha20poly1305_ietf_decrypt(reinterpret_cast<unsigned char *>(plaintext.data()),
+                                                   &plainLen,
+                                                   nullptr,
+                                                   reinterpret_cast<const unsigned char *>(sealed.constData()),
+                                                   static_cast<unsigned long long>(sealed.size()),
+                                                   reinterpret_cast<const unsigned char *>(&aad),
+                                                   1,
+                                                   reinterpret_cast<const unsigned char *>(nonce.constData()),
+                                                   reinterpret_cast<const unsigned char *>(key.constData()))
+        != 0) {
+        return false; // tag mismatch - tampered, wrong key, or the wrong slot
+    }
 
-    if (!ok)
-        return false; // tag mismatch - tampered or wrong key
-
-    *outPlain = plaintext.left(outLen + finalLen);
+    *outPlain = plaintext.left(qsizetype(plainLen));
     return true;
 }
 
@@ -776,23 +718,30 @@ QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray 
     if (cached != m_passphraseKeyCache.constEnd())
         return *cached;
 
+    // The only libsodium call reachable without a keypair, so it is also the only
+    // one that has to check for itself that the library came up.
+    if (!sodiumReady() || salt.size() != kSaltLen)
+        return {};
+
     QByteArray key(kKeyLen, 0);
-    // an all-zero key would be shared by every peer whose derivation failed
-    if (PKCS5_PBKDF2_HMAC(pass.constData(),
-                          pass.size(),
-                          reinterpret_cast<const unsigned char *>(salt.constData()),
-                          salt.size(),
-                          kKdfIters,
-                          EVP_sha256(),
-                          kKeyLen,
-                          reinterpret_cast<unsigned char *>(key.data()))
-        != 1) {
+    // Argon2id, which unlike PBKDF2 costs an attacker memory as well as time. A
+    // failure here is almost always the 64 MiB allocation being refused; an
+    // all-zero key would be shared by every peer that hit it, so it is fatal.
+    if (crypto_pwhash(reinterpret_cast<unsigned char *>(key.data()),
+                      kKeyLen,
+                      pass.constData(),
+                      static_cast<unsigned long long>(pass.size()),
+                      reinterpret_cast<const unsigned char *>(salt.constData()),
+                      kPwhashOps,
+                      kPwhashMem,
+                      crypto_pwhash_ALG_ARGON2ID13)
+        != 0) {
         cleanse(key);
         return {};
     }
 
-    // Each derivation is 480k iterations, which is why it is cached at all - but a
-    // long session cycling through many passphrases must not grow this forever.
+    // Each derivation is 64 MiB and two passes, which is why it is cached at all -
+    // but a long session cycling through many passphrases must not grow this forever.
     if (m_passphraseKeyCache.size() >= kMaxPassphraseCacheSize) {
         for (auto it = m_passphraseKeyCache.begin(); it != m_passphraseKeyCache.end(); ++it)
             cleanse(*it);
@@ -811,12 +760,23 @@ QString CryptoManager::signPacket(const QString &peerRef, const QByteArray &payl
     if (key == m_sessionKeys.constEnd())
         return QString();
 
-    unsigned char digest[32];
-    unsigned int digestLen = 0;
-    HMAC(EVP_sha256(), key->constData(), key->size(), reinterpret_cast<const unsigned char *>(payload.constData()), payload.size(), digest, &digestLen);
+    // Signed with tx, checked by the peer against its rx. Same shape on the wire
+    // as the HMAC-SHA256 this replaces - base64 of 32 bytes - on crypto_auth's
+    // HMAC-SHA512-256 instead.
+    if (key->tx.size() != crypto_auth_KEYBYTES)
+        return QString();
 
-    const QString out = QString::fromLatin1(QByteArray(reinterpret_cast<char *>(digest), int(digestLen)).toBase64());
-    OPENSSL_cleanse(digest, sizeof(digest));
+    unsigned char mac[crypto_auth_BYTES];
+    if (crypto_auth(mac,
+                    reinterpret_cast<const unsigned char *>(payload.constData()),
+                    static_cast<unsigned long long>(payload.size()),
+                    reinterpret_cast<const unsigned char *>(key->tx.constData()))
+        != 0) {
+        return QString();
+    }
+
+    const QString out = QString::fromLatin1(QByteArray(reinterpret_cast<char *>(mac), int(sizeof(mac))).toBase64());
+    sodium_memzero(mac, sizeof(mac));
     return out;
 }
 
@@ -828,14 +788,17 @@ bool CryptoManager::verifyPacket(const QString &peerRef, const QByteArray &paylo
     if (key == m_sessionKeys.constEnd())
         return false;
 
-    unsigned char expected[32];
-    unsigned int expectedLen = 0;
-    HMAC(EVP_sha256(), key->constData(), key->size(), reinterpret_cast<const unsigned char *>(payload.constData()), payload.size(), expected, &expectedLen);
-
+    // Checked against rx, which is the peer's tx. crypto_auth_verify wants
+    // exactly crypto_auth_BYTES and compares in constant time.
     const QByteArray given = QByteArray::fromBase64(sigB64.toLatin1());
-    const bool ok = given.size() == int(expectedLen) && CRYPTO_memcmp(expected, given.constData(), expectedLen) == 0;
-    OPENSSL_cleanse(expected, sizeof(expected));
-    return ok;
+    if (key->rx.size() != crypto_auth_KEYBYTES || given.size() != crypto_auth_BYTES)
+        return false;
+
+    return crypto_auth_verify(reinterpret_cast<const unsigned char *>(given.constData()),
+                              reinterpret_cast<const unsigned char *>(payload.constData()),
+                              static_cast<unsigned long long>(payload.size()),
+                              reinterpret_cast<const unsigned char *>(key->rx.constData()))
+        == 0;
 }
 
 bool CryptoManager::checkReplay(const QString &peerRef, const QString &nonceHex, double ts)
@@ -944,10 +907,10 @@ bool CryptoManager::checkRate(const QString &sourceAddress, int maxPerSec)
     return true;
 }
 
-// Wire format (base64 after the "KNC1:" tag):
-//   type[1] + payload
-//   0x01 = AES-GCM with ECDH session key  (payload = nonce+ciphertext+tag)
-//   0x02 = AES-GCM with PBKDF2 passphrase key (payload = salt[32]+nonce+ciphertext+tag)
+// Wire format (base64 after the "KNC2:" tag):
+//   type[1] + payload, with type also bound in as the AEAD associated data
+//   0x01 = XChaCha20-Poly1305 under the kx session key (payload = nonce[24]+ciphertext+tag)
+//   0x02 = XChaCha20-Poly1305 under an Argon2id passphrase key (payload = salt[16]+nonce[24]+ciphertext+tag)
 QString CryptoManager::encrypt(const QString &plaintext, const QString &passphrase, const QString &peerRef) const
 {
     const QByteArray data = plaintext.toUtf8();
@@ -957,29 +920,27 @@ QString CryptoManager::encrypt(const QString &plaintext, const QString &passphra
     QByteArray wire;
     const auto sessionKey = m_sessionKeys.constFind(resolveIdentity(peerRef));
     if (sessionKey != m_sessionKeys.constEnd()) {
-        const QByteArray sealed = gcmEncrypt(*sessionKey, data);
+        const QByteArray sealed = aeadSeal(sessionKey->tx, data, kAadSessionMessage);
         if (sealed.isEmpty())
             return QString();
-        wire.append(char(0x01));
+        wire.append(kAadSessionMessage);
         wire.append(sealed);
     } else if (!passphrase.isEmpty()) {
         const QByteArray salt = randomBytes(kSaltLen);
-        if (salt.size() != kSaltLen)
-            return QString();
         const QByteArray key = deriveKey(passphrase, salt);
         if (key.size() != kKeyLen)
             return QString();
-        const QByteArray sealed = gcmEncrypt(key, data);
+        const QByteArray sealed = aeadSeal(key, data, kAadPassphraseMessage);
         if (sealed.isEmpty())
             return QString();
-        wire.append(char(0x02));
+        wire.append(kAadPassphraseMessage);
         wire.append(salt);
         wire.append(sealed);
     } else {
         return plaintext; // nothing to encrypt with
     }
 
-    return QStringLiteral("KNC1:") + QString::fromLatin1(wire.toBase64());
+    return wireMarker() + QString::fromLatin1(wire.toBase64());
 }
 
 QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphrase, const QString &peerRef) const
@@ -990,32 +951,33 @@ QString CryptoManager::decrypt(const QString &ciphertext, const QString &passphr
     const QString peerId = resolveIdentity(peerRef);
     const bool expectSealed = m_sessionKeys.contains(peerId) || !passphrase.isEmpty();
 
-    if (!ciphertext.startsWith(QStringLiteral("KNC1:"))) {
+    const QString marker = wireMarker();
+    if (!ciphertext.startsWith(marker)) {
         if (expectSealed)
             return i18nc("@info shown in place of a message body", "[decrypt error: cleartext on a keyed channel]");
         return ciphertext; // no key on this channel anyway - pass through
     }
 
-    const QByteArray wire = QByteArray::fromBase64(ciphertext.mid(5).toLatin1());
+    const QByteArray wire = QByteArray::fromBase64(ciphertext.mid(marker.size()).toLatin1());
     if (wire.isEmpty())
         return i18nc("@info shown in place of a message body", "[decrypt error: empty packet]");
 
-    const quint8 type = static_cast<quint8>(wire.at(0));
+    const char type = wire.at(0);
     const QByteArray payload = wire.mid(1);
 
     QByteArray plain;
     bool ok = false;
 
-    if (type == 0x01) {
+    if (type == kAadSessionMessage) {
         const auto sessionKey = m_sessionKeys.constFind(peerId);
         if (sessionKey != m_sessionKeys.constEnd())
-            ok = gcmDecrypt(*sessionKey, payload, &plain);
-    } else if (type == 0x02) {
+            ok = aeadOpen(sessionKey->rx, payload, type, &plain);
+    } else if (type == kAadPassphraseMessage) {
         if (payload.size() > kSaltLen && !passphrase.isEmpty()) {
             const QByteArray salt = payload.left(kSaltLen);
             const QByteArray key = deriveKey(passphrase, salt);
             if (key.size() == kKeyLen)
-                ok = gcmDecrypt(key, payload.mid(kSaltLen), &plain);
+                ok = aeadOpen(key, payload.mid(kSaltLen), type, &plain);
         }
     }
 
@@ -1033,7 +995,7 @@ QByteArray CryptoManager::encryptBytes(const QString &peerRef, const QByteArray 
     if (key == m_sessionKeys.constEnd())
         return {};
 
-    return gcmEncrypt(*key, plaintext); // nonce+ciphertext+tag
+    return aeadSeal(key->tx, plaintext, kAadVoiceFrame); // nonce+ciphertext+tag
 }
 
 bool CryptoManager::decryptBytes(const QString &peerRef, const QByteArray &data, QByteArray *outPlain) const
@@ -1042,7 +1004,7 @@ bool CryptoManager::decryptBytes(const QString &peerRef, const QByteArray &data,
     if (key == m_sessionKeys.constEnd())
         return false; // unkeyed frames are not audio we are willing to play
 
-    return gcmDecrypt(*key, data, outPlain);
+    return aeadOpen(key->rx, data, kAadVoiceFrame, outPlain);
 }
 
 } // namespace koutnet

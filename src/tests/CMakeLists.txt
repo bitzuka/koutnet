@@ -13,6 +13,12 @@
 # where before they differed for want of a kwalletd. What must never happen
 # either way is a secret quietly landing in a config file instead.
 # tools/wallet-cleanup.sh clears out what an older build left behind.
+#
+# The application dropped OpenSSL when CryptoManager moved to libsodium, but
+# CryptoManagerTest's ForgedPeer still builds its attacker keys with raw EVP, so
+# the dependency lives on here alone until that helper is ported too.
+find_package(OpenSSL REQUIRED)
+
 ecm_add_test(
     CryptoManagerTest.cpp
     ../core/security/CryptoManager.cpp
@@ -20,7 +26,7 @@ ecm_add_test(
     ${KOUTNET_CRYPTO_LOGGING_SRCS}
     TEST_NAME crypto-manager
     NAME_PREFIX koutnet-
-    LINK_LIBRARIES Qt6::Test Qt6::Core OpenSSL::Crypto KF6::Wallet KF6::I18n
+    LINK_LIBRARIES Qt6::Test Qt6::Core PkgConfig::Sodium OpenSSL::Crypto KF6::Wallet KF6::I18n
 )
 
 # CryptoManager.cpp includes its logging category header, which is generated
@@ -39,7 +45,7 @@ ecm_add_test(
     ${KOUTNET_CRYPTO_LOGGING_SRCS}
     TEST_NAME network-manager
     NAME_PREFIX koutnet-
-    LINK_LIBRARIES Qt6::Test Qt6::Core Qt6::Network OpenSSL::Crypto KF6::Wallet KF6::I18n
+    LINK_LIBRARIES Qt6::Test Qt6::Core Qt6::Network PkgConfig::Sodium KF6::Wallet KF6::I18n
 )
 target_include_directories(network-manager PRIVATE ${KOUTNET_GENERATED_INCLUDE_DIR})
 

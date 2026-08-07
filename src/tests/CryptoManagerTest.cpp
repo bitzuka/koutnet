@@ -209,7 +209,7 @@ private Q_SLOTS:
         CryptoManager crypto;
         const QString plain = QStringLiteral("balance: 100");
         const QString sealed = crypto.encrypt(plain, kPass);
-        const QString marker = QStringLiteral("KNC1:");
+        const QString marker = QStringLiteral("KNC2:");
         QVERIFY(sealed.startsWith(marker));
 
         const QByteArray body = QByteArray::fromBase64(sealed.mid(marker.length()).toLatin1());

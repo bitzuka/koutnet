@@ -91,7 +91,10 @@ as unsupported until somebody says otherwise.
   Qt 6 and Qt6::Sql along as its own dependencies. Note that it publishes
   `cxx_std_23` as an interface requirement, so linking it raises this project
   past the C++20 it otherwise asks for.
-- **OpenSSL** (libcrypto).
+- **libsodium 1.0.18+**, found through pkg-config: every cryptographic
+  primitive in `CryptoManager` is one of its calls. The application no longer
+  links OpenSSL; the crypto test still does, because the forged-peer helper it
+  builds attacker keys with has not been ported yet.
 - **extra-cmake-modules** 6.8+ and CMake 3.21+.
 
 On Debian or Ubuntu, roughly:
@@ -99,8 +102,8 @@ On Debian or Ubuntu, roughly:
 ```
 qt6-base-dev qt6-declarative-dev qt6-multimedia-dev libkf6config-dev
 libkf6coreaddons-dev libkf6i18n-dev libkf6kirigami-dev libkf6kirigamiaddons-dev
-libkf6colorscheme-dev libkf6wallet-dev extra-cmake-modules libssl-dev
-libquotient-dev
+libkf6colorscheme-dev libkf6wallet-dev extra-cmake-modules libsodium-dev
+libssl-dev libquotient-dev
 ```
 
 On Gentoo, `net-libs/libquotient` (which pulls `dev-libs/olm` and

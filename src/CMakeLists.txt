@@ -8,7 +8,11 @@
 # QApplication. See the note at the top of main.cpp. Nothing else in the tree
 # includes a widget header.
 find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Quick QuickControls2 QuickDialogs2 Multimedia Network Widgets)
-find_package(OpenSSL REQUIRED)
+# libsodium ships no CMake config of its own, so it arrives through pkg-config.
+# 1.0.18 is the floor: crypto_kx and the XChaCha20-Poly1305 AEAD that
+# CryptoManager is built on have been stable since then.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(Sodium REQUIRED IMPORTED_TARGET libsodium>=1.0.18)
 # Kirigami is not optional: every QML file in qml/ imports it for the page
 # structure and the units, so a build without it fails at first window.
 # Wallet is required, not optional: the identity keys and the group passphrase
@@ -292,7 +296,7 @@ target_link_libraries(KOutNet PRIVATE
     Qt6::Multimedia
     Qt6::Network
     Qt6::Widgets
-    OpenSSL::Crypto
+    PkgConfig::Sodium
     KF6::ColorScheme
     KF6::ConfigCore
     KF6::ConfigGui

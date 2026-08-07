@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-// KOutNet security engine: X25519 ECDH with an Ed25519-signed identity,
-// AES-256-GCM on messages, PBKDF2-SHA256 for group passphrases, HMAC-SHA256
-// on control packets, a replay window over nonce and timestamp, per-address
-// rate limiting.
+// KOutNet security engine, built on libsodium: crypto_kx key agreement with an
+// Ed25519-signed identity, XChaCha20-Poly1305 on messages and voice frames,
+// Argon2id for group passphrases, crypto_auth on control packets, a replay
+// window over nonce and timestamp, per-address rate limiting.
 //
 // A peer is an Ed25519 identity key, never an address: a host has as many
 // addresses as interfaces, so a message from the session established over the
@@ -19,15 +19,13 @@
 #include <QStringList>
 #include <QVector>
 
-typedef struct evp_pkey_st EVP_PKEY;
-
 namespace koutnet
 {
 
 enum class SecurityLevel {
     Plain, // no encryption at all
-    Psk, // pre-shared passphrase (PBKDF2 + AES-GCM)
-    E2E, // ECDH session key established (AES-GCM)
+    Psk, // pre-shared passphrase (Argon2id + XChaCha20-Poly1305)
+    E2E, // crypto_kx session keys established (XChaCha20-Poly1305)
 };
 
 class CryptoManager : public QObject
@@ -35,14 +33,17 @@ class CryptoManager : public QObject
     Q_OBJECT
 
 public:
-    static constexpr int kNonceLen = 12;
+    // XChaCha20's 192-bit nonce. Wide enough that a nonce drawn at random is
+    // safe for the life of a key, which is what lets every frame carry its own
+    // rather than a counter that has to survive restarts and reordering.
+    static constexpr int kNonceLen = 24;
     static constexpr int kTagLen = 16;
     static constexpr int kKeyLen = 32;
-    static constexpr int kKdfIters = 480000;
-    static constexpr int kSaltLen = 32;
+    // crypto_pwhash_SALTBYTES; static_asserted against libsodium in the .cpp.
+    static constexpr int kSaltLen = 16;
     static constexpr double kReplayWindowSec = 30.0;
     static constexpr double kNonceCacheTtlSec = 60.0;
-    // Cap on cached PBKDF2 passphrase keys - cycling many group passphrases
+    // Cap on cached Argon2id passphrase keys - cycling many group passphrases
     // over a long session grew this hash unboundedly.
     static constexpr int kMaxPassphraseCacheSize = 256;
     // Same for the replay cache: a peer sending fresh nonces faster than the
@@ -148,10 +149,11 @@ private:
     bool stashSupersededPlaintextKeys();
     void reportPlaintextKeysLeft(const QString &reason);
 
-    static QByteArray gcmEncrypt(const QByteArray &key, const QByteArray &plaintext);
-    static bool gcmDecrypt(const QByteArray &key, const QByteArray &data, QByteArray *outPlain);
+    // aad is the one-byte domain tag of the slot this ciphertext belongs in, so
+    // a sealed voice frame cannot be spliced in where a message body is read.
+    static QByteArray aeadSeal(const QByteArray &key, const QByteArray &plaintext, char aad);
+    static bool aeadOpen(const QByteArray &key, const QByteArray &data, char aad, QByteArray *outPlain);
     QByteArray deriveKey(const QString &passphrase, const QByteArray &salt) const;
-    static QByteArray hkdfSha256(const QByteArray &secret, const QByteArray &info, int outLen);
     static QByteArray randomBytes(int n);
     void evictOldestNoncePeers();
     QString resolveIdentity(const QString &peerRef) const;
@@ -160,8 +162,11 @@ private:
     const QString m_storageScope;
     bool m_valid = false;
 
-    EVP_PKEY *m_identityPriv = nullptr; // Ed25519
-    EVP_PKEY *m_dhPriv = nullptr; // X25519
+    // Held as bytes rather than as library handles: libsodium has no key object,
+    // and the wallet already stores exactly these. The identity secret is the
+    // 64-byte expanded Ed25519 key; what reaches the wallet is its 32-byte seed.
+    QByteArray m_identitySk;
+    QByteArray m_dhSk; // crypto_kx secret key, 32 bytes
     QByteArray m_dhPubBytes;
     QByteArray m_identityPubBytes;
     QByteArray m_dhPubSig;
@@ -174,7 +179,17 @@ private:
         quint64 seq = 0;
     };
 
-    QHash<QString, QByteArray> m_sessionKeys; // identity id -> 32-byte session key
+    // crypto_kx hands each side a receiving key and a sending key rather than one
+    // shared key, so the two directions never share a keystream and a packet
+    // cannot be reflected back at its sender as though the peer had written it.
+    // Our tx is the peer's rx: which of the two roles we take is settled in
+    // processHandshakeFrom() by ordering the public keys.
+    struct SessionKeys {
+        QByteArray rx; // opens and verifies what the peer sent
+        QByteArray tx; // seals and signs what we send
+    };
+
+    QHash<QString, SessionKeys> m_sessionKeys; // identity id -> the pair above
     QHash<QString, QByteArray> m_peerIdPub; // identity id -> raw Ed25519 pubkey
     // The only address-keyed trust-adjacent state left. It is a hint for
     // resolving an incoming datagram, so a wrong entry costs a failed HMAC
