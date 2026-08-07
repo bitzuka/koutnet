@@ -1,5 +1,7 @@
 # KOutNet
 
+[![build](https://github.com/bitzuka/koutnet/actions/workflows/build.yml/badge.svg)](https://github.com/bitzuka/koutnet/actions/workflows/build.yml)
+[![lint](https://github.com/bitzuka/koutnet/actions/workflows/lint.yml/badge.svg)](https://github.com/bitzuka/koutnet/actions/workflows/lint.yml)
 ![License](https://img.shields.io/badge/License-GPL--3.0--only%20OR%20LicenseRef--KDE--Accepted--GPL-red?style=plastic&logo=gnu&logoColor=white)
 
 An encrypted messenger that does not need a service in the middle. On a local

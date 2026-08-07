@@ -1,8 +1,7 @@
 # SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
-# A smoke test, not the real CI. KDE's own builders (.kde-ci.yml) are what
-# gates this project once it moves to invent.kde.org; until then this catches
-# the obvious "does not configure on a stock distro" breakage on push.
+# Builds the project and runs ctest. KDE's own builders (.kde-ci.yml) take
+# over once this moves to invent.kde.org; until then this is the gate.
 name: build
 
 on:
@@ -13,33 +12,82 @@ jobs:
   build:
     name: build and ctest
     runs-on: ubuntu-latest
-    # The distro packages lag behind what .kde-ci.yml asks for, so a failure
-    # here can mean "Ubuntu is too old" rather than "the code is broken".
-    continue-on-error: true
+    # openSUSE Tumbleweed in a container rather than the runner's own Ubuntu.
+    # ubuntu-latest is still 24.04, which ships extra-cmake-modules 5.115 (KF5,
+    # not KF6), libQuotient 0.7.2 and kirigami-addons 0.11, and has no KF6
+    # package at all for Wallet, ColorScheme, IdleTime or StatusNotifierItem.
+    # The apt route could not configure this project, never mind build it.
+    # Tumbleweed carries every dependency current, and it is also what KDE's
+    # own Linux Qt6 CI runs on (ci-utilities/gitlab-templates/linux-qt6.yml
+    # uses a suse-qt611 image), so a pass here means something about the
+    # .kde-ci.yml run later.
+    container: opensuse/tumbleweed:latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Install dependencies
+      # actions/checkout is a JavaScript action and the Tumbleweed image has
+      # no node, so it has to be put there by a plain shell step first. tar
+      # and gzip are what checkout shells out to.
+      - name: Install checkout prerequisites
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            qt6-base-dev \
-            qt6-declarative-dev \
-            qt6-multimedia-dev \
-            libkf6config-dev \
-            libkf6coreaddons-dev \
-            libkf6i18n-dev \
-            libkf6kirigami-dev \
-            libkf6kirigamiaddons-dev \
-            libkf6colorscheme-dev \
-            libkf6wallet-dev \
-            extra-cmake-modules \
-            libssl-dev
+          zypper --non-interactive --gpg-auto-import-keys refresh
+          zypper --non-interactive install --no-recommends \
+            nodejs-default git-core tar gzip
+
+      - uses: actions/checkout@v4
+
+      # Dependencies are asked for as cmake()/pkgconfig() capabilities rather
+      # than package names. Those strings are exactly what find_package() and
+      # pkg_check_modules() look for, so the list cannot drift out of step with
+      # src/CMakeLists.txt, and it survives the package splits and renames
+      # openSUSE does periodically. KDE asks the same way in
+      # repo-metadata/distro-dependencies/opensuse.ini.
+      #
+      # Absent on purpose, because each arrives as a dependency of something
+      # that is here: KF6::I18nQml (same package as KF6I18n), libolm and
+      # qtkeychain (pulled by libQuotient), and the offscreen QPA plugin the
+      # tests run under (libQt6Gui6, pulled by cmake(Qt6Gui)).
+      #
+      # extra-cmake-modules is by name because its RPM provides no cmake()
+      # capability of its own. libopenssl is here for the test suite alone -
+      # the application dropped OpenSSL when CryptoManager moved to libsodium,
+      # but CryptoManagerTest's forged-peer helper still uses raw EVP.
+      - name: Install build dependencies
+        run: |
+          zypper --non-interactive install --no-recommends \
+            gcc-c++ cmake ninja pkgconf-pkg-config \
+            kf6-extra-cmake-modules \
+            'cmake(Qt6Core)' \
+            'cmake(Qt6Gui)' \
+            'cmake(Qt6Qml)' \
+            'cmake(Qt6Quick)' \
+            'cmake(Qt6QuickControls2)' \
+            'cmake(Qt6QuickDialogs2)' \
+            'cmake(Qt6Multimedia)' \
+            'cmake(Qt6Network)' \
+            'cmake(Qt6Widgets)' \
+            'cmake(Qt6Test)' \
+            'cmake(KF6Config)' \
+            'cmake(KF6CoreAddons)' \
+            'cmake(KF6I18n)' \
+            'cmake(KF6IdleTime)' \
+            'cmake(KF6Kirigami)' \
+            'cmake(KF6Notifications)' \
+            'cmake(KF6StatusNotifierItem)' \
+            'cmake(KF6Wallet)' \
+            'cmake(KF6ColorScheme)' \
+            'cmake(KF6KirigamiAddons)' \
+            'cmake(QuotientQt6)' \
+            'pkgconfig(libsodium)' \
+            'pkgconfig(libopenssl)'
+
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Debug
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+
       - name: Build
         run: cmake --build build --parallel
-      # No kwalletd and no display here, so the crypto test runs the
-      # no-wallet path on purpose - see src/tests.
+
+      # No display and no kwalletd here, which is the path the suites are
+      # written for: SecretStore keeps its secrets in memory whenever
+      # QStandardPaths test mode is on, so no wallet daemon is needed.
       - name: Test
         run: ctest --test-dir build --output-on-failure
         env:
