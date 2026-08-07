@@ -32,6 +32,7 @@
 #include "core/tray/TrayIcon.h"
 #include "matrix/MatrixManager.h"
 #include "matrix/MatrixRoomBridge.h"
+#include "matrix/MatrixVerification.h"
 
 #include "koutnet-version.h"
 #include "koutnet_app_debug.h"
@@ -160,6 +161,7 @@ int main(int argc, char *argv[])
     // Built here, resumed after the window exists - see below.
     auto *matrixManager = new koutnet::MatrixManager(appSettings, &app);
     auto *matrixRooms = new koutnet::MatrixRoomBridge(matrixManager, &app);
+    auto *matrixVerification = new koutnet::MatrixVerification(matrixManager, &app);
 
     auto *audioDevices = new koutnet::AudioDevices(&app);
     // Owns the KNotification objects, so it has to outlive every window that
@@ -243,6 +245,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), appSettings);
     engine.rootContext()->setContextProperty(QStringLiteral("matrixManager"), matrixManager);
     engine.rootContext()->setContextProperty(QStringLiteral("matrixRooms"), matrixRooms);
+    engine.rootContext()->setContextProperty(QStringLiteral("matrixVerification"), matrixVerification);
     engine.rootContext()->setContextProperty(QStringLiteral("audioDevices"), audioDevices);
     engine.rootContext()->setContextProperty(QStringLiteral("notificationManager"), notifications);
     // Null when the tray is switched off. Main.qml checks for that, which is also what

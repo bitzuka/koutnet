@@ -217,6 +217,8 @@ qt_add_executable(KOutNet
     matrix/MatrixManager.h
     matrix/MatrixRoomBridge.cpp
     matrix/MatrixRoomBridge.h
+    matrix/MatrixVerification.cpp
+    matrix/MatrixVerification.h
 )
 
 # The one brand colour is a QML singleton rather than a C++ one: it holds a
@@ -266,6 +268,7 @@ qt_add_qml_module(KOutNet
         qml/matrix/RoomRoles.qml
         qml/matrix/RoomInfoPage.qml
         qml/matrix/RoomMemberCard.qml
+        qml/matrix/DeviceVerificationDialog.qml
         qml/tabs/NotesPage.qml
         qml/tabs/CallLogPage.qml
         qml/tabs/PlayerPage.qml

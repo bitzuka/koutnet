@@ -438,6 +438,22 @@ Kirigami.ApplicationWindow {
         onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
     }
 
+    // In the window rather than in whichever page asked for it: a verification
+    // takes a minute of somebody's attention and must survive the room column
+    // being shut or the sign-in page being popped. It also opens itself when
+    // another session asks, which can happen with no page of ours on screen.
+    DeviceVerificationDialog {
+        id: deviceVerificationDialog
+    }
+
+    Connections {
+        target: matrixVerification
+
+        function onSessionFinished(ok, message) {
+            root.notify(message, ok ? Kirigami.MessageType.Positive : Kirigami.MessageType.Warning)
+        }
+    }
+
     function showPeerCard(chatId, anchorItem) {
         if (chatId.length === 0 || chatId === root.kSelfChatId)
             return
