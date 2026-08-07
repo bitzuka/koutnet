@@ -17,10 +17,10 @@
 # than in C++ is what puts each case in System Settings as its own switch. A user
 # who wants the in-window sound gone can turn off exactly that.
 [Global]
-IconName=io.github.bitzuka.KOutNet
+IconName=org.kde.koutnet
 Name=KOutNet
 Comment=P2P encrypted messenger for LAN, VPN and relay
-DesktopEntry=io.github.bitzuka.KOutNet
+DesktopEntry=org.kde.koutnet
 
 # Window behind something else, but somebody is at the machine. The screen is
 # enough, so this one is silent.

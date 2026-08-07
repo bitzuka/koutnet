@@ -159,12 +159,12 @@ void TrayIcon::refresh()
     if (!m_item)
         return;
 
-    m_item->setIconByName(QStringLiteral("io.github.bitzuka.KOutNet"));
+    m_item->setIconByName(QStringLiteral("org.kde.koutnet"));
 
     if (m_unreadCount > 0) {
         m_item->setStatus(KStatusNotifierItem::NeedsAttention);
         m_item->setOverlayIconByName(QStringLiteral("mail-unread"));
-        m_item->setToolTip(QStringLiteral("io.github.bitzuka.KOutNet"),
+        m_item->setToolTip(QStringLiteral("org.kde.koutnet"),
                            i18nc("@info:tooltip the system tray icon", "KOutNet"),
                            i18ncp("@info:tooltip %1 is a number of unread messages", "%1 unread message", "%1 unread messages", m_unreadCount));
         return;
@@ -172,7 +172,7 @@ void TrayIcon::refresh()
 
     m_item->setStatus(KStatusNotifierItem::Active);
     m_item->setOverlayIconByName(QString());
-    m_item->setToolTip(QStringLiteral("io.github.bitzuka.KOutNet"), i18nc("@info:tooltip the system tray icon", "KOutNet"), presenceLabel(m_presence));
+    m_item->setToolTip(QStringLiteral("org.kde.koutnet"), i18nc("@info:tooltip the system tray icon", "KOutNet"), presenceLabel(m_presence));
 }
 
 void TrayIcon::refreshMenuLabels()

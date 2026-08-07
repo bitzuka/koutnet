@@ -26,7 +26,7 @@ FormCard.FormCardPage {
             Layout.alignment: Qt.AlignHCenter
             // Relative to this file in the QML module resource tree, so it resolves
             // the same from a build directory as from an installed prefix.
-            source: "../../assets/512-apps-io.github.bitzuka.KOutNet.png"
+            source: "../../assets/512-apps-org.kde.koutnet.png"
             sourceSize.height: Kirigami.Units.gridUnit * 5
             fillMode: Image.PreserveAspectFit
         }

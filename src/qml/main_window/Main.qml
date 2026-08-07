@@ -587,7 +587,7 @@ Kirigami.ApplicationWindow {
 
     globalDrawer: Kirigami.GlobalDrawer {
         title: i18nc("@title:window", "KOutNet")
-        titleIcon: "io.github.bitzuka.KOutNet"
+        titleIcon: "org.kde.koutnet"
         // A drawer that stays put would eat a third of a narrow window.
         modal: true
 

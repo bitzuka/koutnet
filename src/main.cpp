@@ -74,7 +74,12 @@ int main(int argc, char *argv[])
     // a tracker that exists. The metainfo still points at the GitHub tracker.
     aboutData.setBugAddress(QByteArrayLiteral("https://bugs.kde.org/enter_bug.cgi?product=koutnet"));
     aboutData.setTranslator(i18nc("NAME OF TRANSLATORS", "Your names"), i18nc("EMAIL OF TRANSLATORS", "Your emails"));
-    aboutData.setDesktopFileName(QStringLiteral("io.github.bitzuka.KOutNet"));
+    // Deliberately unrelated to applicationName below. This is only the AppStream
+    // component id and the .desktop basename; making applicationName match it would
+    // move QSettings off ~/.config/KOutNet/ and re-key the Olm pickle libQuotient
+    // stores under qAppName() + "-Pickle", orphaning every megolm session and making
+    // existing encrypted Matrix history permanently unreadable.
+    aboutData.setDesktopFileName(QStringLiteral("org.kde.koutnet"));
     KAboutData::setApplicationData(aboutData);
 
     // After setApplicationData on purpose: that call takes the application name from
@@ -93,10 +98,10 @@ int main(int argc, char *argv[])
 
     // Wayland reads the taskbar icon off the .desktop file it matches to the window
     // app_id, which Qt takes from here; X11 uses the window icon hint below instead.
-    QGuiApplication::setDesktopFileName(QStringLiteral("io.github.bitzuka.KOutNet"));
+    QGuiApplication::setDesktopFileName(QStringLiteral("org.kde.koutnet"));
     // The QML module resources sit under the URI path directly rather than below
     // /qt/qml, since this build has not opted into the newer CMake resource policy.
-    const QIcon appIcon(QStringLiteral(":/koutnet/app/assets/512-apps-io.github.bitzuka.KOutNet.png"));
+    const QIcon appIcon(QStringLiteral(":/koutnet/app/assets/512-apps-org.kde.koutnet.png"));
     if (appIcon.isNull())
         qCWarning(KOUTNET_LOG_APP, "application icon missing from the QML module resources");
     app.setWindowIcon(appIcon);
