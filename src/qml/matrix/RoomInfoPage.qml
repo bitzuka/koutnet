@@ -36,6 +36,10 @@ Kirigami.ScrollablePage {
     signal memberActivated(string userId, Item anchorItem)
     signal leaveRequested(string chatId)
     signal notifyRequested(string text)
+    // The dialog lives in the window, not in this column: a verification
+    // outlives the column being shut, and it is about the account rather than
+    // about this room.
+    signal verifySessionsRequested()
 
     // Filled by refresh(). Function calls rather than properties on the bridge,
     // because a member list nobody is looking at should cost nothing - see the
@@ -267,8 +271,26 @@ Kirigami.ScrollablePage {
                     : (root.ownSessionsVerified
                         ? i18nc("@info:status all of this account's own sessions are verified", "Your other sessions are verified")
                         : i18nc("@info:status some of this account's own sessions are unverified", "Some of your sessions are unverified"))
+                description: !root.trustKnown
+                    ? i18nc("@info:whatsthis",
+                            "The trust table could not be read, so nothing here has been checked either way.")
+                    : (root.ownSessionsVerified
+                        ? i18nc("@info:whatsthis",
+                                "Every other session on this account has been verified from here, so they will share their room keys with this one.")
+                        : i18nc("@info:whatsthis",
+                                "An unverified session is refused keys by some clients, which is why parts of an encrypted room can stay unreadable. Verify this one against another session of yours to fix that."))
+            }
+
+            // Separate from the line above on purpose: that line reports, and
+            // it has to go on saying the same thing whether or not there is
+            // anything to be done about it.
+            FormCard.FormButtonDelegate {
+                visible: root.encrypted && root.encryptionActive && root.trustKnown
+                icon.name: "security-medium"
+                text: i18nc("@action:button open the device verification dialog", "Verify sessions...")
                 description: i18nc("@info:whatsthis",
-                                   "KOutNet cannot verify devices yet, so this session will show as unverified to everybody including you, and some clients will refuse to send it keys. Verify it from another Matrix client to read more of this room.")
+                                   "Compare emoji with another Matrix session of yours to prove this one is the same person.")
+                onClicked: root.verifySessionsRequested()
             }
         }
 

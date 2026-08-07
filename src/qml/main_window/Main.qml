@@ -1136,6 +1136,7 @@ Kirigami.ApplicationWindow {
         RoomInfoPage {
             chatId: root.currentPeerIp
             onMemberActivated: (userId, anchorItem) => root.showRoomMemberCard(userId, anchorItem)
+            onVerifySessionsRequested: deviceVerificationDialog.openForSession()
             onLeaveRequested: (chatId) => matrixRooms.leaveRoom(chatId)
             onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
         }
@@ -1150,7 +1151,13 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    Component { id: matrixLoginComponent; MatrixLoginPage {} }
+    Component {
+        id: matrixLoginComponent
+
+        MatrixLoginPage {
+            onVerifySessionsRequested: deviceVerificationDialog.openForSession()
+        }
+    }
 
     Component { id: aboutPageComponent; AboutPage {} }
     Component { id: notesPageComponent; NotesPage {} }

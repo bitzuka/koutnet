@@ -36,6 +36,10 @@ QQC2.Popup {
     readonly property int deviceCount: root.member ? (root.member.deviceCount || 0) : 0
     readonly property int verifiedDeviceCount: root.member ? (root.member.verifiedDeviceCount || 0) : 0
     readonly property bool allDevicesVerified: root.trustKnown && root.deviceCount > 0 && root.verifiedDeviceCount === root.deviceCount
+    // Whether this card is showing the signed-in account rather than somebody
+    // else. The two get different advice, because only one of them is something
+    // this build can act on.
+    readonly property bool isSelf: root.member ? root.member.isLocalMember === true : false
 
     // Fixed rather than grown from the content, so a member with a long name
     // gets an elide instead of a card the width of the screen.
@@ -160,8 +164,9 @@ QQC2.Popup {
         }
 
         // The one thing this card must never do is imply a person is who they
-        // say they are when nothing has checked. There is no green tick here
-        // and there will not be one until KOutNet can run a verification.
+        // say they are when nothing has checked. The counts below come straight
+        // from libQuotient's trust table, so a device shows as verified here
+        // only once something actually verified it.
         ProfileBlock {
             Layout.fillWidth: true
             Layout.leftMargin: Kirigami.Units.largeSpacing
@@ -198,7 +203,16 @@ QQC2.Popup {
 
             QQC2.Label {
                 Layout.fillWidth: true
-                text: i18nc("@info:whatsthis", "KOutNet cannot verify a device yet. Anything unverified here was not checked by this application.")
+                // Says what this build can and cannot do, and no more than
+                // that. KOutNet verifies its own account's sessions; verifying
+                // somebody else needs cross-signing, which it does not set up,
+                // so an unverified device of theirs here means exactly that
+                // nothing has checked it.
+                text: root.isSelf
+                    ? i18nc("@info:whatsthis about the signed-in account's own sessions",
+                            "These are your own sessions. Verify them from the room information column to let them share room keys.")
+                    : i18nc("@info:whatsthis about another person's sessions",
+                            "KOutNet cannot verify another person's device yet. Anything unverified here was not checked by this application.")
                 textFormat: Text.PlainText
                 wrapMode: Text.WordWrap
                 font: Kirigami.Theme.smallFont

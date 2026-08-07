@@ -351,6 +351,18 @@ void MatrixRoomBridge::attach(Connection *connection)
             m_tracked.remove(room->id());
     });
 
+    // A verification that just succeeded moved the trust table, and the room
+    // column and the member card are drawing straight off that table. Without
+    // this the padlock only catches up whenever something else happens to make
+    // the column re-read, which for a quiet room is never.
+    auto retellTrust = [this]() {
+        const auto ids = m_tracked.keys();
+        for (const QString &roomId : ids)
+            Q_EMIT roomInfoChanged(chatid::matrixChatId(roomId));
+    };
+    connect(connection, &Connection::sessionVerified, this, retellTrust);
+    connect(connection, &Connection::userVerified, this, retellTrust);
+
     // Whatever loadState() already put in place. Rooms that arrive later come
     // through the signals above.
     const auto rooms = connection->allRooms();

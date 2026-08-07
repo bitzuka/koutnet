@@ -3,9 +3,11 @@
 // The K-Server sign-in, which is a Matrix sign-in. One card: where, who, and
 // the password, then the state of the session underneath it.
 //
-// No registration, no single sign-on and no device verification here. Each of
-// those is a flow of its own and a half of one is worse than a link to a
-// browser, which is what the homeserver already has.
+// No registration and no single sign-on here. Each of those is a flow of its
+// own and a half of one is worse than a link to a browser, which is what the
+// homeserver already has. Device verification is a flow of its own too, and it
+// has one - DeviceVerificationDialog, reached from here once there is a session
+// to verify.
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
@@ -17,6 +19,10 @@ FormCard.FormCardPage {
     id: root
 
     title: i18nc("@title:window", "K-Server account")
+
+    // Handled by the window: the dialog is about the account and outlives this
+    // page being popped off the layer stack.
+    signal verifySessionsRequested()
 
     // See Main.qml: FormCardPage starts a theme chain of its own.
     Kirigami.Theme.highlightColor: Brand.accent
@@ -37,7 +43,7 @@ FormCard.FormCardPage {
             id: explanation
             text: i18nc("@info", "K-Server mode speaks Matrix.")
             description: i18nc("@info:whatsthis",
-                "Signing in here puts your Matrix rooms in the conversation list beside the peers found on the local network. Encrypted rooms are not readable yet.")
+                "Signing in here puts your Matrix rooms in the conversation list beside the peers found on the local network.")
         }
 
         FormCard.FormDelegateSeparator { above: explanation; below: homeserverField }
@@ -148,8 +154,20 @@ FormCard.FormCardPage {
                 ? i18nc("@info:status the session can decrypt and encrypt", "Encryption is on for this session")
                 : i18nc("@info:status the session has no encryption keys", "Encryption is off for this session")
             description: matrixManager.encryptionActive
-                ? i18nc("@info:whatsthis", "This device is not verified. Verify it from another Matrix client so that your other sessions will share their keys with it.")
+                ? i18nc("@info:whatsthis", "Encrypted rooms can be read and written. Until this session is verified, though, other clients may refuse to send it their room keys.")
                 : i18nc("@info:whatsthis", "The encryption keys could not be opened, so encrypted rooms cannot be read or written here. Check that the wallet is running and sign in again.")
+        }
+
+        // Only once there is a session and a key store. Offering this against a
+        // session that cannot verify would be a button that does nothing, which
+        // is the state this page exists to not be in.
+        FormCard.FormButtonDelegate {
+            visible: matrixManager.loggedIn && matrixVerification.available
+            icon.name: "security-medium"
+            text: i18nc("@action:button open the device verification dialog", "Verify this session...")
+            description: i18nc("@info:whatsthis",
+                               "Compare emoji with another Matrix session of yours so that both sides know this one is really you.")
+            onClicked: root.verifySessionsRequested()
         }
     }
 
