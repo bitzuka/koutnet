@@ -3,21 +3,45 @@
 Dependencies:
 - 'on': ['Linux']
   'require':
-    'frameworks/extra-cmake-modules': '@latest'
-    'frameworks/kirigami': '@latest'
+    # '@latest-kf6' throughout, not '@latest' or '@stable'. In
+    # repo-metadata/branch-rules.yml both of those resolve 'frameworks/*' and
+    # 'libraries/kirigami-addons' to the kf5 branch, which is not what a KF6
+    # project wants built underneath it.
+    'frameworks/extra-cmake-modules': '@latest-kf6'
+    'frameworks/kirigami': '@latest-kf6'
     # The interface is built out of FormCard, the list delegates, the image
     # viewer and the convergent context menu, none of which have a fallback.
-    'libraries/kirigami-addons': '@latest'
-    'frameworks/ki18n': '@stable'
+    'libraries/kirigami-addons': '@latest-kf6'
+    'frameworks/ki18n': '@latest-kf6'
     # The settings class is generated from koutnetsettings.kcfg, and the about
     # data comes from KAboutData, so neither of these is optional either.
-    'frameworks/kconfig': '@stable'
-    'frameworks/kcoreaddons': '@stable'
+    'frameworks/kconfig': '@latest-kf6'
+    'frameworks/kcoreaddons': '@latest-kf6'
     # Dark, light and follow-the-desktop go through KColorSchemeManager.
-    'frameworks/kcolorscheme': '@stable'
+    'frameworks/kcolorscheme': '@latest-kf6'
     # The private keys and the group passphrase live in KWallet, so this is a
     # hard build dependency and not an optional integration.
-    'frameworks/kwallet': '@stable'
+    'frameworks/kwallet': '@latest-kf6'
+    # A messenger that only tells you about a message while you are already
+    # looking at it is not telling you anything. Owns the installed
+    # koutnet.notifyrc as well.
+    'frameworks/knotifications': '@latest-kf6'
+    # The tray icon. A framework of its own rather than part of
+    # KNotifications, so it needs asking for separately.
+    'frameworks/kstatusnotifieritem': '@latest-kf6'
+    # Tells the notifications the difference between "the window is behind
+    # something" and "nobody is there".
+    'frameworks/kidletime': '@latest-kf6'
+    # K-Server mode. Under third-party/ rather than libraries/, and on
+    # '@latest' because branch-rules.yml has no third-party section for the
+    # kf5/kf6 split to apply to - this is how NeoChat asks for the same two.
+    # qtkeychain is libQuotient's own dependency, but KDE's builders want it
+    # named explicitly rather than discovered.
+    'third-party/libquotient': '@latest'
+    'third-party/qtkeychain': '@latest'
+    # libsodium and OpenSSL are not KDE repositories and are not listed here:
+    # they come from the builder image via
+    # repo-metadata/distro-dependencies, which already carries both.
 
 Options:
   require-passing-tests-on: ['Linux']
@@ -26,8 +50,9 @@ Options:
   run-tests: True
   test-before-installing: True
   # Formatting is checked against the .clang-format at the root, the ECM one.
-  # The whole tree has been through it now, so this is expected to pass and a
-  # report means someone's patch skipped the pre-commit hook.
+  # The tree does not pass it yet - 54 sites across 14 files, nearly all block
+  # comments at column 0 inside an indented body - so expect a report here
+  # until the reformatting commit lands.
   clang-format-versions: [18]
   run-cppcheck: True
   require-cppcheck-clean: False
