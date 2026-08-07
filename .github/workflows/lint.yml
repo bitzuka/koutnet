@@ -50,7 +50,7 @@ jobs:
     # is a few lines it would rewrap. None of it is a correctness problem, and
     # reformatting belongs in a commit of its own rather than buried in a CI
     # change - once that lands, this continue-on-error comes off.
-    continue-on-error: true
+    
     steps:
       - uses: actions/checkout@v4
       - name: Install clang-format 18
