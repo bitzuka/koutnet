@@ -18,7 +18,8 @@ QQC2.Popup {
     id: root
 
     // MatrixRoomBridge::memberInfo()'s map: { userId, displayName, powerLevel,
-    // isLocalMember, avatarUrl }.
+    // isLocalMember, avatarUrl, trustKnown, userVerified, deviceCount,
+    // verifiedDeviceCount }.
     property var member: null
 
     signal notifyRequested(string text)
@@ -27,6 +28,14 @@ QQC2.Popup {
     readonly property string shownName: root.member ? (root.member.displayName || "") : ""
     readonly property int powerLevel: root.member ? (root.member.powerLevel || 0) : 0
     readonly property string powerLabel: RoomRoles.label(root.powerLevel)
+
+    // Whether the trust tables could be asked at all. Everything below reads
+    // this first, because "no verified devices" and "nobody looked" must not
+    // print the same sentence.
+    readonly property bool trustKnown: root.member ? root.member.trustKnown === true : false
+    readonly property int deviceCount: root.member ? (root.member.deviceCount || 0) : 0
+    readonly property int verifiedDeviceCount: root.member ? (root.member.verifiedDeviceCount || 0) : 0
+    readonly property bool allDevicesVerified: root.trustKnown && root.deviceCount > 0 && root.verifiedDeviceCount === root.deviceCount
 
     // Fixed rather than grown from the content, so a member with a long name
     // gets an elide instead of a card the width of the screen.
@@ -147,6 +156,53 @@ QQC2.Popup {
                     textFormat: Text.PlainText
                     elide: Text.ElideRight
                 }
+            }
+        }
+
+        // The one thing this card must never do is imply a person is who they
+        // say they are when nothing has checked. There is no green tick here
+        // and there will not be one until KOutNet can run a verification.
+        ProfileBlock {
+            Layout.fillWidth: true
+            Layout.leftMargin: Kirigami.Units.largeSpacing
+            Layout.rightMargin: Kirigami.Units.largeSpacing
+            Layout.topMargin: Kirigami.Units.largeSpacing
+            visible: root.member !== null
+
+            label: i18nc("@label:textbox caption over whether a member's devices have been verified", "Device verification")
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+
+                Kirigami.Icon {
+                    Layout.alignment: Qt.AlignVCenter
+                    implicitWidth: Kirigami.Units.iconSizes.small
+                    implicitHeight: Kirigami.Units.iconSizes.small
+                    source: root.allDevicesVerified ? "security-medium" : "security-low"
+                }
+
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    text: !root.trustKnown
+                        ? i18nc("@info:status the devices of a room member could not be looked up", "Not checked")
+                        : (root.deviceCount === 0
+                            ? i18nc("@info:status no encryption-capable devices are known for a room member", "No known devices")
+                            : i18ncp("@info:status %1 is how many devices a member has, %2 how many of them are verified",
+                                     "%2 of %1 device verified", "%2 of %1 devices verified",
+                                     root.deviceCount, root.verifiedDeviceCount))
+                    textFormat: Text.PlainText
+                    wrapMode: Text.WordWrap
+                }
+            }
+
+            QQC2.Label {
+                Layout.fillWidth: true
+                text: i18nc("@info:whatsthis", "KOutNet cannot verify a device yet. Anything unverified here was not checked by this application.")
+                textFormat: Text.PlainText
+                wrapMode: Text.WordWrap
+                font: Kirigami.Theme.smallFont
+                color: Kirigami.Theme.disabledTextColor
             }
         }
 

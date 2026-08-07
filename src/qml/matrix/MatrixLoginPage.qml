@@ -115,6 +115,21 @@ FormCard.FormCardPage {
                 implicitHeight: Kirigami.Units.iconSizes.smallMedium
             }
         }
+
+        // Said on the page where the session is, and only while there is one.
+        // A signed-in session whose encryption never started can still read the
+        // rooms that are not encrypted, so it does not look broken from here -
+        // it just silently stops being able to open the ones that are.
+        FormCard.FormTextDelegate {
+            visible: matrixManager.loggedIn
+            icon.name: matrixManager.encryptionActive ? "security-high" : "dialog-warning"
+            text: matrixManager.encryptionActive
+                ? i18nc("@info:status the session can decrypt and encrypt", "Encryption is on for this session")
+                : i18nc("@info:status the session has no encryption keys", "Encryption is off for this session")
+            description: matrixManager.encryptionActive
+                ? i18nc("@info:whatsthis", "This device is not verified. Verify it from another Matrix client so that your other sessions will share their keys with it.")
+                : i18nc("@info:whatsthis", "The encryption keys could not be opened, so encrypted rooms cannot be read or written here. Check that the wallet is running and sign in again.")
+        }
     }
 
     Kirigami.InlineMessage {

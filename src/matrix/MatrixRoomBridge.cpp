@@ -97,6 +97,21 @@ bool canSendEncrypted(const Room *room)
     return room->connection() != nullptr && room->connection()->encryptionEnabled();
 }
 
+// Whether libQuotient's trust tables can be asked anything at all.
+//
+// A security invariant with teeth: Connection::isVerifiedDevice(),
+// isUserVerified() and allSessionsSelfVerified() all run a query against
+// Connection::database(), which is null whenever the key store was not set up,
+// and none of them check. devicesForUser() dereferences the encryption data
+// directly. Asking any of them too early is a crash, and answering "not
+// verified" because the question could not be asked is a different lie from
+// "not verified" because it is not - which is why the maps below carry
+// trustKnown rather than a bare boolean.
+bool canAskAboutTrust(const Connection *connection)
+{
+    return connection != nullptr && connection->encryptionEnabled() && connection->database() != nullptr;
+}
+
 QString encryptionUnavailableReason()
 {
     return i18nc("@info:status a message for an encrypted room was not sent because the session has no keys",
@@ -633,6 +648,19 @@ QVariantMap MatrixRoomBridge::roomInfo(const QString &chatId) const
     info.insert(QStringLiteral("joinedCount"), room->joinedCount());
     info.insert(QStringLiteral("invitedCount"), room->invitedCount());
     info.insert(QStringLiteral("encrypted"), room->usesEncryption());
+    // Whether this session can do encryption at all, which is not the same
+    // question as whether the room asked for it. An encrypted room in a session
+    // without a key store is unreadable and unwritable, and the column has to be
+    // able to say that instead of drawing a padlock over it.
+    const Connection *connection = room->connection();
+    const bool trustKnown = canAskAboutTrust(connection);
+    info.insert(QStringLiteral("encryptionActive"), connection != nullptr && connection->encryptionEnabled());
+    info.insert(QStringLiteral("trustKnown"), trustKnown);
+    // Only about this account's own other sessions, and only one query. Whether
+    // every device of every member is verified is a question this column does
+    // not ask, because it is one database round trip per member and the answer
+    // for a room of any size is always no.
+    info.insert(QStringLiteral("ownSessionsVerified"), trustKnown && connection->allSessionsSelfVerified(connection->userId()));
     info.insert(QStringLiteral("version"), room->version());
     info.insert(QStringLiteral("isDirect"), room->isDirectChat());
     // What this session is allowed to do here. The column hides the actions it
@@ -696,6 +724,29 @@ QVariantMap MatrixRoomBridge::memberInfo(const QString &chatId, const QString &u
     info.insert(QStringLiteral("displayName"), member.displayName().isEmpty() ? member.id() : member.displayName());
     info.insert(QStringLiteral("powerLevel"), member.powerLevel());
     info.insert(QStringLiteral("isLocalMember"), member.isLocalMember());
+
+    // Trust, one member at a time, which is the only place it is cheap enough
+    // to ask. trustKnown false means the question could not be put - no key
+    // store, or a member of a room nobody has ever shared an encrypted room
+    // with - and the card says that rather than reporting an unverified device
+    // this session simply never looked at.
+    const Connection *connection = room->connection();
+    const bool trustKnown = canAskAboutTrust(connection);
+    info.insert(QStringLiteral("trustKnown"), trustKnown);
+    info.insert(QStringLiteral("userVerified"), trustKnown && connection->isUserVerified(member.id()));
+
+    int deviceCount = 0;
+    int verifiedDeviceCount = 0;
+    if (trustKnown) {
+        const QStringList devices = connection->devicesForUser(member.id());
+        deviceCount = int(devices.size());
+        for (const QString &device : devices) {
+            if (connection->isVerifiedDevice(member.id(), device))
+                ++verifiedDeviceCount;
+        }
+    }
+    info.insert(QStringLiteral("deviceCount"), deviceCount);
+    info.insert(QStringLiteral("verifiedDeviceCount"), verifiedDeviceCount);
     const QUrl avatar = member.avatarUrl();
     info.insert(QStringLiteral("avatarUrl"),
                 (avatar.scheme() == QLatin1String("mxc") && room->connection() != nullptr)

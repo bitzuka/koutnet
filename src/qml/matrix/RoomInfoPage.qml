@@ -49,6 +49,15 @@ Kirigami.ScrollablePage {
     readonly property var altAliases: root.info ? (root.info.altAliases || []) : []
     readonly property string roomId: root.info ? (root.info.roomId || "") : ""
     readonly property bool encrypted: root.info ? root.info.encrypted === true : false
+    // Whether the session can do encryption, as opposed to whether the room
+    // wants it. An encrypted room in a session with no key store is a room
+    // nothing can be read from or written to, and it must not wear a padlock.
+    readonly property bool encryptionActive: root.info ? root.info.encryptionActive === true : false
+    // False when libQuotient's trust tables could not be asked. Kept apart from
+    // the answers themselves, because "nobody is verified" and "nobody was
+    // asked" are different statements and only one of them is ever true here.
+    readonly property bool trustKnown: root.info ? root.info.trustKnown === true : false
+    readonly property bool ownSessionsVerified: root.info ? root.info.ownSessionsVerified === true : false
     readonly property int joinedCount: root.info ? (root.info.joinedCount || 0) : 0
     readonly property int invitedCount: root.info ? (root.info.invitedCount || 0) : 0
 
@@ -230,15 +239,36 @@ Kirigami.ScrollablePage {
             visible: root.encryptionExpanded
 
             FormCard.FormTextDelegate {
-                icon.name: root.encrypted ? "security-high" : "security-low"
-                text: root.encrypted
-                    ? i18nc("@info:status the room is end to end encrypted", "End to end encrypted")
-                    : i18nc("@info:status the room is not encrypted", "Not encrypted")
-                description: root.encrypted
+                icon.name: !root.encrypted ? "security-low" : (root.encryptionActive ? "security-high" : "dialog-warning")
+                text: !root.encrypted
+                    ? i18nc("@info:status the room is not encrypted", "Not encrypted")
+                    : (root.encryptionActive
+                        ? i18nc("@info:status the room is end to end encrypted", "End to end encrypted")
+                        : i18nc("@info:status the room is encrypted but this session has no keys", "Encrypted, and unreadable here"))
+                description: !root.encrypted
                     ? i18nc("@info:whatsthis",
-                            "Messages here are encrypted for the devices in the room, so the homeserver stores them but cannot read them. Messages sent before this device joined stay unreadable, because their keys were never sent to it.")
-                    : i18nc("@info:whatsthis",
                             "Messages here are readable by the homeserver and by anybody it federates with.")
+                    : (root.encryptionActive
+                        ? i18nc("@info:whatsthis",
+                                "Messages here are encrypted for the devices in the room, so the homeserver stores them but cannot read them. Messages sent before this device joined stay unreadable, because their keys were never sent to it.")
+                        : i18nc("@info:whatsthis",
+                                "This session could not open its encryption keys, so nothing in this room can be read and nothing can be sent to it."))
+            }
+
+            // A second line, and never folded into the first. Encryption says
+            // the homeserver cannot read the room; verification says whether the
+            // devices it is encrypted for are the ones they claim to be. They
+            // are different promises and one padlock cannot make both.
+            FormCard.FormTextDelegate {
+                visible: root.encrypted && root.encryptionActive
+                icon.name: root.trustKnown && root.ownSessionsVerified ? "security-medium" : "security-low"
+                text: !root.trustKnown
+                    ? i18nc("@info:status device verification could not be checked", "Verification unknown")
+                    : (root.ownSessionsVerified
+                        ? i18nc("@info:status all of this account's own sessions are verified", "Your other sessions are verified")
+                        : i18nc("@info:status some of this account's own sessions are unverified", "Some of your sessions are unverified"))
+                description: i18nc("@info:whatsthis",
+                                   "KOutNet cannot verify devices yet, so this session will show as unverified to everybody including you, and some clients will refuse to send it keys. Verify it from another Matrix client to read more of this room.")
             }
         }
 
