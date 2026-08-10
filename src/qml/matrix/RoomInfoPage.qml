@@ -76,8 +76,8 @@ Kirigami.ScrollablePage {
             root.members = []
             return
         }
-        root.info = matrixRooms.roomInfo(root.chatId)
-        root.members = matrixRooms.roomMembers(root.chatId)
+        root.info = chatTransport.roomInfo(root.chatId)
+        root.members = chatTransport.roomMembers(root.chatId)
     }
 
     onChatIdChanged: root.refresh()

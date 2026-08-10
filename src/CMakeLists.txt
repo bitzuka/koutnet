@@ -181,6 +181,9 @@ qt_add_executable(KOutNet
     core/constructor/AppSettings.h
     core/chat/ChatAddress.cpp
     core/chat/ChatAddress.h
+    core/backend/ChatBackend.h
+    core/backend/ChatBackendRegistry.cpp
+    core/backend/ChatBackendRegistry.h
     core/chat/MessageEntry.cpp
     core/chat/MessageEntry.h
     core/chat/HistoryManager.cpp

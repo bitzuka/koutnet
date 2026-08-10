@@ -817,6 +817,203 @@ private Q_SLOTS:
         }
         QVERIFY2(typing.count() < 600, "the per-IP rate limit let a whole flood through");
     }
+
+    // The microphone attack: any session-holder can send a signed call_accept.
+    // With nothing to accept it must not open a call, or the attacker hears the
+    // victim's room.
+    void aCallAcceptWithoutARequestWeSentIsDropped()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy accepted(&h.net, &NetworkManager::callAccepted);
+        QSignalSpy ended(&h.net, &NetworkManager::callEnded);
+
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgCallAccept;
+        o[QStringLiteral("username")] = QStringLiteral("peer");
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+
+        QVERIFY2(accepted.isEmpty(), "a call_accept for a call nobody asked for completed a call");
+        QVERIFY2(ended.isEmpty(), "the forged accept left ringing state behind");
+    }
+
+    void aCallAcceptAnswersOnlyTheRequestWeSent()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy accepted(&h.net, &NetworkManager::callAccepted);
+        h.net.sendCallRequest(kPeerIp);
+
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgCallAccept;
+        o[QStringLiteral("username")] = QStringLiteral("peer");
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+        QCOMPARE(accepted.count(), 1);
+
+        // The pending slot is spent: a second accept, and an accept from a peer
+        // we never called, both complete nothing.
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+        QCOMPARE(accepted.count(), 1);
+    }
+
+    void aCallEndForACallThatDoesNotExistIsDropped()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy ended(&h.net, &NetworkManager::callEnded);
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgCallEnd;
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+        QVERIFY2(ended.isEmpty(), "a call_end for a call in no state cancelled something");
+
+        // But it cancels a ring: a call_req we let through, then the caller
+        // giving up, is exactly the "caller abandoned the ring" case.
+        QSignalSpy ringing(&h.net, &NetworkManager::callRequest);
+        QJsonObject req;
+        req[QStringLiteral("type")] = protocol::kMsgCallReq;
+        req[QStringLiteral("username")] = QStringLiteral("peer");
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, req)));
+        QCOMPARE(ringing.count(), 1);
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+        QCOMPARE(ended.count(), 1);
+
+        // And a call_end that never matched a ring must not fire twice.
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+        QCOMPARE(ended.count(), 1);
+    }
+
+    void aCallEndCancelsAnActiveCall()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy ended(&h.net, &NetworkManager::callEnded);
+        h.net.setActiveCalls({kPeerIp});
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgCallEnd;
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+        QCOMPARE(ended.count(), 1);
+    }
+
+    void aRejectAnswersOnlyTheRequestWeSent()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy rejected(&h.net, &NetworkManager::callRejected);
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgCallReject;
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+        QVERIFY2(rejected.isEmpty(), "a call_reject for a call nobody asked for surfaced a rejection");
+
+        h.net.sendCallRequest(kPeerIp);
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+        QCOMPARE(rejected.count(), 1);
+        // The slot is spent; an accept arriving for the same call is stale.
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+        QCOMPARE(rejected.count(), 1);
+    }
+
+    void aCallRequestWhileInACallIsMetWithBusyInsteadOfRinging()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy ringing(&h.net, &NetworkManager::callRequest);
+        QSignalSpy rejected(&h.net, &NetworkManager::callRejected);
+        h.net.setActiveCalls({kOtherIp});
+
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgCallReq;
+        o[QStringLiteral("username")] = QStringLiteral("peer");
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+        QVERIFY2(ringing.isEmpty(), "a second call rang while one was live");
+        QVERIFY2(rejected.isEmpty(), "the busy reply leaked out of the state machine as a rejection");
+
+        // With no call live the same packet rings normally again.
+        h.net.setActiveCalls({});
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+        QCOMPARE(ringing.count(), 1);
+    }
+
+    // The Argon2id receive path: a passphrase-sealed message with a fresh salt
+    // is decrypted on the worker thread and arrives through the queue. The text
+    // is sealed under the passphrase rather than the session - that is what a
+    // group message, or any message sent before the handshake, carries.
+    void aPassphraseMessageArrivesThroughTheAsyncPipeline()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+        h.net.setGroupPassphrase(QStringLiteral("gruppo"));
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgGroup;
+        // A peerRef with no session forces the passphrase path in encrypt(),
+        // even though a session exists - otherwise the text would be sealed
+        // under the session key and never touch the async pipeline.
+        o[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("il segreto"), QStringLiteral("gruppo"), QStringLiteral("nobody-here"));
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+
+        QTRY_VERIFY_WITH_TIMEOUT(messages.count() == 1, 30000);
+        const QJsonObject got = messages.at(0).at(0).toJsonObject();
+        QCOMPARE(got.value(QStringLiteral("text")).toString(), QStringLiteral("il segreto"));
+    }
+
+    // A session-keyed message arriving behind a passphrase one must not
+    // overtake it: the chat renders in arrival order, whatever the decryption
+    // cost of the message in front.
+    void aFastMessageWaitsBehindAnAsyncOne()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+        h.net.setGroupPassphrase(QStringLiteral("gruppo"));
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+
+        QJsonObject slow;
+        slow[QStringLiteral("type")] = protocol::kMsgChat;
+        slow[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("first"), QStringLiteral("gruppo"), QStringLiteral("nobody-here"));
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, slow)));
+
+        QJsonObject fast;
+        fast[QStringLiteral("type")] = protocol::kMsgChat;
+        fast[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("second"), QString(), kSelfLabel);
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, fast)));
+
+        QTRY_VERIFY_WITH_TIMEOUT(messages.count() == 2, 30000);
+        QCOMPARE(messages.at(0).at(0).toJsonObject().value(QStringLiteral("text")).toString(), QStringLiteral("first"));
+        QCOMPARE(messages.at(1).at(0).toJsonObject().value(QStringLiteral("text")).toString(), QStringLiteral("second"));
+    }
+
+    // A flood of fresh-salt messages costs queue slots, not GUI time and not
+    // memory: one derivation in flight, eight queued, the rest refused. The
+    // exact survivors do not matter, only that the queue drains and the GUI
+    // thread was never the one doing the hashing.
+    void anAsyncFloodDropsMessagesInsteadOfMemory()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+        h.net.setGroupPassphrase(QStringLiteral("gruppo"));
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        for (int i = 0; i < 30; ++i) {
+            QJsonObject o;
+            o[QStringLiteral("type")] = protocol::kMsgGroup;
+            o[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("spam-%1").arg(i), QStringLiteral("gruppo"), QStringLiteral("nobody-here"));
+            h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+        }
+
+        // One in flight plus kMaxPendingDecrypts queued can get through; the
+        // in-flight head holds a queue slot, so that is kMaxPendingDecrypts
+        // arrivals in total. The rest were refused at the queue gate.
+        QTRY_VERIFY_WITH_TIMEOUT(messages.count() >= 1, 60000);
+        QTRY_VERIFY_WITH_TIMEOUT(messages.count() == koutnet::CryptoManager::kMaxPendingDecrypts, 60000);
+    }
 };
 
 // Test mode keeps CryptoManager's config lookups in a scratch directory. No

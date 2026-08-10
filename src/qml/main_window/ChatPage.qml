@@ -21,10 +21,11 @@ Kirigami.Page {
     property string selfDisplayName: ""
     property string selfAvatarSource: ""
 
-    // A Matrix room, as opposed to a peer on the local network. The two are
-    // deliberately not made to look alike: a room has a name, a topic, an
-    // address and members, and a LAN peer has a person at the other end of it.
-    // Everything below that branches on this says which of the two it is drawing.
+    // A room chat (Matrix, and later Rocket.Chat or Telegram groups), as
+    // opposed to a peer on the local network. The two are deliberately not
+    // made to look alike: a room has a name, a topic, an address and members,
+    // and a LAN peer has a person at the other end of it. Everything below
+    // that branches on this says which of the two it is drawing.
     property bool isRoom: false
     // MatrixRoomBridge::roomInfo()'s map, or null. Keys used here: displayName,
     // topic, joinedCount, avatarUrl, encrypted.
@@ -65,7 +66,7 @@ Kirigami.Page {
     title: root.isRoom
         ? (root.roomName.length > 0
             ? root.roomName
-            : i18nc("@title a Matrix room whose name has not been synced yet", "Room"))
+            : i18nc("@title a room whose name has not been synced yet", "Room"))
         : (root.peerInfo
             ? (root.peerInfo.username || i18nc("@title a peer that has published no name of its own", "Unknown peer"))
             : i18nc("@title", "Chat"))
@@ -152,7 +153,7 @@ Kirigami.Page {
                         if (root.roomTopic.length > 0)
                             return root.roomTopic.replace(/\s+/g, " ")
                         return root.roomMemberCount > 0
-                            ? i18ncp("@info:status %1 is how many people are in a Matrix room",
+                            ? i18ncp("@info:status %1 is how many people are in a room",
                                      "%1 member", "%1 members", root.roomMemberCount)
                             : ""
                     }
@@ -184,9 +185,10 @@ Kirigami.Page {
             icon.name: "call-start"
             // Compact mode keeps what is needed to read a message and answer it and
             // nothing else; a call still starts from the peer card or the drawer.
-            // Never in a room: voice here is the LAN protocol's own, peer to
-            // peer, and there is no Matrix call behind the button.
-            visible: root.hasChat && !root.isFavorites && !root.compact && !root.isRoom
+            // Shown only where the backend behind this chat can actually ring:
+            // voice is the LAN protocol's own, and a transport that has no call
+            // must not draw a button that answers nothing.
+            visible: root.hasChat && !root.isFavorites && !root.compact && chatTransport.supportsCalls(root.peerIp)
             onTriggered: root.callRequested()
         }
     ]
@@ -420,7 +422,7 @@ Kirigami.Page {
         peerName: root.title
         selfDisplayName: root.selfDisplayName
         selfAvatarSource: root.selfAvatarSource
-        canEditMessages: !root.isRoom
+        canEditMessages: chatTransport.supportsEdits(root.peerIp)
 
         onAvatarActivated: (own, anchorItem) => {
             if (own)

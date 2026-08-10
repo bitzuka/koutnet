@@ -308,7 +308,7 @@ namespace koutnet
 {
 
 MatrixRoomBridge::MatrixRoomBridge(MatrixManager *manager, QObject *parent)
-    : QObject(parent)
+    : ChatBackend(parent)
     , m_manager(manager)
 {
     if (m_manager) {
@@ -642,10 +642,54 @@ void MatrixRoomBridge::markRead(const QString &chatId)
         room->markAllMessagesAsRead();
 }
 
-void MatrixRoomBridge::leaveRoom(const QString &chatId)
+bool MatrixRoomBridge::leaveChat(const QString &chatId)
 {
-    if (Room *room = roomFor(chatId))
-        room->leaveRoom();
+    Room *room = roomFor(chatId);
+    if (room == nullptr)
+        return false;
+    room->leaveRoom();
+    return true;
+}
+
+chatid::Transport MatrixRoomBridge::transport() const
+{
+    return chatid::Transport::Matrix;
+}
+
+bool MatrixRoomBridge::canHandle(const QString &chatId) const
+{
+    return chatid::isMatrix(chatId);
+}
+
+bool MatrixRoomBridge::serverOwnsTimeline(const QString &) const
+{
+    return true;
+}
+
+bool MatrixRoomBridge::hasRooms(const QString &) const
+{
+    return true;
+}
+
+bool MatrixRoomBridge::supportsCalls(const QString &) const
+{
+    return false;
+}
+
+bool MatrixRoomBridge::supportsTyping(const QString &) const
+{
+    return false;
+}
+
+bool MatrixRoomBridge::supportsEdits(const QString &) const
+{
+    return false;
+}
+
+void MatrixRoomBridge::sendTyping(const QString &)
+{
+    // Nothing to do: the protocol has no typing packets, and the flag that
+    // gates this call (supportsTyping) is false for Matrix anyway.
 }
 
 QVariantMap MatrixRoomBridge::roomInfo(const QString &chatId) const

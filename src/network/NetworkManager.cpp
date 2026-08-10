@@ -95,7 +95,7 @@ quint32 readLengthPrefix(const QByteArray &buf)
 } // namespace
 
 NetworkManager::NetworkManager(CryptoManager *crypto, QObject *parent)
-    : QObject(parent)
+    : ChatBackend(parent)
     , m_crypto(crypto)
 {
     m_hostIp = localIpFallback();
@@ -110,9 +110,9 @@ NetworkManager::~NetworkManager()
     stop();
 }
 
-void NetworkManager::setInCall(bool inCall)
+void NetworkManager::setActiveCalls(const QSet<QString> &ips)
 {
-    m_inCall = inCall;
+    m_activeCalls = ips;
 }
 
 void NetworkManager::setRelayServer(const QString &host, quint16 tunnelPort, quint16 voicePort)
@@ -546,28 +546,40 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
         handlePresence(host, msg);
     } else if (type == protocol::kMsgChat || type == protocol::kMsgGroup || type == protocol::kMsgReaction || type == protocol::kMsgEdit
                || type == protocol::kMsgDelete || type == protocol::kMsgRead) {
-        decryptMessageText(peerId, msg);
-        Q_EMIT message(msg);
+        decryptMessageText(peerId, msg, [this](QJsonObject decrypted) { Q_EMIT message(decrypted); });
     } else if (type == protocol::kMsgPrivate) {
         // Against every address of ours, not just the primary one: comparing with
         // m_hostIp alone dropped this without a word on any multi-homed machine.
         if (myIps.contains(msg.value(QStringLiteral("to")).toString())) {
-            decryptMessageText(peerId, msg);
-            Q_EMIT message(msg);
+            decryptMessageText(peerId, msg, [this](QJsonObject decrypted) { Q_EMIT message(decrypted); });
         }
     } else if (type == protocol::kMsgCallReq) {
-        if (m_inCall) {
+        if (!m_activeCalls.isEmpty()) {
             // already on a call, and the busy reply is cheaper for the caller to
             // hear than a ringing window that answers nothing
             sendCallBusy(host);
         } else {
+            m_ringingCalls.insert(host);
             Q_EMIT callRequest(msg.value(QStringLiteral("username")).toString(QStringLiteral("?")), host);
         }
     } else if (type == protocol::kMsgCallAccept) {
+        // The whole point of the state machine: a call_accept from a peer we
+        // never called is a session-holder trying to open our microphone. The
+        // accept is only real when it answers a call_req of ours.
+        if (!m_pendingCalls.remove(host))
+            return;
         Q_EMIT callAccepted(msg.value(QStringLiteral("username")).toString(QStringLiteral("?")), host);
     } else if (type == protocol::kMsgCallBusy || type == protocol::kMsgCallReject) {
+        if (!m_pendingCalls.remove(host))
+            return;
         Q_EMIT callRejected(host);
     } else if (type == protocol::kMsgCallEnd) {
+        // call_end carries two meanings - "your ring was cancelled" to a caller
+        // still waiting and "the call is over" to a peer we are talking to. A
+        // call_end for a call in neither state is stale or forged and cancels
+        // nothing.
+        if (!m_pendingCalls.remove(host) && !m_ringingCalls.remove(host) && !m_activeCalls.contains(host))
+            return;
         Q_EMIT callEnded(host);
     } else if (type == protocol::kMsgFileMeta) {
         Q_EMIT fileMeta(msg);
@@ -580,20 +592,30 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
     }
 }
 
-void NetworkManager::decryptMessageText(const QString &peerRef, QJsonObject &msg) const
+void NetworkManager::decryptMessageText(const QString &peerRef, QJsonObject msg, const std::function<void(QJsonObject)> &done)
 {
-    if (!m_crypto || !msg.contains(QStringLiteral("text")))
+    if (!m_crypto || !msg.contains(QStringLiteral("text"))) {
+        done(msg);
         return;
+    }
 
     // The sender "encrypted" flag used to decide this, so clearing it was enough to
     // have the text handed to the UI unchecked. What matters is whether we hold a key
     // for this channel; decrypt() refuses cleartext once we do.
-    if (!m_crypto->hasSession(peerRef) && m_groupPassphrase.isEmpty())
+    if (!m_crypto->hasSession(peerRef) && m_groupPassphrase.isEmpty()) {
+        done(msg);
         return;
+    }
 
     const QString cipherText = msg.value(QStringLiteral("text")).toString();
-    const QString plain = m_crypto->decrypt(cipherText, m_groupPassphrase, peerRef);
-    msg[QStringLiteral("text")] = plain;
+    // Async so an attacker's fresh-salt flood pays for the KDF on a worker
+    // thread rather than in the GUI's event loop (see CryptoManager::decryptAsync).
+    m_crypto->decryptAsync(cipherText, m_groupPassphrase, peerRef, [msg, done](const QString &plain, bool delivered) mutable {
+        if (!delivered)
+            return; // the queue gate refused it: a flood is dropped, not rendered
+        msg[QStringLiteral("text")] = plain;
+        done(msg);
+    });
 }
 
 void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
@@ -1036,6 +1058,9 @@ void NetworkManager::sendTyping(const QString &chatId, const QString &targetIp)
 
 void NetworkManager::sendCallRequest(const QString &toIp)
 {
+    // The accept/reject/busy/end for this ring only counts against a request
+    // that was actually sent - this is what the dispatch() gate looks at.
+    m_pendingCalls.insert(toIp);
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgCallReq;
     sendUdp(payload, toIp);
@@ -1043,6 +1068,7 @@ void NetworkManager::sendCallRequest(const QString &toIp)
 
 void NetworkManager::sendCallAccept(const QString &toIp)
 {
+    m_ringingCalls.remove(toIp); // the ring is resolved either way
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgCallAccept;
     sendUdp(payload, toIp);
@@ -1051,6 +1077,7 @@ void NetworkManager::sendCallAccept(const QString &toIp)
 
 void NetworkManager::sendCallReject(const QString &toIp)
 {
+    m_ringingCalls.remove(toIp);
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgCallReject;
     sendUdp(payload, toIp);
@@ -1065,6 +1092,10 @@ void NetworkManager::sendCallBusy(const QString &toIp)
 
 void NetworkManager::sendCallEnd(const QString &toIp)
 {
+    // The remote's end of the ring no longer needs an answer, and a stale
+    // accept must not be able to complete a call we have given up on.
+    m_pendingCalls.remove(toIp);
+    m_ringingCalls.remove(toIp);
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgCallEnd;
     sendUdp(payload, toIp);
@@ -1295,9 +1326,95 @@ void NetworkManager::disconnectVoice(const QString &ip)
     }
 }
 
-void NetworkManager::sendFile(const QString &toIp, const QString &filePath)
+// The LAN/VPN half of the ChatBackend interface: what the window can ask of
+// any chat, answered for a chat id that is a datagram destination. The three
+// room-shaped queries are always empty - a LAN chat is a peer, not a room -
+// and the capability flags are the other way round: LAN has calls, typing,
+// edits and no server echo, so Main.qml renders a local row before sending.
+chatid::Transport NetworkManager::transport() const
 {
-    sendFileInternal(toIp, filePath, QByteArray(), QStringLiteral("file"));
+    return chatid::Transport::Lan;
+}
+
+bool NetworkManager::canHandle(const QString &chatId) const
+{
+    // Everything without a foreign prefix is ours: a bare address is all a
+    // datagram can be sent to, and the reserved chats ("__self__") are
+    // guarded by the window before anything is asked of them.
+    return chatid::transportOf(chatId) == chatid::Transport::Lan;
+}
+
+bool NetworkManager::serverOwnsTimeline(const QString &) const
+{
+    return false;
+}
+
+bool NetworkManager::hasRooms(const QString &) const
+{
+    return false;
+}
+
+bool NetworkManager::supportsCalls(const QString &) const
+{
+    return true;
+}
+
+bool NetworkManager::supportsTyping(const QString &) const
+{
+    return true;
+}
+
+bool NetworkManager::supportsEdits(const QString &) const
+{
+    return true;
+}
+
+bool NetworkManager::sendText(const QString &chatId, const QString &text)
+{
+    if (chatId.isEmpty())
+        return false;
+    sendPrivate(text, chatId);
+    return true;
+}
+
+bool NetworkManager::sendFile(const QString &chatId, const QString &localFilePath)
+{
+    if (chatId.isEmpty())
+        return false;
+    sendFileInternal(chatId, localFilePath, QByteArray(), QStringLiteral("file"));
+    return true;
+}
+
+void NetworkManager::markRead(const QString &chatId)
+{
+    // The chat id of a LAN chat is the peer address, so the receipt goes back
+    // to the same place the message came from.
+    sendReadReceipt(chatId, QStringLiteral("dm"));
+}
+
+void NetworkManager::sendTyping(const QString &chatId)
+{
+    NetworkManager::sendTyping(chatId, chatId);
+}
+
+bool NetworkManager::leaveChat(const QString &)
+{
+    return false; // there is nothing to leave: a LAN chat is an address
+}
+
+QVariantMap NetworkManager::roomInfo(const QString &) const
+{
+    return {};
+}
+
+QVariantList NetworkManager::roomMembers(const QString &) const
+{
+    return {};
+}
+
+QVariantMap NetworkManager::memberInfo(const QString &, const QString &) const
+{
+    return {};
 }
 
 } // namespace koutnet

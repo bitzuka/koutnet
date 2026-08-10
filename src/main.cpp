@@ -28,6 +28,7 @@
 
 #include "core/audio/AudioDevices.h"
 #include "core/chat/HistoryManager.h"
+#include "core/backend/ChatBackendRegistry.h"
 #include "core/constructor/AppSettings.h"
 #include "core/notify/NotificationManager.h"
 #include "core/tray/TrayIcon.h"
@@ -164,6 +165,15 @@ int main(int argc, char *argv[])
     auto *matrixRooms = new koutnet::MatrixRoomBridge(matrixManager, &app);
     auto *matrixVerification = new koutnet::MatrixVerification(matrixManager, &app);
 
+    // The one door every chat action in the interface goes through: the chat
+    // id decides which backend does the work, and QML never sees a prefix.
+    // Registration order is the order canHandle() is asked in; the prefixes
+    // are disjoint, so the two lines below are all a transport costs here.
+    // A third and fourth backend (Rocket.Chat, Telegram) register the same way.
+    auto *chatTransport = new koutnet::ChatBackendRegistry(&app);
+    chatTransport->registerBackend(network);
+    chatTransport->registerBackend(matrixRooms);
+
     auto *audioDevices = new koutnet::AudioDevices(&app);
     // Owns the KNotification objects, so it has to outlive every window that
     // can raise one; parented to the application for that reason.
@@ -199,9 +209,11 @@ int main(int argc, char *argv[])
         voice->setVad(appSettings->vadEnabled());
     });
     // While any call is live the network layer answers new call requests with
-    // the busy reply instead of ringing a second window.
+    // the busy reply instead of ringing a second window, and only peers a call
+    // was actually asked of can complete one. The active set is a pure mirror
+    // of VoiceCallManager's, which is the single place a call becomes real.
     QObject::connect(voice, &koutnet::VoiceCallManager::activeCallsChanged, network, [network, voice]() {
-        network->setInCall(!voice->activeCalls().isEmpty());
+        network->setActiveCalls(voice->activeCalls());
     });
 
     QObject::connect(network, &koutnet::NetworkManager::fileMeta, fileTransfer, &koutnet::FileTransferHandler::onMeta);
@@ -251,6 +263,7 @@ int main(int argc, char *argv[])
 
     engine.rootContext()->setContextProperty(QStringLiteral("cryptoManager"), crypto);
     engine.rootContext()->setContextProperty(QStringLiteral("networkManager"), network);
+    engine.rootContext()->setContextProperty(QStringLiteral("chatTransport"), chatTransport);
     engine.rootContext()->setContextProperty(QStringLiteral("voiceCallManager"), voice);
     engine.rootContext()->setContextProperty(QStringLiteral("fileTransferHandler"), fileTransfer);
     engine.rootContext()->setContextProperty(QStringLiteral("appSettings"), appSettings);

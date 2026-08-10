@@ -85,27 +85,30 @@ Kirigami.ApplicationWindow {
     // un-deafening has to put the microphone back the way the user left it.
     property bool deafened: false
 
-    // The only thing in the interface that knows there is more than one
-    // transport. Everything downstream of it - the models, the timeline, the
-    // conversation list, the history on disk - is handed the same chat id
-    // whichever side it came from. core/chat/ChatAddress.h owns the prefix.
-    function isMatrixChat(chatId) {
-        return chatId.startsWith("mx:")
-    }
+    // The one door every chat action goes through. Core/backend/ChatBackend.h
+    // owns what a transport can do and the registry owns the mapping from a
+    // chat id to its backend; everything downstream of the two - the models,
+    // the timeline, the conversation list, the history on disk - is handed
+    // the same chat id whichever side it came from. Nothing in this file
+    // knows a prefix: adding Telegram or Rocket.Chat is one backend class
+    // registered in main.cpp, not a branch here.
 
-    // What the open conversation is, when it is a room: MatrixRoomBridge's map,
-    // or null for a LAN chat. Pulled rather than pushed - see the note at the
-    // top of MatrixRoomBridge.h - so it has to be refreshed by hand whenever the
-    // conversation changes or the room does.
+    // What the open conversation is, when it is a room: the backend's map,
+    // or null for a chat without room furniture. Pulled rather than pushed -
+    // see the note at the top of MatrixRoomBridge.h - so it has to be
+    // refreshed by hand whenever the conversation changes or the room does.
     property var currentRoomInfo: null
     readonly property bool currentIsRoom: root.currentRoomInfo !== null
 
     function refreshRoomInfo() {
-        if (!root.isMatrixChat(root.currentPeerIp)) {
+        // hasRooms() is the question "does this chat have a room column at
+        // all"; the room may still be unsynced, which the empty-but-kept map
+        // below covers the same way it always did.
+        if (!chatTransport.hasRooms(root.currentPeerIp)) {
             root.currentRoomInfo = null
             return
         }
-        const info = matrixRooms.roomInfo(root.currentPeerIp)
+        const info = chatTransport.roomInfo(root.currentPeerIp)
         // An empty map means the session has not synced this room yet. Kept as
         // a room all the same: the header must not fall back to peer furniture
         // for the second between opening the row and the state arriving.
@@ -167,13 +170,9 @@ Kirigami.ApplicationWindow {
             return
         notificationManager.clearChat(ip)
         root.modelForPeer(ip).markAllRead()
-        if (root.isMatrixChat(ip)) {
-            // The receipt goes to the homeserver, not into a datagram addressed
-            // to a string that is not an address.
-            matrixRooms.markRead(ip)
-            return
-        }
-        networkManager.sendReadReceipt(ip, "dm")
+        // The registry sends the receipt the right way for this chat: a
+        // datagram to a LAN peer, a homeserver receipt for a room.
+        chatTransport.markRead(ip)
     }
 
     function upsertPeer(info) {
@@ -370,10 +369,11 @@ Kirigami.ApplicationWindow {
 
     function startOutgoingCall(ip) {
         if (root.outgoingCallWindow) return
-        if (root.isMatrixChat(ip)) {
+        if (!chatTransport.supportsCalls(ip)) {
             // Voice is the LAN protocol's own, peer to peer over TCP. There is
-            // no Matrix call here and pretending otherwise would ring nothing.
-            root.reportError(i18nc("@info:status", "Calls are not available in Matrix rooms."))
+            // no call on this transport and pretending otherwise would ring
+            // nothing.
+            root.reportError(i18nc("@info:status", "Calls are not available in this chat."))
             return
         }
         networkManager.sendCallRequest(ip)
@@ -457,7 +457,7 @@ Kirigami.ApplicationWindow {
     function showPeerCard(chatId, anchorItem) {
         if (chatId.length === 0 || chatId === root.kSelfChatId)
             return
-        if (root.isMatrixChat(chatId)) {
+        if (chatTransport.hasRooms(chatId)) {
             // The row in the conversation list is the room, not a person; the
             // room's own column is what has anybody in it.
             root.openChat(chatId)
@@ -469,9 +469,9 @@ Kirigami.ApplicationWindow {
     }
 
     function showRoomMemberCard(userId, anchorItem) {
-        if (userId.length === 0 || !root.isMatrixChat(root.currentPeerIp))
+        if (userId.length === 0 || !root.currentIsRoom)
             return
-        const info = matrixRooms.memberInfo(root.currentPeerIp, userId)
+        const info = chatTransport.memberInfo(root.currentPeerIp, userId)
         if (!info || !info.userId)
             return
         roomMemberCard.openAt(anchorItem, info)
@@ -849,13 +849,16 @@ Kirigami.ApplicationWindow {
         function onReplyRequested(chatId, text) {
             if (text.trim().length === 0)
                 return
-            if (root.isMatrixChat(chatId)) {
-                matrixRooms.sendText(chatId, text)
+            if (chatTransport.serverOwnsTimeline(chatId)) {
+                // No local row first: the server echoes the message back with
+                // the id the whole timeline is keyed on (see the composer note
+                // in ChatPage below).
+                chatTransport.sendText(chatId, text)
                 return
             }
             const replyModel = root.modelForPeer(chatId)
             const replyStamp = replyModel.sendMessage(text)
-            networkManager.sendPrivate(text, chatId)
+            chatTransport.sendText(chatId, text)
             replyModel.markSent(replyStamp)
         }
         function onCallAnswerRequested(ip) {
@@ -1027,7 +1030,7 @@ Kirigami.ApplicationWindow {
         onNewChatRequested: root.showLayer(newChatPageComponent)
         onProfileRequested: (anchorItem) => root.showAccountCard(anchorItem)
         onSettingsRequested: root.showLayer(settingsPageComponent)
-        onLeaveRoomRequested: (chatId) => matrixRooms.leaveRoom(chatId)
+        onLeaveRoomRequested: (chatId) => chatTransport.leaveChat(chatId)
         selfChatId: root.kSelfChatId
         onForgetRequested: (chatId) => {
             chatList.removeChat(chatId)
@@ -1101,14 +1104,15 @@ Kirigami.ApplicationWindow {
         // The row goes in first and the datagram second, or there is nothing on
         // screen for the hourglass to sit on; markSent() turns it into a tick.
         onSendRequested: function(text, replyExcerpt, replyAuthor, replyId) {
-            if (root.isMatrixChat(peerIp)) {
-                // No local row first, unlike the LAN path below. The homeserver
-                // echoes the message back through sync carrying the event id the
-                // whole room sees, and that id is what the timeline is keyed on;
-                // a row invented here would have to be reconciled with it, and
-                // the reconciliation is what duplicates messages in every client
-                // that has tried it. sendFailed() reports whatever went wrong.
-                matrixRooms.sendText(peerIp, text)
+            if (chatTransport.serverOwnsTimeline(peerIp)) {
+                // No local row first, unlike the LAN path below. The server
+                // echoes the message back through sync carrying the event id
+                // the whole room sees, and that id is what the timeline is
+                // keyed on; a row invented here would have to be reconciled
+                // with it, and the reconciliation is what duplicates messages
+                // in every client that has tried it. sendFailed() reports
+                // whatever went wrong.
+                chatTransport.sendText(peerIp, text)
                 return
             }
             // The quote is stored with the message but not put on the wire: the
@@ -1117,26 +1121,25 @@ Kirigami.ApplicationWindow {
             if (stamp === 0)
                 return
             if (!isSelfChat)
-                networkManager.sendPrivate(text, peerIp)
+                chatTransport.sendText(peerIp, text)
             messagesModel.markSent(stamp)
         }
         onAttachRequested: function(localFilePath) {
-            if (root.isMatrixChat(peerIp)) {
+            if (chatTransport.serverOwnsTimeline(peerIp)) {
                 // No local row first, for the same reason as a text message
-                // above: the homeserver echoes the event back through sync
-                // carrying the id the whole room sees, and that id is what the
-                // timeline is keyed on.
-                matrixRooms.sendFile(peerIp, localFilePath)
+                // above: the server echoes the file back through sync
+                // carrying the id the whole room sees.
+                chatTransport.sendFile(peerIp, localFilePath)
                 return
             }
             const stamp = messagesModel.sendFile(localFilePath, root.looksLikeImage(localFilePath))
             if (!isSelfChat)
-                networkManager.sendFile(peerIp, localFilePath)
+                chatTransport.sendFile(peerIp, localFilePath)
             messagesModel.markSent(stamp)
         }
         onTypingNotice: {
-            if (!isSelfChat && !root.isMatrixChat(peerIp))
-                networkManager.sendTyping(peerIp, peerIp)
+            if (!isSelfChat && chatTransport.supportsTyping(peerIp))
+                chatTransport.sendTyping(peerIp)
         }
         onReadReached: root.markChatRead(peerIp)
         onProfileRequested: root.showLayer(otherProfileComponent, { peer: root.peerInfoFor(peerIp) })
@@ -1147,14 +1150,17 @@ Kirigami.ApplicationWindow {
         onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
         onForwardRequested: root.notify(i18nc("@info", "Forwarding messages is not implemented yet."),
                                        Kirigami.MessageType.Information)
-        // The page has already changed its own copy by the time these arrive; what
-        // is left is telling the peer, which needs the address only the window has.
+        // The page has already changed its own copy by the time these arrive;
+        // what is left is telling the peer, which needs the address only the
+        // window has. Edits are a LAN-protocol feature; on any other transport
+        // the capability flag keeps a datagram from being sent to a chat id
+        // that is not an address.
         onEditCommitted: (stamp, newText) => {
-            if (!isSelfChat)
+            if (!isSelfChat && chatTransport.supportsEdits(peerIp))
                 networkManager.sendMessageEdit(peerIp, peerIp, stamp, newText)
         }
         onDeleteCommitted: (stamp) => {
-            if (!isSelfChat)
+            if (!isSelfChat && chatTransport.supportsEdits(peerIp))
                 networkManager.sendMessageDelete(peerIp, peerIp, stamp)
         }
     }
@@ -1176,7 +1182,7 @@ Kirigami.ApplicationWindow {
             chatId: root.currentPeerIp
             onMemberActivated: (userId, anchorItem) => root.showRoomMemberCard(userId, anchorItem)
             onVerifySessionsRequested: deviceVerificationDialog.openForSession()
-            onLeaveRequested: (chatId) => matrixRooms.leaveRoom(chatId)
+            onLeaveRequested: (chatId) => chatTransport.leaveChat(chatId)
             onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
         }
     }

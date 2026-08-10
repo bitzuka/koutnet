@@ -15,8 +15,9 @@
 // pull rather than a push because that column is usually shut, and a member
 // list nobody is looking at should cost nothing.
 //
-// The reverse direction is sendText() and sendFile(), which Main.qml calls
-// instead of NetworkManager's equivalents when the chat id carries "mx:".
+// The reverse direction is ChatBackend's: sendText(), sendFile(), markRead()
+// and leaveChat(), reached through ChatBackendRegistry under the "mx:" prefix
+// and implemented here as libQuotient calls.
 #pragma once
 
 #include <QHash>
@@ -25,6 +26,8 @@
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
+
+#include "core/backend/ChatBackend.h"
 
 namespace Quotient
 {
@@ -38,7 +41,7 @@ namespace koutnet
 
 class MatrixManager;
 
-class MatrixRoomBridge : public QObject
+class MatrixRoomBridge : public ChatBackend
 {
     Q_OBJECT
 
@@ -48,25 +51,42 @@ public:
     // All of these refuse quietly when the chat id is not a Matrix one or the
     // room is not in this session: the window branches on the id prefix, and a
     // session that has not synced yet must not turn a keystroke into an error.
-    Q_INVOKABLE bool sendText(const QString &chatId, const QString &text);
+    // They are ChatBackend's; Main.qml reaches them through chatTransport, and
+    // the Q_INVOKABLE surface is kept for the receive-side handlers and tests.
+    Q_INVOKABLE bool sendText(const QString &chatId, const QString &text) override;
     // The upload and the event that follows it are libQuotient's to sequence;
     // this only decides which content type the file becomes. False means it was
     // refused here, and sendFailed() has already said why.
-    Q_INVOKABLE bool sendFile(const QString &chatId, const QString &localFilePath);
-    Q_INVOKABLE void markRead(const QString &chatId);
-    Q_INVOKABLE void leaveRoom(const QString &chatId);
+    Q_INVOKABLE bool sendFile(const QString &chatId, const QString &localFilePath) override;
+    Q_INVOKABLE void markRead(const QString &chatId) override;
+    Q_INVOKABLE bool leaveChat(const QString &chatId) override;
 
     // Everything the room column shows, in one map, because a dozen properties
     // would be a dozen change signals for one sync. An empty map when the chat
     // id names no room in this session, which QML tests by looking at "roomId".
-    Q_INVOKABLE QVariantMap roomInfo(const QString &chatId) const;
+    Q_INVOKABLE QVariantMap roomInfo(const QString &chatId) const override;
     // Members, most powerful first and then by name - the order a member list
     // is read in. Invited members are included and marked, because "who is in
     // this room" and "who has been asked" are both answers it has to give.
-    Q_INVOKABLE QVariantList roomMembers(const QString &chatId) const;
+    Q_INVOKABLE QVariantList roomMembers(const QString &chatId) const override;
     // One member, in the shape the member card wants. An empty map when the
     // user is not known to the room.
-    Q_INVOKABLE QVariantMap memberInfo(const QString &chatId, const QString &userId) const;
+    Q_INVOKABLE QVariantMap memberInfo(const QString &chatId, const QString &userId) const override;
+
+    // The rest of the ChatBackend contract: this is the Matrix transport, it
+    // owns the "mx:" prefix, the homeserver echoes our rows back through sync
+    // (so the window must not invent a local row before sending), and rooms
+    // have furniture - members, an info column, a leave action. Calls, typing
+    // and message edits are the LAN protocol's own; there is no Matrix form of
+    // them here.
+    chatid::Transport transport() const override;
+    bool canHandle(const QString &chatId) const override;
+    bool serverOwnsTimeline(const QString &chatId) const override;
+    bool hasRooms(const QString &chatId) const override;
+    bool supportsCalls(const QString &chatId) const override;
+    bool supportsTyping(const QString &chatId) const override;
+    bool supportsEdits(const QString &chatId) const override;
+    void sendTyping(const QString &chatId) override;
 
 Q_SIGNALS:
     // A room the conversation list has not been told about yet, or one whose

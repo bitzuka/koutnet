@@ -8,7 +8,9 @@
 
 #include <QCryptographicHash>
 #include <QDateTime>
+#include <QMetaObject>
 #include <QSettings>
+#include <QThread>
 #include <QTimer>
 #include <QtEndian> // qToBigEndian/qFromBigEndian, for the voice frame timestamp
 
@@ -86,6 +88,15 @@ void cleanse(QString &str)
         sodium_memzero(str.data(), size_t(str.size()) * sizeof(QChar));
 }
 
+// Deleter for the shared buffer a derived key crosses the thread boundary in:
+// wipes the data before releasing the heap, so a dropped queued signal does not
+// leave the last copy of the key lying around.
+void wipeKeyBuffer(QByteArray *buf)
+{
+    cleanse(*buf);
+    delete buf;
+}
+
 // Same thing at every exit path of a function, which is the part that gets
 // forgotten - loadStoredKeys() alone returns from five places.
 template<typename T>
@@ -147,6 +158,45 @@ QString bytesToFingerprint(const QByteArray &raw)
 
 } // namespace
 
+// Runs the Argon2id derivation on a thread of its own. The receive path must
+// not pay a 64 MiB, two-pass KDF on the GUI thread for every message an
+// attacker salts anew (see decryptAsync()); this worker is what moves that
+// cost out of the UI. The queued copies of the passphrase and salt live in the
+// worker thread's event queue and are freed with it, which is the best that
+// can be done for buffers Qt copies for us; the key itself is cleansed before
+// it is returned.
+class DeriveWorker : public QObject
+{
+    Q_OBJECT
+
+public:
+    DeriveWorker() = default;
+
+public Q_SLOTS:
+    void derive(const QString &passphrase, const QByteArray &salt)
+    {
+        QByteArray pass = passphrase.toUtf8();
+        Wiper wipePass(pass);
+        // The key crosses to the GUI thread as a shared buffer whose deleter
+        // wipes it: even if the queued signal is dropped at shutdown, the last
+        // reference cleanses the copy Qt was holding instead of freeing it.
+        auto key = std::shared_ptr<QByteArray>(new QByteArray(CryptoManager::kKeyLen, 0), wipeKeyBuffer);
+        const int rc = crypto_pwhash(reinterpret_cast<unsigned char *>(key->data()),
+                                     CryptoManager::kKeyLen,
+                                     pass.constData(),
+                                     static_cast<unsigned long long>(pass.size()),
+                                     reinterpret_cast<const unsigned char *>(salt.constData()),
+                                     kPwhashOps,
+                                     kPwhashMem,
+                                     crypto_pwhash_ALG_ARGON2ID13);
+        const bool ok = (rc == 0);
+        Q_EMIT derived(salt, key, ok);
+    }
+
+Q_SIGNALS:
+    void derived(QByteArray salt, std::shared_ptr<QByteArray> key, bool ok);
+};
+
 CryptoManager::CryptoManager(QObject *parent)
     : CryptoManager(QString(), parent)
 {
@@ -174,6 +224,19 @@ CryptoManager::CryptoManager(const QString &storageScope, QObject *parent)
 
 CryptoManager::~CryptoManager()
 {
+    // A derivation still running when the key material below gets wiped would
+    // complete against garbage. quit()+wait() lets the in-flight slot finish
+    // (it is a stack frame wait() cannot interrupt) and drops the queued ones.
+    if (m_deriveThread && m_deriveThread->isRunning()) {
+        m_deriveThread->quit();
+        m_deriveThread->wait();
+    }
+    m_pendingDecrypts.clear();
+    delete m_deriveWorker; // its event loop is gone, no deleteLater will come
+    m_deriveWorker = nullptr;
+    delete m_deriveThread;
+    m_deriveThread = nullptr;
+
     cleanse(m_identitySk);
     cleanse(m_dhSk);
 
@@ -704,16 +767,10 @@ bool CryptoManager::aeadOpen(const QByteArray &key, const QByteArray &data, char
 
 QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray &salt) const
 {
-    QByteArray pass = passphrase.toUtf8();
-    Wiper wipePass(pass);
-
     // A hash of the pair, not the pair itself. The cache key used to be the passphrase
     // with the salt appended, which kept the user's group passphrase in plain text here
     // for the life of the process. The salt is fixed length, so this is unambiguous.
-    QCryptographicHash tag(QCryptographicHash::Sha256);
-    tag.addData(salt);
-    tag.addData(pass);
-    const QByteArray cacheKey = tag.result();
+    const QByteArray cacheKey = cacheKeyFor(passphrase, salt);
 
     const auto cached = m_passphraseKeyCache.constFind(cacheKey);
     if (cached != m_passphraseKeyCache.constEnd())
@@ -723,6 +780,9 @@ QByteArray CryptoManager::deriveKey(const QString &passphrase, const QByteArray 
     // one that has to check for itself that the library came up.
     if (!sodiumReady() || salt.size() != kSaltLen)
         return {};
+
+    QByteArray pass = passphrase.toUtf8();
+    Wiper wipePass(pass);
 
     QByteArray key(kKeyLen, 0);
     // Argon2id, which unlike PBKDF2 costs an attacker memory as well as time. A
@@ -1028,4 +1088,176 @@ bool CryptoManager::decryptBytes(const QString &peerRef, const QByteArray &data,
     return aeadOpen(key->rx, data.left(kNonceLen) + data.mid(kNonceLen + kVoiceTsLen), kAadVoiceFrame, outPlain);
 }
 
+QByteArray CryptoManager::cacheKeyFor(const QString &passphrase, const QByteArray &salt)
+{
+    QByteArray pass = passphrase.toUtf8();
+    Wiper wipePass(pass);
+    QCryptographicHash tag(QCryptographicHash::Sha256);
+    tag.addData(salt);
+    tag.addData(pass);
+    return tag.result();
+}
+
+void CryptoManager::decryptAsync(const QString &ciphertext, const QString &passphrase, const QString &peerRef, const std::function<void(const QString &plain, bool delivered)> &done)
+{
+    // The queue, the caches and the in-flight flag are single-threaded by
+    // design; the receive path on the GUI thread is the only caller. Called
+    // from anywhere else the queue races - say so loudly in debug builds.
+    Q_ASSERT_X(QThread::currentThread() == thread(), "CryptoManager::decryptAsync",
+               "the async decrypt queue is confined to the CryptoManager's own thread");
+
+    // The classification is exactly decrypt()'s, minus the derivation: session
+    // keys and cache hits resolve on the spot, and only a passphrase message
+    // with an unseen salt has to wait for the worker thread. The strings have
+    // to match decrypt()'s, or a message would show a different error depending
+    // on whether a slow message queued in front of it.
+    const QString peerId = resolveIdentity(peerRef);
+    const bool expectSealed = m_sessionKeys.contains(peerId) || !passphrase.isEmpty();
+    const QString marker = wireMarker();
+
+    const QString errorString = i18nc("@info shown in place of a message body", "[decrypt error: invalid key or tampered packet]");
+
+    QString fastResult; // set when the message needs no derivation
+    bool needsDerivation = false;
+    QByteArray salt;
+    QByteArray rest;
+
+    if (!ciphertext.startsWith(marker)) {
+        fastResult = expectSealed ? i18nc("@info shown in place of a message body", "[decrypt error: cleartext on a keyed channel]") : ciphertext;
+    } else {
+        const QByteArray wire = QByteArray::fromBase64(ciphertext.mid(marker.size()).toLatin1());
+        if (wire.isEmpty()) {
+            fastResult = i18nc("@info shown in place of a message body", "[decrypt error: empty packet]");
+        } else {
+            const char type = wire.at(0);
+            const QByteArray payload = wire.mid(1);
+            if (type == kAadSessionMessage) {
+                const auto key = m_sessionKeys.constFind(peerId);
+                QByteArray plain;
+                if (key == m_sessionKeys.constEnd() || !aeadOpen(key->rx, payload, type, &plain))
+                    fastResult = errorString;
+                else
+                    fastResult = QString::fromUtf8(plain);
+            } else if (type == kAadPassphraseMessage && payload.size() > kSaltLen && !passphrase.isEmpty()) {
+                salt = payload.left(kSaltLen);
+                rest = payload.mid(kSaltLen);
+                const auto cached = m_passphraseKeyCache.constFind(cacheKeyFor(passphrase, salt));
+                if (cached != m_passphraseKeyCache.constEnd()) {
+                    QByteArray plain;
+                    if (!aeadOpen(*cached, rest, type, &plain))
+                        fastResult = errorString;
+                    else
+                        fastResult = QString::fromUtf8(plain);
+                } else {
+                    needsDerivation = true;
+                }
+            } else {
+                fastResult = errorString;
+            }
+        }
+    }
+
+    if (!needsDerivation) {
+        // A fast message outruns nothing when the line is empty; otherwise it
+        // takes the back of the queue so it cannot overtake a passphrase
+        // message that is already in line in front of it.
+        if (m_pendingDecrypts.isEmpty() && !m_derivationInFlight) {
+            done(fastResult, true);
+            return;
+        }
+        // Queue full and this message only needs a slot to stay in order, not a
+        // derivation: under a flood it costs nothing to drop, so drop it rather
+        // than grow the queue past the cap.
+        if (m_pendingDecrypts.size() >= kMaxPendingDecrypts) {
+            done({}, false);
+            return;
+        }
+        PendingDecrypt entry;
+        entry.result = fastResult;
+        entry.done = done;
+        m_pendingDecrypts.append(entry);
+        return;
+    }
+
+    // A message that needs a derivation: keep its place in line and let the
+    // worker have it. A body beyond the cap is not a message, it is a memory
+    // slot with a KDF strapped to it - refuse it the same way the queue cap
+    // does, so a flood costs neither memory nor CPU. delivered=false: the
+    // flood's messages must not surface as rows of decrypt errors.
+    if (rest.size() > kMaxAsyncPayloadBytes || m_pendingDecrypts.size() >= kMaxPendingDecrypts) {
+        done({}, false);
+        return;
+    }
+
+    PendingDecrypt entry;
+    entry.needsDerivation = true;
+    entry.salt = salt;
+    entry.payload = rest;
+    entry.passphrase = passphrase;
+    entry.done = done;
+    m_pendingDecrypts.append(entry);
+
+    if (!m_derivationInFlight)
+        startDerivation();
+}
+
+void CryptoManager::startDerivation()
+{
+    if (m_pendingDecrypts.isEmpty() || m_derivationInFlight)
+        return;
+
+    const PendingDecrypt &head = m_pendingDecrypts.first();
+    if (!head.needsDerivation)
+        return; // the drain loop resolves fast entries without the worker
+
+    if (!m_deriveThread) {
+        m_deriveThread = new QThread(this);
+        m_deriveWorker = new DeriveWorker;
+        m_deriveWorker->moveToThread(m_deriveThread);
+        connect(m_deriveWorker, &DeriveWorker::derived, this, &CryptoManager::onDerived);
+        m_deriveThread->start();
+    }
+
+    m_derivationInFlight = true;
+    QMetaObject::invokeMethod(m_deriveWorker, "derive", Qt::QueuedConnection,
+                              Q_ARG(QString, head.passphrase),
+                              Q_ARG(QByteArray, head.salt));
+}
+
+void CryptoManager::onDerived(const QByteArray &salt, std::shared_ptr<QByteArray> key, bool ok)
+{
+    m_derivationInFlight = false;
+    if (m_pendingDecrypts.isEmpty())
+        return;
+
+    PendingDecrypt entry = m_pendingDecrypts.takeFirst();
+    QByteArray plain;
+    bool opened = false;
+    if (ok && entry.needsDerivation && entry.salt == salt) {
+        // The salt may come back around; the cache is what makes the repeat
+        // cheap. The key is copied in and the shared buffer wiped when the last
+        // reference - ours here - drops on return.
+        const QByteArray cacheKey = cacheKeyFor(entry.passphrase, salt);
+        m_passphraseKeyCache[cacheKey] = *key;
+        opened = aeadOpen(*key, entry.payload, kAadPassphraseMessage, &plain);
+    }
+
+    const QString result = (opened && ok)
+        ? QString::fromUtf8(plain)
+        : i18nc("@info shown in place of a message body", "[decrypt error: invalid key or tampered packet]");
+    entry.done(result, true);
+
+    // Fast entries resolve in the order they queued, one head-of-line derivation
+    // at a time - a session-keyed message must not overtake the passphrase
+    // message that was already in line in the same chat.
+    while (!m_pendingDecrypts.isEmpty() && !m_pendingDecrypts.first().needsDerivation) {
+        PendingDecrypt fast = m_pendingDecrypts.takeFirst();
+        fast.done(fast.result, true);
+    }
+    if (!m_pendingDecrypts.isEmpty())
+        startDerivation();
+}
+
 } // namespace koutnet
+
+#include "CryptoManager.moc"

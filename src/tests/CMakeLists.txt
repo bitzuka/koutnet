@@ -42,6 +42,7 @@ target_include_directories(crypto-manager PRIVATE ${KOUTNET_GENERATED_INCLUDE_DI
 ecm_add_test(
     NetworkManagerTest.cpp
     ../network/NetworkManager.cpp
+    ../core/chat/ChatAddress.cpp
     ../core/security/CryptoManager.cpp
     ../core/security/SecretStore.cpp
     ${KOUTNET_LOGGING_SRCS}
@@ -50,7 +51,7 @@ ecm_add_test(
     NAME_PREFIX koutnet-
     LINK_LIBRARIES Qt6::Test Qt6::Core Qt6::Network PkgConfig::Sodium KF6::Wallet KF6::I18n
 )
-target_include_directories(network-manager PRIVATE ${KOUTNET_GENERATED_INCLUDE_DIR})
+target_include_directories(network-manager PRIVATE ${KOUTNET_GENERATED_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 # This one writes real files, so its main() points HOME at a scratch directory
 # before anything else runs: the download location is the one path
@@ -75,6 +76,19 @@ ecm_add_test(
     NAME_PREFIX koutnet-
     LINK_LIBRARIES Qt6::Test Qt6::Core Qt6::Qml
 )
+
+# The registry is pure routing over the chat-id prefix table - no sockets, no
+# libQuotient, no wallet - so the fakes are ten-line classes and the test runs
+# on a machine with no network at all.
+ecm_add_test(
+    ChatBackendRegistryTest.cpp
+    ../core/chat/ChatAddress.cpp
+    ../core/backend/ChatBackendRegistry.cpp
+    TEST_NAME chat-backend-registry
+    NAME_PREFIX koutnet-
+    LINK_LIBRARIES Qt6::Test Qt6::Core
+)
+target_include_directories(chat-backend-registry PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 # The Matrix path with no homeserver, no network and - deliberately - no
 # libQuotient linked in: MatrixTranslate.cpp is kept free of Quotient types

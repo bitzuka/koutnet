@@ -15,7 +15,10 @@
 #include <QUdpSocket>
 #include <QVector>
 
+#include <functional>
+
 #include "Protocol.h"
+#include "core/backend/ChatBackend.h"
 
 namespace koutnet
 {
@@ -23,7 +26,7 @@ namespace koutnet
 class CryptoManager;
 class AppSettings;
 
-class NetworkManager : public QObject
+class NetworkManager : public ChatBackend
 {
     Q_OBJECT
     // The primary local address changes under us when a VPN adapter comes up,
@@ -31,6 +34,11 @@ class NetworkManager : public QObject
     Q_PROPERTY(QString hostIp READ hostIp NOTIFY hostIpChanged)
 
 public:
+    // The LAN/VPN transport, registered with ChatBackendRegistry in main.cpp.
+    // Everything the interface can ask of a chat comes through the registry;
+    // the datagram calls below are the transport's own vocabulary (calls,
+    // receipts, edits), used by Main.qml only where the backend it routed to
+    // is this one - see the capability flags on ChatBackend.
     // LanOrVpn: broadcast, mDNS and ARP discovery over any local interface, no
     // server. KServer: a K-Server, wherever it is. Relay: discovery and NAT
     // traversal through a relay, which setRelayServer() has to supply for now.
@@ -117,25 +125,45 @@ public:
     void sendUdp(QJsonObject payload, const QString &targetIp = QString());
     Q_INVOKABLE void sendPrivate(const QString &text, const QString &toIp);
     Q_INVOKABLE void sendGroupMessage(const QString &gid, const QString &text, const QVector<QString> &members);
-    Q_INVOKABLE void sendTyping(const QString &chatId, const QString &targetIp = QString());
+    Q_INVOKABLE void sendTyping(const QString &chatId, const QString &targetIp);
     Q_INVOKABLE void sendCallRequest(const QString &toIp);
     Q_INVOKABLE void sendCallAccept(const QString &toIp);
     Q_INVOKABLE void sendCallReject(const QString &toIp);
     Q_INVOKABLE void sendCallEnd(const QString &toIp);
     Q_INVOKABLE void sendCallBusy(const QString &toIp);
-    // Whether any call is live, in either direction. main.cpp keeps it in sync
-    // with VoiceCallManager::activeCalls(); while true, incoming call requests
-    // are answered with the busy reply instead of surfacing a second ringing
-    // window. NetworkManager deliberately does not know VoiceCallManager.
-    void setInCall(bool inCall);
+    // The peers currently in a live call with us, in either direction. main.cpp
+    // keeps it in sync with VoiceCallManager::activeCalls(), and it is what the
+    // call signalling gates on: a call_accept only lands when we actually asked
+    // that peer, a call_end only cancels a call or a ring that exists, and a
+    // call_req arriving while one is live gets the busy reply instead of a
+    // second ringing window. NetworkManager deliberately does not know
+    // VoiceCallManager.
+    void setActiveCalls(const QSet<QString> &ips);
     Q_INVOKABLE void sendReaction(const QString &toIp, const QString &chatId, double ts, const QString &emoji, bool added);
     Q_INVOKABLE void sendMessageEdit(const QString &toIp, const QString &chatId, double ts, const QString &newText);
     Q_INVOKABLE void sendMessageDelete(const QString &toIp, const QString &chatId, double ts);
     Q_INVOKABLE void sendReadReceipt(const QString &toIp, const QString &chatId);
     Q_INVOKABLE void sendGroupInvite(const QString &gid, const QString &gname, const QString &toIp);
     void sendFileInternal(const QString &toIp, const QString &filePath, const QByteArray &rawBytes = {}, const QString &filename = QStringLiteral("file"));
-    // QML cannot supply the QByteArray/filename defaults cleanly.
-    Q_INVOKABLE void sendFile(const QString &toIp, const QString &filePath);
+
+    // ChatBackend interface. Registered with ChatBackendRegistry in main.cpp;
+    // the window routes every chat action through chatTransport, and the flags
+    // below are what let it offer the right furniture for a LAN chat.
+    chatid::Transport transport() const override;
+    bool canHandle(const QString &chatId) const override;
+    bool serverOwnsTimeline(const QString &chatId) const override;
+    bool hasRooms(const QString &chatId) const override;
+    bool supportsCalls(const QString &chatId) const override;
+    bool supportsTyping(const QString &chatId) const override;
+    bool supportsEdits(const QString &chatId) const override;
+    bool sendText(const QString &chatId, const QString &text) override;
+    bool sendFile(const QString &chatId, const QString &localFilePath) override;
+    void markRead(const QString &chatId) override;
+    void sendTyping(const QString &chatId) override;
+    bool leaveChat(const QString &chatId) override;
+    QVariantMap roomInfo(const QString &chatId) const override;
+    QVariantList roomMembers(const QString &chatId) const override;
+    QVariantMap memberInfo(const QString &chatId, const QString &userId) const override;
 
     // Returns straight away: true means an attempt is in flight, false that there is
     // nothing to connect to. The outcome arrives as voiceConnected/voiceDisconnected.
@@ -180,7 +208,7 @@ private:
     void sendUdpToAll(QJsonObject payload, const QVector<QString> &targets);
     void dispatch(const QString &host, QJsonObject msg);
     void handlePresence(const QString &host, QJsonObject msg);
-    void decryptMessageText(const QString &peerRef, QJsonObject &msg) const;
+    void decryptMessageText(const QString &peerRef, QJsonObject msg, const std::function<void(QJsonObject)> &done);
     // Files a socket under an address, deleting whatever it displaces.
     void replaceVoiceSocket(const QString &ip, QTcpSocket *sock);
     void onVoiceData(QTcpSocket *sock, const QString &ip);
@@ -210,7 +238,16 @@ private:
     QSet<QString> m_localIps;
     bool m_running = false;
     bool m_internetMode = false;
-    bool m_inCall = false;
+
+    // Call signalling state. m_pendingCalls is "we sent call_req and have not
+    // heard back", m_ringingCalls is "their call_req is on screen waiting for
+    // the user", m_activeCalls is the mirror of VoiceCallManager::activeCalls().
+    // Nothing may cross a boundary without first sitting in the bucket its
+    // sender belongs in - that is what keeps a forged accept from opening the
+    // microphone (see the dispatch() comment on kMsgCallAccept).
+    QSet<QString> m_pendingCalls;
+    QSet<QString> m_ringingCalls;
+    QSet<QString> m_activeCalls;
 
     quint16 m_voiceTcpPort = 0;
 

@@ -14,10 +14,14 @@
 #include <QByteArray>
 #include <QHash>
 #include <QJsonObject>
+#include <QList>
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <QThread>
 #include <QVector>
+#include <functional>
+#include <memory>
 
 namespace koutnet
 {
@@ -27,6 +31,8 @@ enum class SecurityLevel {
     Psk, // pre-shared passphrase (Argon2id + XChaCha20-Poly1305)
     E2E, // crypto_kx session keys established (XChaCha20-Poly1305)
 };
+
+class DeriveWorker; // defined in the .cpp, moved to m_deriveThread
 
 class CryptoManager : public QObject
 {
@@ -58,6 +64,12 @@ public:
     // Same again for the rate-limit windows, which are keyed on source address
     // and would otherwise be the way around the cap above.
     static constexpr int kMaxRatePeers = 1024;
+    // Ceiling on the async decrypt queue, and on the ciphertext body a queued
+    // message may carry. The derivation that heads the queue costs 64 MiB and
+    // two passes, so a flood must cost memory slots, not memory itself - see
+    // decryptAsync().
+    static constexpr int kMaxPendingDecrypts = 8;
+    static constexpr int kMaxAsyncPayloadBytes = 1024 * 1024;
     // How many addresses one identity is remembered at. Past a LAN address, a
     // VPN address and a second NIC it is a peer walking the index, so the
     // oldest entry goes.
@@ -125,6 +137,18 @@ public:
     QString encrypt(const QString &plaintext, const QString &passphrase = QString(), const QString &peerRef = QString()) const;
     QString decrypt(const QString &ciphertext, const QString &passphrase = QString(), const QString &peerRef = QString()) const;
 
+    // Asynchronous variant of decrypt() for the receive path. The Argon2id
+    // derivation a passphrase-sealed message with a fresh salt costs is paid by
+    // the receiver - 64 MiB and two passes per unseen salt - so a peer who has
+    // a session (TOFU hands one to anyone) could otherwise freeze the GUI with
+    // a handful of packets per second. The derivation runs on a private worker
+    // thread, the text arrives through done() in arrival order (a fast message
+    // never overtakes a slow one in front of it), and the pending queue is
+    // capped, so a flood drops messages instead of memory. delivered=false
+    // means the queue gate refused the message: it must not be rendered at
+    // all, unlike a decrypt error, which is one message and is worth showing.
+    void decryptAsync(const QString &ciphertext, const QString &passphrase, const QString &peerRef, const std::function<void(const QString &plain, bool delivered)> &done);
+
     // Raw byte encryption (voice frames - no base64/JSON overhead)
     // Both refuse to work without a session: encryptBytes returns an empty
     // array and decryptBytes returns false, and the caller drops the frame.
@@ -151,6 +175,23 @@ private:
     void dropLegacyPlaintextKeys();
     bool stashSupersededPlaintextKeys();
     void reportPlaintextKeysLeft(const QString &reason);
+
+    // The decryptAsync() queue. A fast entry (session key, cache hit, error,
+    // cleartext passthrough) carries its resolved text and only exists to keep
+    // its place in line behind a slow one; a derive entry is waiting for its
+    // Argon2id derivation on the worker thread.
+    struct PendingDecrypt {
+        bool needsDerivation = false;
+        QByteArray salt;    // derive entries only, kSaltLen
+        QByteArray payload; // derive entries only, ciphertext after the salt
+        QString passphrase; // derive entries only, for the cache key
+        QString result;     // fast entries only, computed at enqueue time
+        std::function<void(const QString &plain, bool delivered)> done;
+    };
+
+    void startDerivation();
+    void onDerived(const QByteArray &salt, std::shared_ptr<QByteArray> key, bool ok);
+    static QByteArray cacheKeyFor(const QString &passphrase, const QByteArray &salt);
 
     // aad is the one-byte domain tag of the slot this ciphertext belongs in, so
     // a sealed voice frame cannot be spliced in where a message body is read.
@@ -211,6 +252,14 @@ private:
     // passphrase, which used to keep the plaintext alive here for the life of
     // the process. See deriveKey().
     mutable QHash<QByteArray, QByteArray> m_passphraseKeyCache;
+
+    // The queue above, one derivation in flight at a time. The thread is created
+    // on the first derivation that needs one, and the destructor stops it
+    // before any key material is wiped.
+    QList<PendingDecrypt> m_pendingDecrypts;
+    bool m_derivationInFlight = false;
+    QThread *m_deriveThread = nullptr;
+    DeriveWorker *m_deriveWorker = nullptr;
 };
 
 } // namespace koutnet
