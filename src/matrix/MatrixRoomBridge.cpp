@@ -442,6 +442,11 @@ void MatrixRoomBridge::publishRange(Room *room, int fromIndex, int toIndex)
 {
     for (int i = fromIndex; i <= toIndex; ++i) {
         const auto it = room->findInTimeline(i);
+        // Out-of-range lookups hand back historyEdge() - the only sentinel the
+        // reverse iterator has, equal to messageEvents().crend() - and
+        // dereferencing it is undefined behaviour. The index range comes from
+        // the room's own min/max, so this is normally an index between cached
+        // events; the check is for the index that races an ongoing sync.
         if (it == room->historyEdge())
             continue;
         publishEvent(room, it->event());

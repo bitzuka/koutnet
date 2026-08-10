@@ -195,6 +195,10 @@ FormCard.FormCardPage {
             return
         }
         appSettings.matrixHomeserver = homeserverField.text.trim()
+        // Written before the attempt, not after it: the id is worth remembering
+        // when the password was wrong too, and the C++ side only records it
+        // once the token has been granted.
+        appSettings.matrixUserId = userField.text.trim()
         matrixManager.login(homeserverField.text, userField.text.trim(), passwordField.text)
         // Cleared immediately: the field is the only copy this side keeps, and
         // the window can stay open for the rest of the session.

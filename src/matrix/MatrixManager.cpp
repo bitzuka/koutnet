@@ -48,8 +48,6 @@ MatrixManager::MatrixManager(AppSettings *settings, QObject *parent)
     connect(&m_loginTimeout, &QTimer::timeout, this, [this]() {
         if (m_state != State::Connecting)
             return;
-        m_pendingUser.clear();
-        m_pendingPassword.clear();
 
         // With E2EE on, connected() is emitted only after libQuotient has been
         // to the keychain for the pickle key and unpickled the Olm account, so a
@@ -65,6 +63,16 @@ MatrixManager::MatrixManager(AppSettings *settings, QObject *parent)
         // network reply" - our own cleanup, printed in libQuotient's voice and
         // read for an hour as a network fault. The jobs get to finish or fail on
         // their own, and a late success is still accepted below.
+        //
+        // The pending credentials are left in place on purpose: the sign-in
+        // proper is performed by the deferred lambdas in login(), and they gate
+        // on those fields. Erasing them here is what made the late success the
+        // comment above promises unreachable - the address was never sent back,
+        // so nothing ever logged in, and "still running" meant "running into a
+        // wall". Left alone, whichever lambda wakes up last still logs the
+        // attempt in; whoever wins, it is the newest credentials on the newest
+        // connection, which is the only outcome the two lambdas could ever have
+        // produced in the normal flow.
         setState(State::Failed,
                  serverAnswered
                      ? i18nc("@info:status Matrix login stalled after the password was accepted",

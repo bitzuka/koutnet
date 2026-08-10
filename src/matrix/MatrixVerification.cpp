@@ -25,12 +25,14 @@ MatrixVerification::MatrixVerification(MatrixManager *manager, QObject *parent)
     if (m_manager) {
         connect(m_manager, &MatrixManager::connectionChanged, this, [this]() {
             // The old connection took its sessions with it when it died. Say so
-            // rather than leaving a dialog pointed at nothing.
+            // rather than leaving a dialog pointed at nothing. Anything a job
+            // from that connection still reports is now stale.
             if (m_session)
                 m_session->disconnect(this);
             m_session.clear();
             m_deviceNames.clear();
             m_deviceLastSeen.clear();
+            ++m_devicesGeneration;
             m_finished = false;
             m_verified = false;
             m_outcome.clear();
@@ -191,7 +193,12 @@ void MatrixVerification::refreshDevices()
     // Names only. Whether a device is trusted is never taken from this job -
     // the homeserver is the party a verification exists to not have to trust,
     // and it would happily label anything "verified".
-    c->callApi<Quotient::GetDevicesJob>().onResult(this, [this](const Quotient::GetDevicesJob *job) {
+    const int generation = m_devicesGeneration;
+    c->callApi<Quotient::GetDevicesJob>().onResult(this, [this, generation](const Quotient::GetDevicesJob *job) {
+        // The connection can be replaced while the job is in flight; its result
+        // then describes another account and must not fill these maps.
+        if (generation != m_devicesGeneration)
+            return;
         if (job->error() != Quotient::BaseJob::Success) {
             qCWarning(KOUTNET_LOG_MATRIX) << "could not list this account's devices:" << job->errorString();
             return;
@@ -232,11 +239,10 @@ void MatrixVerification::adopt(Quotient::KeyVerificationSession *session)
     m_remoteUserId = session->property("remoteUserId").toString();
     m_remoteDeviceId = session->remoteDeviceId();
     m_userVerification = session->userVerification();
-    // An outgoing session is built in INCOMING and only leaves it when
-    // sendRequest() is called, so the state cannot tell the two apart. What can
-    // is who owns the transaction: ours is the one verifyOwnDevice() is about
-    // to send a request for, and it sets this to false immediately afterwards.
-    m_incoming = session->state() == Session::INCOMING;
+    // Whoever created the session flips this in verifyOwnDevice(); a session
+    // that arrived on its own is incoming whatever state it has already
+    // advanced to by the time we adopt it.
+    m_incoming = true;
 
     connect(session, &Session::stateChanged, this, &MatrixVerification::onSessionStateChanged);
     connect(session, &Session::sasEmojisChanged, this, &MatrixVerification::changed);

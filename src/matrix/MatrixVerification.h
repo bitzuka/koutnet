@@ -179,6 +179,9 @@ private:
     // label a row; the ids themselves come from the trust table.
     QHash<QString, QString> m_deviceNames;
     QHash<QString, QString> m_deviceLastSeen;
+    // Bumped whenever the connection is replaced, so an in-flight device list
+    // from the old one cannot label the new account's devices.
+    int m_devicesGeneration = 0;
 };
 
 } // namespace koutnet
