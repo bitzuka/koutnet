@@ -22,6 +22,11 @@ FileTransferHandler::FileTransferHandler(QObject *parent)
     m_pruneTimer.start(60'000); // sweep once a minute
 }
 
+void FileTransferHandler::setMaxTransferBytes(qint64 bytes)
+{
+    m_maxTransferBytes = bytes;
+}
+
 QString FileTransferHandler::sanitizeFilename(const QString &rawName)
 {
     const QString fallback = QStringLiteral("file_%1").arg(QDateTime::currentMSecsSinceEpoch());
@@ -72,7 +77,7 @@ void FileTransferHandler::onMeta(const QJsonObject &meta)
     // qint64 is undefined behaviour, not a big number that fails the test below.
     const QJsonValue sizeValue = meta.value(QStringLiteral("size"));
     const double announced = sizeValue.toDouble(-1.0);
-    if (!sizeValue.isDouble() || !qIsFinite(announced) || announced < 0.0 || announced > double(kMaxTransferBytes)) {
+    if (!sizeValue.isDouble() || !qIsFinite(announced) || announced < 0.0 || announced > double(m_maxTransferBytes)) {
         Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The announced size is not a usable length."));
         return; // no entry created - onChunkMessage will drop its chunks
     }
@@ -105,7 +110,7 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
 
     // Reject a transfer that grows past the cap whatever the attacker-controlled
     // meta claimed: meta.size=small with far more or larger chunks than announced.
-    const qint64 maxChunks = (kMaxTransferBytes / 1024) + 1024; // generous upper bound
+    const qint64 maxChunks = (m_maxTransferBytes / 1024) + 1024; // generous upper bound
     if (total > maxChunks) {
         m_pending.remove(tid);
         Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The chunk count exceeds the limit."));
@@ -127,7 +132,7 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
     // Count the delta against what is already held for this index: insert()
     // replaces, so one byte now and full size later used to cost nothing.
     t.receivedBytes += chunk.size() - (held != t.chunks.constEnd() ? held->size() : 0);
-    if (t.receivedBytes > kMaxTransferBytes) {
+    if (t.receivedBytes > m_maxTransferBytes) {
         m_pending.remove(tid);
         Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The transfer exceeded the size limit."));
         return;
@@ -138,7 +143,7 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
         return; // still waiting on more chunks
 
     QByteArray full;
-    full.reserve(int(qMin<qint64>(t.receivedBytes, kMaxTransferBytes)));
+    full.reserve(int(qMin<qint64>(t.receivedBytes, m_maxTransferBytes)));
     for (int i = 0; i < t.total; ++i) {
         if (!t.chunks.contains(i)) {
             // missing a chunk despite count matching (duplicate?) - bail out safely

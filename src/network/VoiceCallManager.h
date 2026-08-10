@@ -46,6 +46,10 @@ public:
 Q_SIGNALS:
     void callStarted(QString ip);
 
+    // Any call going on, in either direction. NetworkManager listens to this to
+    // answer incoming call requests with the busy reply while one is live.
+    void activeCallsChanged();
+
 private Q_SLOTS:
     void onCaptured(const QByteArray &data);
     void onPeerAudio(const QString &ip, const QByteArray &data);

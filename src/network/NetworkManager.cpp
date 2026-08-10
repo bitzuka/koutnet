@@ -110,9 +110,14 @@ NetworkManager::~NetworkManager()
     stop();
 }
 
+void NetworkManager::setInCall(bool inCall)
+{
+    m_inCall = inCall;
+}
+
 void NetworkManager::setRelayServer(const QString &host, quint16 tunnelPort, quint16 voicePort)
 {
-    // TODO: persist across restarts once AppSettings lands.
+    // Fed by main.cpp from AppSettings, which persists it across restarts.
     m_relayHostOverride = host;
     m_relayPortOverride = tunnelPort;
     m_relayVoicePortOverride = voicePort ? voicePort : quint16(tunnelPort + 1);
@@ -240,7 +245,7 @@ bool NetworkManager::start()
     connect(m_tcpServer, &QTcpServer::newConnection, this, &NetworkManager::onNewTcpConnection);
 
     m_running = true;
-    // TODO: once AppSettings lands, read the persisted mode before start().
+    // The mode is applied by main.cpp from AppSettings before start() is called.
     m_localIps = allLocalIpsFallback();
     m_localIps.insert(m_hostIp);
 
@@ -551,8 +556,13 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
             Q_EMIT message(msg);
         }
     } else if (type == protocol::kMsgCallReq) {
-        // TODO: check VoiceCallManager::active() and reply call_busy if in a call
-        Q_EMIT callRequest(msg.value(QStringLiteral("username")).toString(QStringLiteral("?")), host);
+        if (m_inCall) {
+            // already on a call, and the busy reply is cheaper for the caller to
+            // hear than a ringing window that answers nothing
+            sendCallBusy(host);
+        } else {
+            Q_EMIT callRequest(msg.value(QStringLiteral("username")).toString(QStringLiteral("?")), host);
+        }
     } else if (type == protocol::kMsgCallAccept) {
         Q_EMIT callAccepted(msg.value(QStringLiteral("username")).toString(QStringLiteral("?")), host);
     } else if (type == protocol::kMsgCallBusy || type == protocol::kMsgCallReject) {
@@ -1043,6 +1053,13 @@ void NetworkManager::sendCallReject(const QString &toIp)
 {
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgCallReject;
+    sendUdp(payload, toIp);
+}
+
+void NetworkManager::sendCallBusy(const QString &toIp)
+{
+    QJsonObject payload;
+    payload[QStringLiteral("type")] = protocol::kMsgCallBusy;
     sendUdp(payload, toIp);
 }
 

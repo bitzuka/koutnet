@@ -122,6 +122,12 @@ public:
     Q_INVOKABLE void sendCallAccept(const QString &toIp);
     Q_INVOKABLE void sendCallReject(const QString &toIp);
     Q_INVOKABLE void sendCallEnd(const QString &toIp);
+    Q_INVOKABLE void sendCallBusy(const QString &toIp);
+    // Whether any call is live, in either direction. main.cpp keeps it in sync
+    // with VoiceCallManager::activeCalls(); while true, incoming call requests
+    // are answered with the busy reply instead of surfacing a second ringing
+    // window. NetworkManager deliberately does not know VoiceCallManager.
+    void setInCall(bool inCall);
     Q_INVOKABLE void sendReaction(const QString &toIp, const QString &chatId, double ts, const QString &emoji, bool added);
     Q_INVOKABLE void sendMessageEdit(const QString &toIp, const QString &chatId, double ts, const QString &newText);
     Q_INVOKABLE void sendMessageDelete(const QString &toIp, const QString &chatId, double ts);
@@ -204,6 +210,7 @@ private:
     QSet<QString> m_localIps;
     bool m_running = false;
     bool m_internetMode = false;
+    bool m_inCall = false;
 
     quint16 m_voiceTcpPort = 0;
 

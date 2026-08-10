@@ -45,6 +45,7 @@ bool VoiceCallManager::call(const QString &ip)
 
     m_active.insert(ip);
     Q_EMIT callStarted(ip);
+    Q_EMIT activeCallsChanged();
     return true;
 }
 
@@ -59,6 +60,8 @@ void VoiceCallManager::hangup(const QString &ip)
 
     if (m_active.isEmpty())
         m_audio->stopAll();
+
+    Q_EMIT activeCallsChanged();
 
     // The UI hears about it through NetworkManager::callEnded, which the socket
     // side emits when the disconnect lands; a remote hangup arrives the same way.

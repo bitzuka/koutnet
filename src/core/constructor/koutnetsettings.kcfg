@@ -108,6 +108,13 @@
       <default>true</default>
     </entry>
 
+    <!-- Whether chat logs and the call log are written to disk at all. Off
+         keeps everything in memory for the session only - nothing leaves the
+         app. main.cpp feeds it to HistoryManager. -->
+    <entry name="historySavingEnabled" key="history_saving_enabled" type="Bool">
+      <default>true</default>
+    </entry>
+
     <!-- The free-form nickname shown big in the profile header, as opposed to
          the handle above. A first start has neither, so both default to the
          machine name; AppSettings adopts an existing handle instead. -->
@@ -195,6 +202,15 @@
          implicitly registered, it is just this device. -->
     <entry name="globalAccountRegistered" key="global_account_registered" type="Bool">
       <default>false</default>
+    </entry>
+
+    <!-- Ceiling on a single incoming file, in megabytes. main.cpp hands it to
+         FileTransferHandler, whose default this replaces; a peer announcing a
+         larger size is refused outright. -->
+    <entry name="maxTransferMb" key="max_transfer_mb" type="Int">
+      <default>200</default>
+      <min>1</min>
+      <max>4096</max>
     </entry>
 
     <!-- Which migrations AppSettings has already run against this file. Absent

@@ -18,9 +18,9 @@ class FileTransferHandler : public QObject
     Q_OBJECT
 
 public:
-    // Cap on one incoming transfer; larger meta is refused outright, with no entry
-    // created so its chunks are dropped too.
-    // TODO: make this user-configurable via AppSettings once that lands.
+    // Built-in ceiling on one incoming transfer; larger meta is refused outright,
+    // with no entry created so its chunks are dropped too. The default instance
+    // uses it, and main.cpp replaces it from the maxTransferMb AppSettings entry.
     static constexpr qint64 kMaxTransferBytes = 200LL * 1024 * 1024; // 200 MB
     // Cap on concurrent in-flight transfers, so peers spamming file_meta without
     // ever sending chunks cannot grow m_pending unboundedly.
@@ -31,6 +31,10 @@ public:
     static constexpr int kMaxFilenameBytes = 200;
 
     explicit FileTransferHandler(QObject *parent = nullptr);
+
+    // What a single announced size may be, in bytes. Starts at kMaxTransferBytes;
+    // main.cpp lowers or raises it from AppSettings.
+    void setMaxTransferBytes(qint64 bytes);
 
     void onMeta(const QJsonObject &meta);
 
@@ -72,6 +76,7 @@ private:
 
     QHash<QString, PendingTransfer> m_pending; // tid -> transfer state
     QTimer m_pruneTimer;
+    qint64 m_maxTransferBytes = kMaxTransferBytes;
 };
 
 } // namespace koutnet

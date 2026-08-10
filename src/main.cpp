@@ -27,6 +27,7 @@
 #include <KLocalizedString>
 
 #include "core/audio/AudioDevices.h"
+#include "core/chat/HistoryManager.h"
 #include "core/constructor/AppSettings.h"
 #include "core/notify/NotificationManager.h"
 #include "core/tray/TrayIcon.h"
@@ -197,9 +198,19 @@ int main(int argc, char *argv[])
     QObject::connect(appSettings, &koutnet::AppSettings::vadEnabledChanged, voice, [voice, appSettings]() {
         voice->setVad(appSettings->vadEnabled());
     });
+    // While any call is live the network layer answers new call requests with
+    // the busy reply instead of ringing a second window.
+    QObject::connect(voice, &koutnet::VoiceCallManager::activeCallsChanged, network, [network, voice]() {
+        network->setInCall(!voice->activeCalls().isEmpty());
+    });
 
     QObject::connect(network, &koutnet::NetworkManager::fileMeta, fileTransfer, &koutnet::FileTransferHandler::onMeta);
     QObject::connect(network, &koutnet::NetworkManager::fileChunk, fileTransfer, &koutnet::FileTransferHandler::onChunkMessage);
+
+    fileTransfer->setMaxTransferBytes(qint64(appSettings->maxTransferMb()) * 1024 * 1024);
+    QObject::connect(appSettings, &koutnet::AppSettings::maxTransferMbChanged, fileTransfer, [fileTransfer, appSettings]() {
+        fileTransfer->setMaxTransferBytes(qint64(appSettings->maxTransferMb()) * 1024 * 1024);
+    });
 
     if (!network->start())
         qCWarning(KOUTNET_LOG_NETWORK, "failed to start network layer");
@@ -266,6 +277,16 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("aboutData"), about);
 
     engine.loadFromModule("koutnet.app", "Main");
+
+    // HistoryManager is a QML singleton, so the instance only exists once the
+    // window component has loaded (Main.qml binds it into ChatListModel and the
+    // dynamic chat models). Fetch it now and feed it the persisted value.
+    if (auto *historyManager = engine.singletonInstance<HistoryManager *>(QStringLiteral("koutnet.app"), QStringLiteral("HistoryManager"))) {
+        historyManager->setHistorySavingEnabled(appSettings->historySavingEnabled());
+        QObject::connect(appSettings, &koutnet::AppSettings::historySavingEnabledChanged, historyManager, [historyManager, appSettings]() {
+            historyManager->setHistorySavingEnabled(appSettings->historySavingEnabled());
+        });
+    }
 
     // After the window, not before it. A stored session that cannot be reopened
     // reports itself the moment it is tried, and resuming first meant nothing
