@@ -136,6 +136,10 @@ public:
     Q_INVOKABLE void markOwnMessagesRead();
     Q_INVOKABLE void markAllRead();
 
+    // Empties the conversation and the file behind it. The row stays: the
+    // saved messages chat is pinned and cannot be forgotten.
+    Q_INVOKABLE void clearMessages();
+
     int unreadCount() const;
     // Counted back from the end, because the tally lives in UnreadManager and
     // the messages carry no incoming read flag.

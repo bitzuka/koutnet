@@ -248,6 +248,20 @@ int ChatModel::firstUnreadRow() const
     return row;
 }
 
+void ChatModel::clearMessages()
+{
+    if (m_messages.isEmpty())
+        return;
+
+    beginResetModel();
+    m_messages.clear();
+    endResetModel();
+
+    if (m_history && !m_chatId.isEmpty())
+        m_history->replaceAll(m_chatId, QVariantList());
+    markAllRead();
+}
+
 void ChatModel::reload()
 {
     beginResetModel();

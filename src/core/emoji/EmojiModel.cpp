@@ -9,6 +9,7 @@
 // is not here. Everything else is upstream's, including the u""_s literal style,
 // which is left alone so the port stays comparable to the file it came from.
 
+#include <QRegularExpression>
 #include <QVariant>
 
 #include "EmojiModel.h"
@@ -136,10 +137,24 @@ QVariantList EmojiModel::emojis(Category category) const
 
 QList<Emoji> EmojiModel::tones(const QString &baseEmoji) const
 {
-    if (baseEmoji.endsWith(u"tone"_s)) {
-        return EmojiTones::tones().values(baseEmoji.split(u":"_s)[0]);
+    // The grid hands the shortcode in (":wave:"). The tones table is keyed on
+    // the CLDR name ("waving hand"), which emojis.h carries as the description,
+    // so the shortcode is resolved through the grid's own data.
+    QString code = baseEmoji.trimmed();
+    if (code.startsWith(u':') && code.endsWith(u':') && code.size() > 2)
+        code = code.mid(1, code.size() - 2);
+    // A toned emoji is its base plus "_toneN": holding one in the history strip
+    // should still offer the whole tone row.
+    code.remove(QRegularExpression(u"_tone[1-5]$"_s));
+
+    for (const auto &category : std::as_const(_emojis)) {
+        for (const auto &variant : category) {
+            const auto &emoji = qvariant_cast<Emoji>(variant);
+            if (emoji.shortName == u":" + code + u":"_s)
+                return EmojiTones::tones().values(emoji.description);
+        }
     }
-    return EmojiTones::tones().values(baseEmoji);
+    return {};
 }
 
 QHash<EmojiModel::Category, QVariantList> EmojiModel::_emojis;

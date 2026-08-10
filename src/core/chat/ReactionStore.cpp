@@ -32,6 +32,7 @@ void ReactionStore::add(const QString &chatId, double ts, const QString &emoji, 
     QStringList &users = m_data[key][emoji];
     if (!users.contains(username))
         users.append(username);
+    scheduleSave();
     Q_EMIT reactionsChanged(chatId, ts);
 }
 
@@ -47,6 +48,7 @@ void ReactionStore::remove(const QString &chatId, double ts, const QString &emoj
     emojiIt->removeAll(username);
     if (emojiIt->isEmpty())
         chatIt->remove(emoji);
+    scheduleSave();
     Q_EMIT reactionsChanged(chatId, ts);
 }
 
@@ -59,9 +61,13 @@ bool ReactionStore::toggle(const QString &chatId, double ts, const QString &emoj
     } else {
         add(chatId, ts, emoji, username);
     }
-    // debounce: restart the timer instead of stacking un-cancellable timers
-    m_saveTimer.start(500);
     return !present;
+}
+
+void ReactionStore::scheduleSave()
+{
+    // Coalesced so a burst of toggles rewrites the file once.
+    m_saveTimer.start(500);
 }
 
 QVariantMap ReactionStore::get(const QString &chatId, double ts) const

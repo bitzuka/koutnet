@@ -3,6 +3,7 @@
 // KOutNet - Network & Audio core
 #include "NetworkManager.h"
 #include "../core/security/CryptoManager.h"
+#include "FileTransferHandler.h"
 #include "Protocol.h"
 
 #include <KLocalizedString>
@@ -15,10 +16,9 @@
 #include <QNetworkInterface>
 #include <QRandomGenerator>
 
-#include <utility> // std::move, sendUdp() hands its payload on
+#include "koutnet_network_debug.h"
 
-// TODO: AppSettings exists now, so the unfinished paths below can be wired to it:
-// static peer list, connection mode, relay credentials.
+#include <utility> // std::move, sendUdp() hands its payload on
 
 namespace koutnet
 {
@@ -199,13 +199,6 @@ bool NetworkManager::modeAvailable(int mode) const
     return false;
 }
 
-bool NetworkManager::vdsConfigured() const
-{
-    if (!m_relayHostOverride.isEmpty() && m_relayPortOverride != 0)
-        return true;
-    return !protocol::builtinRelays().isEmpty();
-}
-
 void NetworkManager::refreshLocalIps()
 {
     m_localIps = allLocalIpsFallback();
@@ -341,7 +334,8 @@ void NetworkManager::scanArpTable()
             ++sent;
         }
     }
-    Q_UNUSED(sent);
+    if (sent > 0)
+        qCDebug(KOUTNET_LOG_NETWORK) << "ARP scan: pinged" << sent << "neighbour(s)";
 
     QTimer::singleShot(60'000, this, &NetworkManager::scanArpTable);
 }
@@ -378,9 +372,17 @@ QJsonObject NetworkManager::presencePayload() const
 
 void NetworkManager::onBroadcastTimer()
 {
-    if (m_internetMode) // internet mode never LAN-broadcasts
+    if (!m_running)
         return;
-    if (!m_running || !m_udp)
+
+    // Internet mode tunnels the presence instead of broadcasting it: the relay
+    // is the broadcast domain there, and the same cadence keeps it fed.
+    if (m_internetMode) {
+        if (m_relaySocket && m_relayConnected)
+            sendUdpToAll(presencePayload(), QVector<QString>());
+        return;
+    }
+    if (!m_udp)
         return;
 
     // Backing off also makes the /24 sweep below less loud on public Wi-Fi.
@@ -597,21 +599,35 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
 
     QString peerId;
     if (m_crypto) {
-        // ECDH handshake first, because it is what turns this packet into an identity:
-        // the replay bucket below belongs to that identity, and keying it on the
-        // address let one captured packet be replayed once per source address.
+        const QString nonce = msg.value(QStringLiteral("nonce")).toString();
+        const double ts = msg.value(QStringLiteral("ts")).toDouble();
+
         if (msg.contains(QStringLiteral("dh_pub"))) {
+            // The replay gate runs before the handshake, not after it: a captured
+            // presence would otherwise re-derive the session every couple of
+            // seconds until this check was reached. Keyed on the address because
+            // the identity is not known yet.
+            if (nonce.isEmpty() || !m_crypto->checkReplay(host, nonce, ts))
+                return;
+            // Whether the address already knew its owner when the gate above ran.
+            // The handshake below is what teaches an unknown address its owner,
+            // which is also why the gate above could not have used the identity.
+            const QString ownerBefore = m_crypto->identityForAddress(host);
             // Someone new at an address a peer we still hold a session with is using.
             // The peer record must survive it - it holds the name and fingerprint the
             // warning shows, and a refused packet rewriting those aids the spoofer.
             if (m_crypto->processHandshakeFrom(host, msg, &peerId) == CryptoManager::HandshakeOutcome::AddressTaken)
                 return;
-        }
-
-        const QString nonce = msg.value(QStringLiteral("nonce")).toString();
-        const double ts = msg.value(QStringLiteral("ts")).toDouble();
-        if (!nonce.isEmpty() && !m_crypto->checkReplay(peerId.isEmpty() ? host : peerId, nonce, ts))
+            // The identity bucket gets the nonce too, or a capture replayed from a
+            // second address - where the address bucket above is empty - would slip
+            // through and keep a dead peer looking alive. Only when the address was
+            // unknown: resolved, it and the identity are the same bucket, and a
+            // second check would refuse the packet the first one just admitted.
+            if (ownerBefore.isEmpty() && !peerId.isEmpty() && !m_crypto->checkReplay(peerId, nonce, ts))
+                return;
+        } else if (!nonce.isEmpty() && !m_crypto->checkReplay(host, nonce, ts)) {
             return; // replayed presence packet
+        }
     }
 
     // One entry per identity, filed under the address first heard: two contacts for one
@@ -625,10 +641,17 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
 
     const bool isNew = !m_peers.contains(key);
     msg[protocol::kFieldLastSeen] = nowEpoch();
-    // TODO: msg["conn_type"] = detectConnectionType(key);
     if (m_crypto)
         msg[QStringLiteral("e2e")] = m_crypto->hasSession(peerId.isEmpty() ? host : peerId);
-    m_peers[key] = msg;
+    if (isNew) {
+        // A flood of spoofed presences must not grow the peer table without bound:
+        // the oldest entry makes room for the newcomer, like the replay buckets do.
+        if (m_peers.size() >= kMaxPeers)
+            evictOldestPeer();
+        m_peers[key] = msg;
+    } else {
+        m_peers[key] = msg;
+    }
     if (!peerId.isEmpty())
         m_peerKeyById[peerId] = key;
 
@@ -636,6 +659,22 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
         Q_EMIT userOnline(msg);
     else
         Q_EMIT peerRefreshed(key, msg.value(protocol::kFieldLastSeen).toDouble());
+}
+
+void NetworkManager::evictOldestPeer()
+{
+    // One pass instead of a sort: under a flood this runs for every newcomer.
+    auto oldest = m_peers.begin();
+    for (auto it = m_peers.begin(); it != m_peers.end(); ++it) {
+        if (it.value().value(protocol::kFieldLastSeen).toDouble() < oldest.value().value(protocol::kFieldLastSeen).toDouble())
+            oldest = it;
+    }
+    const QString key = oldest.key();
+    const QString peerId = oldest.value().value(QStringLiteral("from_id")).toString();
+    m_peers.erase(oldest);
+    if (!peerId.isEmpty() && m_peerKeyById.value(peerId) == key)
+        m_peerKeyById.remove(peerId);
+    Q_EMIT userOffline(key);
 }
 
 void NetworkManager::onNewTcpConnection()
@@ -1090,6 +1129,14 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
         ext = QFileInfo(filePath).suffix().toLower();
     }
 
+    // The far side refuses anything past this cap, so sending it would only
+    // burn the network: refuse up front instead of reading a multi-gigabyte
+    // file into memory and chunking it into nothing.
+    if (data.size() > FileTransferHandler::kMaxTransferBytes) {
+        Q_EMIT errorOccurred(i18nc("@info:status %1 is a file path", "Refused to send %1: larger than the transfer limit.", filePath));
+        return;
+    }
+
     static const QSet<QString> kImageExts =
         {QStringLiteral("png"), QStringLiteral("jpg"), QStringLiteral("jpeg"), QStringLiteral("gif"), QStringLiteral("bmp"), QStringLiteral("webp")};
     const bool isImage = kImageExts.contains(ext);
@@ -1106,7 +1153,10 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
     meta[QStringLiteral("ts")] = nowEpoch();
     sendUdp(meta, toIp);
 
-    constexpr int kChunkSize = 60000;
+    // Kept small enough that base64 of one chunk plus the JSON envelope still
+    // fits a single UDP datagram (65507 bytes): 60000 raw bytes encoded as
+    // base64 alone was 80000, which no socket could ever deliver.
+    constexpr int kChunkSize = 48000;
     const int total = data.size();
     const int totalChunks = (total + kChunkSize - 1) / kChunkSize;
 

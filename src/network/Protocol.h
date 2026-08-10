@@ -26,7 +26,6 @@ inline constexpr QLatin1StringView kMsgReaction("reaction");
 inline constexpr QLatin1StringView kMsgEdit("edit");
 inline constexpr QLatin1StringView kMsgDelete("delete");
 inline constexpr QLatin1StringView kMsgRead("read");
-inline constexpr QLatin1StringView kMsgSticker("sticker");
 
 // Fields on a peer record: the presence packet that arrived plus whatever
 // handlePresence() adds to it. last_seen is stamped from the local clock on
@@ -63,14 +62,14 @@ inline constexpr int kRelayReconnectBaseMs = 3000;
 inline constexpr int kRelayReconnectMaxMs = 60000;
 
 // Framing for the TCP streams: a 4-byte big-endian length in front of every
-// message, because an AES-GCM tag that starts one byte off never verifies.
+// message, because an XChaCha20-Poly1305 tag that starts one byte off never
+// verifies.
 inline constexpr int kFrameHeaderBytes = 4;
 // The declared length comes from an untrusted peer, so each stream refuses
 // anything larger than it could plausibly need and hangs up.
 inline constexpr quint32 kMaxVoiceFrameBytes = 1u << 20; // 1 MiB
 inline constexpr quint32 kMaxRelayFrameBytes = 8u << 20; // 8 MiB
 
-inline constexpr QLatin1StringView kAppName("KOutNet");
 inline constexpr int kProtocolVersion = 1;
 
 } // namespace koutnet::protocol

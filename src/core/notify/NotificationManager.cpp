@@ -168,9 +168,10 @@ void NotificationManager::notifyMessage(const QString &chatId, const QString &se
         }
     });
 
-    notification->setTitle(sender.isEmpty() ? chatId : sender);
-    // Escaped because the notification body is parsed as markup by most servers,
-    // and a message is a string somebody else chose.
+    // Both fields escaped: the sender name is published by the peer in its LAN
+    // profile, and the body is a string somebody else chose, so either can carry
+    // markup the notification server would render.
+    notification->setTitle((sender.isEmpty() ? chatId : sender).toHtmlEscaped());
     notification->setText(text.toHtmlEscaped());
 
     auto *defaultAction = notification->addDefaultAction(i18nc("@action:button clicking the notification opens the conversation", "Open the conversation"));
@@ -208,12 +209,12 @@ void NotificationManager::notifyCall(const QString &callerName, const QString &c
     });
 
     notification->setTitle(i18nc("@title:window notification for a ringing call", "Incoming call"));
-    notification->setText(i18nc("@info %1 is the name of the caller", "%1 is calling you", callerName.isEmpty() ? callerIp : callerName));
+    notification->setText(i18nc("@info %1 is the name of the caller", "%1 is calling you", (callerName.isEmpty() ? callerIp : callerName).toHtmlEscaped()));
 
     auto *defaultAction = notification->addDefaultAction(i18nc("@action:button bring the call window forward", "Show the call"));
     connect(defaultAction, &KNotificationAction::activated, this, [this, callerIp, notification] {
         adoptActivationToken(notification);
-        Q_EMIT chatRequested(callerIp);
+        Q_EMIT callShowRequested(callerIp);
     });
 
     auto *answer = notification->addAction(i18nc("@action:button pick up the call", "Answer"));

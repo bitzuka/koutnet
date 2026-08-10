@@ -142,7 +142,10 @@ void ChatListModel::setUnreadManagerObj(QObject *obj)
         });
     }
     Q_EMIT unreadManagerChanged();
-    load();
+    // load() already ran by the time QML hands this manager over (historyManager
+    // is assigned first), so the counts restored there were skipped. Put them
+    // back or every badge and the total start at zero after a restart.
+    restoreUnreadCounts();
 }
 
 int ChatListModel::indexOfChat(const QString &chatId) const
@@ -335,8 +338,6 @@ void ChatListModel::removeChat(const QString &chatId)
 
 void ChatListModel::load()
 {
-    // Both managers are assigned as separate properties from QML, so this runs
-    // twice.
     if (m_loaded || !m_history)
         return;
     m_loaded = true;
@@ -369,14 +370,18 @@ void ChatListModel::load()
     m_rows = loaded;
     endResetModel();
     Q_EMIT countsChanged();
+    restoreUnreadCounts();
+}
 
+void ChatListModel::restoreUnreadCounts()
+{
     // UnreadManager starts empty every run, so restored counts have to be put
     // back into it or the badge and the total would disagree.
-    if (m_unread) {
-        for (const Entry &e : m_rows) {
-            if (e.unread > 0)
-                m_unread->restore(e.chatId, e.unread);
-        }
+    if (!m_loaded || !m_unread)
+        return;
+    for (const Entry &e : m_rows) {
+        if (e.unread > 0)
+            m_unread->restore(e.chatId, e.unread);
     }
 }
 

@@ -21,7 +21,6 @@ namespace koutnet
 {
 
 class CryptoManager;
-// TODO: AppSettings (S() equivalent) - core/constructor not yet ported.
 class AppSettings;
 
 class NetworkManager : public QObject
@@ -61,6 +60,9 @@ public:
     // one advertising five thousand of them would have us send five thousand datagrams
     // per keystroke. Four covers a LAN address, a VPN address and a spare.
     static constexpr int kMaxDeliveryAddresses = 4;
+    // Cap on the observed peer table: spoofed presences must not grow it without
+    // bound, so the oldest entry gives way to a newcomer.
+    static constexpr int kMaxPeers = 512;
 
     bool start();
     void stop();
@@ -87,21 +89,15 @@ public:
     {
         return m_mode;
     }
-    // True once a relay is usable - a custom one via setRelayServer(), or a non-empty
-    // built-in list. Nothing calls this yet; modeAvailable() answers the question the
-    // UI asks, and this is the finer one Relay will need later.
-    Q_INVOKABLE bool vdsConfigured() const;
-
     // Whether a mode has anything behind it. The settings page asks rather than
     // hardcoding it, so landing a K-Server changes this function and nothing in QML.
     Q_INVOKABLE bool modeAvailable(int mode) const;
-
     // revision is a short digest of everything in the profile, images included, so a
     // peer can tell it needs to re-fetch without being sent the files.
     Q_INVOKABLE void setProfile(const QString &handle, const QString &displayName, const QString &bio, const QString &revision);
 
     // What the user says they are, and the one emoji they say it with. Kept
-    // Kept out of the profile digest: going busy has not changed a picture, and bumping
+    // out of the profile digest: going busy has not changed a picture, and bumping
     // the revision would ask every peer to refetch an identical profile.
     Q_INVOKABLE void setStatus(int presence, const QString &statusEmoji);
 
@@ -110,7 +106,8 @@ public:
     void setGroupPassphrase(const QString &passphrase);
 
     // Custom/self-hosted relay server. voicePort defaults to tunnelPort + 1
-    // if not given. TODO: persist across restarts once AppSettings lands.
+    // if not given. Persistence is the caller's job: main.cpp restores the
+    // saved host and port from AppSettings before the connection starts.
     Q_INVOKABLE void setRelayServer(const QString &host, quint16 tunnelPort, quint16 voicePort = 0);
 
     // Split out of onUdpReadyRead() because everything below this line is
@@ -187,6 +184,7 @@ private:
     void scheduleRelayReconnect();
     void sendChunksQueued(const QVector<QJsonObject> &chunks, const QString &toIp, int idx, int batch = 3);
     void pruneStalePeers();
+    void evictOldestPeer();
 
     CryptoManager *m_crypto = nullptr;
 

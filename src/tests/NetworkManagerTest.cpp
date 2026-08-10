@@ -177,7 +177,7 @@ private Q_SLOTS:
         QTest::newRow("invented") << QStringLiteral("sudo_make_me_a_sandwich");
         QTest::newRow("near miss") << QStringLiteral("presence ");
         QTest::newRow("case wrong") << QStringLiteral("Presence");
-        QTest::newRow("sticker, declared but unhandled") << QString(protocol::kMsgSticker);
+        QTest::newRow("sticker, a kind this build declares nowhere") << QStringLiteral("sticker");
         QTest::newRow("empty") << QString();
     }
 

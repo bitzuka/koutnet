@@ -102,6 +102,7 @@ private:
     void moveToSortedPosition(int row);
     void refreshRow(int row, const QVector<int> &roles);
     void load();
+    void restoreUnreadCounts();
     void scheduleSave();
     void save();
 

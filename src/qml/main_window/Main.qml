@@ -871,6 +871,16 @@ Kirigami.ApplicationWindow {
             networkManager.sendCallReject(ip)
             incomingCall.callRejected()
         }
+        function onCallShowRequested(ip) {
+            root.show()
+            root.raise()
+            root.requestActivate()
+            if (incomingCall.callerIp !== ip) {
+                incomingCall.callerName = root.peerLabel(ip)
+                incomingCall.callerIp = ip
+            }
+            incomingCall.open()
+        }
     }
 
     Connections {
@@ -1018,10 +1028,15 @@ Kirigami.ApplicationWindow {
         onProfileRequested: (anchorItem) => root.showAccountCard(anchorItem)
         onSettingsRequested: root.showLayer(settingsPageComponent)
         onLeaveRoomRequested: (chatId) => matrixRooms.leaveRoom(chatId)
+        selfChatId: root.kSelfChatId
         onForgetRequested: (chatId) => {
             chatList.removeChat(chatId)
             if (root.currentPeerIp === chatId)
                 root.currentPeerIp = ""
+        }
+        onClearRequested: (chatId) => {
+            clearChatPrompt.chatId = chatId
+            clearChatPrompt.open()
         }
         // The same two calls the settings page makes, because switching mode
         // raises or drops the relay tunnel and half of that is not a state to be in.
@@ -1032,6 +1047,30 @@ Kirigami.ApplicationWindow {
             networkManager.setRelayServer(appSettings.relayHost, appSettings.relayPort, 0)
             networkManager.setConnectionMode(mode)
         }
+    }
+
+    // Emptying a chat cannot be undone, and the saved messages one is the
+    // place people keep things on purpose.
+    Kirigami.PromptDialog {
+        id: clearChatPrompt
+
+        property string chatId: ""
+
+        title: i18nc("@title:window", "Clear this chat?")
+        subtitle: i18nc("@info", "Every message in it is deleted from this device. There is no way back.")
+        standardButtons: Kirigami.Dialog.Cancel
+        customFooterActions: [
+            Kirigami.Action {
+                text: i18nc("@action:button", "Clear")
+                icon.name: "edit-clear-all"
+                onTriggered: {
+                    const model = root.chatModels[clearChatPrompt.chatId]
+                    if (model)
+                        model.clearMessages()
+                    clearChatPrompt.close()
+                }
+            }
+        ]
     }
 
     ChatPage {

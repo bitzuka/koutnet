@@ -10,6 +10,7 @@
 #include <QDateTime>
 #include <QSettings>
 #include <QTimer>
+#include <QtEndian> // qToBigEndian/qFromBigEndian, for the voice frame timestamp
 
 #include <algorithm> // nth_element, for the replay cache eviction
 #include <cmath>
@@ -801,7 +802,7 @@ bool CryptoManager::verifyPacket(const QString &peerRef, const QByteArray &paylo
         == 0;
 }
 
-bool CryptoManager::checkReplay(const QString &peerRef, const QString &nonceHex, double ts)
+bool CryptoManager::checkReplay(const QString &peerRef, const QString &nonceHex, double ts) const
 {
     const double now = nowEpoch();
     if (std::abs(now - ts) > kReplayWindowSec)
@@ -852,7 +853,7 @@ bool CryptoManager::checkReplay(const QString &peerRef, const QString &nonceHex,
     return true;
 }
 
-void CryptoManager::evictOldestNoncePeers()
+void CryptoManager::evictOldestNoncePeers() const
 {
     // Under a flood from spoofed source addresses this runs for every packet, so it
     // does not sort - it takes the least recently used bucket and drops it.
@@ -875,7 +876,7 @@ void CryptoManager::evictOldestNoncePeers()
     }
 }
 
-bool CryptoManager::checkRate(const QString &sourceAddress, int maxPerSec)
+bool CryptoManager::checkRate(const QString &sourceAddress, int maxPerSec) const
 {
     const double now = nowEpoch();
 
@@ -995,16 +996,36 @@ QByteArray CryptoManager::encryptBytes(const QString &peerRef, const QByteArray 
     if (key == m_sessionKeys.constEnd())
         return {};
 
-    return aeadSeal(key->tx, plaintext, kAadVoiceFrame); // nonce+ciphertext+tag
+    QByteArray sealed = aeadSeal(key->tx, plaintext, kAadVoiceFrame);
+    if (sealed.size() < kNonceLen + kTagLen)
+        return {};
+
+    // The timestamp rides next to the nonce so the receiver's replay window can
+    // judge the frame like any other packet; without it a captured frame could
+    // be played back forever, nonce and all.
+    const quint64 tsMs = qToBigEndian<quint64>(static_cast<quint64>(nowEpoch() * 1000.0));
+    sealed.insert(kNonceLen, reinterpret_cast<const char *>(&tsMs), kVoiceTsLen);
+    return sealed;
 }
 
 bool CryptoManager::decryptBytes(const QString &peerRef, const QByteArray &data, QByteArray *outPlain) const
 {
+    if (data.size() < kNonceLen + kVoiceTsLen + kTagLen)
+        return false;
+
     const auto key = m_sessionKeys.constFind(resolveIdentity(peerRef));
     if (key == m_sessionKeys.constEnd())
         return false; // unkeyed frames are not audio we are willing to play
 
-    return aeadOpen(key->rx, data, kAadVoiceFrame, outPlain);
+    quint64 tsMs = 0;
+    memcpy(&tsMs, data.constData() + kNonceLen, kVoiceTsLen);
+    tsMs = qFromBigEndian<quint64>(tsMs);
+    if (!checkReplay(peerRef, QString::fromLatin1(data.left(kNonceLen).toHex()), double(tsMs) / 1000.0))
+        return false; // a frame we have already played, or one outside the window
+
+    // aeadOpen() reads the nonce back off the front of what it is given, so the
+    // timestamp has to come back out before the ciphertext goes in.
+    return aeadOpen(key->rx, data.left(kNonceLen) + data.mid(kNonceLen + kVoiceTsLen), kAadVoiceFrame, outPlain);
 }
 
 } // namespace koutnet

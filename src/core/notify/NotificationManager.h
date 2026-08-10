@@ -66,6 +66,9 @@ Q_SIGNALS:
     void replyRequested(const QString &chatId, const QString &text);
     void callAnswerRequested(const QString &callerIp);
     void callRejectRequested(const QString &callerIp);
+    // Clicked the default action of a ringing-call notification: the call
+    // window, not the chat with the caller, is what that button promises.
+    void callShowRequested(const QString &callerIp);
 
 private:
     // Where the user's attention is, which is the only thing that decides

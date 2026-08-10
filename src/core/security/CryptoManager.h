@@ -39,6 +39,9 @@ public:
     static constexpr int kNonceLen = 24;
     static constexpr int kTagLen = 16;
     static constexpr int kKeyLen = 32;
+    // Timestamp riding next to a voice frame's nonce, in big-endian ms, so the
+    // receiver's replay window can judge the frame like any other packet.
+    static constexpr int kVoiceTsLen = 8;
     // crypto_pwhash_SALTBYTES; static_asserted against libsodium in the .cpp.
     static constexpr int kSaltLen = 16;
     static constexpr double kReplayWindowSec = 30.0;
@@ -114,10 +117,10 @@ public:
     // The replay bucket belongs to the identity, so a captured packet is no
     // fresher for being resent from somewhere else. An unresolvable peerRef gets
     // a bucket of its own under that name - what presence from a stranger gets.
-    bool checkReplay(const QString &peerRef, const QString &nonceHex, double ts);
+    bool checkReplay(const QString &peerRef, const QString &nonceHex, double ts) const;
     // Deliberately still keyed on the source address: this one runs before
     // anything is known about who sent the packet, which is the point of it.
-    bool checkRate(const QString &sourceAddress, int maxPerSec = 200);
+    bool checkRate(const QString &sourceAddress, int maxPerSec = 200) const;
 
     QString encrypt(const QString &plaintext, const QString &passphrase = QString(), const QString &peerRef = QString()) const;
     QString decrypt(const QString &ciphertext, const QString &passphrase = QString(), const QString &peerRef = QString()) const;
@@ -155,7 +158,7 @@ private:
     static bool aeadOpen(const QByteArray &key, const QByteArray &data, char aad, QByteArray *outPlain);
     QByteArray deriveKey(const QString &passphrase, const QByteArray &salt) const;
     static QByteArray randomBytes(int n);
-    void evictOldestNoncePeers();
+    void evictOldestNoncePeers() const;
     QString resolveIdentity(const QString &peerRef) const;
     void noteObservedAddress(const QString &peerId, const QString &address);
 
@@ -197,10 +200,12 @@ private:
     QHash<QString, QString> m_addressToId; // address -> identity id
     QHash<QString, QStringList> m_idToAddresses; // identity id -> addresses, newest first
     QHash<QString, QByteArray> m_warnedIdPub; // address -> key we last warned about
-    QHash<QString, QHash<QString, SeenNonce>> m_seenNonces; // identity id -> nonce -> when
-    QHash<QString, quint64> m_nonceBucketTouched; // identity id -> its newest seq
-    quint64 m_nonceSeq = 0; // arrivals, ever
-    QHash<QString, QVector<double>> m_rateCounters; // source address -> recent timestamps
+    // Mutable like the passphrase cache above: the replay and rate gates are
+    // stateful even though their call sites are const.
+    mutable QHash<QString, QHash<QString, SeenNonce>> m_seenNonces; // identity id -> nonce -> when
+    mutable QHash<QString, quint64> m_nonceBucketTouched; // identity id -> its newest seq
+    mutable quint64 m_nonceSeq = 0; // arrivals, ever
+    mutable QHash<QString, QVector<double>> m_rateCounters; // source address -> recent timestamps
 
     // sha256(salt + passphrase) -> key. Keyed on a digest rather than on the
     // passphrase, which used to keep the plaintext alive here for the life of

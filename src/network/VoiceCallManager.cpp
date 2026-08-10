@@ -17,11 +17,6 @@ VoiceCallManager::VoiceCallManager(NetworkManager *net, CryptoManager *crypto, Q
     m_audio = new AudioEngine(this);
 
     connect(m_audio, &AudioEngine::audioCaptured, this, &VoiceCallManager::onCaptured);
-    connect(m_audio, &AudioEngine::speaking, this, [this](bool isSpeaking) {
-        for (const auto &cb : std::as_const(m_speakingCallbacks))
-            cb(isSpeaking);
-    });
-
     connect(m_net, &NetworkManager::voiceDataFrom, this, &VoiceCallManager::onPeerAudio);
 
     // connectVoice() no longer blocks, so a refused or dropped voice socket is the
@@ -36,7 +31,7 @@ bool VoiceCallManager::call(const QString &ip)
 
     if (!m_audio->running()) {
         if (!m_audio->startCapture())
-            return false; // no mic/speaker available - matches legacy PYAUDIO_AVAILABLE=false path
+            return false; // no mic or speaker available
     }
 
     m_audio->mixer().addPeer(ip);
@@ -65,7 +60,8 @@ void VoiceCallManager::hangup(const QString &ip)
     if (m_active.isEmpty())
         m_audio->stopAll();
 
-    Q_EMIT callEnded(ip);
+    // The UI hears about it through NetworkManager::callEnded, which the socket
+    // side emits when the disconnect lands; a remote hangup arrives the same way.
 }
 
 void VoiceCallManager::hangupAll()
@@ -90,18 +86,6 @@ void VoiceCallManager::setDeafen(bool deafened)
     m_audio->setMuted(m_muted || deafened);
 }
 
-bool VoiceCallManager::toggleDeafen()
-{
-    setDeafen(!m_deafened);
-    return m_deafened;
-}
-
-bool VoiceCallManager::toggleMute()
-{
-    setMute(!m_muted);
-    return m_muted;
-}
-
 void VoiceCallManager::setVad(bool enabled)
 {
     m_audio->setVadEnabled(enabled);
@@ -120,17 +104,6 @@ void VoiceCallManager::setAudioOutputDevice(const QString &id)
 void VoiceCallManager::setAudioVolume(qreal volume)
 {
     m_audio->setVolume(qBound(0.0, volume, 1.0));
-}
-
-void VoiceCallManager::subscribeSpeaking(const SpeakingCallback &cb)
-{
-    m_speakingCallbacks.append(cb);
-}
-
-void VoiceCallManager::cleanup()
-{
-    hangupAll();
-    m_audio->cleanup();
 }
 
 void VoiceCallManager::onCaptured(const QByteArray &data)

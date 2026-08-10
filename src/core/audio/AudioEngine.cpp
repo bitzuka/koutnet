@@ -116,7 +116,12 @@ bool AudioEngine::startCapture()
     const QAudioDevice inDev = pickDevice(QMediaDevices::audioInputs(), m_inputId, QMediaDevices::defaultAudioInput());
     const QAudioDevice outDev = pickDevice(QMediaDevices::audioOutputs(), m_outputId, QMediaDevices::defaultAudioOutput());
     if (inDev.isNull() || outDev.isNull())
-        return false; // no mic/speaker - voice calls disabled, same as legacy PYAUDIO_AVAILABLE=false path
+        return false; // no mic or speaker available
+    // The capture pipeline interprets the buffers as Int16/16 kHz/mono, so a
+    // device that only offers Float or a higher rate would feed it garbage
+    // instead of audio. Refuse up front rather than let it mix noise.
+    if (!inDev.isFormatSupported(fmt) || !outDev.isFormatSupported(fmt))
+        return false;
 
     m_source = new QAudioSource(inDev, fmt, this);
     m_captureDevice = m_source->start();
@@ -171,7 +176,8 @@ void AudioEngine::pushPeerAudio(const QString &ip, const QByteArray &data)
 
 bool AudioEngine::isSpeechAmplitude(const QByteArray &raw) const
 {
-    // amplitude vad fallback, rms threshold ~800 to match the legacy python path.
+    // Root-mean-square over the frame; 800 was tuned so ordinary speech stays
+    // above it and a quiet room does not trigger the speaking indicator.
     const auto *samples = reinterpret_cast<const qint16 *>(raw.constData());
     const int count = raw.size() / 2;
     if (count == 0)
@@ -207,8 +213,8 @@ void AudioEngine::onCaptureReady()
         if (isSpeech)
             Q_EMIT audioCaptured(raw);
 
-        // only emit on state change, checked every 4 frames (~128ms), as the legacy
-        // engine did.
+        // Only emitted on a state change, checked every 4 frames (~128 ms), so
+        // the indicator does not flicker at frame rate.
         if (++m_speakFrameCtr >= 4) {
             m_speakFrameCtr = 0;
             if (isSpeech != m_speakLast) {

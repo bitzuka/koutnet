@@ -22,30 +22,15 @@ class VoiceCallManager : public QObject
 
 public:
     // Same CryptoManager instance NetworkManager holds. Voice frames are encrypted
-    // here as raw AES-GCM, because only this class knows which IPs are live.
+    // here as raw XChaCha20-Poly1305, because only this class knows which IPs are live.
     explicit VoiceCallManager(NetworkManager *net, CryptoManager *crypto, QObject *parent = nullptr);
 
-    // Q_INVOKABLE is load-bearing here. Without it a QML call fails at
-    // runtime with "is not a function" while the same call from C++ works.
     Q_INVOKABLE bool call(const QString &ip);
     Q_INVOKABLE void hangup(const QString &ip);
     Q_INVOKABLE void hangupAll();
 
     Q_INVOKABLE void setMute(bool muted);
-    Q_INVOKABLE bool toggleMute();
-    bool isMuted() const
-    {
-        return m_muted;
-    }
-
-    // Deafen implies mute but is held apart from it, so un-deafening restores the
-    // microphone state the user chose rather than simply opening it.
     Q_INVOKABLE void setDeafen(bool deafened);
-    Q_INVOKABLE bool toggleDeafen();
-    bool isDeafened() const
-    {
-        return m_deafened;
-    }
 
     Q_INVOKABLE void setVad(bool enabled);
 
@@ -58,14 +43,8 @@ public:
         return m_active;
     }
 
-    using SpeakingCallback = std::function<void(bool)>;
-    void subscribeSpeaking(const SpeakingCallback &cb);
-
-    void cleanup();
-
 Q_SIGNALS:
     void callStarted(QString ip);
-    void callEnded(QString ip);
 
 private Q_SLOTS:
     void onCaptured(const QByteArray &data);
@@ -78,7 +57,6 @@ private:
     QSet<QString> m_active;
     bool m_muted = false;
     bool m_deafened = false;
-    QVector<SpeakingCallback> m_speakingCallbacks;
 };
 
 } // namespace koutnet

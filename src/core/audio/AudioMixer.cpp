@@ -18,11 +18,11 @@ void PeerBuffer::push(const QByteArray &data)
     if (frames >= kTargetFrames)
         m_ready = true;
 
+    // Dropped in whole frames: cutting mid-frame would leave pull() reading
+    // from inside a sample, which is garbage as audio and worse, permanent.
     const int cap = kFrameBytes * kMaxFrames;
-    if (m_buf.size() > cap) {
-        const int excess = m_buf.size() - cap;
-        m_buf.remove(0, excess);
-    }
+    if (m_buf.size() > cap)
+        m_buf.remove(0, (m_buf.size() - cap) / kFrameBytes * kFrameBytes);
 }
 
 QByteArray PeerBuffer::pull()
@@ -122,12 +122,6 @@ void AudioMixer::dropAll()
     }
     for (const auto &buf : std::as_const(peers))
         buf->clear();
-}
-
-int AudioMixer::peerCount() const
-{
-    QMutexLocker lock(&m_mutex);
-    return m_peers.size();
 }
 
 } // namespace koutnet

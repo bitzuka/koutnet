@@ -36,12 +36,15 @@ target_include_directories(crypto-manager PRIVATE ${KOUTNET_GENERATED_INCLUDE_DI
 # No sockets bound, no peers contacted and no wallet: the packet path is driven
 # by handing handleDatagram() the bytes a datagram would have carried, so this
 # runs on a machine with no network at all. CryptoManager comes along because a
-# session key is what the signature policy is made of.
+# session key is what the signature policy is made of. The full logging set is
+# linked rather than just the crypto category because NetworkManager.cpp now
+# speaks too.
 ecm_add_test(
     NetworkManagerTest.cpp
     ../network/NetworkManager.cpp
     ../core/security/CryptoManager.cpp
     ../core/security/SecretStore.cpp
+    ${KOUTNET_LOGGING_SRCS}
     ${KOUTNET_CRYPTO_LOGGING_SRCS}
     TEST_NAME network-manager
     NAME_PREFIX koutnet-

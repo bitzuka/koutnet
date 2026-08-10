@@ -9,8 +9,13 @@
 #
 # The file list goes through a NUL-delimited pipe rather than unquoted
 # command substitution, so a path with a space in it cannot silently turn
-# into two arguments.
+# into two arguments. The keyword flags are what make xgettext recognise
+# the ki18n family - without them it extracts nothing.
+
 find src \( -path '*/build' -o -path 'src/tests' \) -prune -o \
     \( -name '*.cpp' -o -name '*.h' -o -name '*.qml' \) -print0 \
     | sort -z \
-    | xargs -0 $XGETTEXT -o "$podir/koutnet.pot"
+    | xargs -0 $XGETTEXT --add-comments=Translators: --from-code=UTF-8 \
+        -ki18n:1 -ki18nc:1c,2 -ki18np:1,2 -ki18ncp:1c,2,3 -ktr2i18n:1 \
+        -kI18N_NOOP:1 -kI18NC_NOOP:1c,2 \
+        -o "$podir/koutnet.pot"

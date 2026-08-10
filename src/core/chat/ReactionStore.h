@@ -32,6 +32,7 @@ public:
 
     void save();
     void load();
+    void scheduleSave();
 
 Q_SIGNALS:
     void reactionsChanged(const QString &chatId, double ts);

@@ -42,7 +42,6 @@ public:
     void push(const QString &ip, const QByteArray &data);
     QByteArray mix(); // always returns kFrameBytes of PCM (silence if nobody ready)
     void dropAll();
-    int peerCount() const;
 
 private:
     QHash<QString, std::shared_ptr<PeerBuffer>> m_peers;

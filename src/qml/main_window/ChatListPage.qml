@@ -49,6 +49,11 @@ Kirigami.Page {
     signal chatActivated(string chatId)
     signal newChatRequested()
     signal forgetRequested(string chatId)
+    signal clearRequested(string chatId)
+
+    // The pinned saved-messages row, which is the only one that can be
+    // emptied: forgetting it is not on offer, so clearing it is.
+    property string selfChatId: ""
     signal leaveRoomRequested(string chatId)
     signal profileRequested(Item anchorItem)
     signal settingsRequested()
@@ -302,6 +307,12 @@ Kirigami.Page {
             // has this account in it.
             visible: !rowMenu.isRoom
             onTriggered: root.forgetRequested(rowMenu.chatId)
+        }
+        Kirigami.Action {
+            text: i18nc("@action:inmenu empty the saved messages chat", "Clear this chat")
+            icon.name: "edit-clear-all"
+            visible: rowMenu.chatId.length > 0 && rowMenu.chatId === root.selfChatId
+            onTriggered: root.clearRequested(rowMenu.chatId)
         }
         Kirigami.Action {
             text: i18nc("@action:inmenu leave a Matrix room", "Leave room")
