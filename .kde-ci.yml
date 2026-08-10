@@ -49,10 +49,10 @@ Options:
   # is written for: keys in memory only, and nothing written in plain text.
   run-tests: True
   test-before-installing: True
-  # Formatting is checked against the .clang-format at the root, the ECM one.
-  # The tree does not pass it yet - 54 sites across 14 files, nearly all block
-  # comments at column 0 inside an indented body - so expect a report here
-  # until the reformatting commit lands.
+  # Formatting is checked against the .clang-format at the root, the ECM one,
+  # and the tree passes it: the two reformatting commits are listed in
+  # .git-blame-ignore-revs, and the pre-commit hook lands the same check on
+  # every new commit.
   clang-format-versions: [18]
   run-cppcheck: True
   require-cppcheck-clean: False

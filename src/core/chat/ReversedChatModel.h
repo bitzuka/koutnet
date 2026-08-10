@@ -50,9 +50,4 @@ public:
 private:
     void connectSource();
     int sourceRowCount() const;
-
-    // Held from rowsAboutToBeInserted to rowsInserted: by the time the second
-    // arrives the source count has changed, and the range needs the count before
-    // it.
-    int m_pendingSourceCount = 0;
 };

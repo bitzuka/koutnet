@@ -8,16 +8,9 @@
 #
 # One full 40-character SHA per line; abbreviated hashes are rejected and
 # git will refuse to use the file at all.
-#
-# TODO: append the SHA of "Run the tree through the .clang-format that was
-# already sitting here" below. It is not written in yet because these
-# commits arrived as a patch series, and applying a patch mints new SHAs -
-# whatever hash the commit had before it was exported is not the hash it
-# has in this repository. Find it with:
-#     git log --format='%H %s' | grep 'clang-format that was already'
 
 # Run the tree through the .clang-format that was already sitting here
-5d4fd9762eef84ff1aa4dda79b79d344bfe2f60a
+5c03795def65448cdf0474a02145e29f413f2c9b
 
 # Run the tree through clang-format 18
 65d2b656fef97266f0bb22eb27fbb42259e8e161

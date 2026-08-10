@@ -83,10 +83,6 @@
       <default>false</default>
     </entry>
 
-    <entry name="language" key="language" type="String">
-      <default>ru</default>
-    </entry>
-
     <!-- Audio device ids as reported by QAudioDevice::id(). Empty means
          "follow the system default", which is also the fallback when a saved
          device is no longer plugged in. -->
@@ -110,11 +106,6 @@
          the main window comes up directly. -->
     <entry name="showWelcome" key="show_welcome" type="Bool">
       <default>true</default>
-    </entry>
-    <!-- Stored only. There is no updater yet, and the welcome screen says so
-         next to the checkbox. -->
-    <entry name="checkUpdatesOnStart" key="check_updates_on_start" type="Bool">
-      <default>false</default>
     </entry>
 
     <!-- The free-form nickname shown big in the profile header, as opposed to

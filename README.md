@@ -25,11 +25,12 @@ as unsupported until somebody says otherwise.
   /24 unicast sweep as a fallback where broadcast is filtered, and the Linux
   ARP cache (`/proc/net/arp`). A VPN adapter is just another local interface,
   so the same code covers LAN and tunnel.
-- **Encryption.** X25519 ECDH over the presence handshake, identities signed
-  with Ed25519, AES-256-GCM on messages and voice frames, PBKDF2-SHA256 for
-  the shared group passphrase, HMAC-SHA256 on control packets. A replay window
-  over nonce and timestamp, plus per-IP rate limiting, both with hard caps so
-  a flood cannot grow them without bound.
+- **Encryption.** X25519 ECDH over the presence handshake (libsodium's
+  crypto_kx), identities signed with Ed25519, XChaCha20-Poly1305 on messages
+  and voice frames, Argon2id for the shared group passphrase, and libsodium's
+  crypto_auth (HMAC-SHA-512/256) on control packets. A replay window over nonce
+  and timestamp, plus per-IP rate limiting, both with hard caps so a flood
+  cannot grow them without bound.
 - **Key storage.** Private keys and the group passphrase go into KWallet.
   Without a wallet the app keeps them in memory for that session and refuses
   to write them anywhere in plain text.
@@ -38,7 +39,7 @@ as unsupported until somebody says otherwise.
 - **Voice calls.** TCP with a four-byte length prefix per frame, a per-peer
   jitter buffer, and a mixer that clamps rather than wraps, so several people
   talking at once does not turn into noise.
-- **File transfer.** Chunked at 60000 bytes over UDP, reassembled with a size
+- **File transfer.** Chunked at 48000 bytes over UDP, reassembled with a size
   cap, a concurrency cap and a TTL on incomplete transfers.
 - **The rest of the window.** A notes page, a media player, and a two-column
   layout that folds to one column on a narrow window. The interface is Kirigami
@@ -48,20 +49,26 @@ as unsupported until somebody says otherwise.
   `po/`.
 - **K-Server mode, which is Matrix.** Signing in to a homeserver puts your
   joined rooms in the same conversation list as the peers found on the local
-  network, marked with a badge and otherwise identical; plain text messages
-  read and send, and the session is resumed on the next start without asking
-  again. It is libQuotient underneath, the same library NeoChat is built on, so
-  a room here and a room there are the same room and this project does not have
-  to invent federation. LAN mode is untouched by any of it and stays entirely
-  KOutNet's own protocol.
+  network, marked with a badge and otherwise identical; plain text and
+  encrypted messages read and send, and the session is resumed on the next
+  start without asking again. The session is opened with encryption on, and
+  sessions can be verified against another client of yours by comparing emoji
+  - which is also what convinces that other client to share its room keys
+  here. It is libQuotient underneath, the same library NeoChat is built on, so
+  a room here and a room there are the same room and this project does not
+  have to invent federation. LAN mode is untouched by any of it and stays
+  entirely KOutNet's own protocol.
 
 ## What does not work yet
 
-- **Encrypted Matrix rooms.** The session is opened with encryption switched
-  off, so an end-to-end encrypted room shows one notice saying so instead of
-  its messages, and refuses to send rather than posting in the clear. Device
-  verification, key backup, attachments, reactions, invites, room creation and
-  spaces over Matrix are all still to come, as are Matrix voice calls.
+- **Most of the E2EE support layer.** The session itself is encrypted and
+  messages it holds keys for decrypt and send; what is still missing is the
+  part that keeps keys available: key backup, cross-signing, and inviting
+  another device to share its room keys. A message this device has no key for
+  shows a notice in the timeline instead of its text, and sending to such a
+  room is refused when the session's key store never started. Attachments,
+  reactions, invites, room creation and spaces over Matrix are all still to
+  come, as are Matrix voice calls.
 
 - **Relay / VDS mode.** The transport is written and the reconnect backoff
   works, but no relay host ships with the app, so the mode needs a server you
@@ -141,8 +148,9 @@ cmake --install build
 
 Three suites, built by default; pass `-DBUILD_TESTING=OFF` to skip them.
 
-- `koutnet-crypto-manager` - key handling, the AES-GCM and passphrase paths,
-  replay and rate limiting, and what happens to malformed input.
+- `koutnet-crypto-manager` - key handling, the XChaCha20-Poly1305 and
+  passphrase paths, replay and rate limiting, and what happens to malformed
+  input.
 - `koutnet-network-manager` - the packet path, driven by handing
   `handleDatagram()` the bytes a datagram would have carried. No sockets are
   bound, so it runs on a machine with no network at all.

@@ -79,18 +79,7 @@ FormCard.FormCardPage {
             onActivated: (index) => ColorSchemeSelector.mode = index
         }
 
-        FormCard.FormDelegateSeparator { above: schemeCombo; below: updatesDelegate }
-
-        FormCard.FormSwitchDelegate {
-            id: updatesDelegate
-            text: i18nc("@option:check", "Check for updates at startup")
-            // The flag persists but nothing consumes it yet, so it says so.
-            description: i18nc("@info:status this option does nothing yet", "In development")
-            checked: appSettings.checkUpdatesOnStart
-            onToggled: appSettings.checkUpdatesOnStart = updatesDelegate.checked
-        }
-
-        FormCard.FormDelegateSeparator { above: updatesDelegate; below: welcomeDelegate }
+        FormCard.FormDelegateSeparator { above: schemeCombo; below: welcomeDelegate }
 
         FormCard.FormSwitchDelegate {
             id: welcomeDelegate

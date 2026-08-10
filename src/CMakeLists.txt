@@ -109,6 +109,13 @@ endif()
 
 qt_standard_project_setup(REQUIRES 6.4)
 
+# The code speaks the QT_NO_KEYWORDS dialect throughout - Q_EMIT, Q_SIGNALS and
+# Q_SLOTS, with signal/slot as plain identifiers. qt_standard_project_setup
+# already turns the cast and foreach hazards off; this is the last member of
+# that family, and turning it on is what keeps a new file from drifting into
+# the keywords version and compiling only by accident.
+add_compile_definitions(QT_NO_KEYWORDS)
+
 # One category per subsystem, so a bug report can be asked for
 # QT_LOGGING_RULES="koutnet.network.debug=true" instead of the whole log.
 # Crypto is declared into a variable of its own because the test suite compiles
