@@ -279,7 +279,6 @@ qt_add_qml_module(KOutNet
         qml/tabs/NotesPage.qml
         qml/tabs/CallLogPage.qml
         qml/tabs/PlayerPage.qml
-        qml/tabs/KeenlyPage.qml
         qml/profile/ProfileHeader.qml
         qml/profile/ProfileBlock.qml
         qml/profile/AccountCard.qml

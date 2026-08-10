@@ -78,9 +78,6 @@ as unsupported until somebody says otherwise.
   and voice are encrypted; files are not, yet.
 - **Per-group keys.** Every group currently shares the one app-wide
   passphrase. Per-group keys, or an ECDH fan-out per member, are the plan.
-- **Keenly**, the internal-network browser. The file is still in the tree
-  (`src/qml/tabs/KeenlyPage.qml`) but it is not in the global drawer, because
-  there is nothing behind it yet.
 
 ## Dependencies
 
