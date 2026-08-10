@@ -58,6 +58,12 @@ as unsupported until somebody says otherwise.
   a room here and a room there are the same room and this project does not
   have to invent federation. LAN mode is untouched by any of it and stays
   entirely KOutNet's own protocol.
+- **A transport seam.** Every chat is a `ChatBackend` registered in one
+  registry under the prefix its address starts with, and the window knows only
+  the interface - `transportName()`, the capability flags for calls, edits,
+  typing and room-shaped metadata - and nothing about any one of them. LAN mode
+  and Matrix implement the seam today; a transport written to it plugs in
+  without the window growing a branch.
 
 ## What does not work yet
 
@@ -78,6 +84,9 @@ as unsupported until somebody says otherwise.
   and voice are encrypted; files are not, yet.
 - **Per-group keys.** Every group currently shares the one app-wide
   passphrase. Per-group keys, or an ECDH fan-out per member, are the plan.
+- **Telegram and Rocket.Chat.** The seam they would plug into is in place and
+  their chat-id prefixes are reserved, but no transport has been written for
+  either yet.
 
 ## Dependencies
 
@@ -143,7 +152,8 @@ cmake --install build
 
 ## Tests
 
-Three suites, built by default; pass `-DBUILD_TESTING=OFF` to skip them.
+Six suites, built by default, plus the AppStream check KDECMakeSettings adds;
+pass `-DBUILD_TESTING=OFF` to skip them.
 
 - `koutnet-crypto-manager` - key handling, the XChaCha20-Poly1305 and
   passphrase paths, replay and rate limiting, and what happens to malformed
@@ -153,6 +163,16 @@ Three suites, built by default; pass `-DBUILD_TESTING=OFF` to skip them.
   bound, so it runs on a machine with no network at all.
 - `koutnet-file-transfer-handler` - chunk reassembly, the caps, and filename
   handling.
+- `koutnet-reversed-chat-model` - the proxy that walks the conversation model
+  backwards for the timeline, where an off-by-one is a conversation whose
+  messages all carry the wrong sender and nothing else would report it.
+- `koutnet-chat-backend-registry` - the routing over the chat-id prefix table,
+  with ten-line fake backends standing in for the real transports; no sockets,
+  no libQuotient and no wallet anywhere near it.
+- `koutnet-matrix-wiring` - the Matrix addressing and file-naming path, kept
+  free of Quotient types exactly so the decisions worth checking run without a
+  homeserver or a network.
+- `appstreamtest` - validates the installed metainfo against `appstreamcli`.
 
 ```bash
 ctest --test-dir build --output-on-failure
