@@ -154,11 +154,12 @@ int main(int argc, char *argv[])
         QObject::connect(appSettings, signal, network, publishProfile);
     }
 
-    // K-Server mode is Matrix. Deliberately not built into NetworkManager and
-    // not talking to it either: the two transports share the models and nothing
-    // else, so a change to one cannot break the other. The session is resumed
-    // whatever the current mode is - a user who switches back to LAN for an
-    // afternoon has not signed out of their homeserver.
+    // Matrix lives outside NetworkManager: libQuotient has no place in the
+    // datagram path. Both register with the chat transport registry, and the
+    // registry alone decides which backend a chat id belongs to. QML only
+    // ever talks to chatTransport. The session resumes whatever the current
+    // mode is; switching back to LAN for an afternoon does not sign the user
+    // out of their homeserver.
     //
     // Built here, resumed after the window exists - see below.
     auto *matrixManager = new koutnet::MatrixManager(appSettings, &app);

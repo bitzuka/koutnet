@@ -206,8 +206,8 @@ Kirigami.ApplicationWindow {
         unreadManager: UnreadManager
     }
 
-    // The Matrix side reaches the same two models as everything else, through
-    // the same two calls a LAN peer's traffic makes. MatrixRoomBridge holds all
+    // The Matrix side reaches the same models as everything else, through
+    // the same calls used for LAN peer traffic. MatrixRoomBridge holds all
     // the libQuotient there is; nothing below this block knows the difference.
     Connections {
         target: matrixRooms
@@ -362,7 +362,7 @@ Kirigami.ApplicationWindow {
         if (named.length > 0)
             return named
         // The conversation list remembers a name for a peer that is switched
-        // off, and it is the only place a Matrix room's name lives at all.
+        // off, and it is the only place a room name can still be found.
         const known = chatList.chatInfo(ip)
         return known.displayName || root.unknownPeerName
     }

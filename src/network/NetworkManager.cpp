@@ -194,11 +194,9 @@ bool NetworkManager::modeAvailable(int mode) const
     case ConnectionMode::Relay:
         return true;
     case ConnectionMode::KServer:
-        // K-Server means Matrix. Its transport is libQuotient's and lives in
-        // matrix/, so this class still has nothing behind the mode - but the
-        // mode itself now leads somewhere. The build refuses to configure
-        // without libQuotient, so there is no variant of it that says yes here
-        // and then finds nothing to talk to.
+        // KServer mode is Matrix. The Matrix transport lives in matrix/ and
+        // registers with the chat transport registry on its own; this class
+        // answers for LAN and Relay only.
         return true;
     }
     return false;
