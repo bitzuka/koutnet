@@ -1174,6 +1174,7 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
         fname = QFileInfo(filePath).fileName();
         ext = QFileInfo(filePath).suffix().toLower();
     }
+    data = m_crypto->encryptBytes(toIp, data);
 
     // The far side refuses anything past this cap, so sending it would only
     // burn the network: refuse up front instead of reading a multi-gigabyte
