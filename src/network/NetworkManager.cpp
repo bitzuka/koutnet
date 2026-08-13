@@ -950,8 +950,7 @@ void NetworkManager::sendGroupMessage(const QString &gid, const QString &text, c
     if (passphrase.isEmpty())
         passphrase = ensureGroupKey(gid);
     if (!m_crypto || passphrase.isEmpty()) {
-        Q_EMIT errorOccurred(i18nc("@info:status",
-                                   "Failed to create a group key - refusing to send in the clear."));
+        Q_EMIT errorOccurred(i18nc("@info:status", "Failed to create a group key - refusing to send in the clear."));
         return;
     }
 
