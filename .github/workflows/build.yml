@@ -92,3 +92,59 @@ jobs:
         run: ctest --test-dir build --output-on-failure
         env:
           QT_QPA_PLATFORM: offscreen
+
+  clazy:
+    name: clazy static analysis
+    runs-on: ubuntu-latest
+    container: opensuse/tumbleweed:latest
+    steps:
+      - name: Install checkout prerequisites
+        run: |
+          zypper --non-interactive --gpg-auto-import-keys refresh
+          zypper --non-interactive install --no-recommends \
+            nodejs-default git-core tar gzip
+
+      - uses: actions/checkout@v4
+
+      - name: Install clazy and dependencies
+        run: |
+          zypper --non-interactive install --no-recommends \
+            gcc-c++ cmake ninja pkgconf-pkg-config clazy \
+            kf6-extra-cmake-modules \
+            'cmake(Qt6Core)' \
+            'cmake(Qt6Gui)' \
+            'cmake(Qt6Qml)' \
+            'cmake(Qt6Quick)' \
+            'cmake(Qt6QuickControls2)' \
+            'cmake(Qt6QuickDialogs2)' \
+            'cmake(Qt6Multimedia)' \
+            'cmake(Qt6Network)' \
+            'cmake(Qt6Widgets)' \
+            'cmake(Qt6Test)' \
+            'cmake(KF6Config)' \
+            'cmake(KF6CoreAddons)' \
+            'cmake(KF6I18n)' \
+            'cmake(KF6IdleTime)' \
+            'cmake(KF6Kirigami)' \
+            'cmake(KF6Notifications)' \
+            'cmake(KF6StatusNotifierItem)' \
+            'cmake(KF6Wallet)' \
+            'cmake(KF6ColorScheme)' \
+            'cmake(KF6KirigamiAddons)' \
+            'cmake(QuotientQt6)' \
+            'pkgconfig(libsodium)'
+
+      # clazy is a clang frontend, so it stands in for g++ here. The
+      # check set is KDE's own, and any warning fails the job.
+      - name: Configure
+        run: |
+          export CLAZY_CHECKS="level0,level1,no-non-pod-global-static,no-inefficient-qlist,no-qhash-with-char-pointer-key,no-qt-keyword"
+          cmake -B build-clazy -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clazy
+
+      - name: Build
+        run: |
+          cmake --build build-clazy --parallel 2>&1 | tee /tmp/clazy.log
+          if grep -qE "\bwarning:" /tmp/clazy.log; then
+            grep -E "\bwarning:" /tmp/clazy.log | head -40
+            exit 1
+          fi
