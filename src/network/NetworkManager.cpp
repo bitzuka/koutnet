@@ -3,6 +3,7 @@
 // KOutNet - Network & Audio core
 #include "NetworkManager.h"
 #include "../core/security/CryptoManager.h"
+#include "../core/security/SecretStore.h"
 #include "FileTransferHandler.h"
 #include "Protocol.h"
 
@@ -158,6 +159,53 @@ void NetworkManager::setStatus(int presence, const QString &statusEmoji)
 void NetworkManager::setGroupPassphrase(const QString &passphrase)
 {
     m_groupPassphrase = passphrase;
+}
+
+QString NetworkManager::groupKeyWalletKey(const QString &gid)
+{
+    return QStringLiteral("group_key/") + gid;
+}
+
+QString NetworkManager::groupKeyFor(const QString &gid)
+{
+    const auto it = m_groupKeys.constFind(gid);
+    if (it != m_groupKeys.constEnd())
+        return it.value();
+
+    QString key;
+    if (SecretStore::read(groupKeyWalletKey(gid), &key) && !key.isEmpty()) {
+        m_groupKeys.insert(gid, key);
+        return key;
+    }
+    return QString();
+}
+
+void NetworkManager::setGroupKey(const QString &gid, const QString &key)
+{
+    if (key.isEmpty()) {
+        m_groupKeys.remove(gid);
+        SecretStore::remove(groupKeyWalletKey(gid));
+        return;
+    }
+    m_groupKeys.insert(gid, key);
+    SecretStore::write(groupKeyWalletKey(gid), key);
+}
+
+void NetworkManager::removeGroupKey(const QString &gid)
+{
+    setGroupKey(gid, QString());
+}
+
+QString NetworkManager::ensureGroupKey(const QString &gid)
+{
+    if (const QString existing = groupKeyFor(gid); !existing.isEmpty())
+        return existing;
+
+    const QString key = randomHex(32);
+    m_groupKeys.insert(gid, key);
+    if (!SecretStore::write(groupKeyWalletKey(gid), key))
+        qCWarning(KOUTNET_LOG_NETWORK) << "group key for" << gid << "not persisted - KWallet unavailable, this session only";
+    return key;
 }
 
 void NetworkManager::setConnectionMode(ConnectionMode mode)
@@ -568,6 +616,16 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
     } else if (type == protocol::kMsgFileData) {
         Q_EMIT fileChunk(msg);
     } else if (type == protocol::kMsgGroupInv) {
+        // The invitation may carry the group key, sealed under our session
+        // with the sender. Opening it is a session decrypt, synchronous and
+        // cheap - no attacker salt involved - so it is safe to do in dispatch.
+        const QString gid = msg.value(QStringLiteral("gid")).toString();
+        const QString sealedKey = msg.value(QStringLiteral("key")).toString();
+        if (!sealedKey.isEmpty() && m_crypto) {
+            const QString key = m_crypto->decrypt(sealedKey, QString(), peerId);
+            if (!key.isEmpty())
+                setGroupKey(gid, key);
+        }
         Q_EMIT groupInvite(msg.value(QStringLiteral("gid")).toString(), msg.value(QStringLiteral("gname")).toString(), host);
     } else if (type == protocol::kMsgTyping) {
         Q_EMIT typing(msg.value(QStringLiteral("username")).toString(), msg.value(QStringLiteral("chat_id")).toString(QStringLiteral("public")), host);
@@ -581,10 +639,23 @@ void NetworkManager::decryptMessageText(const QString &peerRef, QJsonObject msg,
         return;
     }
 
+    // A group message is sealed under its own key; anything without a gid -
+    // private messages sent before the handshake, old group traffic - falls
+    // back to the shared app-wide passphrase, and to cleartext when none
+    // exists. A group whose key we do not hold lands on the same fallback:
+    // the sender no longer uses it, so the text simply fails to open.
+    QString passphrase = m_groupPassphrase;
+    const QVariant gid = msg.value(QStringLiteral("gid"));
+    if (!gid.isNull()) {
+        const QString key = groupKeyFor(gid.toString());
+        if (!key.isEmpty())
+            passphrase = key;
+    }
+
     // The sender "encrypted" flag used to decide this, so clearing it was enough to
     // have the text handed to the UI unchecked. What matters is whether we hold a key
     // for this channel; decrypt() refuses cleartext once we do.
-    if (!m_crypto->hasSession(peerRef) && m_groupPassphrase.isEmpty()) {
+    if (!m_crypto->hasSession(peerRef) && passphrase.isEmpty()) {
         done(msg);
         return;
     }
@@ -592,7 +663,7 @@ void NetworkManager::decryptMessageText(const QString &peerRef, QJsonObject msg,
     const QString cipherText = msg.value(QStringLiteral("text")).toString();
     // Async so an attacker's fresh-salt flood pays for the KDF on a worker
     // thread rather than in the GUI's event loop (see CryptoManager::decryptAsync).
-    m_crypto->decryptAsync(cipherText, m_groupPassphrase, peerRef, [msg, done](const QString &plain, bool delivered) mutable {
+    m_crypto->decryptAsync(cipherText, passphrase, peerRef, [msg, done](const QString &plain, bool delivered) mutable {
         if (!delivered)
             return; // the queue gate refused it: a flood is dropped, not rendered
         msg[QStringLiteral("text")] = plain;
@@ -871,17 +942,20 @@ void NetworkManager::sendPrivate(const QString &text, const QString &toIp)
 
 void NetworkManager::sendGroupMessage(const QString &gid, const QString &text, const QVector<QString> &members)
 {
-    // TODO: per-group passphrase, or per-member ECDH fan-out, once GroupManager
-    // can store one. For now every group shares the app-wide passphrase, which
-    // is also what the receiving side decrypts with.
-    if (!m_crypto || m_groupPassphrase.isEmpty()) {
+    // One key per group. The group's first message creates it; without a wallet
+    // the generated key still protects this session, it just does not survive a
+    // restart. The old shared passphrase is not used for a group that has a key
+    // of its own, which is the point of this state existing.
+    QString passphrase = groupKeyFor(gid);
+    if (passphrase.isEmpty())
+        passphrase = ensureGroupKey(gid);
+    if (!m_crypto || passphrase.isEmpty()) {
         Q_EMIT errorOccurred(i18nc("@info:status",
-                                   "Set a group passphrase before sending to a group - "
-                                   "refusing to send in the clear."));
+                                   "Failed to create a group key - refusing to send in the clear."));
         return;
     }
 
-    const QString cipherText = m_crypto->encrypt(text, m_groupPassphrase, QString());
+    const QString cipherText = m_crypto->encrypt(text, passphrase, QString());
     if (cipherText == text) {
         // encrypt() hands back the plaintext when it fails, and sending that
         // would leak the message the user thinks is protected
@@ -1004,6 +1078,14 @@ void NetworkManager::sendGroupInvite(const QString &gid, const QString &gname, c
     payload[QStringLiteral("type")] = protocol::kMsgGroupInv;
     payload[QStringLiteral("gid")] = gid;
     payload[QStringLiteral("gname")] = gname;
+    // The group key rides along only under a session with the invitee: out in
+    // the open it would hand the group to every sniffer on the LAN, and an
+    // invitee without one joins blind, catching up when a key arrives some
+    // safer way. sendGroupMessage() is happy to create a key on this side, so
+    // this does not even have to be the group's first message.
+    const QString key = groupKeyFor(gid);
+    if (!key.isEmpty() && m_crypto && m_crypto->hasSession(toIp))
+        payload[QStringLiteral("key")] = m_crypto->encrypt(key, QString(), toIp);
     sendUdp(payload, toIp);
 }
 

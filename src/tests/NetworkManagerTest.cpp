@@ -983,6 +983,103 @@ private Q_SLOTS:
         QCOMPARE(ringing.count(), 1);
     }
 
+    // A group sealed under its own key opens for a member holding that key,
+    // with no shared passphrase set at all - the per-group state in action.
+    void aGroupMessageSealedUnderItsOwnKeyIsReadBack()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+        h.net.setGroupKey(QStringLiteral("g1"), QStringLiteral("k1"));
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgGroup;
+        o[QStringLiteral("gid")] = QStringLiteral("g1");
+        // The "nobody-here" ref trips either fallback: neither the session key
+        // nor the shared passphrase can open it, only the group key can.
+        o[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("per group"), QStringLiteral("k1"), QStringLiteral("nobody-here"));
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+
+        QTRY_VERIFY_WITH_TIMEOUT(messages.count() == 1, 30000);
+        const QJsonObject got = messages.at(0).at(0).toJsonObject();
+        QCOMPARE(got.value(QStringLiteral("text")).toString(), QStringLiteral("per group"));
+    }
+
+    // A message sealed under another group's key must never open under this
+    // one: the tag fails and the timeline shows the decrypt error notice, not
+    // the text - a wrong key is never silently rendered as if it were the
+    // right one.
+    void aGroupMessageSealedUnderAnotherKeyNeverOpensHere()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+        h.net.setGroupKey(QStringLiteral("g1"), QStringLiteral("k1"));
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgGroup;
+        o[QStringLiteral("gid")] = QStringLiteral("g1");
+        o[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("from another group"), QStringLiteral("k2"), QStringLiteral("nobody-here"));
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+
+        QTRY_VERIFY_WITH_TIMEOUT(messages.count() == 1, 30000);
+        const QString text = messages.at(0).at(0).toJsonObject().value(QStringLiteral("text")).toString();
+        QVERIFY(!text.isEmpty());
+        QVERIFY(text != QStringLiteral("from another group"));
+    }
+
+    // A group that predates per-group keys keeps working on the shared
+    // passphrase - the only key its members were ever given. The gid alone is
+    // not what decides: the gid must have a key of its own to leave the
+    // fallback.
+    void aGroupWithoutItsOwnKeyUsesTheSharedPassphrase()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+        h.net.setGroupPassphrase(QStringLiteral("gruppo"));
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgGroup;
+        o[QStringLiteral("gid")] = QStringLiteral("old");
+        o[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("still shared"), QStringLiteral("gruppo"), QStringLiteral("nobody-here"));
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+
+        QTRY_VERIFY_WITH_TIMEOUT(messages.count() == 1, 30000);
+        const QJsonObject got = messages.at(0).at(0).toJsonObject();
+        QCOMPARE(got.value(QStringLiteral("text")).toString(), QStringLiteral("still shared"));
+    }
+
+    // An invite from a peer we share a session with delivers the group key
+    // under that session: the invite lands, the key is stored under the gid,
+    // and a message sealed under it reads back afterwards.
+    void anInviteDeliversTheGroupKeyUnderTheSession()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy invites(&h.net, &NetworkManager::groupInvite);
+        QJsonObject inv;
+        inv[QStringLiteral("type")] = protocol::kMsgGroupInv;
+        inv[QStringLiteral("gid")] = QStringLiteral("g2");
+        inv[QStringLiteral("gname")] = QStringLiteral("crew");
+        inv[QStringLiteral("key")] = h.peer.encrypt(QStringLiteral("k2"), QString(), kSelfLabel);
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, inv)));
+        QCOMPARE(invites.count(), 1);
+        QCOMPARE(invites.at(0).at(0).toString(), QStringLiteral("g2"));
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgGroup;
+        o[QStringLiteral("gid")] = QStringLiteral("g2");
+        o[QStringLiteral("text")] = h.peer.encrypt(QStringLiteral("invited and keyed"), QStringLiteral("k2"), QStringLiteral("nobody-here"));
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+
+        QTRY_VERIFY_WITH_TIMEOUT(messages.count() == 1, 30000);
+        const QJsonObject got = messages.at(0).at(0).toJsonObject();
+        QCOMPARE(got.value(QStringLiteral("text")).toString(), QStringLiteral("invited and keyed"));
+    }
+
     // The Argon2id receive path: a passphrase-sealed message with a fresh salt
     // is decrypted on the worker thread and arrives through the queue. The text
     // is sealed under the passphrase rather than the session - that is what a

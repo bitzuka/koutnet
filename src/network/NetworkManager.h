@@ -113,6 +113,16 @@ public:
     // everyone knows is the only thing that can protect it. Empty means cleartext.
     void setGroupPassphrase(const QString &passphrase);
 
+    // One key per group, so opening one group's traffic says nothing about the
+    // next. The key is generated on the group's first message and kept in
+    // KWallet under the gid; a group that predates this state still works, on
+    // the shared passphrase, and a member without the group key falls back the
+    // same way. Pushing an explicit key here is for tests and future UI; the
+    // LAN path hands keys through invites, sealed under the session with the
+    // invitee when one exists.
+    Q_INVOKABLE void setGroupKey(const QString &gid, const QString &key);
+    Q_INVOKABLE void removeGroupKey(const QString &gid);
+
     // Addresses to unicast presence to every cycle until they answer.
     // main.cpp feeds it from AppSettings; the settings page applies edits
     // the same way it applies the K-Server fields.
@@ -258,6 +268,12 @@ private:
     // No relay / tunnel members here any more; the mode is gone for good.
     ConnectionMode m_mode = ConnectionMode::LanOrVpn;
     QString m_groupPassphrase;
+    // gid -> its own key. The mirror of what the wallet holds, kept because a
+    // wallet read on every decrypted group message would date every group chat.
+    QHash<QString, QString> m_groupKeys;
+    static QString groupKeyWalletKey(const QString &gid);
+    QString groupKeyFor(const QString &gid);
+    QString ensureGroupKey(const QString &gid);
     QString m_profileHandle;
     QString m_profileDisplayName;
     QString m_profileBio;
