@@ -109,7 +109,7 @@ jobs:
       - name: Install clazy and dependencies
         run: |
           zypper --non-interactive install --no-recommends \
-            gcc-c++ cmake ninja pkgconf-pkg-config clazy \
+            gcc-c++ cmake ninja pkgconf-pkg-config clazy openmp-devel \
             kf6-extra-cmake-modules \
             'cmake(Qt6Core)' \
             'cmake(Qt6Gui)' \
