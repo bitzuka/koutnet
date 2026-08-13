@@ -115,18 +115,10 @@ void NetworkManager::setActiveCalls(const QSet<QString> &ips)
     m_activeCalls = ips;
 }
 
-void NetworkManager::setRelayServer(const QString &host, quint16 tunnelPort, quint16 voicePort)
-{
-    // Fed by main.cpp from AppSettings, which persists it across restarts.
-    m_relayHostOverride = host;
-    m_relayPortOverride = tunnelPort;
-    m_relayVoicePortOverride = voicePort ? voicePort : quint16(tunnelPort + 1);
-}
-
 void NetworkManager::setStaticPeers(const QStringList &ips)
 {
     // Deliberately not re-read from AppSettings here: main.cpp passes the
-    // value once at start and on change, like it does for the relay server.
+    // value once at start and on change.
     m_staticPeers = ips;
 }
 
@@ -170,27 +162,11 @@ void NetworkManager::setGroupPassphrase(const QString &passphrase)
 
 void NetworkManager::setConnectionMode(ConnectionMode mode)
 {
-    // Only the relay mode raises the tunnel. K-Server will have a transport of its own
-    // and does not exist yet; the maintainer VDS is a K-Server address now.
-    const bool wantRelay = (mode == ConnectionMode::Relay);
-    const bool relayChanged = (wantRelay != m_internetMode);
-
+    // Nothing to tear up or down here since the relay tunnel was cut: the mode
+    // only tells QML which transport to route through.
     m_mode = mode;
-    m_internetMode = wantRelay;
-
-    if (!relayChanged || !m_running)
+    if (!m_running)
         return; // applied on next start()
-
-    if (m_internetMode) {
-        m_relayReconnectMs = protocol::kRelayReconnectBaseMs;
-        startInternetTunnel();
-    } else if (m_relaySocket) {
-        m_relaySocket->disconnect(this); // don't trigger the reconnect-on-disconnect handler below
-        m_relaySocket->close();
-        m_relaySocket->deleteLater();
-        m_relaySocket = nullptr;
-        m_relayConnected = false;
-    }
 }
 
 bool NetworkManager::modeAvailable(int mode) const
@@ -198,12 +174,10 @@ bool NetworkManager::modeAvailable(int mode) const
     switch (static_cast<ConnectionMode>(mode)) {
     case ConnectionMode::LanOrVpn:
         return true;
-    case ConnectionMode::Relay:
-        return true;
     case ConnectionMode::KServer:
         // KServer mode is Matrix. The Matrix transport lives in matrix/ and
         // registers with the chat transport registry on its own; this class
-        // answers for LAN and Relay only.
+        // answers for LAN only.
         return true;
     }
     return false;
@@ -255,8 +229,6 @@ bool NetworkManager::start()
     m_localIps.insert(m_hostIp);
 
     m_broadcastTimer.start(kActiveBroadcastMs); // fast discovery until peers are found
-    if (m_internetMode)
-        startInternetTunnel();
 
     onBroadcastTimer(); // first broadcast immediately
 
@@ -287,16 +259,6 @@ void NetworkManager::stop()
     }
     m_pendingVoice.clear();
 
-    // Not conditional on m_internetMode: the socket exists or it does not, and a mode
-    // changed since it was opened is no reason to leave its handlers attached.
-    if (m_relaySocket) {
-        m_relaySocket->disconnect(this);
-        m_relaySocket->close();
-        m_relaySocket->deleteLater();
-        m_relaySocket = nullptr;
-        m_relayConnected = false;
-    }
-    m_relayBuffer.clear();
     if (m_udp) {
         m_udp->close();
         m_udp->deleteLater();
@@ -399,13 +361,6 @@ void NetworkManager::onBroadcastTimer()
     if (!m_running)
         return;
 
-    // Internet mode tunnels the presence instead of broadcasting it: the relay
-    // is the broadcast domain there, and the same cadence keeps it fed.
-    if (m_internetMode) {
-        if (m_relaySocket && m_relayConnected)
-            sendUdpToAll(presencePayload(), QVector<QString>());
-        return;
-    }
     if (!m_udp)
         return;
 
@@ -458,8 +413,6 @@ void NetworkManager::onBroadcastTimer()
     // 5. Static peers: a unicast presence packet each cycle, but only to
     //    addresses that have not answered yet. A peer that answers keeps
     //    itself alive from then on; a silent one is not reminded every cycle.
-    // 6. TODO: relay server unicast, once there is a relay to send to - see
-    //    setRelayServer() and protocol::builtinRelays().
     const QStringList targets = staticUnicastTargets(m_staticPeers, m_peers, m_hostIp);
     for (const QString &target : std::as_const(targets))
         m_udp->writeDatagram(data, QHostAddress(target), port);
@@ -812,132 +765,6 @@ void NetworkManager::onVoiceDisconnected(QTcpSocket *sock, const QString &ip)
     Q_EMIT callEnded(ip);
 }
 
-// internet relay tunnel (TODO: move to network/vds once that module lands)
-void NetworkManager::startInternetTunnel()
-{
-    QString host = m_relayHostOverride;
-    quint16 port = m_relayPortOverride;
-
-    if (host.isEmpty() || port == 0) {
-        const auto &builtins = protocol::builtinRelays();
-        if (!builtins.isEmpty()) {
-            host = QString::fromLatin1(builtins.first().host);
-            port = builtins.first().tunnelPort;
-        }
-    }
-
-    if (host.isEmpty() || port == 0) {
-        // Nothing to connect to, so do not spam-reconnect - just check back in case
-        // the user configures a relay or an update ships a built-in one.
-        Q_EMIT errorOccurred(i18nc("@info:status",
-                                   "VDS mode is on but no relay server is configured. "
-                                   "Set one in Settings, or switch back to LAN/VPN mode."));
-        QTimer::singleShot(protocol::kRelayReconnectMaxMs, this, [this] {
-            if (m_internetMode && m_running)
-                startInternetTunnel();
-        });
-        return;
-    }
-
-    // One socket at a time. Every retry used to hand m_relaySocket a fresh
-    // QTcpSocket and leave the old one alive with its handlers attached.
-    if (m_relaySocket) {
-        m_relaySocket->disconnect(this);
-        m_relaySocket->abort();
-        m_relaySocket->deleteLater();
-    }
-    m_relayConnected = false;
-
-    auto *sock = new QTcpSocket(this);
-    m_relaySocket = sock;
-
-    connect(sock, &QTcpSocket::connected, this, [this, sock] {
-        if (m_relaySocket != sock)
-            return; // a newer attempt already replaced this socket
-        m_relayConnected = true;
-        m_relayBuffer.clear(); // a fresh stream never continues the old one
-        m_relayReconnectMs = protocol::kRelayReconnectBaseMs; // reset backoff on success
-        onBroadcastTimer();
-    });
-    connect(sock, &QTcpSocket::readyRead, this, [this, sock] {
-        if (m_relaySocket != sock)
-            return;
-        onRelayData();
-    });
-    connect(sock, &QTcpSocket::disconnected, this, [this, sock] {
-        if (m_relaySocket != sock)
-            return;
-        m_relayConnected = false;
-        m_relayBuffer.clear();
-        scheduleRelayReconnect();
-    });
-    // A connect that never lands (refused, unreachable, bad name) emits this
-    // and never disconnected(), so it is the only place that hears about it.
-    connect(sock, &QTcpSocket::errorOccurred, this, [this, sock](QAbstractSocket::SocketError) {
-        if (m_relaySocket != sock || m_relayConnected)
-            return; // an established link that drops is disconnected()'s job
-        Q_EMIT errorOccurred(i18nc("@info:status %1 is a socket error message", "Tunnel connect failed: %1", sock->errorString()));
-        scheduleRelayReconnect();
-    });
-
-    // No waitForConnected: this runs on the GUI thread, so it froze the whole
-    // window for three seconds on every attempt, retries included.
-    sock->connectToHost(host, port);
-}
-
-// Same 4-byte big-endian framing as onVoiceData, one compact JSON object per frame.
-void NetworkManager::onRelayData()
-{
-    m_relayBuffer += m_relaySocket->readAll();
-
-    QVector<QByteArray> frames;
-    while (m_relayBuffer.size() >= protocol::kFrameHeaderBytes) {
-        const quint32 len = readLengthPrefix(m_relayBuffer);
-        if (len == 0 || len > protocol::kMaxRelayFrameBytes) {
-            Q_EMIT errorOccurred(i18nc("@info:status %1 is a byte count", "Relay frame declared %1 bytes - dropping the tunnel.", len));
-            m_relayBuffer.clear();
-            // the disconnected handler clears the flag and schedules the
-            // reconnect, so abort() is all that is needed here
-            m_relaySocket->abort();
-            return;
-        }
-        if (quint32(m_relayBuffer.size() - protocol::kFrameHeaderBytes) < len)
-            break; // wait for the rest
-        frames.append(m_relayBuffer.mid(protocol::kFrameHeaderBytes, int(len)));
-        m_relayBuffer.remove(0, protocol::kFrameHeaderBytes + int(len));
-    }
-
-    for (const auto &frame : std::as_const(frames)) {
-        QJsonParseError parseErr;
-        const auto doc = QJsonDocument::fromJson(frame, &parseErr);
-        if (parseErr.error != QJsonParseError::NoError || !doc.isObject()) {
-            Q_EMIT errorOccurred(i18nc("@info:status %1 is the parser message", "Relay parse error: %1", parseErr.errorString()));
-            continue;
-        }
-        const QJsonObject msg = doc.object();
-        // The TCP peer is the relay, not the sender, so the source address has to come
-        // out of the payload - the replay guard and the peer table are keyed on it.
-        QString host = msg.value(QStringLiteral("from_ip")).toString();
-        if (host.isEmpty())
-            host = msg.value(QStringLiteral("ip")).toString();
-        if (host.isEmpty()) {
-            Q_EMIT errorOccurred(i18nc("@info:status", "Relay frame with no sender address - dropping."));
-            continue;
-        }
-        dispatch(host, msg);
-    }
-}
-
-void NetworkManager::scheduleRelayReconnect()
-{
-    const int delay = m_relayReconnectMs;
-    m_relayReconnectMs = qMin(m_relayReconnectMs * 2, protocol::kRelayReconnectMaxMs);
-    QTimer::singleShot(delay, this, [this] {
-        if (m_internetMode && m_running)
-            startInternetTunnel();
-    });
-}
-
 void NetworkManager::sendUdp(QJsonObject payload, const QString &targetIp)
 {
     sendUdpToAll(std::move(payload), targetIp.isEmpty() ? QVector<QString>{} : QVector<QString>{targetIp});
@@ -973,10 +800,7 @@ void NetworkManager::sendUdpToAll(QJsonObject payload, const QVector<QString> &t
 
     const QByteArray data = QJsonDocument(payload).toJson(QJsonDocument::Compact);
 
-    if (m_internetMode) {
-        if (m_relaySocket && m_relayConnected)
-            m_relaySocket->write(lengthPrefix(quint32(data.size())) + data);
-    } else if (!targets.isEmpty()) {
+    if (!targets.isEmpty()) {
         for (const QString &target : targets)
             m_udp->writeDatagram(data, QHostAddress(target), protocol::kUdpPortDefault);
     } else {
@@ -1286,24 +1110,6 @@ bool NetworkManager::connectVoice(const QString &ip)
     if (m_pendingVoice.contains(ip))
         return true; // an attempt is already in flight for this peer
 
-    QString relayHost;
-    quint16 relayPort = 0;
-    if (m_internetMode) {
-        relayHost = m_relayHostOverride;
-        relayPort = m_relayVoicePortOverride;
-        if (relayHost.isEmpty() || relayPort == 0) {
-            const auto &builtins = protocol::builtinRelays();
-            if (!builtins.isEmpty()) {
-                relayHost = QString::fromLatin1(builtins.first().host);
-                relayPort = builtins.first().voicePort;
-            }
-        }
-        if (relayHost.isEmpty() || relayPort == 0) {
-            Q_EMIT errorOccurred(i18nc("@info:status", "VDS voice relay is not configured - cannot start the call."));
-            return false;
-        }
-    }
-
     auto *sock = new QTcpSocket(this);
     m_pendingVoice[ip] = sock;
 
@@ -1331,10 +1137,7 @@ bool NetworkManager::connectVoice(const QString &ip)
 
     // No waitForConnected: it blocked the GUI thread for up to three seconds while the
     // callee ringtone was supposed to be playing.
-    if (m_internetMode)
-        sock->connectToHost(relayHost, relayPort);
-    else
-        sock->connectToHost(QHostAddress(ip), m_voiceTcpPort);
+    sock->connectToHost(QHostAddress(ip), m_voiceTcpPort);
 
     return true;
 }

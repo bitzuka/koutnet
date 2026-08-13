@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
     KAboutData aboutData(QStringLiteral("koutnet"),
                          i18nc("@title application name", "KOutNet"),
                          QStringLiteral(KOUTNET_VERSION_STRING),
-                         i18nc("@info:whatsthis", "P2P encrypted messenger for LAN, VPN and relay"),
+                         i18nc("@info:whatsthis", "P2P encrypted messenger for LAN, VPN and Matrix"),
                          KAboutLicense::GPL_V3,
                          i18nc("@info:credit", "Copyright 2026 bitzuka"));
     aboutData.addAuthor(i18nc("@info:credit", "bitzuka"), i18nc("@info:credit", "Author and maintainer"), QStringLiteral("bitzuka.koutnet@gmail.com"));
@@ -124,7 +124,6 @@ int main(int argc, char *argv[])
     auto *appSettings = new koutnet::AppSettings(&app);
     auto *network = new koutnet::NetworkManager(crypto, &app);
 
-    network->setRelayServer(appSettings->relayHost(), quint16(appSettings->relayPort()));
     network->setStaticPeers(appSettings->staticPeers());
     network->setConnectionMode(static_cast<koutnet::NetworkManager::ConnectionMode>(appSettings->connectionMode()));
     auto *voice = new koutnet::VoiceCallManager(network, crypto, &app);

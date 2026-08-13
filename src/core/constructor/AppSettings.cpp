@@ -40,9 +40,10 @@ QString configGroupName()
 //
 // 1: values rewritten as UTF-8, undoing QSettings' \xNNNN escaping.
 // 2: the three K-Server connection modes collapsed into one.
+// 3: the relay / VDS mode cut out entirely; such a mode falls back to LAN/VPN.
 constexpr int kConfigVersionUnescaped = 1;
-constexpr int kConfigVersionMergedKServer = 2;
-constexpr int kCurrentConfigVersion = kConfigVersionMergedKServer;
+constexpr int kConfigVersionNoRelay = 3;
+constexpr int kCurrentConfigVersion = kConfigVersionNoRelay;
 
 // Long enough that a dragged slider settles into a single write, short enough
 // that a crash immediately after a change is the only way to lose one.
@@ -129,22 +130,25 @@ void AppSettings::migrateEscapedValues()
 // ConnectionMode used to have five entries: LAN/VPN, a K-Server this user runs, a
 // K-Server somebody else runs, a plain relay, and the maintainer's deployment.
 // Three of those were one protocol at three addresses, so they are one mode now
-// with the address as a setting, and relay moved down to fill the gap they left.
+// with the address as a setting, relay filled the gap they left, and then the
+// relay mode itself was cut from the application, leaving two modes.
 //
 // Old -> new, which is the whole of it:
 //   0 LanOrVpn          -> 0 LanOrVpn
 //   1 KServerSelfHosted -> 1 KServer
 //   2 KServerClient     -> 1 KServer
-//   3 Relay             -> 2 Relay
+//   3 Relay             -> 0 LanOrVpn
 //   4 MaintainerVds     -> 1 KServer
 //
-// Nobody loses a working connection: of the three that merged, none had a
-// transport behind it - modeAvailable() said so for all three - so a config
-// holding 1, 2 or 4 was a config for a mode that had never connected to anything.
-// 0 and 3 are the two that worked, and both keep their meaning.
+// A mode number also read back as 2 when the relay had replaced the merged
+// K-Server entries; that too falls to LAN/VPN, the only mode with nothing to
+// configure. Nobody loses a working connection the other way: of the three
+// that eventually merged, none had a transport behind it - modeAvailable()
+// said so for all three - so a config holding 1, 2 or 4 was a config for a
+// mode that had never connected to anything.
 void AppSettings::migrateConnectionModes()
 {
-    if (configVersion() >= kConfigVersionMergedKServer)
+    if (configVersion() >= kConfigVersionNoRelay)
         return;
 
     // Only a file that has the key. Without this, a pre-KConfig file whose mode
@@ -156,12 +160,13 @@ void AppSettings::migrateConnectionModes()
 
     switch (connectionMode()) {
     case 1:
-    case 2:
     case 4:
         setConnectionMode(1);
         break;
+    case 2:
     case 3:
-        setConnectionMode(2);
+        // The relay under either numbering; it no longer exists.
+        setConnectionMode(0);
         break;
     default:
         // 0 is LAN/VPN in both numberings. Anything else was never a mode this
@@ -177,8 +182,12 @@ void AppSettings::adoptLegacyConnectionMode()
         return;
 
     // The mode used to be a bool. Anyone whose old key said true was on the
-    // relay, which is mode 2 since the K-Server modes merged.
-    setConnectionMode(group.readEntry(QStringLiteral("vds_mode"), false) ? 2 : 0);
+    // relay, which no longer exists; LAN/VPN is where a relay user lands too.
+    KConfigGroup group(config(), configGroupName());
+    if (!group.hasKey(QStringLiteral("vds_mode")) || group.hasKey(QStringLiteral("connection_mode")))
+        return;
+
+    setConnectionMode(0);
 }
 
 void AppSettings::adoptHandleAsDisplayName()

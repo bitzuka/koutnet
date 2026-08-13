@@ -14,7 +14,7 @@ import koutnet.app
 // content was an identity block, six fields and a row of empty media shelves reads
 // as empty; the fields were settings all along. Nothing here writes the config file
 // directly, AppSettings coalesces that, except the Network group, which has a
-// button because switching mode tears the relay tunnel up or down.
+// button because switching mode is a transport change, not a field apply.
 FormCard.FormCardPage {
     id: root
 
@@ -42,9 +42,8 @@ FormCard.FormCardPage {
     readonly property real kContentWidth: Math.max(Kirigami.Units.gridUnit * 20,
         Math.min(root.width - Kirigami.Units.largeSpacing * 4, Kirigami.Units.gridUnit * 48))
 
-    // NetworkManager owns the enum; these two are the values with a field here.
+    // NetworkManager owns the enum; these are the values with a field here.
     readonly property bool usesKServer: appSettings.connectionMode === 1
-    readonly property bool usesRelay: appSettings.connectionMode === 2
 
     // A "system default" row, so an empty saved device id still selects something.
     function deviceList(devices) {
@@ -559,7 +558,6 @@ FormCard.FormCardPage {
             model: [
                 i18nc("@item:inlistbox network mode", "Local network (LAN)"),
                 i18nc("@item:inlistbox network mode", "K-Server"),
-                i18nc("@item:inlistbox network mode", "Relay (not a K-Server)"),
             ]
             currentIndex: appSettings.connectionMode
             onActivated: (index) => {
@@ -594,29 +592,7 @@ FormCard.FormCardPage {
             onValueChanged: appSettings.kServerPort = kServerPortField.value
         }
 
-        FormCard.FormDelegateSeparator { above: kServerPortField; below: relayHostField }
-
-        FormCard.FormTextFieldDelegate {
-            id: relayHostField
-            label: i18nc("@label:textbox", "Relay server address")
-            enabled: root.usesRelay
-            text: appSettings.relayHost
-            onEditingFinished: appSettings.relayHost = text
-        }
-
-        FormCard.FormDelegateSeparator { above: relayHostField; below: relayPortField }
-
-        FormCard.FormSpinBoxDelegate {
-            id: relayPortField
-            label: i18nc("@label:spinbox", "Relay server port")
-            enabled: root.usesRelay
-            from: 0
-            to: 65535
-            value: appSettings.relayPort
-            onValueChanged: appSettings.relayPort = relayPortField.value
-        }
-
-        FormCard.FormDelegateSeparator { above: relayPortField; below: staticPeersField }
+        FormCard.FormDelegateSeparator { above: kServerPortField; below: staticPeersField }
 
         FormCard.FormTextFieldDelegate {
             id: staticPeersField
@@ -632,13 +608,12 @@ FormCard.FormCardPage {
         FormCard.FormDelegateSeparator { above: staticPeersField; below: applyDelegate }
 
         // AppSettings only persists; the running NetworkManager is told separately,
-        // and switching mode tears the relay tunnel up or down, so it waits.
+        // and switching mode is a transport change, so it waits for the button.
         FormCard.FormButtonDelegate {
             id: applyDelegate
             text: i18nc("@action:button apply the connection settings to the running network layer", "Apply connection settings")
             icon.name: "dialog-ok-apply"
             onClicked: {
-                networkManager.setRelayServer(appSettings.relayHost, appSettings.relayPort, 0)
                 networkManager.setStaticPeers(appSettings.staticPeers)
                 networkManager.setConnectionMode(appSettings.connectionMode)
                 root.saved()

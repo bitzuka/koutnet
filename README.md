@@ -83,10 +83,6 @@ as unsupported until somebody says otherwise.
   reactions, invites, room creation and spaces over Matrix are all still to
   come, as are Matrix voice calls.
 
-- **Relay / VDS mode.** The transport is written and the reconnect backoff
-  works, but no relay host ships with the app, so the mode needs a server you
-  supply yourself through `NetworkManager::setRelayServer()`. There is no
-  public KOutNet relay.
 - **Per-group keys.** Every group currently shares the one app-wide
   passphrase. Per-group keys, or an ECDH fan-out per member, are the plan.
 - **Telegram and Rocket.Chat.** The seam they would plug into is in place and

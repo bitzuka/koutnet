@@ -40,18 +40,18 @@ public:
     // receipts, edits), used by Main.qml only where the backend it routed to
     // is this one - see the capability flags on ChatBackend.
     // LanOrVpn: broadcast, mDNS and ARP discovery over any local interface, no
-    // server. KServer: a K-Server, wherever it is. Relay: discovery and NAT
-    // traversal through a relay, which setRelayServer() has to supply for now.
+    // server. KServer: a K-Server, wherever it is. A relay mode used to sit
+    // here too; it is gone, there is no relay host to ship with the app.
     // Three K-Server entries used to sit here - self-hosted, somebody else's, and
     // the maintainer's VDS - with one protocol behind all three; the only thing that
     // differed was the address, which is a setting (kServerHost) and not a mode.
     // The values are persisted and read back as ints, so reordering them silently
-    // moves everyone to a different mode. They changed once, when those three became
-    // one; that migration is AppSettings::migrateConnectionModes().
+    // moves everyone to a different mode. They changed when those three became
+    // one, and when the relay mode was dropped; that migration is
+    // AppSettings::migrateConnectionModes().
     enum class ConnectionMode {
         LanOrVpn = 0,
         KServer = 1,
-        Relay = 2,
     };
     Q_ENUM(ConnectionMode)
     // CryptoManager is owned by the application and injected here, never created
@@ -113,14 +113,9 @@ public:
     // everyone knows is the only thing that can protect it. Empty means cleartext.
     void setGroupPassphrase(const QString &passphrase);
 
-    // Custom/self-hosted relay server. voicePort defaults to tunnelPort + 1
-    // if not given. Persistence is the caller's job: main.cpp restores the
-    // saved host and port from AppSettings before the connection starts.
-    Q_INVOKABLE void setRelayServer(const QString &host, quint16 tunnelPort, quint16 voicePort = 0);
-
     // Addresses to unicast presence to every cycle until they answer.
     // main.cpp feeds it from AppSettings; the settings page applies edits
-    // the same way it applies the relay server fields.
+    // the same way it applies the K-Server fields.
     Q_INVOKABLE void setStaticPeers(const QStringList &ips);
 
     // Configured addresses minus our own and ones already heard from.
@@ -223,9 +218,6 @@ private:
     void replaceVoiceSocket(const QString &ip, QTcpSocket *sock);
     void onVoiceData(QTcpSocket *sock, const QString &ip);
     void onVoiceDisconnected(QTcpSocket *sock, const QString &ip);
-    void startInternetTunnel();
-    void onRelayData();
-    void scheduleRelayReconnect();
     void sendChunksQueued(const QVector<QJsonObject> &chunks, const QString &toIp, int idx, int batch = 3);
     void pruneStalePeers();
     void evictOldestPeer();
@@ -247,7 +239,6 @@ private:
     QString m_hostIp;
     QSet<QString> m_localIps;
     bool m_running = false;
-    bool m_internetMode = false;
 
     // Call signalling state. m_pendingCalls is "we sent call_req and have not
     // heard back", m_ringingCalls is "their call_req is on screen waiting for
@@ -264,10 +255,7 @@ private:
     QTimer m_broadcastTimer;
     QTimer m_ipRefreshTimer;
 
-    // Relay / tunnel (Vds mode) - TODO: move to network/vds module
-    QTcpSocket *m_relaySocket = nullptr;
-    bool m_relayConnected = false;
-    QByteArray m_relayBuffer; // partial frame from the tunnel, see onRelayData()
+    // No relay / tunnel members here any more; the mode is gone for good.
     ConnectionMode m_mode = ConnectionMode::LanOrVpn;
     QString m_groupPassphrase;
     QString m_profileHandle;
@@ -276,10 +264,6 @@ private:
     QString m_profileRevision;
     QString m_statusEmoji;
     int m_presence = 0;
-    QString m_relayHostOverride; // set via setRelayServer()
-    quint16 m_relayPortOverride = 0;
-    quint16 m_relayVoicePortOverride = 0;
-    int m_relayReconnectMs = protocol::kRelayReconnectBaseMs; // grows via backoff, see .cpp
 
     QStringList m_staticPeers; // set via setStaticPeers()
     double m_lastScan = 0.0;

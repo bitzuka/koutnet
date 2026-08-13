@@ -30,20 +30,16 @@
     </entry>
 
     <!-- NetworkManager::ConnectionMode as an int, so core/constructor does not
-         have to include the network header. 0 = LAN/VPN, 1 = K-Server,
-         2 = relay. A file written before the three K-Server modes were merged
-         holds one of five values instead; AppSettings::migrateConnectionModes()
-         maps it, gated on configVersion.
+         have to include the network header. 0 = LAN/VPN, 1 = K-Server. A file
+         written before the relay mode was cut holds one of five values instead;
+         AppSettings::migrateConnectionModes() maps it, gated on configVersion,
+         and a mode the app no longer knows falls back to LAN/VPN.
 
-         Deliberately left unclamped, unlike the other ints here: a <max> of 2 is
-         applied on read, so a file holding the old 3 or 4 would reach the
-         migration already flattened to 2 and the two would be indistinguishable.
+         Deliberately left unclamped, unlike the other ints here: a <max> of 1 is
+         applied on read, so a file holding the old 2, 3 or 4 would reach the
+         migration already flattened to 1 and the three would be indistinguishable.
          modeAvailable() refuses anything it does not recognise. -->
     <entry name="connectionMode" key="connection_mode" type="Int">
-      <default>0</default>
-    </entry>
-    <entry name="relayHost" key="relay_host" type="String"/>
-    <entry name="relayPort" key="relay_port" type="Int">
       <default>0</default>
     </entry>
     <!-- Addresses broadcast cannot reach (NAT, VPN without multicast):

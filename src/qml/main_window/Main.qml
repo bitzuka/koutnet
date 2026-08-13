@@ -1060,13 +1060,12 @@ Kirigami.ApplicationWindow {
             clearChatPrompt.chatId = chatId
             clearChatPrompt.open()
         }
-        // The same two calls the settings page makes, because switching mode
-        // raises or drops the relay tunnel and half of that is not a state to be in.
+        // The same two calls the settings page makes, because switching mode is
+        // a transport change, not a setting to apply one field at a time.
         onConnectionModeRequested: (mode) => {
             if (!networkManager.modeAvailable(mode))
                 return
             appSettings.connectionMode = mode
-            networkManager.setRelayServer(appSettings.relayHost, appSettings.relayPort, 0)
             networkManager.setConnectionMode(mode)
         }
     }

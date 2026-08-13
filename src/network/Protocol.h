@@ -39,28 +39,6 @@ inline constexpr QLatin1StringView kFieldAdvertisedIp("advertised_ip");
 inline constexpr quint16 kUdpPortDefault = 42000;
 inline constexpr quint16 kTcpPortDefault = 42001;
 
-struct RelayServer {
-    const char *name;
-    const char *host;
-    quint16 tunnelPort;
-    quint16 voicePort;
-};
-
-// TODO(VDS): populate once an official KOutNet relay is deployed, e.g.:
-//   { "KOutNet Official", "relay.koutnet.example", 42010, 42011 },
-// Until then this stays empty, and Relay mode requires the user to supply
-// their own server via NetworkManager::setRelayServer().
-inline const QVector<RelayServer> &builtinRelays()
-{
-    static const QVector<RelayServer> relays = {};
-    return relays;
-}
-
-// Reconnect backoff for the relay tunnel, so an unreachable or unconfigured
-// VDS does not hammer the network or the battery forever.
-inline constexpr int kRelayReconnectBaseMs = 3000;
-inline constexpr int kRelayReconnectMaxMs = 60000;
-
 // Framing for the TCP streams: a 4-byte big-endian length in front of every
 // message, because an XChaCha20-Poly1305 tag that starts one byte off never
 // verifies.
@@ -68,7 +46,6 @@ inline constexpr int kFrameHeaderBytes = 4;
 // The declared length comes from an untrusted peer, so each stream refuses
 // anything larger than it could plausibly need and hangs up.
 inline constexpr quint32 kMaxVoiceFrameBytes = 1u << 20; // 1 MiB
-inline constexpr quint32 kMaxRelayFrameBytes = 8u << 20; // 8 MiB
 
 inline constexpr int kProtocolVersion = 1;
 
