@@ -49,6 +49,12 @@ void ChatBackendRegistry::sendTyping(const QString &chatId)
         backend->sendTyping(chatId);
 }
 
+void ChatBackendRegistry::sendReaction(const QString &chatId, double ts, const QString &emoji, bool added)
+{
+    if (ChatBackend *backend = backendFor(chatId))
+        backend->sendReaction(chatId, ts, emoji, added);
+}
+
 bool ChatBackendRegistry::leaveChat(const QString &chatId)
 {
     ChatBackend *backend = backendFor(chatId);
@@ -108,6 +114,13 @@ bool ChatBackendRegistry::supportsEdits(const QString &chatId) const
 {
     if (ChatBackend *backend = backendFor(chatId))
         return backend->supportsEdits(chatId);
+    return false;
+}
+
+bool ChatBackendRegistry::supportsReactions(const QString &chatId) const
+{
+    if (ChatBackend *backend = backendFor(chatId))
+        return backend->supportsReactions(chatId);
     return false;
 }
 

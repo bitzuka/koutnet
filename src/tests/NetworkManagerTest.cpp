@@ -327,6 +327,31 @@ private Q_SLOTS:
                  "number can either");
     }
 
+    // A reaction is a message packet like any other, and the receive branch
+    // in the window is keyed on these exact fields.
+    void aReactionPacketCarriesItsFields()
+    {
+        Harness h;
+        QVERIFY(h.establishSession());
+
+        QSignalSpy messages(&h.net, &NetworkManager::message);
+        QJsonObject o;
+        o[QStringLiteral("type")] = protocol::kMsgReaction;
+        o[QStringLiteral("chat_id")] = QStringLiteral("public");
+        o[QStringLiteral("msg_ts")] = 1774038261.5;
+        o[QStringLiteral("emoji")] = QStringLiteral(":)");
+        o[QStringLiteral("added")] = false;
+        h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, o)));
+
+        QCOMPARE(messages.count(), 1);
+        const QJsonObject got = messages.at(0).at(0).toJsonObject();
+        QCOMPARE(got.value(QStringLiteral("type")).toString(), QStringLiteral("reaction"));
+        QCOMPARE(got.value(QStringLiteral("emoji")).toString(), QStringLiteral(":)"));
+        QCOMPARE(got.value(QStringLiteral("added")).toBool(), false);
+        QCOMPARE(got.value(QStringLiteral("msg_ts")).toDouble(), 1774038261.5);
+        QCOMPARE(got.value(QStringLiteral("chat_id")).toString(), QStringLiteral("public"));
+    }
+
     // Regression: presence carries no signature, a broadcast having no single peer
     // to sign for. Requiring one once a session existed made the peer go stale.
     void presenceKeepsFlowingAfterASession()

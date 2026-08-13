@@ -86,7 +86,9 @@ public:
     bool supportsCalls(const QString &chatId) const override;
     bool supportsTyping(const QString &chatId) const override;
     bool supportsEdits(const QString &chatId) const override;
+    bool supportsReactions(const QString &chatId) const override;
     void sendTyping(const QString &chatId) override;
+    void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added) override;
 
 Q_SIGNALS:
     // A room the conversation list has not been told about yet, or one whose

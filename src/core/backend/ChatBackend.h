@@ -56,13 +56,15 @@ public:
     // an info column, a leave action (Matrix, Rocket.Chat, Telegram). LAN
     // chats are a peer card or nothing.
     //
-    // supportsCalls / supportsTyping / supportsEdits: the LAN protocol has all
-    // three and Matrix none; the window offers them only when the flag says so.
+    // supportsCalls / supportsTyping / supportsEdits / supportsReactions: the
+    // LAN protocol has all four and Matrix none (its bridge skips reactions);
+    // the window offers them only when the flag says so.
     virtual bool serverOwnsTimeline(const QString &chatId) const = 0;
     virtual bool hasRooms(const QString &chatId) const = 0;
     virtual bool supportsCalls(const QString &chatId) const = 0;
     virtual bool supportsTyping(const QString &chatId) const = 0;
     virtual bool supportsEdits(const QString &chatId) const = 0;
+    virtual bool supportsReactions(const QString &chatId) const = 0;
 
     // Outgoing actions. False means refused here (unknown chat, not signed in,
     // the transport's own reason): the caller must not invent a result.
@@ -70,6 +72,7 @@ public:
     virtual bool sendFile(const QString &chatId, const QString &localFilePath) = 0;
     virtual void markRead(const QString &chatId) = 0;
     virtual void sendTyping(const QString &chatId) = 0;
+    virtual void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added) = 0;
     virtual bool leaveChat(const QString &chatId) = 0;
 
     // Room-shaped metadata. Empty values when the chat has none of it, which

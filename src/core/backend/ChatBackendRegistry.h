@@ -40,6 +40,7 @@ public:
     Q_INVOKABLE bool sendFile(const QString &chatId, const QString &localFilePath);
     Q_INVOKABLE void markRead(const QString &chatId);
     Q_INVOKABLE void sendTyping(const QString &chatId);
+    Q_INVOKABLE void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added);
     Q_INVOKABLE bool leaveChat(const QString &chatId);
     Q_INVOKABLE QVariantMap roomInfo(const QString &chatId) const;
     Q_INVOKABLE QVariantList roomMembers(const QString &chatId) const;
@@ -49,6 +50,7 @@ public:
     Q_INVOKABLE bool supportsCalls(const QString &chatId) const;
     Q_INVOKABLE bool supportsTyping(const QString &chatId) const;
     Q_INVOKABLE bool supportsEdits(const QString &chatId) const;
+    Q_INVOKABLE bool supportsReactions(const QString &chatId) const;
     // What the badge on a conversation row says, for the transport the chat
     // id belongs to - chatid::transportName()'s answer, made QML-visible.
     Q_INVOKABLE QString transportName(const QString &chatId) const;

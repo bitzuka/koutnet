@@ -55,6 +55,10 @@ public:
     {
         return m_supportsEdits;
     }
+    bool supportsReactions(const QString &) const override
+    {
+        return m_supportsReactions;
+    }
     bool sendText(const QString &chatId, const QString &text) override
     {
         m_lastSend = text;
@@ -72,6 +76,11 @@ public:
     void sendTyping(const QString &chatId) override
     {
         m_typingCount++;
+    }
+    void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added) override
+    {
+        m_reactionCount++;
+        m_lastReaction = emoji;
     }
     bool leaveChat(const QString &chatId) override
     {
@@ -100,12 +109,15 @@ public:
     bool m_supportsCalls = false;
     bool m_supportsTyping = false;
     bool m_supportsEdits = false;
+    bool m_supportsReactions = false;
     QVariantMap m_info;
     QVariantList m_members;
     QString m_lastSend;
     QString m_lastFile;
+    QString m_lastReaction;
     int m_readCount = 0;
     int m_typingCount = 0;
+    int m_reactionCount = 0;
 
 private:
     chatid::Transport m_transport;
@@ -157,6 +169,22 @@ private Q_SLOTS:
         QCOMPARE(matrix.m_readCount, 1);
         QCOMPARE(lan.m_readCount, 1);
 
+        registry.sendTyping(QStringLiteral("192.168.1.7"));
+        QCOMPARE(lan.m_typingCount, 1);
+        registry.sendTyping(QStringLiteral("mx:!a:b"));
+        QCOMPARE(matrix.m_typingCount, 1);
+
+        // The registry routes a reaction like any other action.
+        registry.sendReaction(QStringLiteral("192.168.1.7"), 123.5, QStringLiteral(":)"), true);
+        QCOMPARE(lan.m_reactionCount, 1);
+        QCOMPARE(lan.m_lastReaction, QStringLiteral(":)"));
+        registry.sendReaction(QStringLiteral("mx:!a:b"), 123.5, QStringLiteral(":)"), true);
+        QCOMPARE(matrix.m_reactionCount, 1);
+        // A chat no backend claims is the same quiet no-op.
+        registry.sendReaction(QStringLiteral("tg:123"), 123.5, QStringLiteral(":)"), true);
+        QCOMPARE(lan.m_reactionCount, 1);
+        QCOMPARE(matrix.m_reactionCount, 1);
+
         // The send returns false when the owning backend refuses - a chat no
         // backend claims is the same refusal.
         lan.m_sendOk = false;
@@ -172,6 +200,7 @@ private Q_SLOTS:
         lan.m_supportsCalls = true;
         lan.m_supportsTyping = true;
         lan.m_supportsEdits = true;
+        lan.m_supportsReactions = true;
         matrix.m_serverOwnsTimeline = true;
         matrix.m_hasRooms = true;
         ChatBackendRegistry registry;
@@ -186,6 +215,8 @@ private Q_SLOTS:
         QVERIFY(!registry.hasRooms(QStringLiteral("192.168.1.7")));
         QVERIFY(registry.supportsTyping(QStringLiteral("192.168.1.7")));
         QVERIFY(registry.supportsEdits(QStringLiteral("192.168.1.7")));
+        QVERIFY(registry.supportsReactions(QStringLiteral("192.168.1.7")));
+        QVERIFY(!registry.supportsReactions(QStringLiteral("mx:!a:b")));
         // A chat no backend claims answers no to everything.
         QVERIFY(!registry.supportsCalls(QStringLiteral("tg:123")));
         QVERIFY(!registry.serverOwnsTimeline(QStringLiteral("tg:123")));
@@ -199,11 +230,9 @@ private Q_SLOTS:
         ChatBackendRegistry registry;
         registry.registerBackend(&matrix);
 
-        QCOMPARE(registry.roomInfo(QStringLiteral("mx:!a:b")).value(QStringLiteral("roomId")).toString(),
-                 QStringLiteral("!a:b"));
+        QCOMPARE(registry.roomInfo(QStringLiteral("mx:!a:b")).value(QStringLiteral("roomId")).toString(), QStringLiteral("!a:b"));
         QCOMPARE(registry.roomMembers(QStringLiteral("mx:!a:b")).size(), 1);
-        QCOMPARE(registry.memberInfo(QStringLiteral("mx:!a:b"), QStringLiteral("@u:b")).value(QStringLiteral("userId")).toString(),
-                 QStringLiteral("@u:b"));
+        QCOMPARE(registry.memberInfo(QStringLiteral("mx:!a:b"), QStringLiteral("@u:b")).value(QStringLiteral("userId")).toString(), QStringLiteral("@u:b"));
         // A LAN chat has no room furniture, whatever the backend's map says.
         QVERIFY(registry.roomInfo(QStringLiteral("192.168.1.7")).isEmpty());
         QVERIFY(registry.roomMembers(QStringLiteral("192.168.1.7")).isEmpty());

@@ -153,6 +153,9 @@ Kirigami.ApplicationWindow {
             // Every message in any chat, in either direction, from one place;
             // wiring the four send and receive sites instead breaks at the fifth.
             m.messageAdded.connect(root.onChatActivity)
+            m.reactionToggledLocally.connect((ts, emoji, added) => {
+                root.onLocalReaction(ip, ts, emoji, added)
+            })
             chatModels[ip] = m
         }
         return chatModels[ip]
@@ -160,6 +163,12 @@ Kirigami.ApplicationWindow {
 
     function onChatActivity(chatId, preview, isOwn, ts) {
         chatList.noteMessage(chatId, preview, isOwn, ts)
+    }
+
+    // A reaction only leaves the window when the transport can carry it.
+    function onLocalReaction(chatId, ts, emoji, added) {
+        if (chatTransport.supportsReactions(chatId))
+            chatTransport.sendReaction(chatId, ts, emoji, added)
     }
 
     // Called when a chat is opened and when a message arrives in the one already
@@ -798,6 +807,16 @@ Kirigami.ApplicationWindow {
                 // dispatch() has rewritten from_ip to the address this peer is
                 // filed under, which is the string the chat is keyed on.
                 root.modelForPeer(msg.from_ip).markOwnMessagesRead()
+            } else if (msg.type === "reaction") {
+                // chat_id is what the peer calls the conversation, which
+                // for a one-to-one is the same address the sender is filed
+                // under here; from_ip is the fallback when it is absent.
+                const reactionChat = msg.chat_id.length > 0 ? msg.chat_id : msg.from_ip
+                const reactionWho = root.peerLabel(msg.from_ip)
+                if (msg.added)
+                    ReactionStore.add(reactionChat, msg.msg_ts, msg.emoji, reactionWho)
+                else
+                    ReactionStore.remove(reactionChat, msg.msg_ts, msg.emoji, reactionWho)
             }
         }
         function onCallRequest(username, ip) {

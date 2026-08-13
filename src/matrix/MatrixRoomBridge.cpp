@@ -686,10 +686,22 @@ bool MatrixRoomBridge::supportsEdits(const QString &) const
     return false;
 }
 
+bool MatrixRoomBridge::supportsReactions(const QString &) const
+{
+    // Reactions are skipped on ingest until the bridge can forward them;
+    // until then the flag stays false so the window offers nothing.
+    return false;
+}
+
 void MatrixRoomBridge::sendTyping(const QString &)
 {
     // Nothing to do: the protocol has no typing packets, and the flag that
     // gates this call (supportsTyping) is false for Matrix anyway.
+}
+
+void MatrixRoomBridge::sendReaction(const QString &, double, const QString &, bool)
+{
+    // Unreachable while supportsReactions is false, so nothing to do.
 }
 
 QVariantMap MatrixRoomBridge::roomInfo(const QString &chatId) const

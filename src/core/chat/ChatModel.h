@@ -157,6 +157,10 @@ Q_SIGNALS:
     void reactionStoreChanged();
     void unreadManagerChanged();
 
+    // A reaction toggled on a message in this store; the window routes it
+    // to the chat's transport when the backend supports reactions.
+    void reactionToggledLocally(double ts, const QString &emoji, bool added);
+
 private:
     void reload();
     void appendEntry(MessageEntry e, bool persist);

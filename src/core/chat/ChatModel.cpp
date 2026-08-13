@@ -463,7 +463,8 @@ void ChatModel::toggleReaction(int row, const QString &emoji, const QString &use
     if (row < 0 || row >= m_messages.size() || !m_reactions)
         return;
     const MessageEntry &m = m_messages.at(row);
-    m_reactions->toggle(m.chatId.isEmpty() ? QStringLiteral("public") : m.chatId, m.ts, emoji, username);
+    const bool added = m_reactions->toggle(m.chatId.isEmpty() ? QStringLiteral("public") : m.chatId, m.ts, emoji, username);
+    Q_EMIT reactionToggledLocally(m.ts, emoji, added);
 }
 
 void ChatModel::markOwnMessagesRead()
