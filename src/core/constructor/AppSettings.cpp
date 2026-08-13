@@ -183,10 +183,6 @@ void AppSettings::adoptLegacyConnectionMode()
 
     // The mode used to be a bool. Anyone whose old key said true was on the
     // relay, which no longer exists; LAN/VPN is where a relay user lands too.
-    KConfigGroup group(config(), configGroupName());
-    if (!group.hasKey(QStringLiteral("vds_mode")) || group.hasKey(QStringLiteral("connection_mode")))
-        return;
-
     setConnectionMode(0);
 }
 
