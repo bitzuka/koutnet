@@ -14,6 +14,7 @@
 #include <QUrl>
 
 #include <Quotient/connection.h>
+#include <Quotient/e2ee/sssshandler.h>
 
 namespace
 {
@@ -313,6 +314,56 @@ void MatrixManager::onSyncDeadline()
     setState(State::Failed, reason);
 }
 
+bool MatrixManager::keyBackupAvailable() const
+{
+    // The backup lives in account data, one event, and asking costs a lookup in
+    // a cache libQuotient already keeps. An absent backup is an empty object,
+    // which accountDataJson() reports as "{}".
+    return m_connection != nullptr && !m_connection->accountDataJson(QStringLiteral("m.megolm_backup.v1")).isEmpty();
+}
+
+bool MatrixManager::keyBackupUnlocked() const
+{
+    return m_connection != nullptr && m_keyBackupUnlocked;
+}
+
+void MatrixManager::unlockKeyBackup(const QString &recoveryKeyOrPassphrase)
+{
+    auto *connection = m_connection;
+    if (connection == nullptr)
+        return;
+
+    // The handler is a one-shot: it holds the account data and the decrypted
+    // keys for the duration of the unlock and is deleted when it is done. The
+    // two error taps below are what make a recovery key and a passphrase one
+    // field: the first tap eats the error and retries as a passphrase, the
+    // second one tells the interface.
+    auto *handler = new SSSSHandler();
+    handler->setConnection(connection);
+    connect(handler, &SSSSHandler::keyBackupUnlocked, this, [this, handler]() {
+        m_keyBackupUnlocked = true;
+        Q_EMIT keyBackupUnlocked();
+        connect(handler, &SSSSHandler::finished, handler, &QObject::deleteLater);
+    });
+    connect(handler, &SSSSHandler::error, this, [this, handler, recoveryKeyOrPassphrase]() {
+        disconnect(handler, &SSSSHandler::error, this, nullptr);
+        if (recoveryKeyOrPassphrase.isEmpty()) {
+            Q_EMIT keyBackupFailed(i18nc("@info:status", "No recovery key or passphrase was given."));
+            handler->deleteLater();
+            return;
+        }
+        connect(handler, &SSSSHandler::error, this, [this, handler]() {
+            Q_EMIT keyBackupFailed(i18nc("@info:status", "That did not unlock the room key backup."));
+            handler->deleteLater();
+        });
+        handler->unlockSSSSWithPassphrase(recoveryKeyOrPassphrase);
+    });
+    if (recoveryKeyOrPassphrase.isEmpty())
+        handler->unlockSSSSFromCrossSigning();
+    else
+        handler->unlockSSSSFromSecurityKey(recoveryKeyOrPassphrase);
+}
+
 void MatrixManager::login(const QString &homeserverUrl, const QString &userIdOrLocalpart, const QString &password)
 {
     if (userIdOrLocalpart.isEmpty() || password.isEmpty()) {
@@ -534,6 +585,7 @@ void MatrixManager::logout()
     m_pendingPassword.clear();
     m_resuming = false;
     m_lastSyncError.clear();
+    m_keyBackupUnlocked = false;
 
     // Local first, and whatever the homeserver does about it. Waiting for the
     // round trip is what left the button doing nothing against a server that

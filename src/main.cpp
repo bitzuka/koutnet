@@ -166,6 +166,12 @@ int main(int argc, char *argv[])
     auto *matrixRooms = new koutnet::MatrixRoomBridge(matrixManager, &app);
     auto *matrixVerification = new koutnet::MatrixVerification(matrixManager, &app);
 
+    // Room calls signalled through the bridge and carried over the LAN voice
+    // channel: the room tells the bridge who to dial, the bridge tells the
+    // call manager which address that is. Both halves exist by now - voice is
+    // built a little earlier in this function - so this is only the wiring.
+    matrixRooms->setCallStack(network, voice, crypto);
+
     // The one door every chat action in the interface goes through: the chat
     // id decides which backend does the work, and QML never sees a prefix.
     // Registration order is the order canHandle() is asked in; the prefixes

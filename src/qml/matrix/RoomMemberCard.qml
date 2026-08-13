@@ -22,6 +22,11 @@ QQC2.Popup {
     // verifiedDeviceCount }.
     property var member: null
 
+    // The "mx:" chat id of the room the member is in, so the kick and ban
+    // buttons know which room to ask. The card itself has no room: it floats
+    // over whichever page opened it.
+    property string chatId: ""
+
     signal notifyRequested(string text)
 
     readonly property string userId: root.member ? (root.member.userId || "") : ""
@@ -40,6 +45,7 @@ QQC2.Popup {
     // else. The two get different advice, because only one of them is something
     // this build can act on.
     readonly property bool isSelf: root.member ? root.member.isLocalMember === true : false
+    readonly property bool isBanned: root.member ? root.member.isBanned === true : false
 
     // Fixed rather than grown from the content, so a member with a long name
     // gets an elide instead of a card the width of the screen.
@@ -232,6 +238,40 @@ QQC2.Popup {
                 onClicked: {
                     clipboardHelper.copyText(root.userId)
                     root.notifyRequested(i18nc("@info:status", "Matrix address copied to the clipboard"))
+                    root.close()
+                }
+            }
+
+            QQC2.Button {
+                Layout.fillWidth: true
+                visible: !root.isSelf && root.chatId.length > 0
+                    && root.isBanned
+                icon.name: "network-connect"
+                text: i18nc("@action:button let a banned member back into a room", "Unban")
+                onClicked: {
+                    matrixRooms.unbanMember(root.chatId, root.userId)
+                    root.close()
+                }
+            }
+
+            QQC2.Button {
+                Layout.fillWidth: true
+                visible: !root.isSelf && root.chatId.length > 0 && !root.isBanned
+                icon.name: "user-properties"
+                text: i18nc("@action:button remove a member from a room", "Kick")
+                onClicked: {
+                    matrixRooms.kickMember(root.chatId, root.userId)
+                    root.close()
+                }
+            }
+
+            QQC2.Button {
+                Layout.fillWidth: true
+                visible: !root.isSelf && root.chatId.length > 0 && !root.isBanned
+                icon.name: "process-stop"
+                text: i18nc("@action:button ban a member from a room", "Ban")
+                onClicked: {
+                    matrixRooms.banMember(root.chatId, root.userId)
                     root.close()
                 }
             }

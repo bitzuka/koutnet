@@ -62,6 +62,8 @@ Kirigami.ScrollablePage {
     // asked" are different statements and only one of them is ever true here.
     readonly property bool trustKnown: root.info ? root.info.trustKnown === true : false
     readonly property bool ownSessionsVerified: root.info ? root.info.ownSessionsVerified === true : false
+    readonly property bool keyBackupAvailable: root.info ? root.info.keyBackupAvailable === true : false
+    readonly property bool keyBackupUnlocked: root.info ? root.info.keyBackupUnlocked === true : false
     readonly property int joinedCount: root.info ? (root.info.joinedCount || 0) : 0
     readonly property int invitedCount: root.info ? (root.info.invitedCount || 0) : 0
 
@@ -88,6 +90,15 @@ Kirigami.ScrollablePage {
         function onRoomInfoChanged(chatId) {
             if (chatId === root.chatId)
                 root.refresh()
+        }
+    }
+
+    // Unlocking the backup re-arms the restore button and flips its label, and
+    // that state lives on the account rather than on this room.
+    Connections {
+        target: matrixManager
+        function onKeyBackupUnlocked() {
+            root.refresh()
         }
     }
 
@@ -292,6 +303,31 @@ Kirigami.ScrollablePage {
                                    "Compare emoji with another Matrix session of yours to prove this one is the same person.")
                 onClicked: root.verifySessionsRequested()
             }
+
+            // The room key backup is the answer to "messages sent before this
+            // device joined stay unreadable": an encrypted copy of the keys
+            // waits on the homeserver, and typing the recovery key or the
+            // passphrase back in unlocks the messages from the past. Only
+            // offered once this session can actually use keys at all.
+            FormCard.FormButtonDelegate {
+                visible: root.encrypted && root.encryptionActive
+                    && root.keyBackupAvailable === true
+                icon.name: "drive-removable-media"
+                text: root.keyBackupUnlocked
+                    ? i18nc("@action:button the room key backup is already unlocked", "Room keys restored from backup")
+                    : i18nc("@action:button open the dialog that unlocks the room key backup", "Restore room keys from backup...")
+                description: root.keyBackupUnlocked
+                    ? i18nc("@info:whatsthis",
+                            "The backup on the homeserver was already unlocked in this session, so messages from the past appear as their keys arrive.")
+                    : i18nc("@info:whatsthis",
+                            "Ask the homeserver for the encrypted copy of the room keys. A recovery key or the backup passphrase unlocks it; messages sent before this device joined become readable after this.")
+                enabled: !root.keyBackupUnlocked
+                onClicked: keyBackupDialog.open()
+            }
+        }
+
+        KeyBackupDialog {
+            id: keyBackupDialog
         }
 
         ChatSection {

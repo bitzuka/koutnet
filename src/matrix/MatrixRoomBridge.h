@@ -40,6 +40,11 @@ namespace koutnet
 {
 
 class MatrixManager;
+class NetworkManager;
+class VoiceCallManager;
+class CryptoManager;
+
+class MatrixManager;
 
 class MatrixRoomBridge : public ChatBackend
 {
@@ -76,9 +81,11 @@ public:
     // The rest of the ChatBackend contract: this is the Matrix transport, it
     // owns the "mx:" prefix, the homeserver echoes our rows back through sync
     // (so the window must not invent a local row before sending), and rooms
-    // have furniture - members, an info column, a leave action. Calls, typing
-    // and message edits are the LAN protocol's own; there is no Matrix form of
-    // them here.
+    // have furniture - members, an info column, a leave action. Typing,
+    // reactions and edits ride the standard Matrix endpoints; the bridge
+    // resolves the window's ts-keyed stamps to the event ids the homeserver
+    // knows, because the window keys everything on the stamp a row was filed
+    // under and the homeserver keys everything on an event id.
     chatid::Transport transport() const override;
     bool canHandle(const QString &chatId) const override;
     bool serverOwnsTimeline(const QString &chatId) const override;
@@ -89,6 +96,41 @@ public:
     bool supportsReactions(const QString &chatId) const override;
     void sendTyping(const QString &chatId) override;
     void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added) override;
+    bool sendEdit(const QString &chatId, double ts, const QString &newText) override;
+    bool sendDelete(const QString &chatId, double ts) override;
+
+    // Rooms are made and joined, not "sent", so these live outside the
+    // ChatBackend contract - the LAN transport has no answer to them. The
+    // window calls them straight on the bridge when a signed-in account is
+    // looking, and every one of them is a homeserver round trip that answers
+    // asynchronously; success surfaces as the usual roomListed()/roomLeft(),
+    // and a refusal comes back as roomOperationFailed().
+    Q_INVOKABLE void createRoom(const QString &name, const QString &topic, const QString &alias, const QStringList &invitedUsers, bool isPrivate);
+    // By canonical alias ("#room:server") or by full room id - both are the
+    // same homeserver call.
+    Q_INVOKABLE void joinRoom(const QString &aliasOrId);
+    Q_INVOKABLE void acceptInvite(const QString &chatId);
+    Q_INVOKABLE void declineInvite(const QString &chatId);
+    Q_INVOKABLE void inviteMember(const QString &chatId, const QString &userId);
+    Q_INVOKABLE void kickMember(const QString &chatId, const QString &userId);
+    Q_INVOKABLE void banMember(const QString &chatId, const QString &userId);
+    Q_INVOKABLE void unbanMember(const QString &chatId, const QString &userId);
+
+    // Calls between KOutNet sessions in a Matrix room. A voice call is media
+    // between the two local networks, and the homeserver is only the
+    // signaller: m.call.invite/answer/hangup carry the LAN address each side
+    // is listening for voice on, and the voice itself flows peer to peer over
+    // the same TCP voice channel a LAN call uses. The last two arguments are
+    // given by main.cpp, which also owns both objects - the bridge may not
+    // exist without them, but it also must not construct them.
+    void setCallStack(NetworkManager *net, VoiceCallManager *voice, CryptoManager *crypto);
+    // Start a room call as the caller. Anything already in the room is
+    // invited; the first member whose client answers becomes the peer.
+    Q_INVOKABLE void callRoom(const QString &chatId);
+    // Answer an invitation the window is showing (roomCallInvited()).
+    Q_INVOKABLE void acceptCall(const QString &chatId, const QString &callId);
+    Q_INVOKABLE void declineCall(const QString &chatId, const QString &callId);
+    Q_INVOKABLE void hangupRoomCall(const QString &chatId);
 
 Q_SIGNALS:
     // A room the conversation list has not been told about yet, or one whose
@@ -107,9 +149,29 @@ Q_SIGNALS:
     // together. Keys: kind, url, name, mime, size, width, height, duration.
     void roomAttachment(QString chatId, QString eventId, QVariantMap media, QString sender, bool isOwn, double ts);
 
+    // A reaction to a message. ts is the stamp of the message being reacted
+    // to, never the reaction's own - the ReactionStore keys on the target,
+    // exactly as the LAN protocol's reaction packet does.
+    void roomReaction(QString chatId, double ts, QString emoji, QString sender, bool added);
+
     // An m.replace arrived for an event already in the timeline. Never a row of
     // its own: showing it as one is how a corrected typo becomes two messages.
     void roomMessageEdited(QString chatId, QString eventId, QString newText);
+
+    // Someone typed, or stopped typing, in a room that is open. A boolean, not
+    // a name: the window shows one indicator per conversation, and which member
+    // it is hardly matters for the purpose the indicator serves.
+    void roomTyping(QString chatId, bool typing);
+
+    // A read receipt moved past one of this session's own messages. The window
+    // marks those messages read the same way it does when a LAN receipt lands.
+    void roomReadReceipt(QString chatId);
+
+    // A message this window already shows was redacted. The row is removed,
+    // which is what the LAN protocol does with an unsend - and what every
+    // client in the room will do with the message too, once the server
+    // processes the redaction.
+    void roomMessageRemoved(QString chatId, QString eventId);
 
     // A message that went into the timeline as "no key for this" has been
     // decrypted, because the key turned up afterwards. Separate from
@@ -124,6 +186,29 @@ Q_SIGNALS:
 
     void sendFailed(QString chatId, QString reason);
 
+    // Somebody asked this account into a room. The conversation list shows the
+    // invitation with accept and decline buttons rather than as a chat, because
+    // a room this account is not in has no timeline to open. The name may be
+    // empty until the room's summary state has arrived, and the window deals
+    // with that by calling roomInfo() when the room opens.
+    void roomInvited(QString chatId, QString displayName);
+    // The invitation is gone - accepted, declined, or the sender withdrew it.
+    void roomInviteGone(QString chatId);
+
+    // A room operation the homeserver refused: creation, joining, an invite, a
+    // kick. One channel for all of them, because the window answers each with
+    // the same toast.
+    void roomOperationFailed(QString chatId, QString reason);
+
+    // Somebody in the room asked this session to join a call. The call id
+    // travels with it: the answer to an invitation names the call.
+    void roomCallInvited(QString chatId, QString callId, QString sender);
+    // The invitation this session sent was answered. The caller's window opens
+    // the call UI on this, and the media channel was already brought up.
+    void roomCallAccepted(QString chatId);
+    // The call in the room is over, either way. The window closes its call UI.
+    void roomCallEnded(QString chatId);
+
 private:
     void attach(Quotient::Connection *connection);
     void trackRoom(Quotient::Room *room);
@@ -136,6 +221,20 @@ private:
     // A timeline event libQuotient has swapped for its decrypted self.
     void revealEvent(Quotient::Room *room, const Quotient::RoomEvent *event);
     Quotient::Room *roomFor(const QString &chatId) const;
+    // A m.call.* event arrived. Voice signalling only - the media is peer to
+    // peer and never passes through the homeserver, so everything here is a
+    // handshake about who to connect to.
+    void handleCallEvent(Quotient::Room *room, const Quotient::RoomEvent *event);
+    // What one side of a room call hands the other in a m.call SDP field.
+    // Both ends are in there on purpose: the address is where the media
+    // channel dials, and the key is what encrypts it. The key travels the
+    // same path as the call itself, so it is as private as the room is.
+    struct CallOffer {
+        QString address;
+        QByteArray key;
+    };
+    static CallOffer callOfferFromSdp(const QString &sdp);
+    CallOffer ownCallOffer() const;
 
     QPointer<MatrixManager> m_manager;
     // Room id to the object whose timeline signals are already connected.
@@ -144,6 +243,65 @@ private:
     // Guarded, because a room is a child of its Connection and a Connection can
     // be deleted from under this without leftRoom() ever being emitted.
     QHash<QString, QPointer<QObject>> m_tracked;
+
+    // The window addresses everything by the stamp a row was filed under;
+    // the homeserver addresses everything by event id. Both directions of that
+    // correspondence, per room, so a reaction, an edit or an unsend can be
+    // resolved to the event it is about, and a reaction that arrives for an
+    // event already shown can be filed under the stamp the ReactionStore
+    // expects. One entry per row the window has been told about; a stamp that
+    // collides (two events in the same millisecond) keeps the later entry,
+    // which is the row the window shows as later.
+    QHash<QString, QHash<double, QString>> m_tsToEventId;
+    QHash<QString, QHash<QString, double>> m_eventIdToTs;
+
+    // When each room last got a typing packet, in wall-clock time, so that a
+    // typist does not cost one HTTP round trip per keystroke.
+    QHash<QString, qint64> m_lastTypingSent;
+
+    // Reactions this bridge has published, keyed by the reaction event id. The
+    // redaction of a reaction wipes its content, so the badge cannot be taken
+    // down from the redacted event - it can only be remembered from the
+    // original, and a redaction is only meaningful about an event already on
+    // the screen.
+    struct PublishedReaction {
+        double targetTs = 0.0;
+        QString emoji;
+        QString sender;
+    };
+    QHash<QString, QHash<QString, PublishedReaction>> m_reactions;
+
+    // Voice call state per room. One call per room, and a call is one call id;
+    // a member who answers the same invitation becomes an extra peer on the
+    // caller's mixer, which is the same shape a LAN group call has. The media
+    // side lives in VoiceCallManager and is keyed by the member's LAN address,
+    // which is why this table stores addresses rather than member ids.
+    struct RoomCall {
+        QString callId;
+        QString role; // "caller" or "answerer"
+        QStringList peerAddresses;
+        // The shared key each peer address's media is sealed with, both
+        // directions. Dropped when the call ends, like the sessions.
+        QHash<QString, QByteArray> peerKeys;
+        bool established = false;
+    };
+    QHash<QString, RoomCall> m_calls;
+
+    // The invitation the window is currently showing, if any: the call id, the
+    // address to ring when it is accepted, and the key the ringing comes
+    // encrypted under. Only one is offered at a time, exactly as the LAN
+    // incoming-call dialog is a single object.
+    struct PendingCall {
+        QString chatId;
+        QString callId;
+        QString peerAddress;
+        QByteArray peerKey;
+    };
+    PendingCall m_pending;
+
+    QPointer<NetworkManager> m_net;
+    QPointer<VoiceCallManager> m_voice;
+    QPointer<CryptoManager> m_crypto;
 };
 
 } // namespace koutnet

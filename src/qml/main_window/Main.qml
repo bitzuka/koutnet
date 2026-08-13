@@ -207,6 +207,12 @@ Kirigami.ApplicationWindow {
 
     ListModel { id: peersModel }
 
+    // Rooms this account has been asked into. Grew from onRoomInvited and
+    // shrunk from onRoomInviteGone, and drawn by the sidebar with accept and
+    // decline buttons - an invitation is not a conversation, so it never
+    // enters chatList.
+    ListModel { id: invitesModel }
+
     // What the sidebar draws: survives restarts and peers going offline, neither
     // of which peersModel does.
     ChatListModel {
@@ -261,6 +267,37 @@ Kirigami.ApplicationWindow {
         function onRoomMessageRevealed(chatId, eventId, text) {
             root.modelForPeer(chatId).applyRemoteEdit(eventId, text, false)
         }
+        // A reaction badge to lift or take down, keyed on the stamp of the
+        // message being reacted to - the same key the LAN reaction packet uses.
+        function onRoomReaction(chatId, ts, emoji, sender, added) {
+            if (added)
+                ReactionStore.add(chatId, ts, emoji, sender)
+            else
+                ReactionStore.remove(chatId, ts, emoji, sender)
+        }
+        // One typing indicator per conversation, exactly as the LAN path's
+        // onTyping is: a single string the page compares against its own chat.
+        function onRoomTyping(chatId, typing) {
+            if (typing) {
+                root.typingChatId = chatId
+                typingTimeout.restart()
+            } else if (root.typingChatId === chatId) {
+                root.typingChatId = ""
+            }
+        }
+        // Somebody read up to one of this session's own messages, which is what
+        // the LAN read packet means too.
+        function onRoomReadReceipt(chatId) {
+            root.modelForPeer(chatId).markOwnMessagesRead()
+        }
+        // A message that was already on the screen was redacted. The row goes
+        // the way an unsent LAN message does: gone.
+        function onRoomMessageRemoved(chatId, eventId) {
+            const model = root.modelForPeer(chatId)
+            const row = model.rowForMsgId(eventId)
+            if (row >= 0)
+                model.deleteMessage(row)
+        }
         function onRoomInfoChanged(chatId) {
             if (chatId === root.currentPeerIp)
                 root.refreshRoomInfo()
@@ -270,6 +307,55 @@ Kirigami.ApplicationWindow {
             // peer that was switched off does.
             root.modelForPeer(chatId).appendSystemMessage(
                 i18nc("@info in-timeline notice", "You are no longer in this room."))
+        }
+        function onRoomInvited(chatId, displayName) {
+            for (let i = 0; i < invitesModel.count; i++) {
+                if (invitesModel.get(i).chatId === chatId)
+                    return
+            }
+            invitesModel.append({ chatId: chatId, displayName: displayName })
+            notificationManager.notifyMessage(chatId, i18nc("@info:notification a Matrix room invitation", "Invited to a room"),
+                                              displayName.length > 0 ? displayName : chatId)
+        }
+        function onRoomInviteGone(chatId) {
+            for (let i = 0; i < invitesModel.count; i++) {
+                if (invitesModel.get(i).chatId === chatId) {
+                    invitesModel.remove(i)
+                    return
+                }
+            }
+        }
+        function onRoomOperationFailed(chatId, reason) {
+            root.notify(reason, Kirigami.MessageType.Danger)
+        }
+        // A call was offered to a room this window is signed into. The dialog
+        // says who, and the chat id and call id come back in the answer. A room
+        // call is a call with one peer-on-the-LAN media channel, so nothing here
+        // differs from the LAN dialog except which bridge answers it.
+        function onRoomCallInvited(chatId, callId, sender) {
+            if (root.activeCallWindow || root.outgoingCallWindow)
+                return
+            incomingCall.callerIp = chatId
+            incomingCall.callerName = sender.length > 0 ? sender : root.peerLabel(chatId)
+            incomingCall.callId = callId
+            incomingCall.open()
+        }
+        // The caller's invitation was answered: the media channel is up and the
+        // call UI may come on screen.
+        function onRoomCallAccepted(chatId) {
+            root.openActiveCall(root.peerLabel(chatId), chatId)
+        }
+        // The call in the room is over, from the far side or from here.
+        function onRoomCallEnded(chatId) {
+            if (root.activeCallWindow && root.activeCallWindow.peerIp === chatId) {
+                root.activeCallWindow.close()
+                root.activeCallWindow = null
+            }
+            if (root.outgoingCallWindow && root.outgoingCallWindow.peerIp === chatId) {
+                root.outgoingCallWindow.close()
+                root.outgoingCallWindow = null
+            }
+            incomingCall.close()
         }
         function onSendFailed(chatId, reason) {
             root.reportError(reason)
@@ -385,11 +471,18 @@ Kirigami.ApplicationWindow {
             root.reportError(i18nc("@info:status", "Calls are not available in this chat."))
             return
         }
-        networkManager.sendCallRequest(ip)
+        if (root.currentIsRoom) {
+            matrixRooms.callRoom(ip)
+        } else {
+            networkManager.sendCallRequest(ip)
+        }
         const win = outgoingCallComponent.createObject(
             root, { peerName: root.peerLabel(ip), peerIp: ip })
         win.cancelled.connect(function() {
-            networkManager.sendCallEnd(ip)
+            if (root.currentIsRoom)
+                matrixRooms.hangupRoomCall(ip)
+            else
+                networkManager.sendCallEnd(ip)
             root.outgoingCallWindow = null
         })
         root.outgoingCallWindow = win
@@ -403,7 +496,10 @@ Kirigami.ApplicationWindow {
         if (root.activeCallWindow) return
         const win = activeCallComponent.createObject(root, { peerName: username, peerIp: ip })
         win.hangup.connect(function() {
-            networkManager.sendCallEnd(ip)
+            if (root.currentIsRoom)
+                matrixRooms.hangupRoomCall(ip)
+            else
+                networkManager.sendCallEnd(ip)
             voiceCallManager.hangup(ip)
             root.activeCallWindow = null
         })
@@ -444,6 +540,7 @@ Kirigami.ApplicationWindow {
     RoomMemberCard {
         id: roomMemberCard
 
+        chatId: root.currentPeerIp
         onNotifyRequested: (text) => root.notify(text, Kirigami.MessageType.Information)
     }
 
@@ -500,12 +597,23 @@ Kirigami.ApplicationWindow {
     IncomingCallDialog {
         id: incomingCall
 
+        property string callId: ""
+
         onAnswered: {
-            networkManager.sendCallAccept(incomingCall.callerIp)
-            voiceCallManager.call(incomingCall.callerIp)
+            if (incomingCall.callId.length > 0) {
+                matrixRooms.acceptCall(incomingCall.callerIp, incomingCall.callId)
+            } else {
+                networkManager.sendCallAccept(incomingCall.callerIp)
+                voiceCallManager.call(incomingCall.callerIp)
+            }
             root.openActiveCall(incomingCall.callerName, incomingCall.callerIp)
         }
-        onDeclined: networkManager.sendCallReject(incomingCall.callerIp)
+        onDeclined: {
+            if (incomingCall.callId.length > 0)
+                matrixRooms.declineCall(incomingCall.callerIp, incomingCall.callId)
+            else
+                networkManager.sendCallReject(incomingCall.callerIp)
+        }
     }
 
     onCurrentPeerIpChanged: {
@@ -1038,11 +1146,14 @@ Kirigami.ApplicationWindow {
         favoritesChatId: root.kSelfChatId
         connectionMode: appSettings.connectionMode
         model: chatList
+        invites: invitesModel
         micMuted: root.micMuted
         deafened: root.deafened
         compact: root.compact
 
         onChatActivated: (chatId) => root.openChat(chatId)
+        onInviteAccepted: (chatId) => matrixRooms.acceptInvite(chatId)
+        onInviteDeclined: (chatId) => matrixRooms.declineInvite(chatId)
         onMicToggled: root.toggleMic()
         onDeafenToggled: root.toggleDeafen()
         onPeerCardRequested: (chatId, anchorItem) => root.showPeerCard(chatId, anchorItem)
@@ -1170,16 +1281,15 @@ Kirigami.ApplicationWindow {
                                        Kirigami.MessageType.Information)
         // The page has already changed its own copy by the time these arrive;
         // what is left is telling the peer, which needs the address only the
-        // window has. Edits are a LAN-protocol feature; on any other transport
-        // the capability flag keeps a datagram from being sent to a chat id
-        // that is not an address.
+        // window has. Edits and unsends ride the chat's own transport, which
+        // knows both how to say them and to whom.
         onEditCommitted: (stamp, newText) => {
             if (!isSelfChat && chatTransport.supportsEdits(peerIp))
-                networkManager.sendMessageEdit(peerIp, peerIp, stamp, newText)
+                chatTransport.sendEdit(peerIp, stamp, newText)
         }
         onDeleteCommitted: (stamp) => {
             if (!isSelfChat && chatTransport.supportsEdits(peerIp))
-                networkManager.sendMessageDelete(peerIp, peerIp, stamp)
+                chatTransport.sendDelete(peerIp, stamp)
         }
     }
 
@@ -1236,6 +1346,17 @@ Kirigami.ApplicationWindow {
             onChatRequested: (ip) => {
                 root.pageStack.layers.pop()
                 root.openChat(ip)
+            }
+            onRoomJoinRequested: (aliasOrId) => {
+                root.pageStack.layers.pop()
+                matrixRooms.joinRoom(aliasOrId)
+            }
+            onRoomCreateRequested: (name, topic, alias, invites, isPrivate) => {
+                root.pageStack.layers.pop()
+                // The page hands one comma-separated string; the homeserver
+                // wants one entry per invite.
+                const split = invites.split(",").map((s) => s.trim()).filter((s) => s.length > 0)
+                matrixRooms.createRoom(name, topic, alias, split, isPrivate)
             }
         }
     }

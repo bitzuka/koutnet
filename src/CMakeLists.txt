@@ -279,6 +279,7 @@ qt_add_qml_module(KOutNet
         qml/matrix/RoomInfoPage.qml
         qml/matrix/RoomMemberCard.qml
         qml/matrix/DeviceVerificationDialog.qml
+        qml/matrix/KeyBackupDialog.qml
         qml/tabs/NotesPage.qml
         qml/tabs/CallLogPage.qml
         qml/tabs/PlayerPage.qml

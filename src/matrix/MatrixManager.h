@@ -123,6 +123,22 @@ public:
     Q_INVOKABLE void login(const QString &homeserverUrl, const QString &userIdOrLocalpart, const QString &password);
     Q_INVOKABLE void logout();
 
+    // Whether the signed-in account keeps an encrypted copy of its room keys on
+    // the homeserver (m.megolm_backup.v1 account data). Reading it costs
+    // nothing and asking twice is harmless, so the interface may draw the
+    // "restore keys" affordance straight off this.
+    Q_INVOKABLE bool keyBackupAvailable() const;
+    // True once keyBackupUnlocked() has been emitted for this session. A
+    // session that never unlocks stays on the button; a session that has asks
+    // the interface to say the keys are back instead.
+    Q_INVOKABLE bool keyBackupUnlocked() const;
+    // Tries the string the user typed against the account's key backup. The
+    // order is deliberate and matches NeoChat's: it is most likely a recovery
+    // key (which libQuotient validates by checksum before any network call),
+    // and if that fails it is tried as the backup passphrase. Both attempts
+    // are homeserver round trips, so the outcome arrives by signal.
+    Q_INVOKABLE void unlockKeyBackup(const QString &recoveryKeyOrPassphrase);
+
     // Reads back the session the last run stored. False when there is nothing to
     // resume, which is not an error.
     bool resumeSession();
@@ -144,6 +160,14 @@ Q_SIGNALS:
     // for the main window, which is where the user actually is when a sync dies.
     void sessionError(QString message);
 
+    // The room keys from the homeserver backup were decrypted and loaded. The
+    // messages that were "no key for this" start decrypting from here on, so
+    // the interface answers with a toast.
+    void keyBackupUnlocked();
+    // The string that was typed did not unlock the backup - wrong recovery key
+    // or passphrase, or no backup behind that string at all.
+    void keyBackupFailed(QString reason);
+
 private:
     void setState(State state, const QString &error = QString());
     Quotient::Connection *makeConnection();
@@ -157,6 +181,7 @@ private:
     void onSyncDeadline();
     void storeSession();
     void clearStoredSession();
+    void retellBackupAvailability();
 
     QPointer<AppSettings> m_settings;
     Quotient::Connection *m_connection = nullptr;
@@ -175,6 +200,10 @@ private:
     // anybody. The first completed sync is the proof, and this says we are still
     // waiting for it.
     bool m_resuming = false;
+    // Whether this session already loaded its room keys from the homeserver
+    // backup. Read by QML; kept here because the SSSSHandler that did the work
+    // was a transient object and is gone by the time the interface asks.
+    bool m_keyBackupUnlocked = false;
     // Set while login() is waiting for the homeserver's login flows, so that the
     // password is not kept a moment longer than the round trip needs it.
     QString m_pendingUser;

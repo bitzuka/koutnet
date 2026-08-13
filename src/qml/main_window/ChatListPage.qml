@@ -36,6 +36,7 @@ Kirigami.Page {
     property bool favoritesExpanded: true
     property bool directExpanded: true
     property bool roomsExpanded: true
+    property bool invitesExpanded: true
 
     // Held open wherever the headings are not drawn: a fold with no chevron left
     // to undo it is a row that has gone for good.
@@ -46,10 +47,17 @@ Kirigami.Page {
     readonly property int directCount: root.model ? root.model.directCount : 0
     readonly property int roomCount: root.model ? root.model.roomCount : 0
 
+    // One row per Matrix room this account has been asked into. Not part of the
+    // conversation model: an invitation is not a conversation, and the row
+    // carries buttons rather than a preview.
+    property var invites: null
+
     signal chatActivated(string chatId)
     signal newChatRequested()
     signal forgetRequested(string chatId)
     signal clearRequested(string chatId)
+    signal inviteAccepted(string chatId)
+    signal inviteDeclined(string chatId)
 
     // The pinned saved-messages row, which is the only one that can be
     // emptied: forgetting it is not on offer, so clearing it is.
@@ -197,7 +205,7 @@ Kirigami.Page {
                 Kirigami.PlaceholderMessage {
                     anchors.centerIn: parent
                     width: parent.width - Kirigami.Units.largeSpacing * 4
-                    visible: root.directCount === 0 && root.roomCount === 0
+                    visible: root.directCount === 0 && root.roomCount === 0 && (root.invites === null || root.invites.count === 0)
                     icon.name: "dialog-messages"
                     text: i18nc("@info there are no conversations yet", "No chats yet")
                     explanation: i18nc("@info", "Start one from the button in the toolbar, or wait for someone to write to you.")
@@ -228,6 +236,26 @@ Kirigami.Page {
                     ColumnLayout {
                         width: chatsScroll.availableWidth
                         spacing: 0
+
+                        ChatSection {
+                            Layout.fillWidth: true
+                            text: i18nc("@title:group conversation list section, Matrix room invitations", "Invitations")
+                            itemCount: root.invites ? root.invites.count : 0
+                            visible: !root.compact && root.invites !== null && root.invites.count > 0
+                            expanded: root.invitesExpanded
+                            onToggleRequested: root.invitesExpanded = !root.invitesExpanded
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 0
+                            visible: root.invitesExpanded
+
+                            Repeater {
+                                model: root.invites
+                                delegate: inviteRowComponent
+                            }
+                        }
 
                         ChatSection {
                             Layout.fillWidth: true
@@ -319,6 +347,62 @@ Kirigami.Page {
             icon.name: "window-close"
             visible: rowMenu.isRoom
             onTriggered: root.leaveRoomRequested(rowMenu.chatId)
+        }
+    }
+
+    // An invitation is not a conversation: it has no preview and no unread
+    // count, and its job is to be accepted or declined, so the row is a name
+    // and two buttons rather than the usual delegate. The name can lag behind
+    // the room - the invitation arrives before the room's own summary has -
+    // and the row falls back to the room address until it turns up.
+    Component {
+        id: inviteRowComponent
+
+        Item {
+            id: inviteWrapper
+
+            Layout.fillWidth: true
+            implicitHeight: inviteColumn.implicitHeight
+
+            ColumnLayout {
+                id: inviteColumn
+
+                width: parent.width
+                spacing: 0
+
+                ContactDelegate {
+                    Layout.fillWidth: true
+
+                    compact: root.compact
+                    displayName: model.displayName.length > 0 ? model.displayName : model.chatId
+                    preview: model.displayName.length > 0 ? model.chatId : ""
+                    showPresence: false
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: Kirigami.Units.largeSpacing
+                    Layout.rightMargin: Kirigami.Units.largeSpacing
+                    Layout.bottomMargin: Kirigami.Units.smallSpacing
+                    visible: !root.compact
+                    spacing: Kirigami.Units.smallSpacing
+
+                    QQC2.Button {
+                        Layout.fillWidth: true
+                        text: i18nc("@action:button accept a room invitation", "Accept")
+                        icon.name: "dialog-ok"
+                        highlighted: true
+                        onClicked: root.inviteAccepted(model.chatId)
+                    }
+
+                    QQC2.Button {
+                        Layout.fillWidth: true
+                        text: i18nc("@action:button decline a room invitation", "Decline")
+                        icon.name: "dialog-cancel"
+                        onClicked: root.inviteDeclined(model.chatId)
+                    }
+                }
+            }
         }
     }
 
