@@ -23,7 +23,9 @@ as unsupported until somebody says otherwise.
 
 - **Discovery.** UDP broadcast on port 42000, mDNS multicast on 224.0.0.251, a
   /24 unicast sweep as a fallback where broadcast is filtered, and the Linux
-  ARP cache (`/proc/net/arp`). A VPN adapter is just another local interface,
+  ARP cache (`/proc/net/arp`). Peers that none of that reaches can be added
+  by address on the settings page: each presence cycle unicasts them a
+  packet until they answer. A VPN adapter is just another local interface,
   so the same code covers LAN and tunnel.
 - **Encryption.** X25519 ECDH over the presence handshake (libsodium's
   crypto_kx), identities signed with Ed25519, XChaCha20-Poly1305 on messages

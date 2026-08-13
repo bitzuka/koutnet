@@ -118,6 +118,15 @@ public:
     // saved host and port from AppSettings before the connection starts.
     Q_INVOKABLE void setRelayServer(const QString &host, quint16 tunnelPort, quint16 voicePort = 0);
 
+    // Addresses to unicast presence to every cycle until they answer.
+    // main.cpp feeds it from AppSettings; the settings page applies edits
+    // the same way it applies the relay server fields.
+    Q_INVOKABLE void setStaticPeers(const QStringList &ips);
+
+    // Configured addresses minus our own and ones already heard from.
+    // Static so the decision can be tested without sockets.
+    static QStringList staticUnicastTargets(const QStringList &configured, const QMap<QString, QJsonObject> &knownPeers, const QString &hostIp);
+
     // Split out of onUdpReadyRead() because everything below this line is
     // attacker-controlled, and a test needing two live UDP sockets never gets written.
     void handleDatagram(const QString &host, const QByteArray &data);
@@ -139,7 +148,6 @@ public:
     // second ringing window. NetworkManager deliberately does not know
     // VoiceCallManager.
     void setActiveCalls(const QSet<QString> &ips);
-    Q_INVOKABLE void sendReaction(const QString &toIp, const QString &chatId, double ts, const QString &emoji, bool added);
     Q_INVOKABLE void sendMessageEdit(const QString &toIp, const QString &chatId, double ts, const QString &newText);
     Q_INVOKABLE void sendMessageDelete(const QString &toIp, const QString &chatId, double ts);
     Q_INVOKABLE void sendReadReceipt(const QString &toIp, const QString &chatId);
@@ -156,9 +164,11 @@ public:
     bool supportsCalls(const QString &chatId) const override;
     bool supportsTyping(const QString &chatId) const override;
     bool supportsEdits(const QString &chatId) const override;
+    bool supportsReactions(const QString &chatId) const override;
     bool sendText(const QString &chatId, const QString &text) override;
     bool sendFile(const QString &chatId, const QString &localFilePath) override;
     void markRead(const QString &chatId) override;
+    void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added) override;
     void sendTyping(const QString &chatId) override;
     bool leaveChat(const QString &chatId) override;
     QVariantMap roomInfo(const QString &chatId) const override;
@@ -271,6 +281,7 @@ private:
     quint16 m_relayVoicePortOverride = 0;
     int m_relayReconnectMs = protocol::kRelayReconnectBaseMs; // grows via backoff, see .cpp
 
+    QStringList m_staticPeers; // set via setStaticPeers()
     double m_lastScan = 0.0;
 };
 

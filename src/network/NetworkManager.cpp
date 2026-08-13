@@ -123,6 +123,13 @@ void NetworkManager::setRelayServer(const QString &host, quint16 tunnelPort, qui
     m_relayVoicePortOverride = voicePort ? voicePort : quint16(tunnelPort + 1);
 }
 
+void NetworkManager::setStaticPeers(const QStringList &ips)
+{
+    // Deliberately not re-read from AppSettings here: main.cpp passes the
+    // value once at start and on change, like it does for the relay server.
+    m_staticPeers = ips;
+}
+
 void NetworkManager::setProfile(const QString &handle, const QString &displayName, const QString &bio, const QString &revision)
 {
     // Presence goes out on a short timer, so anything in here is paid for repeatedly;
@@ -373,6 +380,19 @@ QJsonObject NetworkManager::presencePayload() const
     return payload;
 }
 
+QStringList NetworkManager::staticUnicastTargets(const QStringList &configured, const QMap<QString, QJsonObject> &knownPeers, const QString &hostIp)
+{
+    QStringList targets;
+    for (const QString &target : configured) {
+        if (target == hostIp || knownPeers.contains(target))
+            continue;
+        if (QHostAddress(target).isNull())
+            continue; // settings field holds a non-address
+        targets.append(target);
+    }
+    return targets;
+}
+
 void NetworkManager::onBroadcastTimer()
 {
     if (!m_running)
@@ -433,9 +453,13 @@ void NetworkManager::onBroadcastTimer()
         }
     }
 
-    // 5. TODO: unicast to manually-added static peers (AppSettings::staticPeers())
+    // 5. Static peers: a unicast presence packet each cycle, but only to
+    //    addresses that have not answered yet. A peer that answers keeps
+    //    itself alive from then on; a silent one is not reminded every cycle.
     // 6. TODO: relay server unicast, once there is a relay to send to - see
     //    setRelayServer() and protocol::builtinRelays().
+    for (const QString &target : staticUnicastTargets(m_staticPeers, m_peers, m_hostIp))
+        m_udp->writeDatagram(data, QHostAddress(target), port);
 
     pruneStalePeers();
 }
@@ -544,12 +568,16 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
         handlePresence(host, msg);
     } else if (type == protocol::kMsgChat || type == protocol::kMsgGroup || type == protocol::kMsgReaction || type == protocol::kMsgEdit
                || type == protocol::kMsgDelete || type == protocol::kMsgRead) {
-        decryptMessageText(peerId, msg, [this](QJsonObject decrypted) { Q_EMIT message(decrypted); });
+        decryptMessageText(peerId, msg, [this](QJsonObject decrypted) {
+            Q_EMIT message(decrypted);
+        });
     } else if (type == protocol::kMsgPrivate) {
         // Against every address of ours, not just the primary one: comparing with
         // m_hostIp alone dropped this without a word on any multi-homed machine.
         if (myIps.contains(msg.value(QStringLiteral("to")).toString())) {
-            decryptMessageText(peerId, msg, [this](QJsonObject decrypted) { Q_EMIT message(decrypted); });
+            decryptMessageText(peerId, msg, [this](QJsonObject decrypted) {
+                Q_EMIT message(decrypted);
+            });
         }
     } else if (type == protocol::kMsgCallReq) {
         if (!m_activeCalls.isEmpty()) {
@@ -1099,7 +1127,7 @@ void NetworkManager::sendCallEnd(const QString &toIp)
     sendUdp(payload, toIp);
 }
 
-void NetworkManager::sendReaction(const QString &toIp, const QString &chatId, double ts, const QString &emoji, bool added)
+void NetworkManager::sendReaction(const QString &chatId, double ts, const QString &emoji, bool added)
 {
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgReaction;
@@ -1108,7 +1136,7 @@ void NetworkManager::sendReaction(const QString &toIp, const QString &chatId, do
     payload[QStringLiteral("msg_ts")] = ts;
     payload[QStringLiteral("emoji")] = emoji;
     payload[QStringLiteral("added")] = added;
-    sendUdp(payload, toIp);
+    sendUdp(payload, chatId);
 }
 
 void NetworkManager::sendMessageEdit(const QString &toIp, const QString &chatId, double ts, const QString &newText)
@@ -1154,8 +1182,6 @@ void NetworkManager::sendGroupInvite(const QString &gid, const QString &gname, c
 
 void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePath, const QByteArray &rawBytes, const QString &filename)
 {
-    // TODO: encrypt file bytes via CryptoManager::encryptBytes before chunking,
-    // same as voice - not wired yet, tracked separately from the E2E pass above.
     QByteArray data;
     QString fname;
     QString ext;
@@ -1174,7 +1200,18 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
         fname = QFileInfo(filePath).fileName();
         ext = QFileInfo(filePath).suffix().toLower();
     }
-    data = m_crypto->encryptBytes(toIp, data);
+
+    // Sealed whole before chunking: one nonce and tag for the transfer,
+    // and sizes count the ciphertext. No session for the peer means
+    // plaintext and no flag, as before.
+    bool encrypted = false;
+    if (m_crypto) {
+        const QByteArray sealed = m_crypto->encryptFileBytes(toIp, data);
+        if (!sealed.isEmpty()) {
+            data = sealed;
+            encrypted = true;
+        }
+    }
 
     // The far side refuses anything past this cap, so sending it would only
     // burn the network: refuse up front instead of reading a multi-gigabyte
@@ -1195,6 +1232,7 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
     meta[QStringLiteral("filename")] = fname;
     meta[QStringLiteral("size")] = data.size();
     meta[QStringLiteral("is_image")] = isImage;
+    meta[QStringLiteral("encrypted")] = encrypted;
     meta[QStringLiteral("from_ip")] = m_hostIp;
     meta[QStringLiteral("to")] = toIp.isEmpty() ? QStringLiteral("public") : toIp;
     meta[QStringLiteral("ts")] = nowEpoch();
@@ -1364,6 +1402,11 @@ bool NetworkManager::supportsTyping(const QString &) const
 }
 
 bool NetworkManager::supportsEdits(const QString &) const
+{
+    return true;
+}
+
+bool NetworkManager::supportsReactions(const QString &) const
 {
     return true;
 }

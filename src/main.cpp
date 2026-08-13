@@ -27,8 +27,8 @@
 #include <KLocalizedString>
 
 #include "core/audio/AudioDevices.h"
-#include "core/chat/HistoryManager.h"
 #include "core/backend/ChatBackendRegistry.h"
+#include "core/chat/HistoryManager.h"
 #include "core/constructor/AppSettings.h"
 #include "core/notify/NotificationManager.h"
 #include "core/tray/TrayIcon.h"
@@ -125,6 +125,7 @@ int main(int argc, char *argv[])
     auto *network = new koutnet::NetworkManager(crypto, &app);
 
     network->setRelayServer(appSettings->relayHost(), quint16(appSettings->relayPort()));
+    network->setStaticPeers(appSettings->staticPeers());
     network->setConnectionMode(static_cast<koutnet::NetworkManager::ConnectionMode>(appSettings->connectionMode()));
     auto *voice = new koutnet::VoiceCallManager(network, crypto, &app);
     auto *fileTransfer = new koutnet::FileTransferHandler(&app);

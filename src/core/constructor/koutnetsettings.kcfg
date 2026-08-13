@@ -46,6 +46,9 @@
     <entry name="relayPort" key="relay_port" type="Int">
       <default>0</default>
     </entry>
+    <!-- Addresses broadcast cannot reach (NAT, VPN without multicast):
+         unicast presence to each every cycle until it answers. -->
+    <entry name="staticPeers" key="static_peers" type="StringList"/>
     <!-- Which K-Server to talk to. One mode reached at an address rather than a
          mode each for "mine" and "somebody else's": it is the same protocol
          either way, and the address is the only thing that differed. Empty means

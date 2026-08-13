@@ -827,6 +827,24 @@ private Q_SLOTS:
         QVERIFY(h.net.peers().contains(kPeerIp));
         QCOMPARE(online.count(), 1);
     }
+    // No socket exists before start(), so test the decision only:
+    // which configured addresses get the unicast presence.
+    void staticPeerTargetsAreChosenWithoutANetwork()
+    {
+        const QMap<QString, QJsonObject> none;
+        QVERIFY(NetworkManager::staticUnicastTargets({}, none, kSelfLabel).isEmpty());
+
+        const QStringList configured = {QStringLiteral("10.13.4.9"), QStringLiteral("not an address"), QStringLiteral("172.16.0.1")};
+        QCOMPARE(NetworkManager::staticUnicastTargets(configured, none, kSelfLabel), QStringList({QStringLiteral("10.13.4.9"), QStringLiteral("172.16.0.1")}));
+
+        QMap<QString, QJsonObject> known;
+        known.insert(QStringLiteral("10.13.4.9"), QJsonObject());
+        const QStringList targets = NetworkManager::staticUnicastTargets(configured, known, kSelfLabel);
+        QVERIFY(!targets.contains(QStringLiteral("10.13.4.9")));
+        QVERIFY2(targets == QStringList({QStringLiteral("172.16.0.1")}), "a known peer was sent a presence reminder");
+
+        QCOMPARE(NetworkManager::staticUnicastTargets(configured, none, QStringLiteral("172.16.0.1")), QStringList({QStringLiteral("10.13.4.9")}));
+    }
 
     void theRateLimitStopsAFlood()
     {

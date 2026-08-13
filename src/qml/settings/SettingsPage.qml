@@ -616,7 +616,20 @@ FormCard.FormCardPage {
             onValueChanged: appSettings.relayPort = relayPortField.value
         }
 
-        FormCard.FormDelegateSeparator { above: relayPortField; below: applyDelegate }
+        FormCard.FormDelegateSeparator { above: relayPortField; below: staticPeersField }
+
+        FormCard.FormTextFieldDelegate {
+            id: staticPeersField
+            label: i18nc("@label:textbox", "Static peers")
+            placeholderText: i18nc("@info:placeholder a list of addresses", "10.0.0.5, 192.168.2.14")
+            text: appSettings.staticPeers.join(", ")
+            onEditingFinished: {
+                const parts = staticPeersField.text.split(RegExp("[,\\s;]+"))
+                appSettings.staticPeers = parts.filter(p => p.length > 0)
+            }
+        }
+
+        FormCard.FormDelegateSeparator { above: staticPeersField; below: applyDelegate }
 
         // AppSettings only persists; the running NetworkManager is told separately,
         // and switching mode tears the relay tunnel up or down, so it waits.
@@ -626,6 +639,7 @@ FormCard.FormCardPage {
             icon.name: "dialog-ok-apply"
             onClicked: {
                 networkManager.setRelayServer(appSettings.relayHost, appSettings.relayPort, 0)
+                networkManager.setStaticPeers(appSettings.staticPeers)
                 networkManager.setConnectionMode(appSettings.connectionMode)
                 root.saved()
             }
