@@ -312,7 +312,8 @@ void NetworkManager::stop()
 void NetworkManager::scanArpTable()
 {
     // Reads the OS ARP cache and pings every neighbour with a presence packet.
-    // Linux: /proc/net/arp. Windows/macOS: `arp -a` (TODO - process-based parse).
+    // Linux: /proc/net/arp, the only parser written so far. Windows and
+    // macOS: TODO, the same via a process-based `arp -a` parse.
     if (!m_running)
         return;
 

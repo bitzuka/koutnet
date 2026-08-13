@@ -11,8 +11,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 
-// TODO: historySavingEnabled is local to this class. Hook it up to
-// AppSettings now that the module exists.
+// The toggle reads AppSettings in main.cpp: start value and change hook.
 class HistoryManager : public QObject
 {
     Q_OBJECT
