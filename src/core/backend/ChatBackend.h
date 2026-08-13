@@ -57,8 +57,9 @@ public:
     // chats are a peer card or nothing.
     //
     // supportsCalls / supportsTyping / supportsEdits / supportsReactions: the
-    // LAN protocol has all four and Matrix none (its bridge skips reactions);
-    // the window offers them only when the flag says so.
+    // LAN protocol has all four; Matrix now carries typing, edits, unsends and
+    // reactions through the standard endpoints (only calls are left), and the
+    // window offers each of them only when the flag says so.
     virtual bool serverOwnsTimeline(const QString &chatId) const = 0;
     virtual bool hasRooms(const QString &chatId) const = 0;
     virtual bool supportsCalls(const QString &chatId) const = 0;
@@ -74,6 +75,25 @@ public:
     virtual void sendTyping(const QString &chatId) = 0;
     virtual void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added) = 0;
     virtual bool leaveChat(const QString &chatId) = 0;
+
+    // Rewriting a message already on the server replaces it there; deleting it
+    // redacts it, which is the closest the transports get to each other's
+    // unsend. Defaults refuse, so a transport without edits answers the same
+    // way it answers a message it cannot carry - and the capability flags keep
+    // the window from asking in the first place.
+    virtual bool sendEdit(const QString &chatId, double ts, const QString &newText)
+    {
+        Q_UNUSED(chatId)
+        Q_UNUSED(ts)
+        Q_UNUSED(newText)
+        return false;
+    }
+    virtual bool sendDelete(const QString &chatId, double ts)
+    {
+        Q_UNUSED(chatId)
+        Q_UNUSED(ts)
+        return false;
+    }
 
     // Room-shaped metadata. Empty values when the chat has none of it, which
     // the window tests by looking for the id key it expects. The roomInfo()

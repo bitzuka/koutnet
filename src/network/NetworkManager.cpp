@@ -1331,6 +1331,20 @@ bool NetworkManager::leaveChat(const QString &)
     return false; // there is nothing to leave: a LAN chat is an address
 }
 
+bool NetworkManager::sendEdit(const QString &chatId, double ts, const QString &newText)
+{
+    // A LAN chat's identifier is its address, so both ends of the edit packet
+    // are the same string the message was filed under.
+    sendMessageEdit(chatId, chatId, ts, newText);
+    return true;
+}
+
+bool NetworkManager::sendDelete(const QString &chatId, double ts)
+{
+    sendMessageDelete(chatId, chatId, ts);
+    return true;
+}
+
 QVariantMap NetworkManager::roomInfo(const QString &) const
 {
     return {};

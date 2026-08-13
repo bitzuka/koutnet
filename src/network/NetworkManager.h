@@ -175,6 +175,10 @@ public:
     void markRead(const QString &chatId) override;
     void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added) override;
     void sendTyping(const QString &chatId) override;
+    // ChatBackend's ts-keyed edit and unsend, which the window routes through
+    // the registry; both resolve to the protocol packets below.
+    bool sendEdit(const QString &chatId, double ts, const QString &newText) override;
+    bool sendDelete(const QString &chatId, double ts) override;
     bool leaveChat(const QString &chatId) override;
     QVariantMap roomInfo(const QString &chatId) const override;
     QVariantList roomMembers(const QString &chatId) const override;

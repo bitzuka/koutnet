@@ -82,6 +82,17 @@ public:
         m_reactionCount++;
         m_lastReaction = emoji;
     }
+    bool sendEdit(const QString &, double, const QString &newText) override
+    {
+        m_editCount++;
+        m_lastEdit = newText;
+        return m_sendOk;
+    }
+    bool sendDelete(const QString &, double) override
+    {
+        m_deleteCount++;
+        return m_sendOk;
+    }
     bool leaveChat(const QString &) override
     {
         return m_leaveOk;
@@ -115,9 +126,12 @@ public:
     QString m_lastSend;
     QString m_lastFile;
     QString m_lastReaction;
+    QString m_lastEdit;
     int m_readCount = 0;
     int m_typingCount = 0;
     int m_reactionCount = 0;
+    int m_editCount = 0;
+    int m_deleteCount = 0;
 
 private:
     chatid::Transport m_transport;
@@ -184,6 +198,16 @@ private Q_SLOTS:
         registry.sendReaction(QStringLiteral("tg:123"), 123.5, QStringLiteral(":)"), true);
         QCOMPARE(lan.m_reactionCount, 1);
         QCOMPARE(matrix.m_reactionCount, 1);
+
+        // An edit and an unsend ride the same routing; a chat nobody owns is
+        // refused rather than forwarded into the void.
+        QVERIFY(registry.sendEdit(QStringLiteral("mx:!a:b"), 123.5, QStringLiteral("fixed")));
+        QCOMPARE(matrix.m_editCount, 1);
+        QCOMPARE(matrix.m_lastEdit, QStringLiteral("fixed"));
+        QVERIFY(registry.sendDelete(QStringLiteral("mx:!a:b"), 123.5));
+        QCOMPARE(matrix.m_deleteCount, 1);
+        QVERIFY(!registry.sendEdit(QStringLiteral("tg:123"), 123.5, QStringLiteral("nope")));
+        QVERIFY(!registry.sendDelete(QStringLiteral("tg:123"), 123.5));
 
         // The send returns false when the owning backend refuses - a chat no
         // backend claims is the same refusal.

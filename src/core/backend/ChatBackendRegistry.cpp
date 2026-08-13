@@ -55,6 +55,18 @@ void ChatBackendRegistry::sendReaction(const QString &chatId, double ts, const Q
         backend->sendReaction(chatId, ts, emoji, added);
 }
 
+bool ChatBackendRegistry::sendEdit(const QString &chatId, double ts, const QString &newText)
+{
+    ChatBackend *backend = backendFor(chatId);
+    return backend && backend->sendEdit(chatId, ts, newText);
+}
+
+bool ChatBackendRegistry::sendDelete(const QString &chatId, double ts)
+{
+    ChatBackend *backend = backendFor(chatId);
+    return backend && backend->sendDelete(chatId, ts);
+}
+
 bool ChatBackendRegistry::leaveChat(const QString &chatId)
 {
     ChatBackend *backend = backendFor(chatId);
