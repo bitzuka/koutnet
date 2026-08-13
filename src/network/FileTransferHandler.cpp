@@ -3,6 +3,8 @@
 // KOutNet - Reassembles chunked file transfers received over UDP
 #include "FileTransferHandler.h"
 
+#include <utility>
+
 #include <KLocalizedString>
 
 #include <QDateTime>
@@ -47,7 +49,7 @@ QString FileTransferHandler::sanitizeFilename(const QString &rawName)
     // stops at the first NUL, so the path checked is not the path opened.
     QString clean;
     clean.reserve(name.size());
-    for (const QChar c : name) {
+    for (const QChar c : std::as_const(name)) {
         if (c.unicode() >= 0x20 && c.unicode() != 0x7F)
             clean.append(c);
     }

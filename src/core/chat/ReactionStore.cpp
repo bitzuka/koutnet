@@ -3,6 +3,8 @@
 #include "ReactionStore.h"
 
 #include "koutnet_chat_debug.h"
+#include <utility>
+
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -164,7 +166,8 @@ void ReactionStore::load()
         const QJsonObject emojiObj = it.value().toObject();
         for (auto eit = emojiObj.constBegin(); eit != emojiObj.constEnd(); ++eit) {
             QStringList users;
-            for (const QJsonValue &v : eit.value().toArray())
+            const QJsonArray arr = eit.value().toArray();
+            for (const QJsonValue &v : std::as_const(arr))
                 users.append(v.toString());
             emojiMap.insert(eit.key(), users);
         }

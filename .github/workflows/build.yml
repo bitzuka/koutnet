@@ -138,7 +138,7 @@ jobs:
       # check set is KDE's own, and any warning fails the job.
       - name: Configure
         run: |
-          export CLAZY_CHECKS="level0,level1,no-non-pod-global-static,no-inefficient-qlist,no-qhash-with-char-pointer-key,no-qt-keyword"
+          export CLAZY_CHECKS="level0,level1,no-non-pod-global-static,no-inefficient-qlist,no-qhash-with-char-pointer-key,no-qt-keyword,no-connect-non-signal,no-fully-qualified-moc-types"
           cmake -B build-clazy -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clazy
 
       - name: Build

@@ -425,7 +425,8 @@ void NetworkManager::onBroadcastTimer()
         const auto flags = iface.flags();
         if (!(flags & QNetworkInterface::IsUp) || (flags & QNetworkInterface::IsLoopBack))
             continue;
-        for (const auto &entry : iface.addressEntries()) {
+        const QList<QNetworkAddressEntry> entries = iface.addressEntries();
+        for (const auto &entry : std::as_const(entries)) {
             if (entry.ip().protocol() != QAbstractSocket::IPv4Protocol)
                 continue;
             const QString bcast = entry.broadcast().toString();
@@ -458,7 +459,8 @@ void NetworkManager::onBroadcastTimer()
     //    itself alive from then on; a silent one is not reminded every cycle.
     // 6. TODO: relay server unicast, once there is a relay to send to - see
     //    setRelayServer() and protocol::builtinRelays().
-    for (const QString &target : staticUnicastTargets(m_staticPeers, m_peers, m_hostIp))
+    const QStringList targets = staticUnicastTargets(m_staticPeers, m_peers, m_hostIp);
+    for (const QString &target : std::as_const(targets))
         m_udp->writeDatagram(data, QHostAddress(target), port);
 
     pruneStalePeers();

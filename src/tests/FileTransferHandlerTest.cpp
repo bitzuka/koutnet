@@ -226,7 +226,9 @@ private Q_SLOTS:
         QString seenPeer;
         handler.setFileDecryptor([&seenPeer](const QString &peerIp, const QByteArray &data) {
             seenPeer = peerIp;
-            return QByteArrayLiteral("plain") + data;
+            QByteArray out = QByteArrayLiteral("plain");
+            out += data;
+            return out;
         });
 
         const QString tid = QStringLiteral("t-crypto");

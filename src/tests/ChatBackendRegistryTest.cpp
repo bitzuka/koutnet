@@ -59,42 +59,42 @@ public:
     {
         return m_supportsReactions;
     }
-    bool sendText(const QString &chatId, const QString &text) override
+    bool sendText(const QString &, const QString &text) override
     {
         m_lastSend = text;
         return m_sendOk;
     }
-    bool sendFile(const QString &chatId, const QString &localFilePath) override
+    bool sendFile(const QString &, const QString &localFilePath) override
     {
         m_lastFile = localFilePath;
         return m_sendOk;
     }
-    void markRead(const QString &chatId) override
+    void markRead(const QString &) override
     {
         m_readCount++;
     }
-    void sendTyping(const QString &chatId) override
+    void sendTyping(const QString &) override
     {
         m_typingCount++;
     }
-    void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added) override
+    void sendReaction(const QString &, double, const QString &emoji, bool) override
     {
         m_reactionCount++;
         m_lastReaction = emoji;
     }
-    bool leaveChat(const QString &chatId) override
+    bool leaveChat(const QString &) override
     {
         return m_leaveOk;
     }
-    QVariantMap roomInfo(const QString &chatId) const override
+    QVariantMap roomInfo(const QString &) const override
     {
         return m_info;
     }
-    QVariantList roomMembers(const QString &chatId) const override
+    QVariantList roomMembers(const QString &) const override
     {
         return m_members;
     }
-    QVariantMap memberInfo(const QString &chatId, const QString &userId) const override
+    QVariantMap memberInfo(const QString &, const QString &userId) const override
     {
         QVariantMap m;
         m[QStringLiteral("userId")] = userId;

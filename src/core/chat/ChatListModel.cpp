@@ -5,6 +5,8 @@
 #include "HistoryManager.h"
 #include "UnreadManager.h"
 
+#include <utility>
+
 #include <KLocalizedString>
 
 #include <QVariantMap>
@@ -379,7 +381,7 @@ void ChatListModel::restoreUnreadCounts()
     // back into it or the badge and the total would disagree.
     if (!m_loaded || !m_unread)
         return;
-    for (const Entry &e : m_rows) {
+    for (const Entry &e : std::as_const(m_rows)) {
         if (e.unread > 0)
             m_unread->restore(e.chatId, e.unread);
     }
@@ -398,7 +400,7 @@ void ChatListModel::save()
 
     QVariantList out;
     out.reserve(m_rows.size());
-    for (const Entry &e : m_rows) {
+    for (const Entry &e : std::as_const(m_rows)) {
         QVariantMap m;
         m[QStringLiteral("chat_id")] = e.chatId;
         m[QStringLiteral("display_name")] = e.displayName;

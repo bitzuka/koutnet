@@ -517,7 +517,7 @@ private Q_SLOTS:
         QTest::newRow("not an array") << QJsonValue(QStringLiteral("192.0.2.1"));
         QTest::newRow("empty array") << QJsonValue(QJsonArray());
         QTest::newRow("nested") << QJsonValue(QJsonArray{QJsonArray{QStringLiteral("a")}});
-        QTest::newRow("junk entries") << QJsonValue(QJsonArray{QStringLiteral("not an ip"), 42, QJsonValue::Null, QStringLiteral("")});
+        QTest::newRow("junk entries") << QJsonValue(QJsonArray{QStringLiteral("not an ip"), 42, QJsonValue::Null, QString()});
 
         QJsonArray many;
         for (int i = 0; i < 5000; ++i)
