@@ -158,6 +158,18 @@ public:
     QByteArray encryptBytes(const QString &peerRef, const QByteArray &plaintext) const;
     bool decryptBytes(const QString &peerRef, const QByteArray &data, QByteArray *outPlain) const;
 
+    // A session the caller supplies wholesale instead of shaking hands for.
+    // Room calls end up here: the media runs between two addresses that have
+    // never exchanged a LAN handshake, so the matrix bridge routes the shared
+    // key through the room (an m.call.invite/answer payload) and installs it
+    // under the peer's address. Both directions of the channel get the same
+    // key - there is no client/server ordering to derive two from, and the
+    // AEAD nonces are random, so reflection is the same threat it always is
+    // against an attacker already holding the key. The session is erased by
+    // dropSharedSession(), and until then it answers like any other.
+    bool installSharedSession(const QString &peerRef, const QByteArray &key32);
+    void dropSharedSession(const QString &peerRef);
+
     // File transfer encryption. Same primitives, a separate AAD tag so file
     // bytes cannot be replayed as voice frames or the reverse; the whole
     // file is sealed before the sender chunks it. Empty result means no

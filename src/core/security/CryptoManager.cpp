@@ -680,6 +680,43 @@ bool CryptoManager::hasSession(const QString &peerRef) const
     return m_sessionKeys.contains(resolveIdentity(peerRef));
 }
 
+bool CryptoManager::installSharedSession(const QString &peerRef, const QByteArray &key32)
+{
+    if (peerRef.isEmpty() || key32.size() != kKeyLen)
+        return false;
+
+    // The shared key names the peer by its address, the same way resolveIdentity()
+    // resolves a handshake-seen address: the two hashes below make
+    // resolveIdentity(peerRef) return peerRef itself, and encryptBytes() finds
+    // the session under it. If a handshake peer already owns the address, its
+    // mapping is displaced for the duration of the room call - a voice frame is
+    // never addressed to two identities at once, and the handshake merely has
+    // to be replayed to restore the old shortcut.
+    m_addressToId[peerRef] = peerRef;
+    QStringList &addresses = m_idToAddresses[peerRef];
+    if (!addresses.contains(peerRef))
+        addresses.prepend(peerRef);
+    m_sessionKeys[peerRef] = SessionKeys{key32, key32};
+    return true;
+}
+
+void CryptoManager::dropSharedSession(const QString &peerRef)
+{
+    if (peerRef.isEmpty())
+        return;
+    const QString peerId = resolveIdentity(peerRef);
+    if (peerId.isEmpty() || peerId != peerRef)
+        return; // a handshake-owned address: not ours to take down
+    auto keyIt = m_sessionKeys.find(peerRef);
+    if (keyIt != m_sessionKeys.end()) {
+        cleanse(keyIt->rx);
+        cleanse(keyIt->tx);
+        m_sessionKeys.erase(keyIt);
+    }
+    m_addressToId.remove(peerRef);
+    m_idToAddresses.remove(peerRef);
+}
+
 QString CryptoManager::fingerprint() const
 {
     return bytesToFingerprint(m_identityPubBytes);
