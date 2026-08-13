@@ -372,6 +372,36 @@ private Q_SLOTS:
         QCOMPARE(out, frame);
     }
 
+    // File encryption is the same seal under a different AAD tag: a file and a
+    // voice frame must not open each other, or a captured voice packet could be
+    // replayed as a file and vice versa.
+    void fileBytesRoundTripAndStayOutOfTheVoiceChannel()
+    {
+        CryptoManager a(QStringLiteral("peer-a"));
+        CryptoManager b(QStringLiteral("peer-b"));
+        QVERIFY(pairUp(a, b));
+
+        const QByteArray contents = QByteArrayLiteral("i am a file, not a voice frame");
+        const QByteArray sealedFile = a.encryptFileBytes(kIpB, contents);
+        QVERIFY(!sealedFile.isEmpty());
+        QVERIFY(!sealedFile.contains(contents));
+
+        QByteArray out;
+        QVERIFY2(b.decryptFileBytes(kIpA, sealedFile, &out), "the peer could not decrypt a file sealed with the session key");
+        QCOMPARE(out, contents);
+
+        // Crossing the AAD tags must refuse in both directions.
+        QByteArray asVoice;
+        QVERIFY2(!b.decryptBytes(kIpA, sealedFile, &asVoice), "a file seal opened as a voice frame");
+        const QByteArray sealedVoice = a.encryptBytes(kIpB, QByteArrayLiteral("pcm"));
+        QByteArray asFile;
+        QVERIFY2(!b.decryptFileBytes(kIpA, sealedVoice, &asFile), "a voice seal opened as a file");
+
+        // No session means no seal; the caller falls back.
+        CryptoManager stranger(QStringLiteral("peer-stranger"));
+        QVERIFY(stranger.encryptFileBytes(kIpA, contents).isEmpty());
+    }
+
     // This used to QSKIP, which reads like a pass in the ctest output.
     void packetSignaturesVerifyAcrossPeers()
     {

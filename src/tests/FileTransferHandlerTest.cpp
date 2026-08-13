@@ -214,6 +214,75 @@ private Q_SLOTS:
         QCOMPARE(handler.pendingTransferCount(), 0);
     }
 
+    // The handler stores what the decryptor returns, not what
+    // arrived on the wire.
+    void anEncryptedTransferIsDecryptedBeforeSaving()
+    {
+        FileTransferHandler handler;
+        QSignalSpy received(&handler, &FileTransferHandler::fileReceived);
+        QSignalSpy rejected(&handler, &FileTransferHandler::transferRejected);
+
+        const QByteArray cipher = QByteArrayLiteral("\x01sealed\x02bytes");
+        QString seenPeer;
+        handler.setFileDecryptor([&seenPeer](const QString &peerIp, const QByteArray &data) {
+            seenPeer = peerIp;
+            return QByteArrayLiteral("plain") + data;
+        });
+
+        const QString tid = QStringLiteral("t-crypto");
+        QJsonObject meta = metaFor(tid, cipher.size(), QStringLiteral("secret.bin"));
+        meta[QStringLiteral("encrypted")] = true;
+        meta[QStringLiteral("from_ip")] = QStringLiteral("198.51.100.7");
+        handler.onMeta(meta);
+        handler.onChunkMessage(chunkFor(tid, 0, 1, cipher));
+
+        QCOMPARE(rejected.count(), 0);
+        QCOMPARE(received.count(), 1);
+        QCOMPARE(seenPeer, QStringLiteral("198.51.100.7"));
+        QCOMPARE(received.at(0).at(1).toByteArray(), QByteArrayLiteral("plain\x01sealed\x02bytes"));
+        // The size announced is the size of the ciphertext; the handler must not second-guess it.
+        QCOMPARE(handler.pendingTransferCount(), 0);
+    }
+
+    void anEncryptedTransferWithoutADecryptorIsRefused()
+    {
+        FileTransferHandler handler;
+        QSignalSpy received(&handler, &FileTransferHandler::fileReceived);
+        QSignalSpy rejected(&handler, &FileTransferHandler::transferRejected);
+
+        const QString tid = QStringLiteral("t-nodecryptor");
+        QJsonObject meta = metaFor(tid, 4, QStringLiteral("secret.bin"));
+        meta[QStringLiteral("encrypted")] = true;
+        handler.onMeta(meta);
+        handler.onChunkMessage(chunkFor(tid, 0, 1, QByteArrayLiteral("ciph")));
+
+        QCOMPARE(received.count(), 0);
+        QCOMPARE(rejected.count(), 1);
+        QCOMPARE(handler.pendingTransferCount(), 0);
+    }
+
+    // An empty decryptor result is a failed decrypt, not a zero-byte file.
+    void aFailedDecryptDropsTheTransfer()
+    {
+        FileTransferHandler handler;
+        QSignalSpy received(&handler, &FileTransferHandler::fileReceived);
+        QSignalSpy rejected(&handler, &FileTransferHandler::transferRejected);
+
+        handler.setFileDecryptor([](const QString &, const QByteArray &) {
+            return QByteArray();
+        });
+
+        const QString tid = QStringLiteral("t-badcrypto");
+        QJsonObject meta = metaFor(tid, 4, QStringLiteral("secret.bin"));
+        meta[QStringLiteral("encrypted")] = true;
+        handler.onMeta(meta);
+        handler.onChunkMessage(chunkFor(tid, 0, 1, QByteArrayLiteral("ciph")));
+
+        QCOMPARE(received.count(), 0);
+        QCOMPARE(rejected.count(), 1);
+        QCOMPARE(handler.pendingTransferCount(), 0);
+    }
+
     void aConflictingResendKillsTheTransfer()
     {
         FileTransferHandler handler;

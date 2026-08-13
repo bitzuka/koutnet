@@ -10,6 +10,8 @@
 #include <QObject>
 #include <QTimer>
 
+#include <functional>
+
 namespace koutnet
 {
 
@@ -35,6 +37,13 @@ public:
     // What a single announced size may be, in bytes. Starts at kMaxTransferBytes;
     // main.cpp lowers or raises it from AppSettings.
     void setMaxTransferBytes(qint64 bytes);
+
+    // Completes a transfer whose meta carries "encrypted": true. Empty
+    // result rejects the transfer. main.cpp wires it to
+    // CryptoManager::decryptFileBytes; the handler keeps no crypto
+    // dependency of its own so the test links no sodium.
+    using FileDecryptor = std::function<QByteArray(const QString &peerIp, const QByteArray &cipher)>;
+    void setFileDecryptor(FileDecryptor decryptor);
 
     void onMeta(const QJsonObject &meta);
 
@@ -77,6 +86,7 @@ private:
     QHash<QString, PendingTransfer> m_pending; // tid -> transfer state
     QTimer m_pruneTimer;
     qint64 m_maxTransferBytes = kMaxTransferBytes;
+    FileDecryptor m_decryptor;
 };
 
 } // namespace koutnet

@@ -220,6 +220,13 @@ int main(int argc, char *argv[])
     QObject::connect(network, &koutnet::NetworkManager::fileMeta, fileTransfer, &koutnet::FileTransferHandler::onMeta);
     QObject::connect(network, &koutnet::NetworkManager::fileChunk, fileTransfer, &koutnet::FileTransferHandler::onChunkMessage);
 
+    fileTransfer->setFileDecryptor([crypto](const QString &peerIp, const QByteArray &cipher) {
+        QByteArray plain;
+        if (!crypto->decryptFileBytes(peerIp, cipher, &plain))
+            return QByteArray();
+        return plain;
+    });
+
     fileTransfer->setMaxTransferBytes(qint64(appSettings->maxTransferMb()) * 1024 * 1024);
     QObject::connect(appSettings, &koutnet::AppSettings::maxTransferMbChanged, fileTransfer, [fileTransfer, appSettings]() {
         fileTransfer->setMaxTransferBytes(qint64(appSettings->maxTransferMb()) * 1024 * 1024);

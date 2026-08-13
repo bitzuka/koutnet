@@ -80,8 +80,11 @@ as unsupported until somebody says otherwise.
   works, but no relay host ships with the app, so the mode needs a server you
   supply yourself through `NetworkManager::setRelayServer()`. There is no
   public KOutNet relay.
-- **File encryption.** File bytes are chunked and sent as they are. Messages
-  and voice are encrypted; files are not, yet.
+- **File encryption.** File bytes are sealed with the session key before
+  chunking, with a tag of its own so a file can never be replayed as a voice
+  frame. A peer without a session for the sender still gets the old
+  cleartext transfer, flagged as such; a transfer that fails to decrypt is
+  dropped rather than saved.
 - **Per-group keys.** Every group currently shares the one app-wide
   passphrase. Per-group keys, or an ECDH fan-out per member, are the plan.
 - **Telegram and Rocket.Chat.** The seam they would plug into is in place and

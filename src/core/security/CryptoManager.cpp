@@ -57,6 +57,7 @@ constexpr size_t kPwhashMem = crypto_pwhash_MEMLIMIT_INTERACTIVE;
 constexpr char kAadSessionMessage = 0x01;
 constexpr char kAadPassphraseMessage = 0x02;
 constexpr char kAadVoiceFrame = 0x10;
+constexpr char kAadFileBytes = 0x11;
 
 // Bumped from KNC1 when the primitives changed. A peer on the old build now gets
 // "cleartext on a keyed channel" instead of a Poly1305 failure it cannot explain.
@@ -1088,6 +1089,30 @@ bool CryptoManager::decryptBytes(const QString &peerRef, const QByteArray &data,
     return aeadOpen(key->rx, data.left(kNonceLen) + data.mid(kNonceLen + kVoiceTsLen), kAadVoiceFrame, outPlain);
 }
 
+QByteArray CryptoManager::encryptFileBytes(const QString &peerRef, const QByteArray &plaintext) const
+{
+    const auto key = m_sessionKeys.constFind(resolveIdentity(peerRef));
+    if (key == m_sessionKeys.constEnd())
+        return {};
+
+    const QByteArray sealed = aeadSeal(key->tx, plaintext, kAadFileBytes);
+    if (sealed.size() < kNonceLen + kTagLen)
+        return {};
+    return sealed;
+}
+
+bool CryptoManager::decryptFileBytes(const QString &peerRef, const QByteArray &data, QByteArray *outPlain) const
+{
+    if (data.size() < kNonceLen + kTagLen)
+        return false;
+
+    const auto key = m_sessionKeys.constFind(resolveIdentity(peerRef));
+    if (key == m_sessionKeys.constEnd())
+        return false;
+
+    return aeadOpen(key->rx, data, kAadFileBytes, outPlain);
+}
+
 QByteArray CryptoManager::cacheKeyFor(const QString &passphrase, const QByteArray &salt)
 {
     QByteArray pass = passphrase.toUtf8();
@@ -1098,13 +1123,15 @@ QByteArray CryptoManager::cacheKeyFor(const QString &passphrase, const QByteArra
     return tag.result();
 }
 
-void CryptoManager::decryptAsync(const QString &ciphertext, const QString &passphrase, const QString &peerRef, const std::function<void(const QString &plain, bool delivered)> &done)
+void CryptoManager::decryptAsync(const QString &ciphertext,
+                                 const QString &passphrase,
+                                 const QString &peerRef,
+                                 const std::function<void(const QString &plain, bool delivered)> &done)
 {
     // The queue, the caches and the in-flight flag are single-threaded by
     // design; the receive path on the GUI thread is the only caller. Called
     // from anywhere else the queue races - say so loudly in debug builds.
-    Q_ASSERT_X(QThread::currentThread() == thread(), "CryptoManager::decryptAsync",
-               "the async decrypt queue is confined to the CryptoManager's own thread");
+    Q_ASSERT_X(QThread::currentThread() == thread(), "CryptoManager::decryptAsync", "the async decrypt queue is confined to the CryptoManager's own thread");
 
     // The classification is exactly decrypt()'s, minus the derivation: session
     // keys and cache hits resolve on the spot, and only a passphrase message
@@ -1219,9 +1246,7 @@ void CryptoManager::startDerivation()
     }
 
     m_derivationInFlight = true;
-    QMetaObject::invokeMethod(m_deriveWorker, "derive", Qt::QueuedConnection,
-                              Q_ARG(QString, head.passphrase),
-                              Q_ARG(QByteArray, head.salt));
+    QMetaObject::invokeMethod(m_deriveWorker, "derive", Qt::QueuedConnection, Q_ARG(QString, head.passphrase), Q_ARG(QByteArray, head.salt));
 }
 
 void CryptoManager::onDerived(const QByteArray &salt, std::shared_ptr<QByteArray> key, bool ok)
@@ -1242,9 +1267,8 @@ void CryptoManager::onDerived(const QByteArray &salt, std::shared_ptr<QByteArray
         opened = aeadOpen(*key, entry.payload, kAadPassphraseMessage, &plain);
     }
 
-    const QString result = (opened && ok)
-        ? QString::fromUtf8(plain)
-        : i18nc("@info shown in place of a message body", "[decrypt error: invalid key or tampered packet]");
+    const QString result =
+        (opened && ok) ? QString::fromUtf8(plain) : i18nc("@info shown in place of a message body", "[decrypt error: invalid key or tampered packet]");
     entry.done(result, true);
 
     // Fast entries resolve in the order they queued, one head-of-line derivation

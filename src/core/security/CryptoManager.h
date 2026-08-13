@@ -147,13 +147,23 @@ public:
     // capped, so a flood drops messages instead of memory. delivered=false
     // means the queue gate refused the message: it must not be rendered at
     // all, unlike a decrypt error, which is one message and is worth showing.
-    void decryptAsync(const QString &ciphertext, const QString &passphrase, const QString &peerRef, const std::function<void(const QString &plain, bool delivered)> &done);
+    void decryptAsync(const QString &ciphertext,
+                      const QString &passphrase,
+                      const QString &peerRef,
+                      const std::function<void(const QString &plain, bool delivered)> &done);
 
     // Raw byte encryption (voice frames - no base64/JSON overhead)
     // Both refuse to work without a session: encryptBytes returns an empty
     // array and decryptBytes returns false, and the caller drops the frame.
     QByteArray encryptBytes(const QString &peerRef, const QByteArray &plaintext) const;
     bool decryptBytes(const QString &peerRef, const QByteArray &data, QByteArray *outPlain) const;
+
+    // File transfer encryption. Same primitives, a separate AAD tag so file
+    // bytes cannot be replayed as voice frames or the reverse; the whole
+    // file is sealed before the sender chunks it. Empty result means no
+    // session, and the caller falls back to plaintext.
+    QByteArray encryptFileBytes(const QString &peerRef, const QByteArray &plaintext) const;
+    bool decryptFileBytes(const QString &peerRef, const QByteArray &data, QByteArray *outPlain) const;
 
 Q_SIGNALS:
     // Someone new turned up at an address a peer we still hold a session with
@@ -182,10 +192,10 @@ private:
     // Argon2id derivation on the worker thread.
     struct PendingDecrypt {
         bool needsDerivation = false;
-        QByteArray salt;    // derive entries only, kSaltLen
+        QByteArray salt; // derive entries only, kSaltLen
         QByteArray payload; // derive entries only, ciphertext after the salt
         QString passphrase; // derive entries only, for the cache key
-        QString result;     // fast entries only, computed at enqueue time
+        QString result; // fast entries only, computed at enqueue time
         std::function<void(const QString &plain, bool delivered)> done;
     };
 

@@ -27,6 +27,11 @@ void FileTransferHandler::setMaxTransferBytes(qint64 bytes)
     m_maxTransferBytes = bytes;
 }
 
+void FileTransferHandler::setFileDecryptor(FileDecryptor decryptor)
+{
+    m_decryptor = std::move(decryptor);
+}
+
 QString FileTransferHandler::sanitizeFilename(const QString &rawName)
 {
     const QString fallback = QStringLiteral("file_%1").arg(QDateTime::currentMSecsSinceEpoch());
@@ -152,9 +157,26 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
         full.append(t.chunks.value(i));
     }
 
-    Q_EMIT fileReceived(t.meta, full);
+    // The sender's meta decides: no flag means plaintext as before;
+    // the flag with nothing to decrypt the file with rejects it.
+    QByteArray payload = full;
+    if (t.meta.value(QStringLiteral("encrypted")).toBool()) {
+        if (!m_decryptor) {
+            m_pending.remove(tid);
+            Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The peer sent an encrypted file, and this build cannot open it."));
+            return;
+        }
+        payload = m_decryptor(t.meta.value(QStringLiteral("from_ip")).toString(), full);
+        if (payload.isEmpty()) {
+            m_pending.remove(tid);
+            Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The received file failed to decrypt - dropped."));
+            return;
+        }
+    }
 
-    const QString localPath = saveToDisk(t.meta, full);
+    Q_EMIT fileReceived(t.meta, payload);
+
+    const QString localPath = saveToDisk(t.meta, payload);
     if (!localPath.isEmpty())
         Q_EMIT fileSaved(t.meta, localPath);
     else
