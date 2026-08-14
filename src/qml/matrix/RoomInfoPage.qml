@@ -116,6 +116,14 @@ Kirigami.ScrollablePage {
 
     actions: [
         Kirigami.Action {
+            text: i18nc("@action:button back to the conversation from the room information page", "Back")
+            icon.name: "go-previous"
+            // The global toolbar draws no back arrow for a third column that
+            // outlived the wide layout: it only knows about the first two.
+            visible: !applicationWindow().pageStack.wideMode
+            onTriggered: applicationWindow().pageStack.pop()
+        },
+        Kirigami.Action {
             text: i18nc("@action:button copy the room's address so it can be pasted elsewhere", "Copy address")
             icon.name: "edit-copy"
             visible: root.canonicalAlias.length > 0 || root.roomId.length > 0

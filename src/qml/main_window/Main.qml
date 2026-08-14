@@ -165,6 +165,17 @@ Kirigami.ApplicationWindow {
         chatList.noteMessage(chatId, preview, isOwn, ts)
     }
 
+    // The row, the unread count and the saved history, gone, without telling
+    // any server: the local half of leaving. Both a real leave and the
+    // context-menu "Delete this chat here" land here.
+    function dropChatLocally(chatId) {
+        root.modelForPeer(chatId).clearMessages()
+        UnreadManager.markRead(chatId)
+        chatList.removeChat(chatId)
+        if (root.currentPeerIp === chatId)
+            root.currentPeerIp = ""
+    }
+
     // A reaction only leaves the window when the transport can carry it.
     function onLocalReaction(chatId, ts, emoji, added) {
         if (chatTransport.supportsReactions(chatId))
@@ -227,18 +238,23 @@ Kirigami.ApplicationWindow {
     Connections {
         target: matrixRooms
 
-        function onRoomListed(chatId, displayName) {
+        function onRoomListed(chatId, displayName, avatarUrl) {
             // openChat() is idempotent and never reorders, so a sync that lists
             // forty rooms does not shuffle the conversation the user is reading.
             chatList.openChat(chatId, displayName)
+            if (avatarUrl && avatarUrl.length > 0)
+                chatList.setAvatar(chatId, avatarUrl)
         }
-        function onRoomMessage(chatId, eventId, text, sender, isOwn, ts, isSystem) {
+        function onDirectChatOpened(chatId) {
+            root.openChat(chatId)
+        }
+        function onRoomMessage(chatId, eventId, text, sender, isOwn, ts, isSystem, senderAvatar) {
             const model = root.modelForPeer(chatId)
             // False means the model already had this event id, which is the
             // normal case for the backlog replayed after every reconnect. The
             // conversation list is fed by messageAdded from inside the model, so
             // there is nothing to do on either branch here.
-            if (!model.ingestRemoteMessage(eventId, text, sender, isOwn, ts, isSystem))
+            if (!model.ingestRemoteMessage(eventId, text, sender, isOwn, ts, isSystem, senderAvatar))
                 return
             if (isSystem || isOwn)
                 return
@@ -246,9 +262,9 @@ Kirigami.ApplicationWindow {
             if (chatId === root.currentPeerIp && root.chatAtBottom)
                 root.markChatRead(chatId)
         }
-        function onRoomAttachment(chatId, eventId, media, sender, isOwn, ts) {
+        function onRoomAttachment(chatId, eventId, media, sender, isOwn, ts, senderAvatar) {
             const model = root.modelForPeer(chatId)
-            if (!model.ingestRemoteAttachment(eventId, media, sender, isOwn, ts))
+            if (!model.ingestRemoteAttachment(eventId, media, sender, isOwn, ts, senderAvatar))
                 return
             if (isOwn)
                 return
@@ -303,10 +319,11 @@ Kirigami.ApplicationWindow {
                 root.refreshRoomInfo()
         }
         function onRoomLeft(chatId) {
-            // The row stays: a room that was left still has a log, exactly as a
-            // peer that was switched off does.
-            root.modelForPeer(chatId).appendSystemMessage(
-                i18nc("@info in-timeline notice", "You are no longer in this room."))
+            // A left room is gone from the window and from the index: the
+            // homeserver still has the account in it, but nothing the user can
+            // reach from here, and a row with no way back in is litter. The
+            // conversation can be re-entered with Join or a fresh invite.
+            root.dropChatLocally(chatId)
         }
         function onRoomInvited(chatId, displayName) {
             for (let i = 0; i < invitesModel.count; i++) {
@@ -1057,6 +1074,20 @@ Kirigami.ApplicationWindow {
     // not built later - so everything that touches it is guarded.
     readonly property bool hasTray: typeof trayIcon !== "undefined" && trayIcon !== null
 
+    // The same fold toggleCompact() applies by hand, for the window simply
+    // being dragged narrow: a third column has nowhere to live in a one-column
+    // stack, and without this the room page stayed open with no way back.
+    Connections {
+        target: root.pageStack
+
+        function onWideModeChanged() {
+            if (!root.pageStack.wideMode) {
+                while (root.pageStack.depth > 2)
+                    root.pageStack.pop()
+            }
+        }
+    }
+
     // Bindings rather than a Connections block: a signal handler per property
     // would be four places for these to fall out of step.
     Binding {
@@ -1161,6 +1192,7 @@ Kirigami.ApplicationWindow {
         onProfileRequested: (anchorItem) => root.showAccountCard(anchorItem)
         onSettingsRequested: root.showLayer(settingsPageComponent)
         onLeaveRoomRequested: (chatId) => chatTransport.leaveChat(chatId)
+        onDeleteRequested: (chatId) => root.dropChatLocally(chatId)
         selfChatId: root.kSelfChatId
         onForgetRequested: (chatId) => {
             chatList.removeChat(chatId)
@@ -1357,6 +1389,10 @@ Kirigami.ApplicationWindow {
                 // wants one entry per invite.
                 const split = invites.split(",").map((s) => s.trim()).filter((s) => s.length > 0)
                 matrixRooms.createRoom(name, topic, alias, split, isPrivate)
+            }
+            onDirectChatRequested: (userId) => {
+                root.pageStack.layers.pop()
+                matrixRooms.openDirectChat(userId)
             }
         }
     }
