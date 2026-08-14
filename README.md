@@ -9,8 +9,8 @@ network or a VPN it finds its peers by itself over UDP and talks to them
 directly. Text, voice and files go peer to peer; nothing is uploaded anywhere
 first.
 
-Written in C++20 with Qt 6 and Kirigami. Version 0.1, a developer build, not
-released yet.
+Written in C++20 with Qt 6 and Kirigami. Version 0.1, a pre-alpha developer
+build, not released yet.
 
 ## Status
 
@@ -41,30 +41,41 @@ as unsupported until somebody says otherwise.
 - **Key storage.** Private keys and the group passphrase go into KWallet.
   Without a wallet the app keeps them in memory for that session and refuses
   to write them anywhere in plain text.
-- **Chat.** One-to-one and group messages, reactions, edit, delete, read
-  receipts, typing indicators, per-chat history and unread counts.
+- **Chat.** One-to-one and group messages, avatars, reactions, edit, delete,
+  read receipts, typing indicators, per-chat history and unread counts. Every
+  group seals under a key of its own, kept in KWallet and handed to an invitee
+  only under the session with them; groups that predate this keep working on
+  the shared passphrase.
 - **Voice calls.** TCP with a four-byte length prefix per frame, a per-peer
   jitter buffer, and a mixer that clamps rather than wraps, so several people
-  talking at once does not turn into noise.
+  talking at once does not turn into noise. The same channel carries Matrix
+  room calls: the room signals them with m.call events, and the media runs
+  under a per-call shared key installed in place of the handshake.
 - **File transfer.** Chunked at 48000 bytes over UDP, reassembled with a size
   cap, a concurrency cap and a TTL on incomplete transfers.
-- **The rest of the window.** A notes page, a media player, and a two-column
-  layout that folds to one column on a narrow window. The interface is Kirigami
+- **The rest of the window.** A notes page, a media player, and a three-column
+  layout - conversation list, conversation, details - that folds to one column
+  on a narrow window. The interface is Kirigami
   and kirigami-addons throughout, so it takes its colours from the Plasma colour
   scheme; the only choice the app makes for itself is dark, light or follow the
-  desktop. Every user-visible string goes through ki18n; the catalogs are in
-  `po/`.
-- **K-Server mode, which is Matrix.** Signing in to a homeserver puts your
-  joined rooms in the same conversation list as the peers found on the local
-  network, marked with a badge and otherwise identical; plain text and
-  encrypted messages read and send, and the session is resumed on the next
-  start without asking again. The session is opened with encryption on, and
-  sessions can be verified against another client of yours by comparing emoji
-  - which is also what convinces that other client to share its room keys
-  here. It is libQuotient underneath, the same library NeoChat is built on, so
-  a room here and a room there are the same room and this project does not
-  have to invent federation. LAN mode is untouched by any of it and stays
-  entirely KOutNet's own protocol.
+  desktop. Every user-visible string goes through ki18n and the catalogs are in
+  `po/`, though only the English source is complete so far.
+- **Matrix mode.** Signing in to a homeserver puts your joined rooms in the
+  same conversation list as the peers found on the local network, marked with
+  a badge and otherwise identical; plain text and encrypted messages read and
+  send, and the session is resumed on the next start without asking again -
+  after the homeserver itself has confirmed the stored token still belongs to
+  the configured account. Rooms are first-class conversations: reactions,
+  edits, redactions, read receipts, typing, invites, creation, kick and ban,
+  one-on-one chats, attachments and avatars all work, and a left room leaves
+  the list with its history. The session is opened with encryption on, the
+  room key backup unlocks with a recovery key, and sessions can be verified
+  against another client of yours by comparing emoji - which is also what
+  convinces that other client to share its room keys here. It is libQuotient
+  underneath, the same library NeoChat is built on, so a room here and a room
+  there are the same room and this project does not have to invent federation.
+  LAN mode is untouched by any of it and stays entirely KOutNet's own
+  protocol.
 - **A transport seam.** Every chat is a `ChatBackend` registered in one
   registry under the prefix its address starts with, and the window knows only
   the interface - `transportName()`, the capability flags for calls, edits,
@@ -74,53 +85,74 @@ as unsupported until somebody says otherwise.
 
 ## What does not work yet
 
-- **Most of the E2EE support layer.** The session itself is encrypted and
-  messages it holds keys for decrypt and send; what is still missing is the
-  part that keeps keys available: key backup, cross-signing, and inviting
-  another device to share its room keys. A message this device has no key for
-  shows a notice in the timeline instead of its text, and sending to such a
-  room is refused when the session's key store never started. Attachments,
-  reactions, invites, room creation and spaces over Matrix are all still to
-  come, as are Matrix voice calls.
+- **Parts of the E2EE support layer.** The session itself is encrypted and
+  messages it holds keys for decrypt and send, the key backup unlocks with a
+  recovery key, and emoji verification shares room keys from another device.
+  What is still missing is cross-signing and the automatic key gossip between
+  your own devices. A message this device has no key for shows a notice in
+  the timeline instead of its text, and sending to such a room is refused
+  when the session's key store never started. Spaces over Matrix are still to
+  come.
 
-- **Per-group keys.** Every group currently shares the one app-wide
-  passphrase. Per-group keys, or an ECDH fan-out per member, are the plan.
 - **Telegram and Rocket.Chat.** The seam they would plug into is in place and
   their chat-id prefixes are reserved, but no transport has been written for
   either yet.
 
 ## Dependencies
 
-- **Qt 6.4+**: Core, Gui, Quick, QuickControls2, QuickDialogs2, Multimedia,
-  Network. Test as well, if you build the test suite.
-- **KDE Frameworks 6.8+**: I18n, I18nQml, Kirigami, Wallet, CoreAddons,
-  Config. ColorScheme as well, from 6.6, for the dark/light/system setting.
-  The floor is 6.8 rather than 6.0 because `Kirigami.Units.cornerRadius`, which
-  the timeline and the pickers round their corners with, was added in 6.8.
+- **Qt 6.4+**: Core, Gui, Widgets, Quick, QuickControls2, QuickDialogs2,
+  Multimedia, Network. Test as well, if you build the test suite.
+- **KDE Frameworks 6.8+**: Config, CoreAddons, I18n (I18nQml comes in the same
+  package), IdleTime, Kirigami, Notifications, StatusNotifierItem, Wallet.
+  ColorScheme as well, from 6.6, for the dark/light/system setting. The floor
+  is 6.8 rather than 6.0 because `Kirigami.Units.cornerRadius`, which the
+  timeline and the pickers round their corners with, was added in 6.8.
 - **kirigami-addons 1.8+**: FormCard for the settings and about pages, the list
   delegates for the conversation rows, the maximize component for the image
   viewer and the convergent context menu for the per-message menu. CMake fails
   at configure time with the package name if it is missing.
-- **libQuotient 0.9+**, built for Qt 6: the Matrix SDK behind K-Server mode, and
-  the same one NeoChat uses. Required, not optional - CMake fails at configure
-  time with the package name if it is missing. It brings libolm, qtkeychain for
-  Qt 6 and Qt6::Sql along as its own dependencies. Note that it publishes
-  `cxx_std_23` as an interface requirement, so linking it raises this project
-  past the C++20 it otherwise asks for.
+- **libQuotient 0.9+**, built for Qt 6: the Matrix SDK, and the same one
+  NeoChat uses. Required, not optional - CMake fails at configure time with
+  the package name if it is missing. It brings libolm, qtkeychain for Qt 6 and
+  Qt6::Sql along as its own dependencies. Note that it publishes `cxx_std_23`
+  as an interface requirement, so linking it raises this project past the
+  C++20 it otherwise asks for.
 - **libsodium 1.0.18+**, found through pkg-config: every cryptographic
   primitive in `CryptoManager` is one of its calls. The application no longer
   links OpenSSL; the crypto test still does, because the forged-peer helper it
   builds attacker keys with has not been ported yet.
 - **extra-cmake-modules** 6.8+ and CMake 3.21+.
 
-On Debian or Ubuntu, roughly:
+The CI builds on openSUSE Tumbleweed, and the dependency list there is written
+as the exact cmake()/pkgconfig() capabilities `find_package()` asks for, so it
+cannot drift out of step:
+
+```
+zypper install gcc-c++ cmake ninja pkgconf-pkg-config kf6-extra-cmake-modules \
+  'cmake(Qt6Core)' 'cmake(Qt6Gui)' 'cmake(Qt6Qml)' 'cmake(Qt6Quick)' \
+  'cmake(Qt6QuickControls2)' 'cmake(Qt6QuickDialogs2)' 'cmake(Qt6Multimedia)' \
+  'cmake(Qt6Network)' 'cmake(Qt6Widgets)' 'cmake(Qt6Test)' 'cmake(KF6Config)' \
+  'cmake(KF6CoreAddons)' 'cmake(KF6I18n)' 'cmake(KF6IdleTime)' \
+  'cmake(KF6Kirigami)' 'cmake(KF6Notifications)' 'cmake(KF6StatusNotifierItem)' \
+  'cmake(KF6Wallet)' 'cmake(KF6ColorScheme)' 'cmake(KF6KirigamiAddons)' \
+  'cmake(QuotientQt6)' 'pkgconfig(libsodium)' 'pkgconfig(libopenssl)'
+```
+
+On Debian or Ubuntu the same set is, roughly:
 
 ```
 qt6-base-dev qt6-declarative-dev qt6-multimedia-dev libkf6config-dev
-libkf6coreaddons-dev libkf6i18n-dev libkf6kirigami-dev libkf6kirigamiaddons-dev
+libkf6coreaddons-dev libkf6i18n-dev libkf6idletime-dev libkf6kirigami-dev
+libkf6kirigamiaddons-dev libkf6notifications-dev libkf6statusnotifieritem-dev
 libkf6colorscheme-dev libkf6wallet-dev extra-cmake-modules libsodium-dev
 libssl-dev libquotient-dev
 ```
+
+Note that the kirigami-addons dev package name varies between releases
+(`kirigami-addons-dev` in some), and that the stable releases of these
+distributions have so far carried Frameworks too old to configure the project
+at all - the CI comment on the matter is blunt. A current KDE neon or a
+rolling release is the safer bet.
 
 On Gentoo, `net-libs/libquotient` (which pulls `dev-libs/olm` and
 `dev-libs/qtkeychain[qt6]`) alongside the usual `dev-qt` and `kde-frameworks`
