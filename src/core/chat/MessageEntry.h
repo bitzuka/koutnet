@@ -8,6 +8,7 @@
 
 struct MessageEntry {
     QString sender;
+    QString avatarUrl; // media URL of the sender's avatar, empty when none
     QString text;
     double ts = 0.0; // unix timestamp, seconds (fractional)
     bool isOwn = false;

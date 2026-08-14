@@ -30,6 +30,7 @@ MessageEntry MessageEntry::fromJson(const QJsonObject &o)
     e.mediaWidth = o.value(QStringLiteral("media_width")).toInt();
     e.mediaHeight = o.value(QStringLiteral("media_height")).toInt();
     e.mediaDurationMs = o.value(QStringLiteral("media_duration_ms")).toInt();
+    e.avatarUrl = o.value(QStringLiteral("avatar_url")).toString();
     e.isRead = o.value(QStringLiteral("is_read")).toBool();
     e.ensureMsgId();
     return e;
@@ -61,6 +62,7 @@ QJsonObject MessageEntry::toJson() const
     o[QStringLiteral("media_width")] = mediaWidth;
     o[QStringLiteral("media_height")] = mediaHeight;
     o[QStringLiteral("media_duration_ms")] = mediaDurationMs;
+    o[QStringLiteral("avatar_url")] = avatarUrl;
     o[QStringLiteral("is_read")] = isRead;
     return o;
 }

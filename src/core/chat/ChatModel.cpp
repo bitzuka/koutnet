@@ -28,6 +28,8 @@ QVariant ChatModel::data(const QModelIndex &index, int role) const
     switch (role) {
     case SenderRole:
         return m.sender;
+    case SenderAvatarRole:
+        return m.avatarUrl;
     case TextRole:
         return m.text;
     case IsOwnRole:
@@ -118,6 +120,7 @@ QHash<int, QByteArray> ChatModel::roleNames() const
 {
     return {
         {SenderRole, "sender"},
+        {SenderAvatarRole, "senderAvatar"},
         {TextRole, "text"},
         {IsOwnRole, "isOwn"},
         {ColorRole, "color"},
@@ -378,7 +381,7 @@ void ChatModel::appendSystemMessage(const QString &text)
     appendEntry(e, false);
 }
 
-bool ChatModel::ingestRemoteMessage(const QString &remoteId, const QString &text, const QString &sender, bool isOwn, double ts, bool isSystem)
+bool ChatModel::ingestRemoteMessage(const QString &remoteId, const QString &text, const QString &sender, bool isOwn, double ts, bool isSystem, const QString &senderAvatar)
 {
     // No id means no duplicate check, and without one this is receiveMessage().
     if (remoteId.isEmpty() || rowForMsgId(remoteId) >= 0)
@@ -388,6 +391,7 @@ bool ChatModel::ingestRemoteMessage(const QString &remoteId, const QString &text
     e.msgId = remoteId;
     e.text = text;
     e.sender = sender;
+    e.avatarUrl = senderAvatar;
     e.ts = ts > 0.0 ? ts : QDateTime::currentMSecsSinceEpoch() / 1000.0;
     e.isOwn = isOwn;
     e.isSystem = isSystem;
@@ -401,7 +405,7 @@ bool ChatModel::ingestRemoteMessage(const QString &remoteId, const QString &text
     return true;
 }
 
-bool ChatModel::ingestRemoteAttachment(const QString &remoteId, const QVariantMap &media, const QString &sender, bool isOwn, double ts)
+bool ChatModel::ingestRemoteAttachment(const QString &remoteId, const QVariantMap &media, const QString &sender, bool isOwn, double ts, const QString &senderAvatar)
 {
     if (remoteId.isEmpty() || rowForMsgId(remoteId) >= 0)
         return false;
@@ -409,6 +413,7 @@ bool ChatModel::ingestRemoteAttachment(const QString &remoteId, const QVariantMa
     MessageEntry e;
     e.msgId = remoteId;
     e.sender = sender;
+    e.avatarUrl = senderAvatar;
     e.ts = ts > 0.0 ? ts : QDateTime::currentMSecsSinceEpoch() / 1000.0;
     e.isOwn = isOwn;
     e.msgType = QStringLiteral("private");

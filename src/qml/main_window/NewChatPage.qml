@@ -28,6 +28,7 @@ Kirigami.ScrollablePage {
     signal chatRequested(string ip)
     signal roomJoinRequested(string aliasOrId)
     signal roomCreateRequested(string name, string topic, string alias, string invites, bool isPrivate)
+    signal directChatRequested(string userId)
 
     title: i18nc("@title:window", "New chat")
 
@@ -111,6 +112,31 @@ Kirigami.ScrollablePage {
                         enabled: roomAddressField.text.trim().length > 0
                         onClicked: root.roomJoinRequested(roomAddressField.text.trim())
                     }
+                }
+            }
+
+            ColumnLayout {
+                visible: root.matrixAvailable
+                spacing: Kirigami.Units.smallSpacing
+
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    text: i18nc("@label:textbox", "Private chat with a Matrix user")
+                }
+
+                QQC2.TextField {
+                    id: directUserField
+                    Layout.fillWidth: true
+                    placeholderText: i18nc("@info:placeholder a Matrix identity to talk to one-on-one", "@user:server")
+                    onAccepted: root.directChatRequested(text.trim())
+                }
+
+                QQC2.Button {
+                    text: i18nc("@action:button open a private chat with the user typed above", "Open private chat")
+                    icon.name: "mail-message-new"
+                    highlighted: true
+                    enabled: directUserField.text.trim().length > 0
+                    onClicked: root.directChatRequested(directUserField.text.trim())
                 }
             }
 

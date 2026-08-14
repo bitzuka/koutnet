@@ -116,6 +116,12 @@ public:
     Q_INVOKABLE void banMember(const QString &chatId, const QString &userId);
     Q_INVOKABLE void unbanMember(const QString &chatId, const QString &userId);
 
+    // A one-on-one with a member of this homeserver. Existing direct rooms are
+    // reused; requestDirectChat() creates one when there is none, and the join
+    // chimes directChatOpened() so the window can open it without watching
+    // roomListed().
+    Q_INVOKABLE void openDirectChat(const QString &userId);
+
     // Calls between KOutNet sessions in a Matrix room. A voice call is media
     // between the two local networks, and the homeserver is only the
     // signaller: m.call.invite/answer/hangup carry the LAN address each side
@@ -136,18 +142,18 @@ Q_SIGNALS:
     // A room the conversation list has not been told about yet, or one whose
     // name changed. Idempotent on the receiving end - ChatListModel::openChat()
     // already is.
-    void roomListed(QString chatId, QString displayName);
+    void roomListed(QString chatId, QString displayName, QString avatarUrl = QString());
     void roomLeft(QString chatId);
 
     // One signal for every kind of text row, because ChatModel takes them all
     // through one call and the duplicate check is keyed on eventId. System rows
     // carry a synthetic id so that a restart does not stack another copy.
-    void roomMessage(QString chatId, QString eventId, QString text, QString sender, bool isOwn, double ts, bool isSystem);
+    void roomMessage(QString chatId, QString eventId, QString text, QString sender, bool isOwn, double ts, bool isSystem, QString senderAvatar = QString());
 
     // A picture, a recording or a file. A map rather than nine parameters: the
     // shape is ChatModel::ingestRemoteAttachment()'s, and both ends move
     // together. Keys: kind, url, name, mime, size, width, height, duration.
-    void roomAttachment(QString chatId, QString eventId, QVariantMap media, QString sender, bool isOwn, double ts);
+    void roomAttachment(QString chatId, QString eventId, QVariantMap media, QString sender, bool isOwn, double ts, QString senderAvatar = QString());
 
     // A reaction to a message. ts is the stamp of the message being reacted
     // to, never the reaction's own - the ReactionStore keys on the target,
@@ -199,6 +205,11 @@ Q_SIGNALS:
     // kick. One channel for all of them, because the window answers each with
     // the same toast.
     void roomOperationFailed(QString chatId, QString reason);
+
+    // A one-on-one requested by openDirectChat() is ready: an existing direct
+    // room was found, or the one requestDirectChat() created has come through
+    // the join. The window opens this room as a chat.
+    void directChatOpened(QString chatId);
 
     // Somebody in the room asked this session to join a call. The call id
     // travels with it: the answer to an invitation names the call.
@@ -298,6 +309,10 @@ private:
         QByteArray peerKey;
     };
     PendingCall m_pending;
+
+    // Set by openDirectChat() while the homeserver is creating the room; the
+    // join of a room that matches it chimes directChatOpened().
+    QString m_pendingDirectTarget;
 
     QPointer<NetworkManager> m_net;
     QPointer<VoiceCallManager> m_voice;

@@ -21,6 +21,7 @@ Item {
     // Required, so a renamed role is a hard error at load and not a blank row.
     required property int index
     required property string sender
+    required property string senderAvatar
     required property string text
     required property bool isOwn
     required property bool isSystem
@@ -230,7 +231,9 @@ Item {
                         name: root.authorName
                         // Peers publish a name and a bio but no picture, so theirs
                         // stays an initial - see setProfile() in NetworkManager.
-                        source: root.isOwn ? root.selfAvatarSource : ""
+                        // The Matrix side is different: the avatar is on the
+                        // homeserver, and this session's own is the local file.
+                        source: root.isOwn ? root.selfAvatarSource : root.senderAvatar
                         asynchronous: true
 
                         // The card is hung off this item, so it has to be the one

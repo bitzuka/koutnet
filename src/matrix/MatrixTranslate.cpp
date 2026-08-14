@@ -125,6 +125,7 @@ Row rowFor(const RawEvent &event)
     row.ts = secondsFromMs(event.originTimestampMs);
     row.isOwn = event.isOwn;
     row.sender = event.senderName.isEmpty() ? event.senderId : event.senderName;
+    row.senderId = event.senderId;
 
     // State first: a redacted state event still happened, and hiding it would
     // leave a join or a topic change out of the record because somebody later

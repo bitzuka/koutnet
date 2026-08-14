@@ -106,6 +106,9 @@ struct Row {
     QString msgId;
     QString text;
     QString sender;
+    // Who the sender is on the homeserver: a display name like sender, but the
+    // id, so an avatar lookup gets a stable key even mid-rename.
+    QString senderId;
     double ts = 0.0;
     bool isOwn = false;
 

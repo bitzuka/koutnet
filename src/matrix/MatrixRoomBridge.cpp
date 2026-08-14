@@ -27,8 +27,10 @@
 #include <Quotient/connection.h>
 #include <Quotient/csapi/create_room.h>
 #include <Quotient/csapi/joining.h>
+#include <Quotient/csapi/leaving.h>
 #include <Quotient/csapi/typing.h>
 #include <Quotient/events/callevents.h>
+#include <Quotient/events/encryptionevent.h>
 #include <Quotient/events/eventrelation.h>
 #include <Quotient/events/reactionevent.h>
 #include <Quotient/events/redactionevent.h>
@@ -135,6 +137,52 @@ QString memberLabel(const Room *room, const QString &userId)
         return userId;
     const QString name = room->member(userId).displayName();
     return name.isEmpty() ? userId : name;
+}
+
+// The media URL of a member's avatar, or an empty string when the member has
+// none or this session is looking at its own picture (which is a local file).
+QString memberAvatarUrl(const Room *room, const QString &userId)
+{
+    if (room == nullptr || userId.isEmpty() || room->connection() == nullptr)
+        return QString();
+    if (userId == room->connection()->userId())
+        return QString();
+    const QUrl avatar = room->member(userId).avatarUrl();
+    if (avatar.scheme() != QLatin1String("mxc"))
+        return QString();
+    return room->connection()->makeMediaUrl(avatar).toString();
+}
+
+// Whether a member is currently joined to the room. joinedMemberCount() would
+// answer the count but not the identity, and a direct room is the room with
+// exactly one other member: this is who.
+bool isJoinedMember(const Room *room, const QString &userId)
+{
+    if (room == nullptr || userId.isEmpty())
+        return false;
+    return room->memberState(userId) == Membership::Join;
+}
+
+// The picture a conversation row should carry: the other member's avatar in a
+// one-on-one, the room's own otherwise. Empty when there is none to show.
+QString roomAvatarUrl(const Room *room)
+{
+    if (room == nullptr || room->connection() == nullptr)
+        return QString();
+    if (room->isDirectChat()) {
+        const auto members = room->joinedMembers();
+        for (const RoomMember &member : members) {
+            if (member.id() == room->connection()->userId())
+                continue;
+            const QUrl avatar = member.avatarUrl();
+            if (avatar.scheme() == QLatin1String("mxc"))
+                return room->connection()->makeMediaUrl(avatar).toString();
+        }
+    }
+    const QUrl avatar = room->avatarUrl();
+    if (avatar.scheme() == QLatin1String("mxc"))
+        return room->connection()->makeMediaUrl(avatar).toString();
+    return QString();
 }
 
 // Which of the member-event cases this is. The distinctions - and which ones
@@ -427,6 +475,15 @@ void MatrixRoomBridge::trackRoom(Room *room)
     }
     m_tracked.insert(room->id(), room);
 
+    // A direct room requested by openDirectChat() comes through the join after
+    // the homeserver created it; the window asks for it to be opened, so the
+    // answer is emitted the moment the room is known to be the one requested.
+    if (!m_pendingDirectTarget.isEmpty() && room->isDirectChat() && isJoinedMember(room, m_pendingDirectTarget)
+        && room->joinedCount() == 2) {
+        m_pendingDirectTarget.clear();
+        Q_EMIT directChatOpened(chatid::matrixChatId(room->id()));
+    }
+
     connect(room, &Room::addedMessages, this, [this, room](int fromIndex, int toIndex) {
         publishRange(room, fromIndex, toIndex);
     });
@@ -512,7 +569,7 @@ void MatrixRoomBridge::trackRoom(Room *room)
 void MatrixRoomBridge::publishRoom(Room *room)
 {
     const QString chatId = chatid::matrixChatId(room->id());
-    Q_EMIT roomListed(chatId, matrix::conversationTitle(room->displayName(), room->id()));
+    Q_EMIT roomListed(chatId, matrix::conversationTitle(room->displayName(), room->id()), roomAvatarUrl(room));
     Q_EMIT roomInfoChanged(chatId);
 }
 
@@ -603,17 +660,23 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
     switch (row.kind) {
     case matrix::RowKind::Skip:
         break;
-    case matrix::RowKind::Text:
-        Q_EMIT roomMessage(chatId, row.msgId, row.text, row.sender, row.isOwn, row.ts, false);
+    case matrix::RowKind::Text: {
+        const QString avatar = memberAvatarUrl(room, row.senderId);
+        Q_EMIT roomMessage(chatId, row.msgId, row.text, row.sender, row.isOwn, row.ts, false, avatar);
         break;
-    case matrix::RowKind::System:
-        Q_EMIT roomMessage(chatId, row.msgId, row.text, row.sender, row.isOwn, row.ts, true);
+    }
+    case matrix::RowKind::System: {
+        const QString avatar = memberAvatarUrl(room, row.senderId);
+        Q_EMIT roomMessage(chatId, row.msgId, row.text, row.sender, row.isOwn, row.ts, true, avatar);
         break;
-    case matrix::RowKind::Encrypted:
+    }
+    case matrix::RowKind::Encrypted: {
         // Per event, not per room. The room is readable; this one message is
         // not, and saying it about the room would be a lie about the rest.
-        Q_EMIT roomMessage(chatId, row.msgId, row.text, row.sender, row.isOwn, row.ts, true);
+        const QString avatar = memberAvatarUrl(room, row.senderId);
+        Q_EMIT roomMessage(chatId, row.msgId, row.text, row.sender, row.isOwn, row.ts, true, avatar);
         break;
+    }
     case matrix::RowKind::Attachment: {
         QVariantMap media;
         media.insert(QStringLiteral("kind"), mediaKindName(row.media));
@@ -624,7 +687,8 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
         media.insert(QStringLiteral("width"), row.mediaWidth);
         media.insert(QStringLiteral("height"), row.mediaHeight);
         media.insert(QStringLiteral("duration"), row.mediaDurationMs);
-        Q_EMIT roomAttachment(chatId, row.msgId, media, row.sender, row.isOwn, row.ts);
+        const QString avatar = memberAvatarUrl(room, row.senderId);
+        Q_EMIT roomAttachment(chatId, row.msgId, media, row.sender, row.isOwn, row.ts, avatar);
         break;
     }
     }
@@ -702,7 +766,7 @@ bool MatrixRoomBridge::sendText(const QString &chatId, const QString &text)
     // session that is not up and a room that is not joined need different
     // answers from the user, and "not available" was the same sentence for both.
     if (!m_manager || !m_manager->connection()) {
-        Q_EMIT sendFailed(chatId, i18nc("@info:status", "Not signed in to the K-Server, so this message was not sent."));
+        Q_EMIT sendFailed(chatId, i18nc("@info:status", "Not signed in to Matrix, so this message was not sent."));
         return false;
     }
 
@@ -786,7 +850,17 @@ bool MatrixRoomBridge::leaveChat(const QString &chatId)
     Room *room = roomFor(chatId);
     if (room == nullptr)
         return false;
-    room->leaveRoom();
+    const auto job = room->leaveRoom();
+    // The window must not wait for the sync to echo the leave back: join-state
+    // transitions are driven by sync (see setJoinState's note in room.h), so
+    // with the sync loop down or merely slow the row would linger, and "I
+    // left and the chat is still here" was exactly the report. When the sync
+    // does echo, Connection::leftRoom lands too and the handler is idempotent.
+    if (job != nullptr) {
+        connect(job.data(), &Quotient::BaseJob::success, this, [this, chatId]() {
+            Q_EMIT roomLeft(chatId);
+        });
+    }
     return true;
 }
 
@@ -873,6 +947,21 @@ void MatrixRoomBridge::sendReaction(const QString &chatId, double ts, const QStr
         return;
 
     if (added) {
+        // The local reaction store decides added/removed from what it has on
+        // disk, and across a restart or an account switch that knowledge can
+        // be wrong: the tap then arrives as "add" for a reaction this account
+        // already sent, and the homeserver answers the second copy with a 400.
+        // The room's own annotations are the truth - an existing one from this
+        // account means the tap meant "off", which is a redaction, not a post.
+        const auto &annotations = room->relatedEvents(eventId, EventRelation::AnnotationType);
+        for (const RoomEvent *annotation : annotations) {
+            const auto *reaction = eventCast<const ReactionEvent>(annotation);
+            if (reaction && reaction->key() == emoji && !room->connection()->userId().isEmpty()
+                && reaction->senderId() == room->connection()->userId()) {
+                room->redactEvent(reaction->id());
+                return;
+            }
+        }
         room->postReaction(eventId, emoji);
         return;
     }
@@ -1012,6 +1101,30 @@ void MatrixRoomBridge::unbanMember(const QString &chatId, const QString &userId)
     room->unban(userId.trimmed());
 }
 
+void MatrixRoomBridge::openDirectChat(const QString &userId)
+{
+    const QString target = userId.trimmed();
+    auto *connection = m_manager != nullptr ? m_manager->connection() : nullptr;
+    if (target.isEmpty() || connection == nullptr)
+        return;
+
+    // An existing direct room with exactly the two of us is reused rather than
+    // proliferated: the Matrix spec allows several, and neither this window
+    // nor the peer wants to pick between lookalikes.
+    const auto rooms = connection->allRooms();
+    for (Room *room : rooms) {
+        if (room == nullptr || room->joinState() != JoinState::Join || !room->isDirectChat())
+            continue;
+        if (room->joinedCount() == 2 && isJoinedMember(room, target)) {
+            Q_EMIT directChatOpened(chatid::matrixChatId(room->id()));
+            return;
+        }
+    }
+
+    m_pendingDirectTarget = target;
+    connection->requestDirectChat(target);
+}
+
 void MatrixRoomBridge::setCallStack(NetworkManager *net, VoiceCallManager *voice, CryptoManager *crypto)
 {
     m_net = net;
@@ -1029,7 +1142,9 @@ MatrixRoomBridge::CallOffer MatrixRoomBridge::ownCallOffer() const
     if (m_net != nullptr)
         offer.address = m_net->hostIp();
     offer.key.resize(CryptoManager::kKeyLen);
-    QRandomGenerator::system()->fillRange(offer.key.data(), std::ptrdiff_t(offer.key.size()) / sizeof(quint32));
+    // fillRange() fills integers, the key is bytes: the cast is sound because
+    // the size is a multiple of four (kKeyLen is 32).
+    QRandomGenerator::system()->fillRange(reinterpret_cast<quint32 *>(offer.key.data()), offer.key.size() / int(sizeof(quint32)));
     return offer;
 }
 
@@ -1157,7 +1272,8 @@ void MatrixRoomBridge::handleCallEvent(Room *room, const RoomEvent *event)
 
     if (const auto *invite = eventCast<const CallInviteEvent>(event)) {
         const CallOffer offer = callOfferFromSdp(invite->sdp());
-        const auto it = m_calls.constFind(chatId);
+        // Non-const find: the answerer branch below appends to the peer list.
+        const auto it = m_calls.find(chatId);
         if (it != m_calls.end() && it->callId == invite->callId()) {
             // The same caller re-inviting an established call: a group call in
             // which more than one member is answering the one invitation. On
