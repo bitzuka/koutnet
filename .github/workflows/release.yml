@@ -1,0 +1,88 @@
+# SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
+# SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
+# A tag is a release: build the window on the same Tumbleweed image the CI
+# proves, wrap the binary with the README, and hang the tarball on a GitHub
+# release marked as a prerelease. The binary still needs the shared libraries
+# from a comparably current system - it is a convenience for testers, not a
+# distribution package, and the release notes say so.
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  binary:
+    name: build and publish the binary tarball
+    runs-on: ubuntu-latest
+    container: opensuse/tumbleweed:latest
+    steps:
+      # actions/checkout is a JavaScript action and the Tumbleweed image has
+      # no node, so it has to be put there by a plain shell step first. tar
+      # and gzip are what checkout shells out to.
+      - name: Install checkout prerequisites
+        run: |
+          zypper --non-interactive --gpg-auto-import-keys refresh
+          zypper --non-interactive install --no-recommends \
+            nodejs-default git-core tar gzip
+
+      - uses: actions/checkout@v4
+
+      # The same capability list the CI installs from - see build.yml on why
+      # the strings are cmake()/pkgconfig() names and not package names.
+      - name: Install build dependencies
+        run: |
+          zypper --non-interactive install --no-recommends \
+            gcc-c++ cmake ninja pkgconf-pkg-config \
+            kf6-extra-cmake-modules \
+            'cmake(Qt6Core)' \
+            'cmake(Qt6Gui)' \
+            'cmake(Qt6Qml)' \
+            'cmake(Qt6Quick)' \
+            'cmake(Qt6QuickControls2)' \
+            'cmake(Qt6QuickDialogs2)' \
+            'cmake(Qt6Multimedia)' \
+            'cmake(Qt6Network)' \
+            'cmake(Qt6Widgets)' \
+            'cmake(KF6Config)' \
+            'cmake(KF6CoreAddons)' \
+            'cmake(KF6I18n)' \
+            'cmake(KF6IdleTime)' \
+            'cmake(KF6Kirigami)' \
+            'cmake(KF6Notifications)' \
+            'cmake(KF6StatusNotifierItem)' \
+            'cmake(KF6Wallet)' \
+            'cmake(KF6ColorScheme)' \
+            'cmake(KF6KirigamiAddons)' \
+            'cmake(QuotientQt6)' \
+            'pkgconfig(libsodium)'
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF
+
+      - name: Build
+        run: cmake --build build --parallel --target KOutNet
+
+      - name: Package the binary
+        run: |
+          mkdir -p dist/KOutNet
+          cp build/bin/KOutNet dist/KOutNet/
+          cp README.md dist/KOutNet/
+          tar -C dist -czf "KOutNet-${{ github.ref_name }}-linux-x86_64.tar.gz" KOutNet
+
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          generate_release_notes: true
+          files: "KOutNet-${{ github.ref_name }}-linux-x86_64.tar.gz"
+          notes: |
+            Pre-alpha. The tarball is built on openSUSE Tumbleweed and needs
+            the shared libraries of a comparably current system - Qt 6.11,
+            KDE Frameworks 6.28 and libQuotient for Qt 6 among them; on
+            anything older, build from source instead (see README.md inside).
+            Nothing here is a distribution package yet.
