@@ -65,6 +65,14 @@ int main(int argc, char *argv[])
     // translated string, so nothing resolves against whatever domain was current.
     KLocalizedString::setApplicationDomain(QByteArrayLiteral("koutnet"));
 
+    // A language picked in Settings wins over the system one; an empty setting
+    // is the system, which is what ki18n does when this is never called. It has
+    // to precede the first i18n call, which is KAboutData just below. A throwaway
+    // instance: AppSettings is not a singleton and the real one is built later.
+    const QString interfaceLanguage = koutnet::AppSettings().language();
+    if (!interfaceLanguage.isEmpty())
+        KLocalizedString::setLanguages({interfaceLanguage});
+
     KAboutData aboutData(QStringLiteral("koutnet"),
                          i18nc("@title application name", "KOutNet"),
                          QStringLiteral(KOUTNET_VERSION_STRING),

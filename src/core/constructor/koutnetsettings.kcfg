@@ -29,6 +29,13 @@
       <default code="true">QHostInfo::localHostName()</default>
     </entry>
 
+    <!-- The interface language as a locale code ("ru", "de", ...). Empty means
+         the system's, which is what KLocalizedString does on its own - the
+         entry exists only so the settings tab can say "Follow the system" as
+         the default and a concrete language as the override. Read once, at
+         startup, before any string is resolved. -->
+    <entry name="language" key="language" type="String"/>
+
     <!-- NetworkManager::ConnectionMode as an int, so core/constructor does not
          have to include the network header. 0 = LAN/VPN, 1 = K-Server. A file
          written before the relay mode was cut holds one of five values instead;
