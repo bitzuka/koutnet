@@ -18,7 +18,7 @@ import koutnet.app
 FormCard.FormCardPage {
     id: root
 
-    title: i18nc("@title:window", "K-Server account")
+    title: i18nc("@title:window", "Matrix account")
 
     // Handled by the window: the dialog is about the account and outlives this
     // page being popped off the layer stack.
@@ -41,7 +41,7 @@ FormCard.FormCardPage {
 
         FormCard.FormTextDelegate {
             id: explanation
-            text: i18nc("@info", "K-Server mode speaks Matrix.")
+            text: i18nc("@info", "This signs in to a Matrix homeserver.")
             description: i18nc("@info:whatsthis",
                 "Signing in here puts your Matrix rooms in the conversation list beside the peers found on the local network.")
         }

@@ -38,7 +38,7 @@ QQC2.Control {
         },
         {
             mode: 1,
-            name: i18nc("@item connection mode, a K-Server at whatever address is configured", "K-Server"),
+            name: i18nc("@item connection mode, a Matrix homeserver at whatever address is configured", "Matrix"),
             icon: "network-server",
             reason: i18nc("@info:tooltip why a connection mode cannot be used", "not built yet")
         }
