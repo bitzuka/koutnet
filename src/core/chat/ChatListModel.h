@@ -28,18 +28,21 @@ class ChatListModel : public QAbstractListModel
 
     Q_PROPERTY(QObject *historyManager READ historyManagerObj WRITE setHistoryManagerObj NOTIFY historyManagerChanged)
     Q_PROPERTY(QObject *unreadManager READ unreadManagerObj WRITE setUnreadManagerObj NOTIFY unreadManagerChanged)
-    // How many rows of each kind there are, for the two section headings the
+    // How many rows of each transport there are, for the section headings the
     // conversation list is split into. Properties rather than an invokable
     // because a heading has to re-count when a room arrives, and a function
     // call in a binding never does.
-    Q_PROPERTY(int directCount READ directCount NOTIFY countsChanged)
-    Q_PROPERTY(int roomCount READ roomCount NOTIFY countsChanged)
+    Q_PROPERTY(int lanCount READ lanCount NOTIFY countsChanged)
+    Q_PROPERTY(int matrixCount READ matrixCount NOTIFY countsChanged)
+    Q_PROPERTY(int telegramCount READ telegramCount NOTIFY countsChanged)
+    Q_PROPERTY(int rocketChatCount READ rocketChatCount NOTIFY countsChanged)
 
 public:
     enum Roles {
         ChatIdRole = Qt::UserRole + 1,
         DisplayNameRole,
         AvatarLetterRole,
+        AvatarSourceRole,
         PreviewRole,
         StampSecsRole,
         LastSeenSecsRole,
@@ -50,6 +53,10 @@ public:
         // with it. The only thing the interface is told about transport, and it
         // spends it on a badge.
         TransportRole,
+        // Which conversation-list section the row belongs to. A number rather
+        // than a name, so the order of the sections is the order of the groups
+        // and a section header repeats by index, not by string.
+        TransportGroupRole,
     };
     Q_ENUM(Roles)
 
@@ -64,14 +71,20 @@ public:
     QObject *unreadManagerObj() const;
     void setUnreadManagerObj(QObject *obj);
 
-    int directCount() const;
-    int roomCount() const;
+    int lanCount() const;
+    int matrixCount() const;
+    int telegramCount() const;
+    int rocketChatCount() const;
 
     // Idempotent, and it never moves an existing chat up the list: opening an old
     // conversation is not activity in it.
     Q_INVOKABLE void openChat(const QString &chatId, const QString &displayName = QString());
     Q_INVOKABLE void noteMessage(const QString &chatId, const QString &preview, bool isOwn, double ts);
     Q_INVOKABLE void setPresence(const QString &chatId, bool online, double lastSeenSecs, const QString &displayName = QString());
+    // A picture for the row, from whoever owns the conversation: the room in a
+    // Matrix room, the peer in a one-on-one. Never persisted - the source
+    // republishes it on every connection.
+    Q_INVOKABLE void setAvatar(const QString &chatId, const QString &avatarSource);
     Q_INVOKABLE void removeChat(const QString &chatId);
     Q_INVOKABLE bool hasChat(const QString &chatId) const;
     Q_INVOKABLE QVariantMap chatInfo(const QString &chatId) const;
@@ -85,6 +98,7 @@ private:
     struct Entry {
         QString chatId;
         QString displayName;
+        QString avatarSource;
         QString preview;
         bool previewIsOwn = false;
         double lastActivity = 0.0;
@@ -98,7 +112,7 @@ private:
     static bool isTrackable(const QString &chatId);
 
     int indexOfChat(const QString &chatId) const;
-    int destinationFor(double activity, int excludeRow) const;
+    int destinationFor(double activity, int group, int excludeRow) const;
     void moveToSortedPosition(int row);
     void refreshRow(int row, const QVector<int> &roles);
     void load();

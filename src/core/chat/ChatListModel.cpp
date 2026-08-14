@@ -29,6 +29,25 @@ QString clampPreview(const QString &text)
         flat.truncate(kMaxPreviewChars);
     return flat;
 }
+
+// Which section of the conversation list a chat belongs to. The order of the
+// sections is this order: LAN first, then the server-backed transports.
+int transportGroup(const QString &chatId)
+{
+    switch (koutnet::chatid::transportOf(chatId)) {
+    case koutnet::chatid::Transport::Matrix:
+        return 1;
+    case koutnet::chatid::Transport::Telegram:
+        return 2;
+    case koutnet::chatid::Transport::RocketChat:
+        return 3;
+    case koutnet::chatid::Transport::Reserved:
+        return 4;
+    case koutnet::chatid::Transport::Lan:
+        break;
+    }
+    return 0;
+}
 } // namespace
 
 ChatListModel::ChatListModel(QObject *parent)
@@ -68,6 +87,8 @@ QVariant ChatListModel::data(const QModelIndex &index, int role) const
         const QString name = e.displayName.isEmpty() ? unknownPeerName() : e.displayName;
         return name.isEmpty() ? QStringLiteral("?") : name.left(1).toUpper();
     }
+    case AvatarSourceRole:
+        return e.avatarSource;
     case PreviewRole:
         if (e.preview.isEmpty())
             return QString();
@@ -85,6 +106,8 @@ QVariant ChatListModel::data(const QModelIndex &index, int role) const
         return e.online;
     case TransportRole:
         return koutnet::chatid::transportName(e.chatId);
+    case TransportGroupRole:
+        return transportGroup(e.chatId);
     default:
         return {};
     }
@@ -96,12 +119,14 @@ QHash<int, QByteArray> ChatListModel::roleNames() const
         {ChatIdRole, "chatId"},
         {DisplayNameRole, "displayName"},
         {AvatarLetterRole, "avatarLetter"},
+        {AvatarSourceRole, "avatarSource"},
         {PreviewRole, "preview"},
         {StampSecsRole, "stampSecs"},
         {LastSeenSecsRole, "lastSeenSecs"},
         {UnreadCountRole, "unreadCount"},
         {OnlineRole, "online"},
         {TransportRole, "transport"},
+        {TransportGroupRole, "transportGroup"},
     };
 }
 
@@ -183,13 +208,14 @@ QVariantMap ChatListModel::chatInfo(const QString &chatId) const
     return m;
 }
 
-int ChatListModel::destinationFor(double activity, int excludeRow) const
+int ChatListModel::destinationFor(double activity, int group, int excludeRow) const
 {
     int idx = 0;
     for (int i = 0; i < m_rows.size(); ++i) {
         if (i == excludeRow)
             continue;
-        if (m_rows.at(i).lastActivity <= activity)
+        const int g = transportGroup(m_rows.at(i).chatId);
+        if (g > group || (g == group && m_rows.at(i).lastActivity <= activity))
             break;
         ++idx;
     }
@@ -198,7 +224,7 @@ int ChatListModel::destinationFor(double activity, int excludeRow) const
 
 void ChatListModel::moveToSortedPosition(int row)
 {
-    const int target = destinationFor(m_rows.at(row).lastActivity, row);
+    const int target = destinationFor(m_rows.at(row).lastActivity, transportGroup(m_rows.at(row).chatId), row);
     if (target == row)
         return;
 
@@ -236,7 +262,7 @@ void ChatListModel::openChat(const QString &chatId, const QString &displayName)
     Entry e;
     e.chatId = chatId;
     e.displayName = displayName;
-    const int at = destinationFor(0.0, -1);
+    const int at = destinationFor(0.0, transportGroup(chatId), -1);
     beginInsertRows(QModelIndex(), at, at);
     m_rows.insert(at, e);
     endInsertRows();
@@ -258,7 +284,7 @@ void ChatListModel::noteMessage(const QString &chatId, const QString &preview, b
         e.lastActivity = ts;
         if (m_unread)
             e.unread = m_unread->get(chatId);
-        const int at = destinationFor(ts, -1);
+        const int at = destinationFor(ts, transportGroup(chatId), -1);
         beginInsertRows(QModelIndex(), at, at);
         m_rows.insert(at, e);
         endInsertRows();
@@ -314,16 +340,41 @@ void ChatListModel::setPresence(const QString &chatId, bool online, double lastS
         scheduleSave();
 }
 
-int ChatListModel::roomCount() const
+int ChatListModel::lanCount() const
 {
     return int(std::count_if(m_rows.cbegin(), m_rows.cend(), [](const Entry &e) {
-        return koutnet::chatid::isMatrix(e.chatId);
+        return transportGroup(e.chatId) == 0;
     }));
 }
 
-int ChatListModel::directCount() const
+int ChatListModel::matrixCount() const
 {
-    return m_rows.size() - roomCount();
+    return int(std::count_if(m_rows.cbegin(), m_rows.cend(), [](const Entry &e) {
+        return transportGroup(e.chatId) == 1;
+    }));
+}
+
+int ChatListModel::telegramCount() const
+{
+    return int(std::count_if(m_rows.cbegin(), m_rows.cend(), [](const Entry &e) {
+        return transportGroup(e.chatId) == 2;
+    }));
+}
+
+int ChatListModel::rocketChatCount() const
+{
+    return int(std::count_if(m_rows.cbegin(), m_rows.cend(), [](const Entry &e) {
+        return transportGroup(e.chatId) == 3;
+    }));
+}
+
+void ChatListModel::setAvatar(const QString &chatId, const QString &avatarSource)
+{
+    const int row = indexOfChat(chatId);
+    if (row < 0 || m_rows.at(row).avatarSource == avatarSource)
+        return;
+    m_rows[row].avatarSource = avatarSource;
+    refreshRow(row, {AvatarSourceRole});
 }
 
 void ChatListModel::removeChat(const QString &chatId)

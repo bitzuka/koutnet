@@ -34,18 +34,40 @@ Kirigami.Page {
     property bool compact: false
 
     property bool favoritesExpanded: true
-    property bool directExpanded: true
-    property bool roomsExpanded: true
+    property bool lanExpanded: true
+    property bool matrixExpanded: true
+    property bool telegramExpanded: true
+    property bool rocketChatExpanded: true
     property bool invitesExpanded: true
 
     // Held open wherever the headings are not drawn: a fold with no chevron left
     // to undo it is a row that has gone for good.
     readonly property bool favoritesShown: root.compact || root.favoritesExpanded
-    readonly property bool directShown: root.compact || root.directExpanded
-    readonly property bool roomsShown: root.compact || root.roomsExpanded
+    readonly property bool lanShown: root.compact || root.lanExpanded
+    readonly property bool matrixShown: root.compact || root.matrixExpanded
+    readonly property bool telegramShown: root.compact || root.telegramExpanded
+    readonly property bool rocketChatShown: root.compact || root.rocketChatExpanded
 
-    readonly property int directCount: root.model ? root.model.directCount : 0
-    readonly property int roomCount: root.model ? root.model.roomCount : 0
+    readonly property int lanCount: root.model ? root.model.lanCount : 0
+    readonly property int matrixCount: root.model ? root.model.matrixCount : 0
+    readonly property int telegramCount: root.model ? root.model.telegramCount : 0
+    readonly property int rocketChatCount: root.model ? root.model.rocketChatCount : 0
+
+    // The rail switches the list between backends: pick Matrix and the list is
+    // Matrix alone, pick LAN/VPN and it is the local chats alone. Groups with
+    // no rail button yet - Telegram, Rocket.Chat - show in either mode.
+    function modeShowsGroup(group) {
+        if (group === 0)
+            return root.connectionMode === 0
+        if (group === 1)
+            return root.connectionMode === 1
+        return true
+    }
+
+    // How many rows the current mode leaves on screen; the placeholder watches
+    // this, not the totals, so a mode with no chats does not look broken.
+    readonly property int shownChatCount: (modeShowsGroup(0) ? root.lanCount : 0)
+        + (modeShowsGroup(1) ? root.matrixCount : 0) + root.telegramCount + root.rocketChatCount
 
     // One row per Matrix room this account has been asked into. Not part of the
     // conversation model: an invitation is not a conversation, and the row
@@ -56,6 +78,10 @@ Kirigami.Page {
     signal newChatRequested()
     signal forgetRequested(string chatId)
     signal clearRequested(string chatId)
+    // Remove the row and the saved history, this device only. A joined room
+    // comes back on the next login - the server still has the account in it -
+    // which is exactly the difference from Leave this one is named for.
+    signal deleteRequested(string chatId)
     signal inviteAccepted(string chatId)
     signal inviteDeclined(string chatId)
 
@@ -86,8 +112,10 @@ Kirigami.Page {
     // to find nothing.
     onSearchTextChanged: if (root.searchText.length > 0) {
         root.favoritesExpanded = true
-        root.directExpanded = true
-        root.roomsExpanded = true
+        root.lanExpanded = true
+        root.matrixExpanded = true
+        root.telegramExpanded = true
+        root.rocketChatExpanded = true
     }
 
     title: i18nc("@title sidebar section, the list of conversations", "Chats")
@@ -205,7 +233,7 @@ Kirigami.Page {
                 Kirigami.PlaceholderMessage {
                     anchors.centerIn: parent
                     width: parent.width - Kirigami.Units.largeSpacing * 4
-                    visible: root.directCount === 0 && root.roomCount === 0 && (root.invites === null || root.invites.count === 0)
+                    visible: root.shownChatCount === 0 && (root.invites === null || root.invites.count === 0)
                     icon.name: "dialog-messages"
                     text: i18nc("@info there are no conversations yet", "No chats yet")
                     explanation: i18nc("@info", "Start one from the button in the toolbar, or wait for someone to write to you.")
@@ -259,11 +287,11 @@ Kirigami.Page {
 
                         ChatSection {
                             Layout.fillWidth: true
-                            text: i18nc("@title:group conversation list section, one-to-one chats", "Direct messages")
-                            itemCount: root.directCount
-                            visible: !root.compact && root.directCount > 0
-                            expanded: root.directExpanded
-                            onToggleRequested: root.directExpanded = !root.directExpanded
+                            text: i18nc("@title:group conversation list section, chats on the local network", "LAN / VPN")
+                            itemCount: root.lanCount
+                            visible: !root.compact && root.lanCount > 0 && root.modeShowsGroup(0)
+                            expanded: root.lanExpanded
+                            onToggleRequested: root.lanExpanded = !root.lanExpanded
                         }
 
                         // The group carries the two facts that tell one section
@@ -271,10 +299,10 @@ Kirigami.Page {
                         // its parent - which is this, because a Repeater parents
                         // what it builds to its own parent rather than to itself.
                         ColumnLayout {
-                            id: directGroup
+                            id: lanGroup
 
-                            readonly property bool roomsOnly: false
-                            readonly property bool sectionShown: root.directShown
+                            readonly property int transportGroup: 0
+                            readonly property bool sectionShown: root.lanShown && root.modeShowsGroup(0)
 
                             Layout.fillWidth: true
                             spacing: 0
@@ -287,18 +315,66 @@ Kirigami.Page {
 
                         ChatSection {
                             Layout.fillWidth: true
-                            text: i18nc("@title:group conversation list section, Matrix rooms", "Rooms")
-                            itemCount: root.roomCount
-                            visible: !root.compact && root.roomCount > 0
-                            expanded: root.roomsExpanded
-                            onToggleRequested: root.roomsExpanded = !root.roomsExpanded
+                            text: i18nc("@title:group conversation list section, Matrix rooms and one-on-ones", "Matrix")
+                            itemCount: root.matrixCount
+                            visible: !root.compact && root.matrixCount > 0 && root.modeShowsGroup(1)
+                            expanded: root.matrixExpanded
+                            onToggleRequested: root.matrixExpanded = !root.matrixExpanded
                         }
 
                         ColumnLayout {
-                            id: roomsGroup
+                            id: matrixGroup
 
-                            readonly property bool roomsOnly: true
-                            readonly property bool sectionShown: root.roomsShown
+                            readonly property int transportGroup: 1
+                            readonly property bool sectionShown: root.matrixShown && root.modeShowsGroup(1)
+
+                            Layout.fillWidth: true
+                            spacing: 0
+
+                            Repeater {
+                                model: root.model
+                                delegate: chatRowComponent
+                            }
+                        }
+
+                        ChatSection {
+                            Layout.fillWidth: true
+                            text: i18nc("@title:group conversation list section, Telegram chats", "Telegram")
+                            itemCount: root.telegramCount
+                            visible: !root.compact && root.telegramCount > 0
+                            expanded: root.telegramExpanded
+                            onToggleRequested: root.telegramExpanded = !root.telegramExpanded
+                        }
+
+                        ColumnLayout {
+                            id: telegramGroup
+
+                            readonly property int transportGroup: 2
+                            readonly property bool sectionShown: root.telegramShown
+
+                            Layout.fillWidth: true
+                            spacing: 0
+
+                            Repeater {
+                                model: root.model
+                                delegate: chatRowComponent
+                            }
+                        }
+
+                        ChatSection {
+                            Layout.fillWidth: true
+                            text: i18nc("@title:group conversation list section, Rocket.Chat channels", "Rocket.Chat")
+                            itemCount: root.rocketChatCount
+                            visible: !root.compact && root.rocketChatCount > 0
+                            expanded: root.rocketChatExpanded
+                            onToggleRequested: root.rocketChatExpanded = !root.rocketChatExpanded
+                        }
+
+                        ColumnLayout {
+                            id: rocketChatGroup
+
+                            readonly property int transportGroup: 3
+                            readonly property bool sectionShown: root.rocketChatShown
 
                             Layout.fillWidth: true
                             spacing: 0
@@ -347,6 +423,11 @@ Kirigami.Page {
             icon.name: "window-close"
             visible: rowMenu.isRoom
             onTriggered: root.leaveRoomRequested(rowMenu.chatId)
+        }
+        Kirigami.Action {
+            text: i18nc("@action:inmenu delete the conversation and its history on this device only", "Delete this chat here")
+            icon.name: "edit-delete"
+            onTriggered: root.deleteRequested(rowMenu.chatId)
         }
     }
 
@@ -425,9 +506,9 @@ Kirigami.Page {
             // its name with a property ContactDelegate already has, which would
             // bind to itself.
             readonly property bool isRoom: model.transport === "matrix"
-            // The group this was built into - see the note beside directGroup.
+            // The group this was built into - see the note beside lanGroup.
             readonly property bool inThisSection: rowWrapper.parent !== null
-                && rowWrapper.isRoom === rowWrapper.parent.roomsOnly
+                && model.transportGroup === rowWrapper.parent.transportGroup
             readonly property bool shown: rowWrapper.inThisSection
                 && rowWrapper.parent.sectionShown
                 && root.matchesSearch(model.displayName, model.chatId)
@@ -449,6 +530,7 @@ Kirigami.Page {
                 unreadCount: model.unreadCount
                 online: model.online
                 transport: model.transport
+                avatarSource: model.avatarSource
                 // A Matrix room has no presence to report, and a permanently
                 // grey dot reads as a peer that is switched off rather than as
                 // one that is not asked.

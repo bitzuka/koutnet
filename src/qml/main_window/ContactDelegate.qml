@@ -27,6 +27,9 @@ Delegates.RoundedItemDelegate {
     // A Breeze icon name for a pinned row: a blank Avatar name is what makes it
     // fall through to its icon instead of drawing initials.
     property string iconName: ""
+    // A media URL for the avatar, empty when the row draws an initial instead.
+    // LAN peers have no pictures, so only Matrix conversations use this.
+    property string avatarSource: ""
     property bool showPresence: true
 
     // "lan", "matrix" or "reserved", straight off ChatListModel's transport
@@ -98,6 +101,7 @@ Delegates.RoundedItemDelegate {
                 // the one accent colour, which made a column of identical circles.
                 name: root.iconName.length > 0 ? "" : root.displayName
                 iconSource: root.iconName
+                source: root.avatarSource.length > 0 ? root.avatarSource : ""
             }
 
             Rectangle {
@@ -127,7 +131,7 @@ Delegates.RoundedItemDelegate {
                 color: Kirigami.Theme.highlightColor
 
                 QQC2.ToolTip.visible: hoverHandler.hovered
-                QQC2.ToolTip.text: i18nc("@info:tooltip conversation list badge", "Matrix room on a K-Server")
+                QQC2.ToolTip.text: i18nc("@info:tooltip conversation list badge", "Matrix room")
 
                 HoverHandler { id: hoverHandler }
             }
