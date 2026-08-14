@@ -286,34 +286,31 @@ StateChange classifyState(const Room *room, const RoomEvent *event, QString &sub
 
 void fillMedia(const Room *room, const RoomMessageEvent &message, koutnet::matrix::RawEvent &raw)
 {
-    const auto content = message.get<EventContent::FileContentBase>();
-    if (!content)
-        return;
+    // Read off the raw JSON rather than the typed content accessors: get<T>()
+    // is a template instantiated inside libQuotient for a fixed list of content
+    // types, and a build whose library list differs from its headers' links
+    // nothing. The JSON fields are the spec, so they read the same everywhere.
+    const QJsonObject content = message.contentJson();
+    const QJsonObject info = content.value(QStringLiteral("info")).toObject();
 
-    const EventContent::FileInfo info = content->commonInfo();
-    raw.mediaName = info.originalName;
-    raw.mediaMime = info.mimeType.name();
-    raw.mediaSize = info.payloadSize;
+    raw.mediaName = content.value(QStringLiteral("body")).toString();
+    raw.mediaMime = info.value(QStringLiteral("mimetype")).toString();
+    raw.mediaSize = info.value(QStringLiteral("size")).toInteger();
 
+    // The dimensions matter: without them a picture is laid out at whatever
+    // the decoder reports once the download finishes, which moves the timeline
+    // under whoever is reading it.
+    raw.mediaWidth = info.value(QStringLiteral("w")).toInt();
+    raw.mediaHeight = info.value(QStringLiteral("h")).toInt();
+    raw.mediaDurationMs = info.value(QStringLiteral("duration")).toInt();
+
+    // An encrypted attachment carries the address one level down, under file.
+    const QJsonObject file = content.value(QStringLiteral("file")).toObject();
+    const QUrl source(file.isEmpty() ? content.value(QStringLiteral("url")).toString() : file.value(QStringLiteral("url")).toString());
     // makeMediaUrl() asserts on the scheme, and an encrypted attachment or a
     // malformed event can carry something that is not an mxc URI.
-    const QUrl source = content->url();
     if (source.scheme() == QLatin1String("mxc") && room != nullptr && room->connection() != nullptr)
         raw.mediaUrl = room->makeMediaUrl(message.id(), source).toString();
-
-    // The dimensions matter: without them a picture is laid out at whatever the
-    // decoder reports once the download finishes, which moves the timeline
-    // under whoever is reading it.
-    if (const auto image = message.get<EventContent::ImageContent>()) {
-        raw.mediaWidth = image->imageSize.width();
-        raw.mediaHeight = image->imageSize.height();
-    } else if (const auto video = message.get<EventContent::VideoContent>()) {
-        raw.mediaWidth = video->imageSize.width();
-        raw.mediaHeight = video->imageSize.height();
-        raw.mediaDurationMs = video->duration;
-    } else if (const auto audio = message.get<EventContent::AudioContent>()) {
-        raw.mediaDurationMs = audio->duration;
-    }
 }
 
 koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
