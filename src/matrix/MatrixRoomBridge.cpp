@@ -603,10 +603,11 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
         // in the event any more; it is remembered here instead, from when the
         // reaction was first published.
         if (event->isRedacted()) {
-            const auto it = m_reactions.value(chatId).constFind(reactionId);
-            if (it != m_reactions.value(chatId).constEnd()) {
+            auto &reactions = m_reactions[chatId];
+            const auto it = reactions.constFind(reactionId);
+            if (it != reactions.constEnd()) {
                 Q_EMIT roomReaction(chatId, it->targetTs, it->emoji, it->sender, false);
-                m_reactions[chatId].erase(it);
+                reactions.erase(it);
             }
             return;
         }
@@ -629,10 +630,11 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
     // removed, a reaction badge is taken down.
     if (const auto *redaction = eventCast<const RedactionEvent>(event)) {
         const QString redactedId = redaction->redactedEvent();
-        const auto it = m_reactions.value(chatId).constFind(redactedId);
-        if (it != m_reactions.value(chatId).constEnd()) {
+        auto &reactions = m_reactions[chatId];
+        const auto it = reactions.constFind(redactedId);
+        if (it != reactions.constEnd()) {
             Q_EMIT roomReaction(chatId, it->targetTs, it->emoji, it->sender, false);
-            m_reactions[chatId].erase(it);
+            reactions.erase(it);
             return;
         }
         if (m_eventIdToTs.value(chatId).contains(redactedId))
@@ -1016,7 +1018,7 @@ void MatrixRoomBridge::createRoom(const QString &name, const QString &topic, con
     // a private room, so it stays local when the room is not public.
     connection->createRoom(isPrivate ? Connection::UnpublishRoom : Connection::PublishRoom, isPrivate ? QString() : alias, name, topic, invitedUsers)
         .then(
-            [this](const auto &job) {
+            [](const auto &job) {
                 // The room arrives through joinedRoom() like any other, and the
                 // conversation list hears about it there. Nothing else to do.
                 Q_UNUSED(job);
