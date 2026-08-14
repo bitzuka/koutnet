@@ -106,12 +106,23 @@ public:
     // the tail of a timeline on every reconnect, and the log on disk carries the
     // same ids back, so a restart does not double the conversation. Returns
     // false when the message was already here.
-    Q_INVOKABLE bool ingestRemoteMessage(const QString &remoteId, const QString &text, const QString &sender, bool isOwn, double ts, bool isSystem = false, const QString &senderAvatar = QString());
+    Q_INVOKABLE bool ingestRemoteMessage(const QString &remoteId,
+                                         const QString &text,
+                                         const QString &sender,
+                                         bool isOwn,
+                                         double ts,
+                                         bool isSystem = false,
+                                         const QString &senderAvatar = QString());
 
     // The same contract for an attachment. media carries the keys
     // MatrixRoomBridge::roomAttachment() fills: kind, url, name, mime, size,
     // width, height, duration.
-    Q_INVOKABLE bool ingestRemoteAttachment(const QString &remoteId, const QVariantMap &media, const QString &sender, bool isOwn, double ts, const QString &senderAvatar = QString());
+    Q_INVOKABLE bool ingestRemoteAttachment(const QString &remoteId,
+                                            const QVariantMap &media,
+                                            const QString &sender,
+                                            bool isOwn,
+                                            double ts,
+                                            const QString &senderAvatar = QString());
 
     // An m.replace that arrived for a message already here. False when the
     // original is not in this conversation, which is the normal case for an

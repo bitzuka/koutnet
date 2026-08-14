@@ -550,7 +550,8 @@ bool MatrixManager::resumeSession()
         setState(State::Failed,
                  i18nc("@info:status %1 is the account the token belongs to, %2 the account the configuration expected",
                        "The saved sign-in belongs to %1, not %2. Sign in again.",
-                       job->userId(), user));
+                       job->userId(),
+                       user));
     });
     return true;
 }

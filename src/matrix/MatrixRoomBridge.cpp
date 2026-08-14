@@ -478,8 +478,7 @@ void MatrixRoomBridge::trackRoom(Room *room)
     // A direct room requested by openDirectChat() comes through the join after
     // the homeserver created it; the window asks for it to be opened, so the
     // answer is emitted the moment the room is known to be the one requested.
-    if (!m_pendingDirectTarget.isEmpty() && room->isDirectChat() && isJoinedMember(room, m_pendingDirectTarget)
-        && room->joinedCount() == 2) {
+    if (!m_pendingDirectTarget.isEmpty() && room->isDirectChat() && isJoinedMember(room, m_pendingDirectTarget) && room->joinedCount() == 2) {
         m_pendingDirectTarget.clear();
         Q_EMIT directChatOpened(chatid::matrixChatId(room->id()));
     }
@@ -956,8 +955,7 @@ void MatrixRoomBridge::sendReaction(const QString &chatId, double ts, const QStr
         const auto &annotations = room->relatedEvents(eventId, EventRelation::AnnotationType);
         for (const RoomEvent *annotation : annotations) {
             const auto *reaction = eventCast<const ReactionEvent>(annotation);
-            if (reaction && reaction->key() == emoji && !room->connection()->userId().isEmpty()
-                && reaction->senderId() == room->connection()->userId()) {
+            if (reaction && reaction->key() == emoji && !room->connection()->userId().isEmpty() && reaction->senderId() == room->connection()->userId()) {
                 room->redactEvent(reaction->id());
                 return;
             }

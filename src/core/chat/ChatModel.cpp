@@ -381,7 +381,13 @@ void ChatModel::appendSystemMessage(const QString &text)
     appendEntry(e, false);
 }
 
-bool ChatModel::ingestRemoteMessage(const QString &remoteId, const QString &text, const QString &sender, bool isOwn, double ts, bool isSystem, const QString &senderAvatar)
+bool ChatModel::ingestRemoteMessage(const QString &remoteId,
+                                    const QString &text,
+                                    const QString &sender,
+                                    bool isOwn,
+                                    double ts,
+                                    bool isSystem,
+                                    const QString &senderAvatar)
 {
     // No id means no duplicate check, and without one this is receiveMessage().
     if (remoteId.isEmpty() || rowForMsgId(remoteId) >= 0)
@@ -405,7 +411,12 @@ bool ChatModel::ingestRemoteMessage(const QString &remoteId, const QString &text
     return true;
 }
 
-bool ChatModel::ingestRemoteAttachment(const QString &remoteId, const QVariantMap &media, const QString &sender, bool isOwn, double ts, const QString &senderAvatar)
+bool ChatModel::ingestRemoteAttachment(const QString &remoteId,
+                                       const QVariantMap &media,
+                                       const QString &sender,
+                                       bool isOwn,
+                                       double ts,
+                                       const QString &senderAvatar)
 {
     if (remoteId.isEmpty() || rowForMsgId(remoteId) >= 0)
         return false;
