@@ -14,15 +14,28 @@
 #include <QUrl>
 
 #include <Quotient/connection.h>
+#include <Quotient/csapi/whoami.h>
 #include <Quotient/e2ee/sssshandler.h>
 
 namespace
 {
 // Wallet entry for the Matrix access token. Flat, like every other name in the
 // KOutNet folder - see CryptoManager and AppSettings.
-QString tokenWalletKey()
+QString tokenWalletKey(const QString &userId)
 {
-    return QStringLiteral("matrix_access_token");
+    // One slot per account. A single shared slot is how a sign-in as somebody
+    // else used to hand the next session a token naming a different owner:
+    // the configuration said one user id, the wallet answered with another
+    // user's token, and only Quotient's log line said so.
+    return QStringLiteral("matrix_access_token_") + userId;
+}
+
+// The slot every install before per-account keys wrote to. Read for migration
+// and removed the first time anything clears or rewrites the session.
+const QString &legacyTokenWalletKey()
+{
+    static const QString key = QStringLiteral("matrix_access_token");
+    return key;
 }
 
 // What the homeserver files this login under in the user's device list.
@@ -322,7 +335,7 @@ bool MatrixManager::keyBackupAvailable() const
     return m_connection != nullptr && !m_connection->accountDataJson(QStringLiteral("m.megolm_backup.v1")).isEmpty();
 }
 
-bool MatrixManager::keyBackupUnlocked() const
+bool MatrixManager::isKeyBackupUnlocked() const
 {
     return m_connection != nullptr && m_keyBackupUnlocked;
 }
@@ -338,21 +351,21 @@ void MatrixManager::unlockKeyBackup(const QString &recoveryKeyOrPassphrase)
     // two error taps below are what make a recovery key and a passphrase one
     // field: the first tap eats the error and retries as a passphrase, the
     // second one tells the interface.
-    auto *handler = new SSSSHandler();
+    auto *handler = new Quotient::SSSSHandler();
     handler->setConnection(connection);
-    connect(handler, &SSSSHandler::keyBackupUnlocked, this, [this, handler]() {
+    connect(handler, &Quotient::SSSSHandler::keyBackupUnlocked, this, [this, handler]() {
         m_keyBackupUnlocked = true;
         Q_EMIT keyBackupUnlocked();
-        connect(handler, &SSSSHandler::finished, handler, &QObject::deleteLater);
+        connect(handler, &Quotient::SSSSHandler::finished, handler, &QObject::deleteLater);
     });
-    connect(handler, &SSSSHandler::error, this, [this, handler, recoveryKeyOrPassphrase]() {
-        disconnect(handler, &SSSSHandler::error, this, nullptr);
+    connect(handler, &Quotient::SSSSHandler::error, this, [this, handler, recoveryKeyOrPassphrase]() {
+        disconnect(handler, &Quotient::SSSSHandler::error, this, nullptr);
         if (recoveryKeyOrPassphrase.isEmpty()) {
             Q_EMIT keyBackupFailed(i18nc("@info:status", "No recovery key or passphrase was given."));
             handler->deleteLater();
             return;
         }
-        connect(handler, &SSSSHandler::error, this, [this, handler]() {
+        connect(handler, &Quotient::SSSSHandler::error, this, [this, handler]() {
             Q_EMIT keyBackupFailed(i18nc("@info:status", "That did not unlock the room key backup."));
             handler->deleteLater();
         });
@@ -492,7 +505,8 @@ bool MatrixManager::resumeSession()
         return false;
 
     QString token;
-    if (!koutnet::SecretStore::read(tokenWalletKey(), &token) || token.isEmpty()) {
+    if ((!koutnet::SecretStore::read(tokenWalletKey(user), &token) || token.isEmpty())
+        && (!koutnet::SecretStore::read(legacyTokenWalletKey(), &token) || token.isEmpty())) {
         // The token is the session. Without it the recorded user id and device id
         // are litter that would make the interface claim a session that is gone.
         clearStoredSession();
@@ -522,6 +536,22 @@ bool MatrixManager::resumeSession()
     // sets the identity and checks it afterwards. Everything that treats the
     // resume as unproven until the first sync hangs off m_resuming.
     c->assumeIdentity(user, device, token);
+
+    // A resumed token has never been shown to the homeserver at this point, and
+    // a migrated one may name another owner entirely - the legacy wallet slot
+    // was shared between accounts. Ask whose token this is before any sync runs:
+    // sending as the wrong account is worse than asking for a fresh sign-in.
+    c->callApi<Quotient::GetTokenOwnerJob>().then(this, [this, c, user](const Quotient::GetTokenOwnerJob *job) {
+        if (job->userId() == user || c != m_connection)
+            return;
+        qCWarning(KOUTNET_LOG_MATRIX) << "resumed token belongs to" << job->userId() << "but the configuration says" << user;
+        retireConnection(QStringLiteral("the resumed session belongs to another account"));
+        clearStoredSession();
+        setState(State::Failed,
+                 i18nc("@info:status %1 is the account the token belongs to, %2 the account the configuration expected",
+                       "The saved sign-in belongs to %1, not %2. Sign in again.",
+                       job->userId(), user));
+    });
     return true;
 }
 
@@ -551,7 +581,7 @@ void MatrixManager::storeSession()
         return;
 
     const QString token = QString::fromUtf8(m_connection->accessToken());
-    if (!koutnet::SecretStore::write(tokenWalletKey(), token)) {
+    if (!koutnet::SecretStore::write(tokenWalletKey(m_connection->userId()), token)) {
         // Deliberately not falling back to the config file. The rest of the
         // session is not written either, so the next start asks again rather
         // than finding half a session it cannot use.
@@ -563,11 +593,15 @@ void MatrixManager::storeSession()
     m_settings->setMatrixDeviceId(m_connection->deviceId());
     m_settings->setMatrixHomeserver(m_connection->homeserver().toString());
     m_settings->save();
+    // The pre-split slot, retired on the first successful write to the keyed one.
+    koutnet::SecretStore::remove(legacyTokenWalletKey());
 }
 
 void MatrixManager::clearStoredSession()
 {
-    koutnet::SecretStore::remove(tokenWalletKey());
+    if (m_settings && !m_settings->matrixUserId().isEmpty())
+        koutnet::SecretStore::remove(tokenWalletKey(m_settings->matrixUserId()));
+    koutnet::SecretStore::remove(legacyTokenWalletKey());
     if (!m_settings)
         return;
     m_settings->setMatrixUserId(QString());

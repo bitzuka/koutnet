@@ -1253,7 +1253,7 @@ QVariantMap MatrixRoomBridge::roomInfo(const QString &chatId) const
     // the homeserver hold an encrypted copy of the room keys, and has this
     // session already unlocked it.
     info.insert(QStringLiteral("keyBackupAvailable"), m_manager->keyBackupAvailable());
-    info.insert(QStringLiteral("keyBackupUnlocked"), m_manager->keyBackupUnlocked());
+    info.insert(QStringLiteral("keyBackupUnlocked"), m_manager->isKeyBackupUnlocked());
     info.insert(QStringLiteral("version"), room->version());
     info.insert(QStringLiteral("isDirect"), room->isDirectChat());
     // What this session is allowed to do here. The column hides the actions it

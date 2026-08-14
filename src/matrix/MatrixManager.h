@@ -130,8 +130,10 @@ public:
     Q_INVOKABLE bool keyBackupAvailable() const;
     // True once keyBackupUnlocked() has been emitted for this session. A
     // session that never unlocks stays on the button; a session that has asks
-    // the interface to say the keys are back instead.
-    Q_INVOKABLE bool keyBackupUnlocked() const;
+    // the interface to say the keys are back instead. is- prefixed: the plain
+    // name collides with the signal below and calls pick the signal, which
+    // returns void, and a void in an insert() is a compile error.
+    Q_INVOKABLE bool isKeyBackupUnlocked() const;
     // Tries the string the user typed against the account's key backup. The
     // order is deliberate and matches NeoChat's: it is most likely a recovery
     // key (which libQuotient validates by checksum before any network call),
