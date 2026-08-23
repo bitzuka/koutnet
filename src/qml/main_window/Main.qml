@@ -61,8 +61,7 @@ Kirigami.ApplicationWindow {
             appSettings.roomyHeight = root.height
             appSettings.compactMode = true
             // Compact mode has no third column.
-            while (root.pageStack.depth > 2)
-                root.pageStack.pop()
+            root.closePeerInfo()
             root.applyCompactSize()
             return
         }
@@ -325,14 +324,21 @@ Kirigami.ApplicationWindow {
             // conversation can be re-entered with Join or a fresh invite.
             root.dropChatLocally(chatId)
         }
-        function onRoomInvited(chatId, displayName) {
+        function onRoomInvited(chatId, displayName, inviterId, inviterName) {
+            const inviter = inviterName && inviterName.length > 0 ? inviterName : (inviterId || "")
             for (let i = 0; i < invitesModel.count; i++) {
-                if (invitesModel.get(i).chatId === chatId)
+                if (invitesModel.get(i).chatId === chatId) {
+                    // name can arrive after the invite, so treat a repeat as an update
+                    invitesModel.set(i, { chatId: chatId, displayName: displayName, inviterId: inviterId || "", inviterName: inviter })
                     return
+                }
             }
-            invitesModel.append({ chatId: chatId, displayName: displayName })
+            invitesModel.append({ chatId: chatId, displayName: displayName, inviterId: inviterId || "", inviterName: inviter })
+            const roomLabel = displayName.length > 0 ? displayName : chatId
             notificationManager.notifyMessage(chatId, i18nc("@info:notification a Matrix room invitation", "Invited to a room"),
-                                              displayName.length > 0 ? displayName : chatId)
+                                              inviter.length > 0
+                                                  ? i18nc("@info:notification %1 is who invited, %2 is the room", "%1 invited you to %2", inviter, roomLabel)
+                                                  : roomLabel)
         }
         function onRoomInviteGone(chatId) {
             for (let i = 0; i < invitesModel.count; i++) {
@@ -639,13 +645,10 @@ Kirigami.ApplicationWindow {
             root.markChatRead(currentPeerIp)
         }
         root.refreshRoomInfo()
-        // The third column is a different page for a room than for a peer, and
-        // it is bound to the conversation rather than pushed with one, so
-        // moving between the two kinds has to replace it rather than re-point it.
-        if (root.peerInfoOpen) {
-            pageStack.pop()
-            root.togglePeerInfo()
-        }
+        // the details column belongs to the chat it was opened from; switching chats closes it.
+        // reopening it here was what made room info pop up over the new chat.
+        if (root.peerInfoOpen)
+            root.closePeerInfo()
     }
 
     function openChat(chatId) {
@@ -655,13 +658,19 @@ Kirigami.ApplicationWindow {
         pageStack.currentIndex = 1
     }
 
-    // The peer column's contents are bound to currentPeerIp rather than passed in,
-    // so switching conversation with it open re-points it.
+    // true when the details page (room or peer info) is on the stack.
+    // read from depth, not a flag, so a direct pop() cannot leave it stale.
     readonly property bool peerInfoOpen: pageStack.depth > 2
+
+    // pop the details page if it is up; the while covers a stray extra push
+    function closePeerInfo() {
+        while (pageStack.depth > 2)
+            pageStack.pop()
+    }
 
     function togglePeerInfo() {
         if (root.peerInfoOpen) {
-            pageStack.pop()
+            root.closePeerInfo()
             return
         }
         // The actions that ask for this are hidden in compact mode, but a keyboard
@@ -750,6 +759,15 @@ Kirigami.ApplicationWindow {
                         root.pageStack.layers.pop()
                     root.pageStack.currentIndex = 0
                 }
+            },
+            Kirigami.Action {
+                // count goes in the label, a GlobalDrawer action has no badge of its own
+                text: invitesModel.count > 0
+                    ? i18nc("@action:inmenu room invitations waiting, %1 is how many", "Invitations (%1)", invitesModel.count)
+                    : i18nc("@action:inmenu room invitations waiting", "Invitations")
+                icon.name: "mail-mark-unread"
+                visible: invitesModel.count > 0
+                onTriggered: root.showLayer(invitationsPageComponent)
             },
             Kirigami.Action {
                 text: i18nc("@action:inmenu", "Notes")
@@ -1081,10 +1099,18 @@ Kirigami.ApplicationWindow {
         target: root.pageStack
 
         function onWideModeChanged() {
-            if (!root.pageStack.wideMode) {
-                while (root.pageStack.depth > 2)
-                    root.pageStack.pop()
-            }
+            // drop the details page on any layout change; reopening is the info button
+            root.closePeerInfo()
+        }
+
+        // the details page is a third page on the stack; in collapsed layout the back
+        // button only steps currentIndex, so pop it when the user steps off it.
+        // wide mode shows all columns at once, so this is collapsed-only.
+        function onCurrentIndexChanged() {
+            if (root.pageStack.wideMode)
+                return
+            if (root.peerInfoOpen && root.pageStack.currentIndex < root.pageStack.depth - 1)
+                root.closePeerInfo()
         }
     }
 
@@ -1361,6 +1387,16 @@ Kirigami.ApplicationWindow {
 
         MatrixLoginPage {
             onVerifySessionsRequested: deviceVerificationDialog.openForSession()
+        }
+    }
+
+    Component {
+        id: invitationsPageComponent
+
+        InvitationsPage {
+            invites: invitesModel
+            onInviteAccepted: (chatId) => matrixRooms.acceptInvite(chatId)
+            onInviteDeclined: (chatId) => matrixRooms.declineInvite(chatId)
         }
     }
 

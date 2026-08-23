@@ -14,6 +14,8 @@ QQC2.Control {
     id: root
 
     property int currentMode: 0
+    // the chat list model, so the mode buttons can show their unread count
+    property var chats: null
 
     signal modeSelected(int mode)
 
@@ -51,10 +53,10 @@ QQC2.Control {
         // one; the view is here so a third mode does not fall off the bottom.
         QQC2.ScrollBar.vertical.policy: QQC2.ScrollBar.AlwaysOff
         QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
-        contentWidth: availableWidth
+        // do not bind contentWidth to availableWidth, it makes a loop with the Control width
 
         ColumnLayout {
-            width: railScroll.availableWidth
+            width: railScroll.width
             spacing: 0
 
             Repeater {
@@ -71,6 +73,8 @@ QQC2.Control {
                     icon.name: modelData.icon
                     current: root.currentMode === modelData.mode
                     unavailableReason: networkManager.modeAvailable(modelData.mode) ? "" : modelData.reason
+                    // touch UnreadManager.total so the badge updates when unread moves
+                    unread: (UnreadManager.total, root.chats ? root.chats.unreadForGroup(modelData.mode) : 0)
 
                     onPicked: root.modeSelected(modelData.mode)
                 }

@@ -13,6 +13,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQmlNetworkAccessManagerFactory>
+#include <QQuickStyle>
 #include <QVariantMap>
 
 #include <Quotient/networkaccessmanager.h>
@@ -57,10 +58,17 @@ public:
 
 int main(int argc, char *argv[])
 {
+    // set the QQC2 style before the app starts, Qt picks a fallback otherwise
+    QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
+
     QApplication app(argc, argv);
     // The window is hidden rather than closed when it goes to the tray, and Qt would
     // otherwise take the last window going away as the end of the session.
     QApplication::setQuitOnLastWindowClosed(false);
+
+    // icons here use breeze names, so add a breeze fallback for non-KDE desktops
+    if (QIcon::fallbackThemeName().isEmpty())
+        QIcon::setFallbackThemeName(QStringLiteral("breeze"));
     // Names the catalog ki18n looks for. It has to happen before anything asks for a
     // translated string, so nothing resolves against whatever domain was current.
     KLocalizedString::setApplicationDomain(QByteArrayLiteral("koutnet"));

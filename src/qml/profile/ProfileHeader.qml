@@ -145,7 +145,7 @@ Item {
         anchors.top: banner.bottom
         anchors.topMargin: -height * root.kAvatarOverhang
 
-        Components.Avatar {
+        AnimatedAvatar {
             anchors.fill: parent
             name: root.displayName
             source: root.avatarSource

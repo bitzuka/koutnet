@@ -58,6 +58,8 @@ class MatrixManager : public QObject
     // not registered, so QML could not name the enumerators anyway.
     Q_PROPERTY(bool loggedIn READ loggedIn NOTIFY stateChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY stateChanged)
+    // full MXID of the signed-in account, empty when signed out
+    Q_PROPERTY(QString userId READ userId NOTIFY stateChanged)
     Q_PROPERTY(QString homeserver READ homeserver NOTIFY stateChanged)
     Q_PROPERTY(QString statusText READ statusText NOTIFY stateChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY stateChanged)

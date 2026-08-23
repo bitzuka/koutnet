@@ -95,7 +95,7 @@ Delegates.RoundedItemDelegate {
                 cursorShape: Qt.PointingHandCursor
             }
 
-            Components.Avatar {
+            AnimatedAvatar {
                 anchors.fill: parent
                 // Left on its generated per-name colour: every avatar used to be
                 // the one accent colour, which made a column of identical circles.

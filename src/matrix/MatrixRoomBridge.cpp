@@ -396,7 +396,10 @@ void MatrixRoomBridge::attach(Connection *connection)
         // offered to the conversation list, which draws it with accept and
         // decline buttons; the join moves it through joinedRoom() and the
         // invite object is deleted, which is how the list hears it is gone.
-        Q_EMIT roomInvited(chatid::matrixChatId(room->id()), matrix::conversationTitle(room->displayName(), room->id()));
+        QString inviterId;
+        QString inviterName;
+        inviterOf(room, &inviterId, &inviterName);
+        Q_EMIT roomInvited(chatid::matrixChatId(room->id()), matrix::conversationTitle(room->displayName(), room->id()), inviterId, inviterName);
     });
     connect(connection, &Connection::loadedRoomState, this, [this](Room *room) {
         // The room's name and members are only settled here; joinedRoom() fires
@@ -755,6 +758,42 @@ Room *MatrixRoomBridge::roomFor(const QString &chatId) const
     return m_manager->connection()->room(roomId, JoinState::Join);
 }
 
+Room *MatrixRoomBridge::invitedRoomFor(const QString &chatId) const
+{
+    const QString roomId = chatid::matrixRoomId(chatId);
+    if (roomId.isEmpty() || !m_manager || !m_manager->connection())
+        return nullptr;
+    // invites are JoinState::Invite rooms, roomFor() only sees Join, so look here
+    return m_manager->connection()->room(roomId, JoinState::Invite);
+}
+
+void MatrixRoomBridge::inviterOf(Room *room, QString *inviterId, QString *inviterName) const
+{
+    if (inviterId != nullptr)
+        inviterId->clear();
+    if (inviterName != nullptr)
+        inviterName->clear();
+    if (room == nullptr || room->connection() == nullptr)
+        return;
+
+    // the inviter is whoever sent our own m.room.member invite event
+    const QString ownId = room->connection()->userId();
+    const auto *memberEvent = room->currentState().get<RoomMemberEvent>(ownId);
+    if (memberEvent == nullptr)
+        return;
+
+    const QString sender = memberEvent->senderId();
+    if (sender.isEmpty())
+        return;
+    if (inviterId != nullptr)
+        *inviterId = sender;
+    if (inviterName != nullptr) {
+        const auto member = room->member(sender);
+        const QString name = member.displayName();
+        *inviterName = name.isEmpty() ? sender : name;
+    }
+}
+
 bool MatrixRoomBridge::sendText(const QString &chatId, const QString &text)
 {
     if (text.trimmed().isEmpty())
@@ -1050,7 +1089,8 @@ void MatrixRoomBridge::joinRoom(const QString &aliasOrId)
 
 void MatrixRoomBridge::acceptInvite(const QString &chatId)
 {
-    Room *room = roomFor(chatId);
+    // invite is a JoinState::Invite room, find it through invitedRoomFor()
+    Room *room = invitedRoomFor(chatId);
     if (room == nullptr)
         return;
     // Joining is a connection-level call in libQuotient; the room object's own
@@ -1060,7 +1100,7 @@ void MatrixRoomBridge::acceptInvite(const QString &chatId)
 
 void MatrixRoomBridge::declineInvite(const QString &chatId)
 {
-    Room *room = roomFor(chatId);
+    Room *room = invitedRoomFor(chatId);
     if (room == nullptr)
         return;
     room->leaveRoom();

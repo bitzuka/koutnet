@@ -53,9 +53,7 @@ Kirigami.Page {
     readonly property int telegramCount: root.model ? root.model.telegramCount : 0
     readonly property int rocketChatCount: root.model ? root.model.rocketChatCount : 0
 
-    // The rail switches the list between backends: pick Matrix and the list is
-    // Matrix alone, pick LAN/VPN and it is the local chats alone. Groups with
-    // no rail button yet - Telegram, Rocket.Chat - show in either mode.
+    // the rail picks which transport is shown; the others keep running in the background
     function modeShowsGroup(group) {
         if (group === 0)
             return root.connectionMode === 0
@@ -171,6 +169,7 @@ Kirigami.Page {
             Layout.fillHeight: true
             visible: !root.compact
             currentMode: root.connectionMode
+            chats: root.model
             onModeSelected: (mode) => root.connectionModeRequested(mode)
         }
 

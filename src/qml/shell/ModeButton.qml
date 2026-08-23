@@ -17,6 +17,8 @@ Delegates.RoundedItemDelegate {
     required property string modeName
     property string unavailableReason: ""
     property bool current: false
+    // unseen messages for this mode; the list hides other modes, the badge shows them
+    property int unread: 0
 
     signal picked()
 
@@ -57,5 +59,33 @@ Delegates.RoundedItemDelegate {
         implicitHeight: Kirigami.Units.iconSizes.smallMedium
         color: root.current ? Kirigami.Theme.highlightColor : Kirigami.Theme.textColor
         isMask: true
+    }
+
+    // drawn on top of the icon, not inside contentItem
+    Item {
+        anchors.fill: parent
+        visible: root.unread > 0
+        z: 2
+
+        Rectangle {
+            id: badge
+
+            width: Math.max(Kirigami.Units.iconSizes.small, label.implicitWidth + Kirigami.Units.smallSpacing)
+            height: width
+            radius: width / 2
+            color: Kirigami.Theme.negativeTextColor
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.margins: -Kirigami.Units.smallSpacing
+
+            Text {
+                id: label
+
+                anchors.centerIn: parent
+                text: root.unread > 99 ? i18nc("@info a large unread count is capped", "99+") : String(root.unread)
+                color: "white"
+                font.pixelSize: Kirigami.Units.smallFont.pixelSize
+            }
+        }
     }
 }

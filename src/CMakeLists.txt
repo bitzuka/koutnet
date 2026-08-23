@@ -253,6 +253,7 @@ qt_add_qml_module(KOutNet
         qml/main_window/NewChatPage.qml
         qml/shell/ConnectionRail.qml
         qml/shell/ModeButton.qml
+        qml/shell/AnimatedAvatar.qml
         qml/timeline/MessageTimeline.qml
         qml/timeline/MessageDelegate.qml
         qml/timeline/MessageActions.qml
@@ -277,6 +278,7 @@ qt_add_qml_module(KOutNet
         qml/matrix/MatrixLoginPage.qml
         qml/matrix/RoomRoles.qml
         qml/matrix/RoomInfoPage.qml
+        qml/matrix/InvitationsPage.qml
         qml/matrix/RoomMemberCard.qml
         qml/matrix/DeviceVerificationDialog.qml
         qml/matrix/KeyBackupDialog.qml

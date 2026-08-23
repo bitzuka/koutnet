@@ -368,6 +368,16 @@ int ChatListModel::rocketChatCount() const
     }));
 }
 
+int ChatListModel::unreadForGroup(int group) const
+{
+    int sum = 0;
+    for (const Entry &e : m_rows) {
+        if (transportGroup(e.chatId) == group)
+            sum += e.unread;
+    }
+    return sum;
+}
+
 void ChatListModel::setAvatar(const QString &chatId, const QString &avatarSource)
 {
     const int row = indexOfChat(chatId);

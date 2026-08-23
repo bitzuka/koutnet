@@ -300,6 +300,48 @@ Kirigami.Page {
                         onClicked: badgeDialog.open()
                     }
                 }
+
+                // read-only, one line per transport so all four identities sit together.
+                // missing ones show "-" instead of a blank row.
+                FormCard.FormHeader {
+                    maximumWidth: root.kContentWidth
+                    title: i18nc("@title:group the identities this account has on each backend", "Usernames")
+                }
+
+                FormCard.FormCard {
+                    id: usernamesCard
+                    maximumWidth: root.kContentWidth
+
+                    readonly property string kNone: i18nc("@info:status no username on this backend", "-")
+
+                    FormCard.FormTextDelegate {
+                        text: i18nc("@label the local-network identity", "LAN / VPN")
+                        description: appSettings.username.length > 0 ? appSettings.username : usernamesCard.kNone
+                    }
+
+                    FormCard.FormDelegateSeparator {}
+
+                    FormCard.FormTextDelegate {
+                        text: "Matrix"
+                        description: (matrixManager.loggedIn && matrixManager.userId.length > 0)
+                            ? matrixManager.userId
+                            : usernamesCard.kNone
+                    }
+
+                    FormCard.FormDelegateSeparator {}
+
+                    FormCard.FormTextDelegate {
+                        text: "Telegram"
+                        description: usernamesCard.kNone
+                    }
+
+                    FormCard.FormDelegateSeparator {}
+
+                    FormCard.FormTextDelegate {
+                        text: "Rocket.Chat"
+                        description: usernamesCard.kNone
+                    }
+                }
             }
         }
 

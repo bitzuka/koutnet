@@ -76,6 +76,9 @@ public:
     int telegramCount() const;
     int rocketChatCount() const;
 
+    // unread count for one transport group, used by the rail badge
+    Q_INVOKABLE int unreadForGroup(int group) const;
+
     // Idempotent, and it never moves an existing chat up the list: opening an old
     // conversation is not activity in it.
     Q_INVOKABLE void openChat(const QString &chatId, const QString &displayName = QString());

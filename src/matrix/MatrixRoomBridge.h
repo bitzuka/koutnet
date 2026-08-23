@@ -192,12 +192,9 @@ Q_SIGNALS:
 
     void sendFailed(QString chatId, QString reason);
 
-    // Somebody asked this account into a room. The conversation list shows the
-    // invitation with accept and decline buttons rather than as a chat, because
-    // a room this account is not in has no timeline to open. The name may be
-    // empty until the room's summary state has arrived, and the window deals
-    // with that by calling roomInfo() when the room opens.
-    void roomInvited(QString chatId, QString displayName);
+    // an invitation arrived; the list shows it with accept/decline, not as a chat.
+    // inviterId and inviterName say who asked; either may be empty at first.
+    void roomInvited(QString chatId, QString displayName, QString inviterId, QString inviterName);
     // The invitation is gone - accepted, declined, or the sender withdrew it.
     void roomInviteGone(QString chatId);
 
@@ -232,6 +229,10 @@ private:
     // A timeline event libQuotient has swapped for its decrypted self.
     void revealEvent(Quotient::Room *room, const Quotient::RoomEvent *event);
     Quotient::Room *roomFor(const QString &chatId) const;
+    // the invite object for a room we were asked into but have not joined yet
+    Quotient::Room *invitedRoomFor(const QString &chatId) const;
+    // who sent the invite and their display name; either may be empty early
+    void inviterOf(Quotient::Room *room, QString *inviterId, QString *inviterName) const;
     // A m.call.* event arrived. Voice signalling only - the media is peer to
     // peer and never passes through the homeserver, so everything here is a
     // handshake about who to connect to.
