@@ -77,8 +77,7 @@ MediaKind mediaKindOf(RoomMessageEvent::MsgType type)
     }
 }
 
-// A name and not the enumerator's number, because the other end of this map is
-// QML and a number there is unreadable.
+// a name, not the enum number; the other end is QML, where a number is unreadable.
 QString mediaKindName(MediaKind kind)
 {
     switch (kind) {
@@ -96,11 +95,9 @@ QString mediaKindName(MediaKind kind)
     return QString();
 }
 
-// Whether a send into this room can be protected the way the room requires.
-// An unencrypted room is always yes. An encrypted room is yes only while the
-// session actually has its key store: libQuotient drops the event on the floor
-// otherwise, and posting it in the clear instead is never the answer, because
-// every other client in the room would show it with a warning.
+// whether a send can be encrypted the way the room wants. an unencrypted room
+// is always yes; an encrypted one is yes only with a key store - without it
+// libQuotient drops the event, and sending in the clear is never right.
 bool canSendEncrypted(const Room *room)
 {
     if (room == nullptr || !room->usesEncryption())
@@ -108,16 +105,13 @@ bool canSendEncrypted(const Room *room)
     return room->connection() != nullptr && room->connection()->encryptionEnabled();
 }
 
-// Whether libQuotient's trust tables can be asked anything at all.
+// whether the libQuotient trust tables can be asked at all.
 //
-// A security invariant with teeth: Connection::isVerifiedDevice(),
-// isUserVerified() and allSessionsSelfVerified() all run a query against
-// Connection::database(), which is null whenever the key store was not set up,
-// and none of them check. devicesForUser() dereferences the encryption data
-// directly. Asking any of them too early is a crash, and answering "not
-// verified" because the question could not be asked is a different lie from
-// "not verified" because it is not - which is why the maps below carry
-// trustKnown rather than a bare boolean.
+// a security invariant: isVerifiedDevice()/isUserVerified()/allSessionsSelfVerified()
+// and devicesForUser() all touch Connection::database(), which is null when the
+// key store is absent, and none of them check. asking early is a crash, and
+// answering "not verified" when we could not ask is a lie, so we carry
+// trustKnown instead of a bare boolean.
 bool canAskAboutTrust(const Connection *connection)
 {
     return connection != nullptr && connection->encryptionEnabled() && connection->database() != nullptr;
@@ -129,8 +123,7 @@ QString encryptionUnavailableReason()
                  "This room is end-to-end encrypted and this session could not open its encryption keys, so nothing was sent.");
 }
 
-// The room-local display name, falling back to the id. Never blank: a state
-// line that begins with a space is what the fallback is here to prevent.
+// the room-local display name, falling back to the id. never blank.
 QString memberLabel(const Room *room, const QString &userId)
 {
     if (room == nullptr || userId.isEmpty())
@@ -139,8 +132,7 @@ QString memberLabel(const Room *room, const QString &userId)
     return name.isEmpty() ? userId : name;
 }
 
-// The media URL of a member's avatar, or an empty string when the member has
-// none or this session is looking at its own picture (which is a local file).
+// the media url of a member avatar, or empty when there is none or it is our own picture.
 QString memberAvatarUrl(const Room *room, const QString &userId)
 {
     if (room == nullptr || userId.isEmpty() || room->connection() == nullptr)
@@ -153,9 +145,7 @@ QString memberAvatarUrl(const Room *room, const QString &userId)
     return room->connection()->makeMediaUrl(avatar).toString();
 }
 
-// Whether a member is currently joined to the room. joinedMemberCount() would
-// answer the count but not the identity, and a direct room is the room with
-// exactly one other member: this is who.
+// whether a member is currently joined. a direct room is the one with exactly one other member.
 bool isJoinedMember(const Room *room, const QString &userId)
 {
     if (room == nullptr || userId.isEmpty())
@@ -163,8 +153,7 @@ bool isJoinedMember(const Room *room, const QString &userId)
     return room->memberState(userId) == Membership::Join;
 }
 
-// The picture a conversation row should carry: the other member's avatar in a
-// one-on-one, the room's own otherwise. Empty when there is none to show.
+// the picture a conversation row carries: the other member in a one-on-one, the room otherwise. empty when none.
 QString roomAvatarUrl(const Room *room)
 {
     if (room == nullptr || room->connection() == nullptr)
@@ -185,9 +174,7 @@ QString roomAvatarUrl(const Room *room)
     return QString();
 }
 
-// Which of the member-event cases this is. The distinctions - and which ones
-// are worth drawing at all - are NeoChat's, from src/libneochat/eventhandler.cpp
-// (EventHandler::genericBody) by James Graham.
+// which member-event case this is. the distinctions follow the NeoChat eventhandler.
 StateChange classifyMember(const Room *room, const RoomMemberEvent &event, QString &subject)
 {
     const bool aboutSomeoneElse = event.senderId() != event.userId();
@@ -201,9 +188,8 @@ StateChange classifyMember(const Room *room, const RoomMemberEvent &event, QStri
         if (event.changesMembership())
             return StateChange::Joined;
 
-        // Already joined, so this is a profile change rather than an arrival.
-        // Names before pictures: a picture that changed in the same event is
-        // the less interesting half and does not earn a line of its own.
+        // already joined, so a profile change not an arrival. names before
+        // pictures: a picture change alone is the duller half, no line of its own.
         if (event.isRename()) {
             if (!event.newDisplayName())
                 return StateChange::DisplayNameCleared;
@@ -214,8 +200,7 @@ StateChange classifyMember(const Room *room, const RoomMemberEvent &event, QStri
         }
         if (event.isAvatarUpdate())
             return StateChange::MemberAvatarChanged;
-        // A join event that changed nothing. NeoChat says so out loud; here it
-        // is dropped, because it is a sync artefact rather than an event.
+        // a join event that changed nothing - a sync artefact, dropped.
         return StateChange::None;
     }
 
@@ -240,16 +225,14 @@ StateChange classifyMember(const Room *room, const RoomMemberEvent &event, QStri
     return StateChange::Unknown;
 }
 
-// Which state change an event is, and what its one substituted string is. None
-// means the event earns no line in the timeline.
+// which state change an event is, and its one substituted string. None means no line.
 StateChange classifyState(const Room *room, const RoomEvent *event, QString &subject)
 {
     if (!event->isStateEvent())
         return StateChange::None;
 
-    // A state event that restates what the room already said is a sync
-    // artefact. Checked first: every branch below would otherwise print a
-    // duplicate line after each reconnect.
+    // a state event that just repeats the room state is a sync artefact.
+    // checked first, or every branch prints a duplicate line after reconnect.
     if (const auto *state = eventCast<const StateEvent>(event); state && state->repeatsState())
         return StateChange::None;
 
@@ -261,8 +244,7 @@ StateChange classifyState(const Room *room, const RoomEvent *event, QString &sub
         return subject.isEmpty() ? StateChange::RoomNameCleared : StateChange::RoomNameSet;
     }
     if (const auto *topic = eventCast<const RoomTopicEvent>(event)) {
-        // Flattened: the topic gets one line of the timeline, and a topic of
-        // three paragraphs would otherwise take three paragraphs of it.
+        // flattened: the topic gets one timeline line, not one per paragraph.
         subject = topic->topic().simplified();
         return subject.isEmpty() ? StateChange::TopicCleared : StateChange::TopicSet;
     }
@@ -286,10 +268,10 @@ StateChange classifyState(const Room *room, const RoomEvent *event, QString &sub
 
 void fillMedia(const Room *room, const RoomMessageEvent &message, koutnet::matrix::RawEvent &raw)
 {
-    // Read off the raw JSON rather than the typed content accessors: get<T>()
-    // is a template instantiated inside libQuotient for a fixed list of content
-    // types, and a build whose library list differs from its headers' links
-    // nothing. The JSON fields are the spec, so they read the same everywhere.
+    // read the raw JSON, not the typed accessors. get<T>() is a template
+    // libQuotient instantiates for a fixed content-type list, and a build whose
+    // library list disagrees with its headers links nothing. the JSON fields
+    // are the spec and read the same everywhere.
     const QJsonObject content = message.contentJson();
     const QJsonObject info = content.value(QStringLiteral("info")).toObject();
 
@@ -297,18 +279,17 @@ void fillMedia(const Room *room, const RoomMessageEvent &message, koutnet::matri
     raw.mediaMime = info.value(QStringLiteral("mimetype")).toString();
     raw.mediaSize = info.value(QStringLiteral("size")).toInteger();
 
-    // The dimensions matter: without them a picture is laid out at whatever
-    // the decoder reports once the download finishes, which moves the timeline
-    // under whoever is reading it.
+    // the dimensions matter: without them a picture is laid out at whatever the
+    // decoder reports after the download, shifting the timeline under the reader.
     raw.mediaWidth = info.value(QStringLiteral("w")).toInt();
     raw.mediaHeight = info.value(QStringLiteral("h")).toInt();
     raw.mediaDurationMs = info.value(QStringLiteral("duration")).toInt();
 
-    // An encrypted attachment carries the address one level down, under file.
+    // an encrypted attachment keeps the url one level down, under file.
     const QJsonObject file = content.value(QStringLiteral("file")).toObject();
     const QUrl source(file.isEmpty() ? content.value(QStringLiteral("url")).toString() : file.value(QStringLiteral("url")).toString());
     // makeMediaUrl() asserts on the scheme, and an encrypted attachment or a
-    // malformed event can carry something that is not an mxc URI.
+    // malformed event can carry a non-mxc uri.
     if (source.scheme() == QLatin1String("mxc") && room != nullptr && room->connection() != nullptr)
         raw.mediaUrl = room->makeMediaUrl(message.id(), source).toString();
 }
@@ -326,8 +307,8 @@ koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
     raw.state = classifyState(room, event, raw.stateSubject);
     if (raw.state != StateChange::None)
         return raw;
-    // A state event classified as None has nothing to show. Cleared rather than
-    // left to fall through, or it would be drawn as an empty message.
+    // a state event classified as None has nothing to show; cleared so it is
+    // not drawn as an empty message.
     if (event->isStateEvent()) {
         raw.eventId.clear();
         return raw;
@@ -342,15 +323,15 @@ koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
     } else if (is<EncryptedEvent>(*event)) {
         raw.encrypted = true;
     } else {
-        // A reaction, a redaction event itself, a call signal: not a row.
+        // a reaction, a redaction event, or a call signal: not a row.
         raw.eventId.clear();
     }
     return raw;
 }
 
-// The corrected text of an m.replace. The replacement's own body is the
-// "* corrected text" fallback for clients that do not understand edits, and
-// showing that is how the asterisk ends up in the timeline.
+// the corrected text of an m.replace. the replacement body is the "* text"
+// fallback for clients that do not understand edits, and showing it is how the
+// asterisk lands in the timeline.
 QString replacementBody(const RoomMessageEvent &message)
 {
     const QJsonObject newContent = message.contentJson().value(QLatin1String("m.new_content")).toObject();
@@ -368,10 +349,10 @@ MatrixRoomBridge::MatrixRoomBridge(MatrixManager *manager, QObject *parent)
 {
     if (m_manager) {
         connect(m_manager, &MatrixManager::connectionChanged, this, [this]() {
-            // Detached by hand rather than left to the rooms being destroyed: a
-            // connection on its way out lives until the homeserver answers or
-            // gives up, and until then its rooms would go on filing messages
-            // into a session the user has already left.
+            // detached by hand, not left to the rooms being destroyed: a
+            // connection on its way out lives until the server answers or gives
+            // up, and its rooms would keep filing messages into a session the
+            // user already left.
             for (const QPointer<QObject> &room : std::as_const(m_tracked)) {
                 if (room)
                     room->disconnect(this);
@@ -392,19 +373,18 @@ void MatrixRoomBridge::attach(Connection *connection)
         trackRoom(room);
     });
     connect(connection, &Connection::invitedRoom, this, [this](Room *room, Room *) {
-        // Nothing to track yet - see trackRoom's note. The invitation is
-        // offered to the conversation list, which draws it with accept and
-        // decline buttons; the join moves it through joinedRoom() and the
-        // invite object is deleted, which is how the list hears it is gone.
+        // nothing to track yet (see trackRoom). the invitation goes to the list
+        // with accept/decline; the join moves it through joinedRoom() and the
+        // invite object is deleted, which is how the list knows it is gone.
         QString inviterId;
         QString inviterName;
         inviterOf(room, &inviterId, &inviterName);
         Q_EMIT roomInvited(chatid::matrixChatId(room->id()), matrix::conversationTitle(room->displayName(), room->id()), inviterId, inviterName);
     });
     connect(connection, &Connection::loadedRoomState, this, [this](Room *room) {
-        // The room's name and members are only settled here; joinedRoom() fires
-        // while the object is still nameless, which is how rows used to appear
-        // in the list titled with their room id and stay that way.
+        // the room name and members are only settled here; joinedRoom() fires
+        // while the object is still nameless, which is why rows used to appear
+        // titled with their room id and stay that way.
         trackRoom(room);
     });
     connect(connection, &Connection::leftRoom, this, [this](Room *room, Room *prev) {
@@ -416,8 +396,8 @@ void MatrixRoomBridge::attach(Connection *connection)
         m_reactions.remove(chatId);
         m_calls.remove(chatId);
         Q_EMIT roomLeft(chatId);
-        // Declining an invitation: the room this account was asked into matches
-        // a new object (this one), and the invite object itself comes in prev.
+        // declining an invite: the room we were asked into matches a new object
+        // (this one), and the invite object itself is in prev.
         if (prev != nullptr && prev->joinState() == JoinState::Invite)
             Q_EMIT roomInviteGone(chatid::matrixChatId(prev->id()));
     });
@@ -431,17 +411,16 @@ void MatrixRoomBridge::attach(Connection *connection)
             m_reactions.remove(chatId);
             m_calls.remove(chatId);
         }
-        // The other way an invitation dies: the join landed, a stale invite
-        // object was created for the same room, and it is being retired. No
-        // leftRoom() precedes this - see Connection's room transition table.
+        // the other way an invite dies: the join landed, a stale invite object
+        // was created and is being retired. no leftRoom() precedes this.
         if (room->joinState() == JoinState::Invite)
             Q_EMIT roomInviteGone(chatId);
     });
 
-    // A verification that just succeeded moved the trust table, and the room
-    // column and the member card are drawing straight off that table. Without
-    // this the padlock only catches up whenever something else happens to make
-    // the column re-read, which for a quiet room is never.
+    // a verification that just succeeded moved the trust table, and the column
+    // and card draw straight from it. without this the padlock only catches up
+    // when something else makes the column re-read, which for a quiet room never
+    // happens.
     auto retellTrust = [this]() {
         const auto ids = m_tracked.keys();
         for (const QString &roomId : ids)
@@ -450,8 +429,7 @@ void MatrixRoomBridge::attach(Connection *connection)
     connect(connection, &Connection::sessionVerified, this, retellTrust);
     connect(connection, &Connection::userVerified, this, retellTrust);
 
-    // Whatever loadState() already put in place. Rooms that arrive later come
-    // through the signals above.
+    // whatever loadState() already put in place; later rooms come via the signals above.
     const auto rooms = connection->allRooms();
     for (Room *room : rooms)
         trackRoom(room);
@@ -459,12 +437,10 @@ void MatrixRoomBridge::attach(Connection *connection)
 
 void MatrixRoomBridge::trackRoom(Room *room)
 {
-    // An invitation is a room this account does not have a timeline in yet, so
-    // it cannot be opened as a chat. The Connection owns the join-state
-    // transitions and hands every one of them to a different Room object - an
-    // invite is a Room in its own right that is deleted the moment the join
-    // lands - so an invitation is announced by attach() on Connection's
-    // invitedRoom()/leftRoom()/aboutToDeleteRoom() and never tracked here.
+    // an invitation is a room we have no timeline in yet, so it cannot be opened
+    // as a chat. the Connection hands every join-state transition to a different
+    // Room object - an invite is its own Room, deleted the moment the join lands
+    // - so invites are announced by attach() and never tracked here.
     if (!room || room->joinState() != JoinState::Join)
         return;
 
@@ -475,9 +451,8 @@ void MatrixRoomBridge::trackRoom(Room *room)
     }
     m_tracked.insert(room->id(), room);
 
-    // A direct room requested by openDirectChat() comes through the join after
-    // the homeserver created it; the window asks for it to be opened, so the
-    // answer is emitted the moment the room is known to be the one requested.
+    // a direct room asked for by openDirectChat() comes through the join after
+    // the homeserver made it; emit the moment it is the one requested.
     if (!m_pendingDirectTarget.isEmpty() && room->isDirectChat() && isJoinedMember(room, m_pendingDirectTarget) && room->joinedCount() == 2) {
         m_pendingDirectTarget.clear();
         Q_EMIT directChatOpened(chatid::matrixChatId(room->id()));
@@ -486,43 +461,39 @@ void MatrixRoomBridge::trackRoom(Room *room)
     connect(room, &Room::addedMessages, this, [this, room](int fromIndex, int toIndex) {
         publishRange(room, fromIndex, toIndex);
     });
-    // This is how an outgoing message gets into the timeline, and the only way.
-    // addedMessages() is emitted for the span of a sync that is *not* an echo of
-    // something this client sent; Room::Private::mergePendingEvent() folds our
-    // own message straight into its pending item and emits these two instead. A
-    // message typed here was posted, accepted by the homeserver and seen by
-    // every other client in the room, and never appeared on this screen.
+    // this is how an outgoing message reaches the timeline, and the only way.
+    // addedMessages() fires for a sync span that is not an echo of our own send;
+    // mergePendingEvent() folds our message into its pending item and emits
+    // this instead. a message typed here was posted, accepted by the server and
+    // seen by every other client, but never shown on this screen.
     connect(room, &Room::pendingEventAboutToMerge, this, [this, room](RoomEvent *serverEvent, int) {
         publishEvent(room, serverEvent);
     });
-    // The other half of the same silence: a send libQuotient gave up on.
+    // the other half of the silence: a send libQuotient gave up on.
     connect(room, &Room::pendingEventChanged, this, [this, room](int index) {
         reportPendingFailure(room, index);
     });
     connect(room, &Room::displaynameChanged, this, [this, room]() {
         publishRoom(room);
     });
-    // A megolm key that turned up after the message it opens. libQuotient
-    // swaps the decrypted event into the timeline in place and says so here;
-    // without this the placeholder row stays a placeholder for the rest of the
-    // run even though the text is sitting right there.
+    // a megolm key that turned up after the message it opens. libQuotient swaps
+    // the decrypted event into the timeline in place; without this the
+    // placeholder row stays one for the rest of the run despite the text.
     connect(room, &Room::replacedEvent, this, [this, room](const RoomEvent *newEvent, const RoomEvent *) {
         revealEvent(room, newEvent);
     });
 
-    // Someone in the room is typing. The window shows one indicator per
-    // conversation and does not name who, so the answer is a boolean - and it
-    // is otherMembersTyping(), not membersTyping(), because this session's own
-    // typing must not light the indicator it set itself.
+    // someone in the room is typing. the window shows one indicator per chat
+    // and does not name who, so a boolean; and it is otherMembersTyping(), not
+    // membersTyping(), since our own typing must not light the indicator we set.
     connect(room, &Room::typingChanged, this, [this, room]() {
         Q_EMIT roomTyping(chatid::matrixChatId(room->id()), !room->otherMembersTyping().isEmpty());
     });
 
-    // A read receipt moved. Reported only for somebody else's receipt, and
-    // only when it is about this session's own message: reading a message of
-    // a third member says nothing about whether this session's messages were
-    // read, and claiming it did would be the same lie as the LAN path claiming
-    // it for a message that was never on the screen.
+    // a read receipt moved. reported only for someone else receipt, and only
+    // when it is about our own message: a third member read says nothing about
+    // whether our messages were read, and claiming it would be the same lie as
+    // the LAN path for a message that was never on screen.
     connect(room, &Room::lastReadEventChanged, this, [this, room](const QVector<QString> &userIds) {
         const QString ownId = room->connection() ? room->connection()->userId() : QString();
         for (const QString &userId : userIds) {
@@ -537,30 +508,29 @@ void MatrixRoomBridge::trackRoom(Room *room)
         }
     });
 
-    // The room's own column reads all of these through roomInfo(), so they
-    // share one signal rather than getting a property each.
+    // the room column reads all of these through roomInfo(), so they share one signal.
     const auto announceInfo = [this, room]() {
         Q_EMIT roomInfoChanged(chatid::matrixChatId(room->id()));
     };
     connect(room, &Room::topicChanged, this, announceInfo);
-    // A room that has just turned encryption on changes what the room column
-    // must say about it. The timeline line for the same event comes from the
-    // m.room.encryption state event like any other state change.
+    // a room that just turned encryption on changes what the column says. the
+    // timeline line for the same event comes from the m.room.encryption state
+    // event like any other.
     connect(room, &Room::encryption, this, announceInfo);
     connect(room, &Room::avatarChanged, this, announceInfo);
     connect(room, &Room::memberListChanged, this, announceInfo);
     connect(room, &Room::namesChanged, this, announceInfo);
 
-    // m.call.invite/answer/hangup. libQuotient 0.9 hands the whole event over;
-    // the caller's identity is in the sender, the rest is in the content.
+    // m.call.invite/answer/hangup. libQuotient hands the whole event over; the
+    // caller is in the sender, the rest in the content.
     connect(room, &Room::callEvent, this, [this](Room *callRoom, const RoomEvent *event) {
         handleCallEvent(callRoom, event);
     });
 
     publishRoom(room);
 
-    // Whatever is already in the timeline from the state cache. Indices run from
-    // the oldest known event to the newest, both ends inclusive.
+    // whatever is already in the timeline from the state cache. indices run from
+    // the oldest known event to the newest, both inclusive.
     if (!room->messageEvents().empty())
         publishRange(room, room->minTimelineIndex(), room->maxTimelineIndex());
 }
@@ -576,11 +546,10 @@ void MatrixRoomBridge::publishRange(Room *room, int fromIndex, int toIndex)
 {
     for (int i = fromIndex; i <= toIndex; ++i) {
         const auto it = room->findInTimeline(i);
-        // Out-of-range lookups hand back historyEdge() - the only sentinel the
-        // reverse iterator has, equal to messageEvents().crend() - and
-        // dereferencing it is undefined behaviour. The index range comes from
-        // the room's own min/max, so this is normally an index between cached
-        // events; the check is for the index that races an ongoing sync.
+        // out-of-range lookups hand back historyEdge(), the only sentinel the
+        // reverse iterator has (= crend()), and dereferencing it is UB. the
+        // range comes from the room min/max, so this is usually in range;
+        // the check is for the index that races an ongoing sync.
         if (it == room->historyEdge())
             continue;
         publishEvent(room, it->event());
@@ -594,17 +563,14 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
 
     const QString chatId = chatid::matrixChatId(room->id());
 
-    // A reaction is never a row: it is a statement about a message that is
-    // already on the screen, and it earns no line of its own. The ReactionStore
-    // is keyed on the stamp of the message being reacted to, which is how the
-    // LAN protocol files reactions too, so the reaction's own timestamp is
-    // deliberately not what is sent - the target's is.
+    // a reaction is never a row: it is about a message already on screen and
+    // earns no line of its own. the ReactionStore keys on the target message
+    // stamp, like the LAN protocol, so the reaction timestamp itself is not sent.
     if (const auto *reaction = eventCast<const ReactionEvent>(event)) {
         const QString reactionId = event->id();
         const double targetTs = m_eventIdToTs.value(chatId).value(reaction->eventId());
-        // A reaction that was redacted loses its content, so the emoji is not
-        // in the event any more; it is remembered here instead, from when the
-        // reaction was first published.
+        // a redacted reaction loses its content, so the emoji is gone from the
+        // event; it is remembered here from when the reaction was first sent.
         if (event->isRedacted()) {
             auto &reactions = m_reactions[chatId];
             const auto it = reactions.constFind(reactionId);
@@ -615,10 +581,10 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
             return;
         }
         if (targetTs > 0.0 && !reaction->key().isEmpty()) {
-            // This session's own reaction also comes back through sync. The
-            // local toggle already filed it under "me" when it was sent, so
-            // the echo would badge the same reaction twice under two names -
-            // and the sender label is the display name, not "me".
+            // our own reaction also comes back through sync, but the local
+            // toggle already filed it under "me"; the echo would badge the
+            // same reaction twice under two names - and the label is the
+            // display name, not "me".
             const QString ownId = room->connection() ? room->connection()->userId() : QString();
             if (reaction->senderId() != ownId)
                 Q_EMIT roomReaction(chatId, targetTs, reaction->key(), memberLabel(room, reaction->senderId()), true);
@@ -627,10 +593,9 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
         return;
     }
 
-    // A redaction is the event that takes a message or a reaction back. The
-    // redacted event itself stays in the timeline, so what the window already
-    // shows has to be told apart by whoever redacted it: a message row is
-    // removed, a reaction badge is taken down.
+    // a redaction takes a message or a reaction back. the redacted event stays
+    // in the timeline, so what the window shows is told apart by who redacted:
+    // a message row is removed, a reaction badge taken down.
     if (const auto *redaction = eventCast<const RedactionEvent>(event)) {
         const QString redactedId = redaction->redactedEvent();
         auto &reactions = m_reactions[chatId];
@@ -645,8 +610,8 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
         return;
     }
 
-    // An edit is dealt with before anything else and never becomes a row: it is
-    // a statement about a message that is already on the screen.
+    // an edit is dealt with first and never becomes a row: it is about a message
+    // already on screen.
     if (const auto *message = eventCast<const RoomMessageEvent>(event)) {
         const QString replaced = message->replacedEvent();
         if (!replaced.isEmpty()) {
@@ -672,8 +637,8 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
         break;
     }
     case matrix::RowKind::Encrypted: {
-        // Per event, not per room. The room is readable; this one message is
-        // not, and saying it about the room would be a lie about the rest.
+        // per event, not per room. the room is readable; this message is not,
+        // and saying so about the room would be a lie about the rest.
         const QString avatar = memberAvatarUrl(room, row.senderId);
         Q_EMIT roomMessage(chatId, row.msgId, row.text, row.sender, row.isOwn, row.ts, true, avatar);
         break;
@@ -694,13 +659,10 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
     }
     }
 
-    // The window addresses messages by stamp and the homeserver by event id;
-    // both directions of that table are kept here so that a reaction, an edit
-    // or an unsend can be resolved to the event it is about, and a reaction
-    // arriving for an event already shown can be filed under the stamp the
-    // ReactionStore expects. System rows carry a synthetic id that cannot be
-    // reacted to, so they are not indexed - a reaction to a state line is not
-    // a thing Matrix has an event for.
+    // the window addresses messages by stamp, the homeserver by event id; both
+    // directions are kept so a reaction/edit/unsend resolves to the event it is
+    // about. system rows carry a synthetic id that cannot be reacted to, so
+    // they are not indexed - a reaction to a state line has no Matrix event.
     if (!row.msgId.isEmpty() && row.kind != matrix::RowKind::Skip && row.kind != matrix::RowKind::System && row.ts > 0.0) {
         m_tsToEventId[chatId].insert(row.ts, row.msgId);
         m_eventIdToTs[chatId].insert(row.msgId, row.ts);
@@ -711,9 +673,9 @@ void MatrixRoomBridge::revealEvent(Room *room, const RoomEvent *event)
 {
     if (room == nullptr || event == nullptr)
         return;
-    // Only a decryption. libQuotient emits replacedEvent() for an m.replace as
-    // well, and that path is already handled where the replacement arrives; the
-    // original event is kept only when the swap was a decryption.
+    // only a decryption. libQuotient also emits replacedEvent() for an m.replace,
+    // handled where the replacement arrives; the original is kept only when the
+    // swap was a decryption.
     if (event->originalEvent() == nullptr)
         return;
 
@@ -721,11 +683,10 @@ void MatrixRoomBridge::revealEvent(Room *room, const RoomEvent *event)
     if (row.kind == matrix::RowKind::Skip || row.kind == matrix::RowKind::Encrypted || row.text.isEmpty())
         return;
 
-    // Text for an attachment too. The row went into the model as a placeholder
-    // line and a line is what it can become again; turning it into a picture
-    // would mean replacing the entry, and an attachment that arrives with its
-    // key late is rare enough not to earn that. It is named rather than left
-    // saying there is no key for it, which would be untrue once there is.
+    // text for an attachment too. the row went in as a placeholder line and a
+    // line is what it can become again; turning it into a picture would replace
+    // the entry, and a late-keyed attachment is rare enough not to earn that.
+    // it is named rather than left saying there is no key, which would be untrue.
     Q_EMIT roomMessageRevealed(chatid::matrixChatId(room->id()), row.msgId, row.text);
 }
 
@@ -738,7 +699,7 @@ void MatrixRoomBridge::reportPendingFailure(Room *room, int pendingIndex)
         return;
 
     const auto &item = pending[size_t(pendingIndex)];
-    // Every other status is progress and says itself in the timeline.
+    // every other status is progress and says itself in the timeline.
     if (item.deliveryStatus() != EventStatus::SendingFailed)
         return;
 
@@ -799,9 +760,9 @@ bool MatrixRoomBridge::sendText(const QString &chatId, const QString &text)
     if (text.trimmed().isEmpty())
         return false;
 
-    // Split from the lookup below so the two are not reported as one thing: a
-    // session that is not up and a room that is not joined need different
-    // answers from the user, and "not available" was the same sentence for both.
+    // split from the lookup so the two errors are not reported as one: a session
+    // that is down and a room that is not joined need different answers, and
+    // "not available" used to be the same sentence for both.
     if (!m_manager || !m_manager->connection()) {
         Q_EMIT sendFailed(chatId, i18nc("@info:status", "Not signed in to Matrix, so this message was not sent."));
         return false;
@@ -817,10 +778,9 @@ bool MatrixRoomBridge::sendText(const QString &chatId, const QString &text)
         return false;
     }
 
-    // Nothing here encrypts anything. libQuotient does the whole of it inside
-    // the send: Room::Private::doSendEvent() makes or rotates the outbound
-    // megolm session, ships the session key to every device that has not got
-    // it, and puts an m.room.encrypted on the wire instead of the message.
+    // nothing here encrypts. libQuotient does it all inside the send:
+    // doSendEvent() makes or rotates the outbound megolm session, ships the key
+    // to every device without it, and puts an m.room.encrypted on the wire.
     room->postText(text);
     return true;
 }
@@ -847,21 +807,19 @@ bool MatrixRoomBridge::sendFile(const QString &chatId, const QString &localFileP
     const QMimeType mime = QMimeDatabase().mimeTypeForFile(file);
     const QString mimeName = mime.name();
 
-    // The msgtype comes from the content type rather than the extension,
-    // because that is what every other client in the room reads it back as. No
-    // poster frame is generated for a video: doing that properly means decoding
-    // a frame and uploading it as a second piece of media, and a video with no
-    // poster still plays.
+    // the msgtype comes from the content type, not the extension, since that is
+    // what every other client reads it back as. no poster frame for a video:
+    // making one means decoding a frame and uploading it as a second media, and
+    // a video with no poster still plays.
     std::unique_ptr<EventContent::FileContentBase> content;
     if (mimeName.startsWith(QLatin1String("image/"))) {
         const QImage image(file.absoluteFilePath());
         content = std::make_unique<EventContent::ImageContent>(localUrl, file.size(), mime, image.size(), file.fileName());
     } else if (mimeName.startsWith(QLatin1String("audio/"))) {
         auto audio = std::make_unique<EventContent::AudioContent>(localUrl, file.size(), mime, file.fileName());
-        // Set by hand: the duration member belongs to libQuotient's playable
-        // content and only its JSON constructor fills it in, so one built from
-        // a local file starts out holding whatever was on the stack, and that
-        // number goes out in the event.
+        // set by hand: the duration member belongs to the libQuotient playable
+        // content and only its JSON constructor fills it, so a local-file one
+        // starts holding whatever was on the stack and that goes out in the event.
         audio->duration = 0;
         content = std::move(audio);
     } else if (mimeName.startsWith(QLatin1String("video/"))) {
@@ -888,11 +846,10 @@ bool MatrixRoomBridge::leaveChat(const QString &chatId)
     if (room == nullptr)
         return false;
     const auto job = room->leaveRoom();
-    // The window must not wait for the sync to echo the leave back: join-state
-    // transitions are driven by sync (see setJoinState's note in room.h), so
-    // with the sync loop down or merely slow the row would linger, and "I
-    // left and the chat is still here" was exactly the report. When the sync
-    // does echo, Connection::leftRoom lands too and the handler is idempotent.
+    // the window must not wait for sync to echo the leave: join-state changes
+    // are driven by sync, so with the loop down or slow the row would linger -
+    // "I left and the chat is still here" was the report. when sync does echo,
+    // Connection::leftRoom lands too and the handler is idempotent.
     if (job != nullptr) {
         connect(job.data(), &Quotient::BaseJob::success, this, [this, chatId]() {
             Q_EMIT roomLeft(chatId);
@@ -923,9 +880,8 @@ bool MatrixRoomBridge::hasRooms(const QString &) const
 
 bool MatrixRoomBridge::supportsCalls(const QString &) const
 {
-    // A room call rides the LAN voice channel, so the answer is whether the
-    // local side of that channel exists - which is every real session; voice
-    // is not an optional installation.
+    // a room call rides the LAN voice channel, so the answer is whether the
+    // local side exists - which is every real session, voice is not optional.
     return m_net != nullptr && m_voice != nullptr;
 }
 
@@ -946,13 +902,12 @@ bool MatrixRoomBridge::supportsReactions(const QString &) const
 
 void MatrixRoomBridge::sendTyping(const QString &chatId)
 {
-    // The LAN side re-sends a typing datagram for every keystroke and has no
-    // stop packet; the homeserver side works the same way - a typing event
-    // carries a timeout, and the server clears it on its own when it runs out,
-    // so there is no "stopped typing" here either. What is different is the
-    // cost: one HTTP round trip per packet, so the bridge sends one only when
-    // the previous has been on the wire long enough to be taking the pressure
-    // of real typing. 4 seconds is about a sentence at a normal pace.
+    // the LAN side re-sends a typing datagram per keystroke with no stop packet;
+    // the homeserver side is the same - a typing event carries a timeout and the
+    // server clears it on its own, so there is no "stopped typing" here either.
+    // the difference is cost: one HTTP round trip per packet, so the bridge
+    // sends one only when the previous has been on the wire long enough. 4s is
+    // about a sentence at a normal pace.
     if (!m_manager || !m_manager->connection())
         return;
     Room *room = roomFor(chatId);
@@ -965,31 +920,30 @@ void MatrixRoomBridge::sendTyping(const QString &chatId)
         return;
     m_lastTypingSent.insert(chatId, now);
 
-    // Sent to the server as the user "who is typing", which is this session's
-    // own id; the room is where it appears. 10 seconds is the conventional
-    // timeout every Matrix client keeps retyping under - short enough to clear
-    // a typist who walked away, long enough to survive a pause mid-sentence.
+    // sent to the server as the typing user, which is this session id;
+    // the room is where it shows. 10s is the conventional timeout every client
+    // keeps retyping under - short enough to clear a walk-away, long enough to
+    // survive a mid-sentence pause.
     m_manager->connection()->callApi<SetTypingJob>(m_manager->connection()->userId(), room->id(), true, 10000);
 }
 
 void MatrixRoomBridge::sendReaction(const QString &chatId, double ts, const QString &emoji, bool added)
 {
     Room *room = roomFor(chatId);
-    // The event id is resolved from the stamp the window filed the row under;
-    // an event older than the loaded timeline has no stamp here and no
-    // reaction can be sent to it - the window offers none either, because a
-    // row it never showed cannot be reacted to.
+    // the event id is resolved from the stamp the window filed the row under;
+    // an event older than the loaded timeline has no stamp here and no reaction
+    // can be sent - the window offers none either, since a row never shown
+    // cannot be reacted to.
     const QString eventId = m_tsToEventId.value(chatId).value(ts);
     if (room == nullptr || eventId.isEmpty() || emoji.isEmpty())
         return;
 
     if (added) {
-        // The local reaction store decides added/removed from what it has on
-        // disk, and across a restart or an account switch that knowledge can
-        // be wrong: the tap then arrives as "add" for a reaction this account
-        // already sent, and the homeserver answers the second copy with a 400.
-        // The room's own annotations are the truth - an existing one from this
-        // account means the tap meant "off", which is a redaction, not a post.
+        // the local reaction store decides added/removed from disk, and across
+        // a restart or account switch that can be wrong: the tap then arrives as
+        // "add" for a reaction this account already sent, and the server answers
+        // the second copy with a 400. the room annotations are the truth -
+        // an existing one from this account means the tap meant "off", a redaction.
         const auto &annotations = room->relatedEvents(eventId, EventRelation::AnnotationType);
         for (const RoomEvent *annotation : annotations) {
             const auto *reaction = eventCast<const ReactionEvent>(annotation);
@@ -1002,10 +956,10 @@ void MatrixRoomBridge::sendReaction(const QString &chatId, double ts, const QStr
         return;
     }
 
-    // Removing a reaction is redacting the reaction event this session sent,
-    // and there may be several (one per emoji, or a retried send). All of them
-    // are found and redacted; the homeserver does not care that redacting a
-    // reaction is redacting an event, and neither does anyone else in the room.
+    // removing a reaction is redacting the reaction event this session sent, and
+    // there may be several (one per emoji, or a retried send). all are found and
+    // redacted; the server does not care that redacting a reaction is redacting
+    // an event, and neither does anyone else.
     const auto &annotations = room->relatedEvents(eventId, EventRelation::AnnotationType);
     for (const RoomEvent *annotation : annotations) {
         const auto *reaction = eventCast<const ReactionEvent>(annotation);
@@ -1027,10 +981,9 @@ bool MatrixRoomBridge::sendEdit(const QString &chatId, double ts, const QString 
         return false;
     }
 
-    // Everything an edit needs is in the related-to: the replacement body and
-    // an m.relates_to with the serial of the event being corrected. libQuotient
-    // stamps new_content with the type itself, which is what every other client
-    // reads back as the corrected text.
+    // everything an edit needs is in the related-to: the replacement body and
+    // an m.relates_to with the corrected event serial. libQuotient stamps
+    // new_content itself, which is what every other client reads back.
     room->postText(newText, std::nullopt, EventRelation::replace(eventId));
     return true;
 }
@@ -1052,14 +1005,13 @@ void MatrixRoomBridge::createRoom(const QString &name, const QString &topic, con
     if (connection == nullptr)
         return;
 
-    // A name without an alias is what the "make it up as we go" rooms want; the
-    // alias is the address somebody pastes to join, and cannot be handed out to
-    // a private room, so it stays local when the room is not public.
+    // a name without an alias is what the "make it up as we go" rooms want; the
+    // alias is the address pasted to join, and cannot be handed out to a private
+    // room, so it stays local when the room is not public.
     connection->createRoom(isPrivate ? Connection::UnpublishRoom : Connection::PublishRoom, isPrivate ? QString() : alias, name, topic, invitedUsers)
         .then(
             [](const auto &job) {
-                // The room arrives through joinedRoom() like any other, and the
-                // conversation list hears about it there. Nothing else to do.
+                // the room arrives through joinedRoom() like any other; the list hears about it there.
                 Q_UNUSED(job);
             },
             [this](const auto &job) {
@@ -1073,9 +1025,8 @@ void MatrixRoomBridge::joinRoom(const QString &aliasOrId)
     if (connection == nullptr || aliasOrId.trimmed().isEmpty())
         return;
 
-    // Join, then track the room the job created. A room that has never been in
-    // this session's cache would otherwise wait for the next sync before the
-    // conversation list hears about it.
+    // join, then track the room the job created. a room never in this session
+    // cache would otherwise wait for the next sync before the list hears it.
     connection->joinRoom(aliasOrId.trimmed())
         .then(
             [this](const auto &job) {
@@ -1093,8 +1044,8 @@ void MatrixRoomBridge::acceptInvite(const QString &chatId)
     Room *room = invitedRoomFor(chatId);
     if (room == nullptr)
         return;
-    // Joining is a connection-level call in libQuotient; the room object's own
-    // state catches up when the join lands, and trackRoom() picks it up there.
+    // joining is a connection-level call in libQuotient; the room state
+    // catches up when the join lands, and trackRoom() picks it up there.
     m_manager->connection()->joinRoom(room->id());
 }
 
@@ -1145,9 +1096,9 @@ void MatrixRoomBridge::openDirectChat(const QString &userId)
     if (target.isEmpty() || connection == nullptr)
         return;
 
-    // An existing direct room with exactly the two of us is reused rather than
-    // proliferated: the Matrix spec allows several, and neither this window
-    // nor the peer wants to pick between lookalikes.
+    // an existing direct room with just the two of us is reused, not multiplied:
+    // the spec allows several, and neither this window nor the peer wants to
+    // pick between lookalikes.
     const auto rooms = connection->allRooms();
     for (Room *room : rooms) {
         if (room == nullptr || room->joinState() != JoinState::Join || !room->isDirectChat())
@@ -1172,10 +1123,10 @@ void MatrixRoomBridge::setCallStack(NetworkManager *net, VoiceCallManager *voice
 MatrixRoomBridge::CallOffer MatrixRoomBridge::ownCallOffer() const
 {
     CallOffer offer;
-    // The address the LAN path already announces itself under; connectVoice()
-    // dials the well-known voice port on it, so this is all the far side
-    // needs to reach the media channel. The key is generated fresh per call,
-    // so no two room calls share a keystream even between the same two ends.
+    // the address the LAN path already announces; connectVoice() dials the
+    // well-known voice port on it, so this is all the far side needs. the key
+    // is fresh per call, so no two room calls share a keystream even on the
+    // same pair of ends.
     if (m_net != nullptr)
         offer.address = m_net->hostIp();
     offer.key.resize(CryptoManager::kKeyLen);
@@ -1209,11 +1160,10 @@ void MatrixRoomBridge::callRoom(const QString &chatId)
     call.role = QStringLiteral("caller");
     m_calls.insert(chatId, call);
 
-    // The old "lifetime" field of a legacy m.call.invite. The homeserver
-    // expects the event to look like a call even though nothing about this
-    // call goes through it. The offer carries this side's media address and
-    // the key the media is sealed with; both travel the same path as the
-    // call, so the key is exactly as private as the room is.
+    // the legacy "lifetime" field of m.call.invite. the server expects the event
+    // to look like a call even though nothing about it goes through the server.
+    // the offer carries this side media address and the key the media is
+    // sealed with; both travel with the call, so the key is as private as the room.
     const QString sdp = QStringLiteral("koutnet %1 %2").arg(offer.address, QString::fromLatin1(offer.key.toBase64()));
     room->postJson(QStringLiteral("m.call.invite"),
                    QJsonObject{{QStringLiteral("call_id"), call.callId},
@@ -1247,10 +1197,9 @@ void MatrixRoomBridge::acceptCall(const QString &chatId, const QString &callId)
                                {QStringLiteral("party_id"), room->connection() ? room->connection()->userId() : QString()},
                                {QStringLiteral("answer"), QJsonObject{{QStringLiteral("type"), QStringLiteral("answer")}, {QStringLiteral("sdp"), sdp}}}});
 
-    // The media channel comes up here and on the caller's side the moment its
-    // answer lands, in exactly the direction a LAN call goes: both sides dial
-    // each other's well-known voice port. The shared key is in place first,
-    // so neither side has a moment of voice in the clear.
+    // the media channel comes up here and on the caller side when its answer
+    // lands, exactly like a LAN call: both sides dial each other voice port.
+    // the shared key is in place first, so neither side has a moment in the clear.
     if (m_crypto != nullptr)
         m_crypto->installSharedSession(m_pending.peerAddress, m_pending.peerKey);
     if (m_voice != nullptr)
@@ -1309,12 +1258,12 @@ void MatrixRoomBridge::handleCallEvent(Room *room, const RoomEvent *event)
 
     if (const auto *invite = eventCast<const CallInviteEvent>(event)) {
         const CallOffer offer = callOfferFromSdp(invite->sdp());
-        // Non-const find: the answerer branch below appends to the peer list.
+        // non-const find: the answerer branch below appends to the peer list.
         const auto it = m_calls.find(chatId);
         if (it != m_calls.end() && it->callId == invite->callId()) {
-            // The same caller re-inviting an established call: a group call in
-            // which more than one member is answering the one invitation. On
-            // the answerer side each such invite adds the member as a peer.
+            // the same caller re-inviting an established call: a group call where
+            // more than one member answers the one invite. each such invite adds
+            // the member as a peer on the answerer side.
             if (it->role == QStringLiteral("answerer") && !offer.address.isEmpty()) {
                 if (!it->peerAddresses.contains(offer.address)) {
                     if (m_crypto != nullptr && offer.key.size() == CryptoManager::kKeyLen)
@@ -1326,8 +1275,8 @@ void MatrixRoomBridge::handleCallEvent(Room *room, const RoomEvent *event)
             }
             return;
         }
-        // A call this session has never seen: offer it to the window. Only one
-        // pending invitation is carried, matching the single dialog.
+        // a call this session has never seen: offer it to the window. only one
+        // pending invite is carried, matching the single dialog.
         if (m_pending.chatId.isEmpty()) {
             m_pending = PendingCall{chatId, invite->callId(), offer.address, offer.key};
             Q_EMIT roomCallInvited(chatId, invite->callId(), room->member(event->senderId()).displayName());
@@ -1348,8 +1297,8 @@ void MatrixRoomBridge::handleCallEvent(Room *room, const RoomEvent *event)
                 m_voice->call(offer.address);
         }
         it->established = true;
-        // Every answer opens the caller's call window; the first one is the
-        // call, further ones are group participants riding the same window.
+        // every answer opens the caller call window; the first is the call,
+        // the rest are group participants on the same window.
         Q_EMIT roomCallAccepted(chatId);
         return;
     }
@@ -1388,30 +1337,26 @@ QVariantMap MatrixRoomBridge::roomInfo(const QString &chatId) const
     info.insert(QStringLiteral("joinedCount"), room->joinedCount());
     info.insert(QStringLiteral("invitedCount"), room->invitedCount());
     info.insert(QStringLiteral("encrypted"), room->usesEncryption());
-    // Whether this session can do encryption at all, which is not the same
-    // question as whether the room asked for it. An encrypted room in a session
-    // without a key store is unreadable and unwritable, and the column has to be
-    // able to say that instead of drawing a padlock over it.
+    // whether this session can do encryption at all, which is not the same as
+    // whether the room asked for it. an encrypted room without a key store is
+    // unreadable and unwritable, and the column must say so, not draw a padlock.
     const Connection *connection = room->connection();
     const bool trustKnown = canAskAboutTrust(connection);
     info.insert(QStringLiteral("encryptionActive"), connection != nullptr && connection->encryptionEnabled());
     info.insert(QStringLiteral("trustKnown"), trustKnown);
-    // Only about this account's own other sessions, and only one query. Whether
-    // every device of every member is verified is a question this column does
-    // not ask, because it is one database round trip per member and the answer
-    // for a room of any size is always no.
+    // only about this account own other sessions, and only one query. whether
+    // every member every device is verified is a question the column does not
+    // ask - one database round trip per member, and the answer is always no.
     info.insert(QStringLiteral("ownSessionsVerified"), trustKnown && connection->allSessionsSelfVerified(connection->userId()));
-    // The room key backup is an account-level matter, but this is the one place
-    // the account's encryption state is discussed, so it is reported here: does
-    // the homeserver hold an encrypted copy of the room keys, and has this
-    // session already unlocked it.
+    // the room key backup is account-level, but this is where encryption state
+    // is discussed, so it is reported here: does the server hold an encrypted
+    // copy of the room keys, and has this session unlocked it.
     info.insert(QStringLiteral("keyBackupAvailable"), m_manager->keyBackupAvailable());
     info.insert(QStringLiteral("keyBackupUnlocked"), m_manager->isKeyBackupUnlocked());
     info.insert(QStringLiteral("version"), room->version());
     info.insert(QStringLiteral("isDirect"), room->isDirectChat());
-    // What this session is allowed to do here. The column hides the actions it
-    // would only be refused for rather than offering them and reporting the
-    // refusal afterwards.
+    // what this session is allowed to do here. the column hides actions it would
+    // only be refused for, rather than offering them and reporting the refusal.
     info.insert(QStringLiteral("ownPowerLevel"), room->memberEffectivePowerLevel());
 
     const QUrl avatar = room->avatarUrl();
@@ -1428,7 +1373,7 @@ QVariantList MatrixRoomBridge::roomMembers(const QString &chatId) const
     if (room == nullptr)
         return list;
 
-    // joinedMembers() rather than members(): a list that also holds everybody
+    // joinedMembers() rather than members(): a list that also holds everyone
     // who ever left is a list of a different thing.
     QList<RoomMember> members = room->joinedMembers();
     std::sort(members.begin(), members.end(), [](const RoomMember &left, const RoomMember &right) {
@@ -1467,16 +1412,16 @@ QVariantMap MatrixRoomBridge::memberInfo(const QString &chatId, const QString &u
     info.insert(QStringLiteral("displayName"), member.displayName().isEmpty() ? member.id() : member.displayName());
     info.insert(QStringLiteral("powerLevel"), member.powerLevel());
     info.insert(QStringLiteral("isLocalMember"), member.isLocalMember());
-    // A ban is its own membership state on the server, and it outlives the
-    // member list: a banned member is still listed, just flagged. The card
-    // answers with the unban button instead of kick and ban on this flag.
+    // a ban is its own membership state on the server and outlives the member
+    // list: a banned member is still listed, just flagged. the card answers with
+    // the unban button instead of kick and ban on this flag.
     info.insert(QStringLiteral("isBanned"), room->memberState(member.id()) == Membership::Ban);
 
-    // Trust, one member at a time, which is the only place it is cheap enough
+    // trust, one member at a time, which is the only place it is cheap enough
     // to ask. trustKnown false means the question could not be put - no key
-    // store, or a member of a room nobody has ever shared an encrypted room
-    // with - and the card says that rather than reporting an unverified device
-    // this session simply never looked at.
+    // store, or a member of a room nobody has shared an encrypted room with -
+    // and the card says that rather than reporting an unverified device this
+    // session never looked at.
     const Connection *connection = room->connection();
     const bool trustKnown = canAskAboutTrust(connection);
     info.insert(QStringLiteral("trustKnown"), trustKnown);
