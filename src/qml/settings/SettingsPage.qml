@@ -128,10 +128,10 @@ Kirigami.Page {
         QQC2.TabButton { text: i18nc("@title:tab settings section", "Profile") }
         QQC2.TabButton { text: i18nc("@title:tab settings section", "Language") }
         QQC2.TabButton { text: i18nc("@title:tab settings section", "Interface") }
-        QQC2.TabButton { text: "Matrix" }
+        QQC2.TabButton { text: i18nc("@title:backend", "Matrix") }
         QQC2.TabButton { text: i18nc("@title:tab settings section", "LAN / VPN") }
-        QQC2.TabButton { text: "Telegram" }
-        QQC2.TabButton { text: "Rocket.Chat" }
+        QQC2.TabButton { text: i18nc("@title:backend", "Telegram") }
+        QQC2.TabButton { text: i18nc("@title:backend", "Rocket.Chat") }
     }
 
     StackLayout {
@@ -322,7 +322,7 @@ Kirigami.Page {
                     FormCard.FormDelegateSeparator {}
 
                     FormCard.FormTextDelegate {
-                        text: "Matrix"
+                        text: i18nc("@title:backend", "Matrix")
                         description: (matrixManager.loggedIn && matrixManager.userId.length > 0)
                             ? matrixManager.userId
                             : usernamesCard.kNone
@@ -331,14 +331,14 @@ Kirigami.Page {
                     FormCard.FormDelegateSeparator {}
 
                     FormCard.FormTextDelegate {
-                        text: "Telegram"
+                        text: i18nc("@title:backend", "Telegram")
                         description: usernamesCard.kNone
                     }
 
                     FormCard.FormDelegateSeparator {}
 
                     FormCard.FormTextDelegate {
-                        text: "Rocket.Chat"
+                        text: i18nc("@title:backend", "Rocket.Chat")
                         description: usernamesCard.kNone
                     }
                 }
@@ -777,7 +777,7 @@ Kirigami.Page {
                 anchors.centerIn: parent
                 width: parent.width - Kirigami.Units.largeSpacing * 4
                 icon.name: "send-to"
-                text: "Telegram"
+                text: i18nc("@title:backend", "Telegram")
                 explanation: i18nc("@info a transport that is not implemented yet", "Not built yet.")
             }
         }
@@ -788,7 +788,7 @@ Kirigami.Page {
                 anchors.centerIn: parent
                 width: parent.width - Kirigami.Units.largeSpacing * 4
                 icon.name: "chat-partner"
-                text: "Rocket.Chat"
+                text: i18nc("@title:backend", "Rocket.Chat")
                 explanation: i18nc("@info a transport that is not implemented yet", "Not built yet.")
             }
         }

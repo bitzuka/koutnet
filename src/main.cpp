@@ -14,6 +14,7 @@
 #include <QQmlNetworkAccessManagerFactory>
 #include <QQuickStyle>
 #include <QVariantMap>
+#include <clocale>
 
 #include <Quotient/networkaccessmanager.h>
 
@@ -66,14 +67,32 @@ int main(int argc, char *argv[])
     // icons here use breeze names, so add a breeze fallback for non-KDE desktops
     if (QIcon::fallbackThemeName().isEmpty())
         QIcon::setFallbackThemeName(QStringLiteral("breeze"));
-// set the translation catalog before any string is looked up
+    // Ki18n in this build ignores KI18N_LOCALE_PATH, so register the catalog
+    // directory here. A binary run from the build tree or an AppImage is not
+    // under /usr/share/locale, and gettext only honours the system locale once
+    // setlocale(LC_MESSAGES, "") has run - without both, the UI stays English
+    // no matter how complete po/ru is.
+    const QString exePath = QCoreApplication::applicationDirPath();
+    const QString moPath = QStringLiteral("/ru/LC_MESSAGES/koutnet.mo");
+    QString localeDir = exePath + QStringLiteral("/../src/locale");
+    if (!QFile::exists(localeDir + moPath))
+        localeDir = qEnvironmentVariable("APPDIR") + QStringLiteral("/usr/share/locale");
+    if (!QFile::exists(localeDir + moPath))
+        localeDir = exePath + QStringLiteral("/../share/locale");
+    if (!QFile::exists(localeDir + moPath))
+        localeDir = QStringLiteral("/usr/share/locale");
+    KLocalizedString::addDomainLocaleDir(QByteArrayLiteral("koutnet"), localeDir);
+
+    // set the translation catalog before any string is looked up
     KLocalizedString::setApplicationDomain(QByteArrayLiteral("koutnet"));
 
-// apply the language from settings before the first i18n call; AppSettings is
-// built later, so use a throwaway instance here
+    // apply the saved interface language before the first i18n call;
+    // AppSettings is built later, so use a throwaway instance here
     const QString interfaceLanguage = koutnet::AppSettings().language();
     if (!interfaceLanguage.isEmpty())
         KLocalizedString::setLanguages({interfaceLanguage});
+
+    setlocale(LC_MESSAGES, "");
 
     KAboutData aboutData(QStringLiteral("koutnet"),
                          i18nc("@title application name", "KOutNet"),

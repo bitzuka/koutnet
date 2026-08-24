@@ -18,7 +18,7 @@ import koutnet.app
 Kirigami.Page {
     id: root
 
-    title: "Violla"
+    title: i18nc("@title:service", "Violla")
     padding: 0
 
     Kirigami.Theme.highlightColor: Brand.accent
@@ -198,7 +198,7 @@ Kirigami.Page {
                             level: 2
                             color: Kirigami.Theme.textColor
                             text: root.current < 0
-                                ? "Violla"
+                                 ? i18nc("@title:service", "Violla")
                                 : root.metaText(MediaMetaData.Title,
                                                 root.nameOf(playlist.get(root.current).url))
                         }
