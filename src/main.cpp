@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
     QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
 
     QApplication app(argc, argv);
-// hide on close so the tray keeps the app alive; Qt would quit otherwise
+    // hide on close so the tray keeps the app alive; Qt would quit otherwise
     QApplication::setQuitOnLastWindowClosed(false);
 
     // icons here use breeze names, so add a breeze fallback for non-KDE desktops
@@ -102,16 +102,16 @@ int main(int argc, char *argv[])
                          i18nc("@info:credit", "Copyright 2026 bitzuka"));
     aboutData.addAuthor(i18nc("@info:credit", "bitzuka"), i18nc("@info:credit", "Author and maintainer"), QStringLiteral("bitzuka.koutnet@gmail.com"));
     aboutData.setHomepage(QStringLiteral("https://github.com/bitzuka/koutnet"));
-// DrKonqi files crashes here, so point it at a real tracker (metainfo uses github)
+    // DrKonqi files crashes here, so point it at a real tracker (metainfo uses github)
     aboutData.setBugAddress(QByteArrayLiteral("https://bugs.kde.org/enter_bug.cgi?product=koutnet"));
     aboutData.setTranslator(i18nc("NAME OF TRANSLATORS", "Your names"), i18nc("EMAIL OF TRANSLATORS", "Your emails"));
-// this is the AppStream id, not the app name; matching them would move QSettings
-// and re-key the Olm pickle libQuotient stores, breaking old encrypted history
+    // this is the AppStream id, not the app name; matching them would move QSettings
+    // and re-key the Olm pickle libQuotient stores, breaking old encrypted history
     aboutData.setDesktopFileName(QStringLiteral("org.kde.koutnet"));
     KAboutData::setApplicationData(aboutData);
 
-// call this after setApplicationData, else QSettings lands in the wrong file
-// and the plaintext-key cleanup reads a file that was never written
+    // call this after setApplicationData, else QSettings lands in the wrong file
+    // and the plaintext-key cleanup reads a file that was never written
     app.setApplicationName(QStringLiteral("KOutNet"));
     app.setOrganizationName(QStringLiteral("KOutNet"));
 
@@ -120,22 +120,22 @@ int main(int argc, char *argv[])
     parser.process(app);
     aboutData.processCommandLine(&parser);
 
-// Wayland takes the icon from the desktop file app_id; X11 uses the hint below
+    // Wayland takes the icon from the desktop file app_id; X11 uses the hint below
     QGuiApplication::setDesktopFileName(QStringLiteral("org.kde.koutnet"));
-// resources live under the URI path, not /qt/qml (older CMake resource policy)
+    // resources live under the URI path, not /qt/qml (older CMake resource policy)
     const QIcon appIcon(QStringLiteral(":/koutnet/app/assets/512-apps-org.kde.koutnet.png"));
     if (appIcon.isNull())
         qCWarning(KOUTNET_LOG_APP, "application icon missing from the QML module resources");
     app.setWindowIcon(appIcon);
 
-// one shared CryptoManager passed to every module; do not make another
+    // one shared CryptoManager passed to every module; do not make another
     auto *crypto = new koutnet::CryptoManager(&app);
     if (!crypto->isValid()) {
         qCCritical(KOUTNET_LOG_CRYPTO, "cryptographic identity failed to initialize - aborting startup");
         return 1;
     }
 
-// after CryptoManager, since that is the last thing touching the config via QSettings
+    // after CryptoManager, since that is the last thing touching the config via QSettings
     auto *appSettings = new koutnet::AppSettings(&app);
     auto *network = new koutnet::NetworkManager(crypto, &app);
 
@@ -169,32 +169,32 @@ int main(int argc, char *argv[])
         QObject::connect(appSettings, signal, network, publishProfile);
     }
 
-// Matrix is separate from NetworkManager and registers as its own backend.
-// QML only talks to chatTransport. the session resumes as is, so a short
-// switch to LAN does not sign the user out. built here, resumed later.
+    // Matrix is separate from NetworkManager and registers as its own backend.
+    // QML only talks to chatTransport. the session resumes as is, so a short
+    // switch to LAN does not sign the user out. built here, resumed later.
     auto *matrixManager = new koutnet::MatrixManager(appSettings, &app);
     auto *matrixRooms = new koutnet::MatrixRoomBridge(matrixManager, &app);
     auto *matrixVerification = new koutnet::MatrixVerification(matrixManager, &app);
 
-// room calls go through the bridge over the LAN voice channel; both sides
-// exist already, so this is just the wiring
+    // room calls go through the bridge over the LAN voice channel; both sides
+    // exist already, so this is just the wiring
     matrixRooms->setCallStack(network, voice, crypto);
 
-// the one entry point for every chat action; the id picks the backend and
-// QML never sees a prefix. more backends register the same way.
+    // the one entry point for every chat action; the id picks the backend and
+    // QML never sees a prefix. more backends register the same way.
     auto *chatTransport = new koutnet::ChatBackendRegistry(&app);
     chatTransport->registerBackend(network);
     chatTransport->registerBackend(matrixRooms);
 
     auto *audioDevices = new koutnet::AudioDevices(&app);
-// owns the notifications, so parent it to the app to outlive the windows
+    // owns the notifications, so parent it to the app to outlive the windows
     auto *notifications = new koutnet::NotificationManager(&app);
     notifications->setAwayAfterMinutes(appSettings->awayAfterMinutes());
     QObject::connect(appSettings, &koutnet::AppSettings::awayAfterMinutesChanged, notifications, [notifications, appSettings]() {
         notifications->setAwayAfterMinutes(appSettings->awayAfterMinutes());
     });
 
-// only built when enabled; turning it off at runtime would strand a window
+    // only built when enabled; turning it off at runtime would strand a window
     koutnet::TrayIcon *tray = appSettings->trayEnabled() ? new koutnet::TrayIcon(&app) : nullptr;
 
     voice->setAudioInputDevice(appSettings->audioInputId());
@@ -217,8 +217,8 @@ int main(int argc, char *argv[])
     QObject::connect(appSettings, &koutnet::AppSettings::vadEnabledChanged, voice, [voice, appSettings]() {
         voice->setVad(appSettings->vadEnabled());
     });
-// while a call is live, new requests get the busy reply and only the asked
-// peers can complete one. the active set just mirrors VoiceCallManager.
+    // while a call is live, new requests get the busy reply and only the asked
+    // peers can complete one. the active set just mirrors VoiceCallManager.
     QObject::connect(voice, &koutnet::VoiceCallManager::activeCallsChanged, network, [network, voice]() {
         network->setActiveCalls(voice->activeCalls());
     });
@@ -241,22 +241,22 @@ int main(int argc, char *argv[])
     if (!network->start())
         qCWarning(KOUTNET_LOG_NETWORK, "failed to start network layer");
 
-// touching the manager here restores the saved colour scheme
+    // touching the manager here restores the saved colour scheme
     KColorSchemeManager::instance();
 
-// declared before the engine, which keeps a bare pointer to it
+    // declared before the engine, which keeps a bare pointer to it
     MatrixNetworkAccessManagerFactory matrixNamFactory;
 
     QQmlApplicationEngine engine;
 
-// lets an mxc:// URI load in a plain Image or MediaPlayer; libQuotient rewrites
-// it to an authenticated request, which the engine manager does not know how to do
+    // lets an mxc:// URI load in a plain Image or MediaPlayer; libQuotient rewrites
+    // it to an authenticated request, which the engine manager does not know how to do
     engine.setNetworkAccessManagerFactory(&matrixNamFactory);
 
     // Gives QML the i18n family of functions; without it every string fails to resolve.
     KLocalization::setupLocalizedContext(&engine);
 
-// add our own import path; the engine only adds qrc:/qt/qml by itself
+    // add our own import path; the engine only adds qrc:/qt/qml by itself
     engine.addImportPath(QStringLiteral(":/"));
     QObject::connect(
         &engine,
@@ -278,9 +278,9 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("matrixVerification"), matrixVerification);
     engine.rootContext()->setContextProperty(QStringLiteral("audioDevices"), audioDevices);
     engine.rootContext()->setContextProperty(QStringLiteral("notificationManager"), notifications);
-// null when the tray is off; Main.qml then falls back to a real close
+    // null when the tray is off; Main.qml then falls back to a real close
     engine.rootContext()->setContextProperty(QStringLiteral("trayIcon"), tray);
-// flatten KAboutData into a map QML can read directly
+    // flatten KAboutData into a map QML can read directly
     QVariantMap about;
     about[QStringLiteral("name")] = aboutData.displayName();
     about[QStringLiteral("version")] = aboutData.version();
@@ -295,7 +295,7 @@ int main(int argc, char *argv[])
 
     engine.loadFromModule("koutnet.app", "Main");
 
-// HistoryManager is a singleton created with the window; grab it and load its settings
+    // HistoryManager is a singleton created with the window; grab it and load its settings
     if (auto *historyManager = engine.singletonInstance<HistoryManager *>(QStringLiteral("koutnet.app"), QStringLiteral("HistoryManager"))) {
         historyManager->setHistorySavingEnabled(appSettings->historySavingEnabled());
         QObject::connect(appSettings, &koutnet::AppSettings::historySavingEnabledChanged, historyManager, [historyManager, appSettings]() {
@@ -303,7 +303,7 @@ int main(int argc, char *argv[])
         });
     }
 
-// resume after the window exists, so a failed session can report itself
+    // resume after the window exists, so a failed session can report itself
     matrixManager->resumeSession();
 
     return app.exec();
