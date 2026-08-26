@@ -112,3 +112,26 @@ ecm_add_test(
 # HistoryManager.cpp includes its logging category header, which is generated
 # into the parent directory's build tree and not into this one.
 target_include_directories(matrix-wiring PRIVATE ${KOUTNET_GENERATED_INCLUDE_DIR})
+
+# Pure helpers for the Matrix sign-in: the SSO redirect URL builder and the
+# recovery-key shape check. No Quotient, no wallet, no network - the same
+# server-independent testing line as MatrixWiringTest, and the part of the new
+# token/SSO login that a homeserver round trip cannot cover.
+ecm_add_test(
+    MatrixLoginTest.cpp
+    ../matrix/MatrixLoginUtils.cpp
+    TEST_NAME matrix-login
+    NAME_PREFIX koutnet-
+    LINK_LIBRARIES Qt6::Test Qt6::Core
+)
+
+# Every transport's chat-id prefix, round-tripped and not confused with another.
+# The Telegram and Rocket.Chat prefixes are already in the routing table and were
+# until now untested; a wrong prefix files a conversation under the wrong backend.
+ecm_add_test(
+    ChatAddressTest.cpp
+    ../core/chat/ChatAddress.cpp
+    TEST_NAME chat-address
+    NAME_PREFIX koutnet-
+    LINK_LIBRARIES Qt6::Test Qt6::Core
+)
