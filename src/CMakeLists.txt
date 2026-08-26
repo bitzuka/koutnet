@@ -229,6 +229,8 @@ qt_add_executable(KOutNet
     matrix/MatrixRoomBridge.h
     matrix/MatrixVerification.cpp
     matrix/MatrixVerification.h
+    matrix/MatrixLoginUtils.cpp
+    matrix/MatrixLoginUtils.h
 )
 
 # The one brand colour is a QML singleton rather than a C++ one: it holds a

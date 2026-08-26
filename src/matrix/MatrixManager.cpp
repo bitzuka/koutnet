@@ -4,6 +4,7 @@
 
 #include <QTimer>
 
+#include "MatrixLoginUtils.h"
 #include "core/constructor/AppSettings.h"
 #include "core/security/SecretStore.h"
 
@@ -11,7 +12,9 @@
 
 #include <KLocalizedString>
 
+#include <QDesktopServices>
 #include <QUrl>
+#include <QUrlQuery>
 
 #include <Quotient/connection.h>
 #include <Quotient/csapi/whoami.h>
@@ -108,6 +111,11 @@ MatrixManager::MatrixManager(AppSettings *settings, QObject *parent)
     m_syncTimeout.setSingleShot(true);
     m_syncTimeout.setInterval(kSyncTimeoutMs);
     connect(&m_syncTimeout, &QTimer::timeout, this, &MatrixManager::onSyncDeadline);
+
+    // The SSO browser flow ends with the homeserver sending the browser to
+    // koutnet://sso?loginToken=...; registering here means that click is routed
+    // back into onSsoRedirect() instead of being lost to the desktop.
+    QDesktopServices::setUrlHandler(QStringLiteral("koutnet"), this, "onSsoRedirect");
 }
 
 MatrixManager::~MatrixManager() = default;
@@ -346,11 +354,13 @@ void MatrixManager::unlockKeyBackup(const QString &recoveryKeyOrPassphrase)
     if (connection == nullptr)
         return;
 
-    // The handler is a one-shot: it holds the account data and the decrypted
-    // keys for the duration of the unlock and is deleted when it is done. The
-    // two error taps below are what make a recovery key and a passphrase one
-    // field: the first tap eats the error and retries as a passphrase, the
-    // second one tells the interface.
+    // A recovery key and a passphrase share one field in the UI. The key has a
+    // fixed shape (twelve groups of four base58 chars), so when the string looks
+    // like one we try the security-key call first and fall back to the
+    // passphrase; otherwise the other way round. Trying the right one first means
+    // most unlocks succeed without the deliberate miss-and-retry.
+    const bool tryAsKey = matrix::looksLikeRecoveryKey(recoveryKeyOrPassphrase);
+
     auto *handler = new Quotient::SSSSHandler();
     handler->setConnection(connection);
     connect(handler, &Quotient::SSSSHandler::keyBackupUnlocked, this, [this, handler]() {
@@ -358,7 +368,9 @@ void MatrixManager::unlockKeyBackup(const QString &recoveryKeyOrPassphrase)
         Q_EMIT keyBackupUnlocked();
         connect(handler, &Quotient::SSSSHandler::finished, handler, &QObject::deleteLater);
     });
-    connect(handler, &Quotient::SSSSHandler::error, this, [this, handler, recoveryKeyOrPassphrase]() {
+    connect(handler, &Quotient::SSSSHandler::error, this, [this, handler, recoveryKeyOrPassphrase, tryAsKey]() {
+        // One retry as the other interpretation of the field, then report. The
+        // first tap is disconnected so the second error reaches only the report.
         disconnect(handler, &Quotient::SSSSHandler::error, this, nullptr);
         if (recoveryKeyOrPassphrase.isEmpty()) {
             Q_EMIT keyBackupFailed(i18nc("@info:status", "No recovery key or passphrase was given."));
@@ -369,12 +381,18 @@ void MatrixManager::unlockKeyBackup(const QString &recoveryKeyOrPassphrase)
             Q_EMIT keyBackupFailed(i18nc("@info:status", "That did not unlock the room key backup."));
             handler->deleteLater();
         });
-        handler->unlockSSSSWithPassphrase(recoveryKeyOrPassphrase);
+        if (tryAsKey)
+            handler->unlockSSSSWithPassphrase(recoveryKeyOrPassphrase);
+        else
+            handler->unlockSSSSFromSecurityKey(recoveryKeyOrPassphrase);
     });
+
     if (recoveryKeyOrPassphrase.isEmpty())
         handler->unlockSSSSFromCrossSigning();
-    else
+    else if (tryAsKey)
         handler->unlockSSSSFromSecurityKey(recoveryKeyOrPassphrase);
+    else
+        handler->unlockSSSSWithPassphrase(recoveryKeyOrPassphrase);
 }
 
 void MatrixManager::login(const QString &homeserverUrl, const QString &userIdOrLocalpart, const QString &password)
@@ -554,6 +572,66 @@ bool MatrixManager::resumeSession()
                        user));
     });
     return true;
+}
+
+QString MatrixManager::ssoLoginUrl(const QString &homeserverUrl) const
+{
+    QUrl base = QUrl::fromUserInput(homeserverUrl.trimmed());
+    if (base.scheme().isEmpty())
+        base.setScheme(QStringLiteral("https"));
+    // The redirect the homeserver is told to use; once SSO is done the browser
+    // lands here with a loginToken we hand to loginWithToken().
+    return matrix::ssoRedirectUrl(base, QUrl(QStringLiteral("koutnet://sso"))).toString();
+}
+
+void MatrixManager::startSsoLogin(const QString &homeserverUrl)
+{
+    m_ssoHomeserver = homeserverUrl.trimmed();
+    QDesktopServices::openUrl(QUrl(ssoLoginUrl(homeserverUrl)));
+}
+
+void MatrixManager::onSsoRedirect(const QUrl &url)
+{
+    // The homeserver appends loginToken to whichever redirectUrl we sent; it may
+    // land in the query or the fragment depending on the server, so try both.
+    QString token = QUrlQuery(url).queryItemValue(QStringLiteral("loginToken"));
+    if (token.isEmpty() && !url.fragment().isEmpty())
+        token = QUrlQuery(QLatin1Char('?') + url.fragment()).queryItemValue(QStringLiteral("loginToken"));
+    if (!token.isEmpty())
+        loginWithToken(m_ssoHomeserver, token);
+}
+
+void MatrixManager::completeSsoLogin(const QString &token)
+{
+    loginWithToken(m_ssoHomeserver, token);
+}
+
+void MatrixManager::loginWithToken(const QString &homeserverUrl, const QString &token)
+{
+    if (token.isEmpty()) {
+        setState(State::Failed, i18nc("@info:status Matrix SSO login", "A login token is needed to sign in."));
+        return;
+    }
+
+    m_resuming = false;
+    m_lastSyncError.clear();
+    m_syncTimeout.stop();
+
+    auto *c = makeConnection();
+    setState(State::Connecting);
+    m_loginTimeout.start();
+
+    // loginWithToken() cannot resolve the server from the token, so the
+    // homeserver has to be set up front - the same way resumeSession() does for
+    // a stored access token.
+    const QString server = homeserverUrl.trimmed();
+    if (!server.isEmpty()) {
+        QUrl base = QUrl::fromUserInput(server);
+        if (base.scheme().isEmpty())
+            base.setScheme(QStringLiteral("https"));
+        c->setHomeserver(base);
+    }
+    c->loginWithToken(token, deviceDisplayName());
 }
 
 void MatrixManager::onConnected()

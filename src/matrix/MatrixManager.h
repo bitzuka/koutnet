@@ -37,8 +37,8 @@ class MatrixManager : public QObject
 {
     Q_OBJECT
 
-// booleans and a status string instead of an enum, since this is a context
-// property and QML could not name the enumerators anyway
+    // booleans and a status string instead of an enum, since this is a context
+    // property and QML could not name the enumerators anyway
     Q_PROPERTY(bool loggedIn READ loggedIn NOTIFY stateChanged)
     Q_PROPERTY(bool busy READ busy NOTIFY stateChanged)
     // full MXID of the signed-in account, empty when signed out
@@ -46,8 +46,8 @@ class MatrixManager : public QObject
     Q_PROPERTY(QString homeserver READ homeserver NOTIFY stateChanged)
     Q_PROPERTY(QString statusText READ statusText NOTIFY stateChanged)
     Q_PROPERTY(QString lastError READ lastError NOTIFY stateChanged)
-// whether E2EE is actually available, not just requested. read this before
-// showing a padlock; false with no connection or a failed key store
+    // whether E2EE is actually available, not just requested. read this before
+    // showing a padlock; false with no connection or a failed key store
     Q_PROPERTY(bool encryptionActive READ encryptionActive NOTIFY encryptionActiveChanged)
 
 public:
@@ -56,22 +56,22 @@ public:
         Connecting,
         Syncing,
         Online,
-// was Online and the sync loop is now failing; the token may still be good,
-// but the interface must stop claiming everything arrives
+        // was Online and the sync loop is now failing; the token may still be good,
+        // but the interface must stop claiming everything arrives
         Reconnecting,
         Failed,
     };
     Q_ENUM(State)
 
-// a homeserver that never answers would say "Connecting" forever, so cap it
+    // a homeserver that never answers would say "Connecting" forever, so cap it
     static constexpr int kLoginTimeoutMs = 30000;
-// syncing needs its own, longer deadline; a resumed or blocked session used
-// to sit on "Syncing..." until the process died
+    // syncing needs its own, longer deadline; a resumed or blocked session used
+    // to sit on "Syncing..." until the process died
     static constexpr int kSyncTimeoutMs = 60000;
-// keep the connection alive this long after a login timeout, so in-flight
-// jobs finish on their own
+    // keep the connection alive this long after a login timeout, so in-flight
+    // jobs finish on their own
     static constexpr int kLoginAbandonMs = 60000;
-// wait this long for the homeserver to confirm a logout before dropping it
+    // wait this long for the homeserver to confirm a logout before dropping it
     static constexpr int kLogoutGraceMs = 15000;
 
     explicit MatrixManager(AppSettings *settings, QObject *parent = nullptr);
@@ -88,19 +88,34 @@ public:
         return m_lastError;
     }
 
-// null until login or resume; MatrixRoomBridge listens for connectionChanged
+    // null until login or resume; MatrixRoomBridge listens for connectionChanged
     Quotient::Connection *connection() const
     {
         return m_connection;
     }
 
-// homeserverUrl may be empty when a full MXID is given; libQuotient then
-// resolves the server from the domain
+    // homeserverUrl may be empty when a full MXID is given; libQuotient then
+    // resolves the server from the domain
     Q_INVOKABLE void login(const QString &homeserverUrl, const QString &userIdOrLocalpart, const QString &password);
     Q_INVOKABLE void logout();
 
-// whether the account keeps an encrypted copy of its keys on the homeserver.
-// cheap to read and safe to call twice, so the UI can show "restore keys"
+    // A bearer token from SSO or a bot account. The MXID is inside the token, so
+    // unlike login() the homeserver cannot be read off the user name; the caller
+    // passes it. libQuotient refuses to resolve the server from the token, so it
+    // must be set before this is called.
+    Q_INVOKABLE void loginWithToken(const QString &homeserverUrl, const QString &token);
+    // The URL the SSO flow opens in a browser; the homeserver answers it with a
+    // loginToken we turn into a session via loginWithToken().
+    Q_INVOKABLE QString ssoLoginUrl(const QString &homeserverUrl) const;
+    // Opens ssoLoginUrl() in the browser and wires the koutnet:// redirect back
+    // here, so a successful SSO hands us the token without a copy and paste.
+    Q_INVOKABLE void startSsoLogin(const QString &homeserverUrl);
+    // The second half of SSO when the OS does not route koutnet:// back, and the
+    // manual path for any login token: hands the string to loginWithToken().
+    Q_INVOKABLE void completeSsoLogin(const QString &token);
+
+    // whether the account keeps an encrypted copy of its keys on the homeserver.
+    // cheap to read and safe to call twice, so the UI can show "restore keys"
     Q_INVOKABLE bool keyBackupAvailable() const;
     // true once keyBackupUnlocked() fired; the is- prefix avoids clashing with
     // the signal of the same name, which would break insert()
@@ -138,6 +153,9 @@ private:
     // network for aborted jobs, so we log the real reason first
     void retireConnection(const QString &why);
     void onConnected();
+    // The OS hands a koutnet://sso?loginToken=... click here once the browser
+    // SSO flow is done; the token is what loginWithToken() needs.
+    void onSsoRedirect(const QUrl &url);
     void armSyncDeadline();
     void onSyncDeadline();
     void storeSession();
@@ -163,6 +181,9 @@ private:
     // set while login() waits for the server; the password is cleared afterwards
     QString m_pendingUser;
     QString m_pendingPassword;
+    // the homeserver startSsoLogin() opened a browser against, remembered so the
+    // redirect handler knows where the returned token belongs
+    QString m_ssoHomeserver;
 };
 
 } // namespace koutnet

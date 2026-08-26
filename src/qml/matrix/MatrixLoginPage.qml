@@ -102,7 +102,40 @@ FormCard.FormCardPage {
             onAccepted: root.signIn()
         }
 
-        FormCard.FormDelegateSeparator { above: passwordField; below: actionButton }
+        FormCard.FormDelegateSeparator { above: passwordField; below: ssoButton }
+
+        // Single sign-on is a flow of its own and the homeserver already serves
+        // it: open its page in a browser, then bring the token back. The OS may
+        // hand the browser's koutnet:// redirect straight to the app; if not,
+        // the token is pasted below. This stays a link to a browser, not a second
+        // sign-in form.
+        FormCard.FormButtonDelegate {
+            id: ssoButton
+            text: i18nc("@action:button open the homeserver's single sign-on page in a browser", "Sign in with single sign-on")
+            description: i18nc("@info:whatsthis",
+                              "Opens your homeserver's login page in a browser. When it finishes, paste the token below or let the browser hand it back.")
+            enabled: !matrixManager.loggedIn && !matrixManager.busy && homeserverField.text.trim().length > 0
+            onClicked: Qt.openUrlExternally(matrixManager.ssoLoginUrl(homeserverField.text))
+        }
+
+        FormCard.FormTextFieldDelegate {
+            id: ssoTokenField
+            label: i18nc("@label:textbox a Matrix SSO login token", "SSO token")
+            placeholderText: i18nc("@info:placeholder", "Paste the token from the browser")
+            enabled: !matrixManager.loggedIn && !matrixManager.busy
+        }
+
+        FormCard.FormButtonDelegate {
+            id: ssoUseButton
+            text: i18nc("@action:button submit a pasted SSO token", "Use token")
+            enabled: !matrixManager.loggedIn && !matrixManager.busy && ssoTokenField.text.trim().length > 0
+            onClicked: {
+                matrixManager.completeSsoLogin(ssoTokenField.text.trim())
+                ssoTokenField.text = ""
+            }
+        }
+
+        FormCard.FormDelegateSeparator { above: ssoUseButton; below: actionButton }
 
         FormCard.FormButtonDelegate {
             id: actionButton
