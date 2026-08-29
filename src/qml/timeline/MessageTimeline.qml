@@ -78,6 +78,7 @@ Item {
     readonly property int unreadCount: root.messagesModel ? root.messagesModel.unreadCount : 0
 
     signal replyRequested(int row, string author, string excerpt, string msgId)
+    signal pinRequested(int row, string msgId)
     signal editRequested(int row, string body)
     signal reactRequested(int row)
     signal menuRequested(int row, string author, string body, string msgId)
@@ -262,6 +263,7 @@ Item {
 
             onReplyRequested: (row, author, excerpt, msgId) =>
                 root.replyRequested(reversed.toSourceRow(row), author, excerpt, msgId)
+            onPinRequested: (row, msgId) => root.pinRequested(reversed.toSourceRow(row), msgId)
             onEditRequested: (row, body) => root.editRequested(reversed.toSourceRow(row), body)
             onReactRequested: (row) => root.reactRequested(reversed.toSourceRow(row))
             onMenuRequested: (row, author, body, msgId) =>
