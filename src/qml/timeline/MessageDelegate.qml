@@ -355,7 +355,7 @@ Item {
                     // bridge posts an m.poll.response the server fans back as votes.
                     Loader {
                         Layout.fillWidth: true
-                        active: root.poll && root.poll.answers && root.poll.answers.length > 0
+                        active: root.poll ? (root.poll.answers && root.poll.answers.length > 0) : false
                         visible: active
 
                         sourceComponent: ColumnLayout {
@@ -363,14 +363,14 @@ Item {
 
                             QQC2.Label {
                                 Layout.fillWidth: true
-                                text: root.poll.question || ""
+                                text: root.poll ? (root.poll.question || "") : ""
                                 textFormat: Text.PlainText
                                 font.bold: true
                                 wrapMode: Text.Wrap
                             }
 
                             Repeater {
-                                model: root.poll.answers
+                                model: root.poll ? root.poll.answers : []
                                 delegate: QQC2.Button {
                                     Layout.fillWidth: true
                                     text: modelData.body || ""
@@ -380,7 +380,7 @@ Item {
 
                             QQC2.Label {
                                 Layout.fillWidth: true
-                                visible: root.poll.disclosed === false
+                                visible: root.poll ? (root.poll.disclosed === false) : false
                                 text: i18nc("@info poll votes are hidden until closed", "Votes are private until the poll closes.")
                                 textFormat: Text.PlainText
                                 font: Kirigami.Theme.smallFont
@@ -396,7 +396,7 @@ Item {
                         id: bodyLabel
 
                         Layout.fillWidth: true
-                        visible: !root.isFile && !(root.poll && root.poll.answers && root.poll.answers.length > 0)
+                        visible: !root.isFile && !(root.poll ? (root.poll.answers && root.poll.answers.length > 0) : false)
                         Layout.preferredHeight: visible ? -1 : 0
                         text: root.emojiOnly ? root.text : root.renderedBody
                         textFormat: root.emojiOnly ? Text.PlainText : Text.RichText
