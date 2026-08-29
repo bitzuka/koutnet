@@ -1320,7 +1320,12 @@ void MatrixRoomBridge::sendStickerFile(const QString &chatId, const QString &loc
         Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
         return;
     }
-    const QFileInfo file(localFilePath);
+    // The composer hands over a file:// URL straight from a dialog or the
+    // recorder; QFileInfo will not stat that, so turn it into a local path first.
+    const QString path = localFilePath.startsWith(QStringLiteral("file://"))
+        ? QUrl(localFilePath).toLocalFile()
+        : localFilePath;
+    const QFileInfo file(path);
     if (!file.exists() || !file.isReadable()) {
         Q_EMIT sendFailed(chatId, i18nc("@info:status %1 is a file name", "%1 could not be read, so nothing was sent.", file.fileName()));
         return;
@@ -1358,7 +1363,10 @@ void MatrixRoomBridge::sendVoice(const QString &chatId, const QString &localFile
         Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
         return;
     }
-    const QFileInfo file(localFilePath);
+    const QString path = localFilePath.startsWith(QStringLiteral("file://"))
+        ? QUrl(localFilePath).toLocalFile()
+        : localFilePath;
+    const QFileInfo file(path);
     if (!file.exists() || !file.isReadable()) {
         Q_EMIT sendFailed(chatId, i18nc("@info:status %1 is a file name", "%1 could not be read, so nothing was sent.", file.fileName()));
         return;

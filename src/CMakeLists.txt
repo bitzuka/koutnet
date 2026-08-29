@@ -7,7 +7,7 @@
 # QMenu, so the tray menu is a widget and the application has to be a
 # QApplication. See the note at the top of main.cpp. Nothing else in the tree
 # includes a widget header.
-find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Quick QuickControls2 QuickDialogs2 Multimedia Network Widgets)
+find_package(Qt6 ${QT_MIN_VERSION} REQUIRED COMPONENTS Core Gui Quick QuickControls2 QuickDialogs2 Multimedia Network Positioning Widgets)
 # libsodium ships no CMake config of its own, so it arrives through pkg-config.
 # 1.0.18 is the floor: crypto_kx and the XChaCha20-Poly1305 AEAD that
 # CryptoManager is built on have been stable since then.
@@ -313,6 +313,7 @@ target_link_libraries(KOutNet PRIVATE
     Qt6::QuickDialogs2
     Qt6::Multimedia
     Qt6::Network
+    Qt6::Positioning
     Qt6::Widgets
     PkgConfig::Sodium
     KF6::ColorScheme

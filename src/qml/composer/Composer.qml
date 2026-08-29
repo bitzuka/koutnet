@@ -6,6 +6,7 @@ import QtQuick.Controls as QQC2
 import QtMultimedia
 import org.kde.kirigami as Kirigami
 import Qt.labs.platform 1.1 as Labs
+import QtPositioning
 // TypingIndicator lives under qml/timeline; every file here is one module.
 import koutnet.app
 
@@ -49,7 +50,7 @@ ColumnLayout {
     signal spoilerRequested(string text)
     signal locationRequested(real latitude, real longitude, string label)
     // open the sticker file picker; the page owns the dialog.
-    signal stickerRequested()
+    signal stickerRequested(string filePath)
     // a clip recorded in the composer: path + length in milliseconds. the bridge
     // uploads it and marks it an MSC3245 voice message.
     signal voiceCaptured(string filePath, int durationMs)
@@ -290,7 +291,7 @@ ColumnLayout {
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
                 QQC2.ToolTip.text: text
-                onClicked: root.stickerRequested()
+                onClicked: stickerDialog.open()
             }
 
             QQC2.ToolButton {
@@ -412,6 +413,42 @@ ColumnLayout {
                 placeholderText: i18nc("@info:placeholder a name for the shared place", "Label (optional)")
                 onTextChanged: locationDialog.label = text
             }
+
+            QQC2.Button {
+                Layout.fillWidth: true
+                icon.name: "gps"
+                text: i18nc("@action:button fill the coordinates from the device's position", "Use my location")
+                onClicked: locationSource.update()
+            }
+
+            // Resolves the device position into the fields so the writer does not
+            // have to type geo coordinates by hand.
+            PositionSource {
+                id: locationSource
+                updateInterval: 0
+                onPositionChanged: {
+                    const c = locationSource.position.coordinate
+                    if (c.isValid()) {
+                        locationDialog.latitude = c.latitude
+                        locationDialog.longitude = c.longitude
+                    }
+                }
+            }
+        }
+    }
+
+    // A sticker is any local image; the picked file is handed to the bridge, which
+    // uploads it and posts an m.sticker. The dialog yields a file:// URL, so it is
+    // turned into a plain path before it leaves the composer.
+    Labs.FileDialog {
+        id: stickerDialog
+        title: i18nc("@title:window pick a sticker image", "Choose a sticker")
+        nameFilters: [i18nc("@item:filter image files", "Images (*.png *.jpg *.jpeg *.webp *.gif)")]
+        folder: Labs.StandardPaths.writableLocation(Labs.StandardPaths.PicturesLocation)
+
+        onAccepted: {
+            const f = stickerDialog.file.toString()
+            root.stickerRequested(f.startsWith("file://") ? f.slice(7) : f)
         }
     }
 
@@ -424,7 +461,7 @@ ColumnLayout {
         recorder: MediaRecorder {
             id: voiceRecorder
             // Once the file is final, its path and length go to the bridge.
-            onActualLocationChanged: (loc) => root.voiceCaptured(loc.toString(), root.voiceMs)
+            onActualLocationChanged: (loc) => root.voiceCaptured(loc.toLocalFile(), root.voiceMs)
         }
     }
 
