@@ -224,7 +224,7 @@ int main(int argc, char *argv[])
     });
 
     QObject::connect(network, &koutnet::NetworkManager::fileMeta, fileTransfer, &koutnet::FileTransferHandler::onMeta);
-    QObject::connect(network, &koutnet::NetworkManager::fileChunk, fileTransfer, &koutnet::FileTransferHandler::onChunkMessage);
+    QObject::connect(network, &koutnet::NetworkManager::fileChunkBytes, fileTransfer, &koutnet::FileTransferHandler::onChunkMessage);
 
     fileTransfer->setFileDecryptor([crypto](const QString &peerIp, const QByteArray &cipher) {
         QByteArray plain;

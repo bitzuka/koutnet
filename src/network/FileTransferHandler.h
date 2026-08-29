@@ -47,7 +47,7 @@ public:
 
     void onMeta(const QJsonObject &meta);
 
-    void onChunkMessage(const QJsonObject &msg);
+    void onChunkMessage(const QString &tid, int idx, int total, const QByteArray &chunk);
 
     // Turns a peer-supplied name into a bare filename that cannot leave the
     // destination folder. Public because it is the entire security boundary of this

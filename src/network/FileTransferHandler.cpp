@@ -102,16 +102,13 @@ void FileTransferHandler::onMeta(const QJsonObject &meta)
     t.startedAtMs = QDateTime::currentMSecsSinceEpoch();
 }
 
-void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
+void FileTransferHandler::onChunkMessage(const QString &tid, int idx, int total, const QByteArray &chunk)
 {
-    const QString tid = msg.value(QStringLiteral("tid")).toString();
     if (tid.isEmpty() || !m_pending.contains(tid))
         return; // chunk for a transfer we never saw (or rejected) meta for - drop it
 
     PendingTransfer &t = m_pending[tid];
 
-    const int idx = msg.value(QStringLiteral("idx")).toInt(-1);
-    const int total = msg.value(QStringLiteral("total")).toInt(-1);
     if (idx < 0 || total <= 0 || idx >= total)
         return;
 
@@ -125,7 +122,6 @@ void FileTransferHandler::onChunkMessage(const QJsonObject &msg)
     }
 
     t.total = total;
-    const QByteArray chunk = QByteArray::fromBase64(msg.value(QStringLiteral("data")).toString().toLatin1());
 
     const auto held = t.chunks.constFind(idx);
     if (held != t.chunks.constEnd() && *held != chunk) {

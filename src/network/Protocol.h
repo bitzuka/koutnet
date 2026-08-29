@@ -3,6 +3,9 @@
 // KOutNet - Network Protocol Constants
 #pragma once
 
+#include <QByteArray>
+#include <QCborMap>
+#include <QJsonObject>
 #include <QString>
 #include <QVector>
 
@@ -48,5 +51,54 @@ inline constexpr int kFrameHeaderBytes = 4;
 inline constexpr quint32 kMaxVoiceFrameBytes = 1u << 20; // 1 MiB
 
 inline constexpr int kProtocolVersion = 1;
+
+// Binary wire envelope. Replaces the old JSON-text datagrams so the data plane
+// stops paying for text parsing, base64, and unbounded allocations. Format:
+//   magic   : 4 bytes, 'K','O','N','1'
+//   version : 1 byte  (kWireVersion)
+//   type    : 1 byte  (messageTypeCode(typeName))
+//   length  : 4 bytes big-endian, size of the CBOR payload that follows
+//   payload : 'length' bytes, a CBOR map (the former QJsonObject)
+// Voice media is intentionally NOT wrapped here: it is already opaque
+// XChaCha20-Poly1305 ciphertext streamed under the kFrameHeaderBytes framing.
+inline constexpr char kWireMagic[4] = {'K', 'O', 'N', '1'};
+inline constexpr quint8 kWireVersion = 1;
+// Hard ceiling on a single wire frame's CBOR payload (16 MiB). The old code
+// bounded chat frames by kMaxChatPacketBytes; file chunks are the only type
+// that can approach this, and 16 MiB covers them with room to spare.
+inline constexpr quint32 kWireMaxPayload = 16u * 1024u * 1024u;
+
+// Stable numeric codes for the message types above. Both ends must agree, so
+// this mapping - not string hashing - is the contract. Presence stays 1 to
+// keep the wire ugly-stable, the rest follow in dispatch order.
+quint8 messageTypeCode(QLatin1StringView type);
+QLatin1StringView messageTypeName(quint8 code);
+
+// Encode a message object into a binary wire frame. The object MUST carry a
+// "type" field matching one of the kMsg* constants. Returns an empty frame on
+// an unknown type so a bad call is dropped rather than broadcast.
+QByteArray encodeFrame(const QJsonObject &obj);
+// Encode from a CBOR map directly. Use this for payloads that must carry binary
+// (e.g. file_data "data" as a byte string instead of base64 in JSON).
+QByteArray encodeFrame(const QCborMap &map);
+
+// Decode a binary wire frame. Returns false on any malformation (bad magic,
+// version, length, payload, or non-object CBOR) so the caller can drop it.
+bool decodeFrame(const QByteArray &data, QString &outType, QJsonObject &outObj);
+// Decode into the raw CBOR map - the canonical form the signer worked from, so
+// byte-string fields survive intact instead of being forced through JSON.
+bool decodeFrame(const QByteArray &data, QString &outType, QCborMap &outMap);
+
+// Canonical bytes for HMAC sign/verify: CBOR of the payload with "_sig" removed.
+// Both signer and verifier run this on the same logical payload, so identical
+// key insertion order yields identical bytes. The QCborMap overload is the
+// source of truth; the QJsonObject one routes through it.
+QByteArray canonicalBytes(const QJsonObject &obj);
+QByteArray canonicalBytes(const QCborMap &map);
+
+// Convert a decoded CBOR map to a QJsonObject for the handlers that still speak
+// JSON. Byte-string values become base64 strings here, so keep binary payloads
+// (file_data) on the QCborMap path and never round-trip them.
+QJsonObject qjsonFromCbor(const QCborMap &map);
 
 } // namespace koutnet::protocol

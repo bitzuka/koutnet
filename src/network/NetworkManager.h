@@ -64,6 +64,10 @@ public:
     // worked, and the noise costs battery and CPU on laptops.
     static constexpr int kActiveBroadcastMs = 2000;
     static constexpr int kIdleBroadcastMs = 8000;
+    // /24 sweep backoff: starts loud for a quick first find, then doubles with
+    // jitter up to the cap so an empty network is not hammered forever.
+    static constexpr int kSweepMinMs = 2000;
+    static constexpr int kSweepMaxMs = 120000;
     // How many addresses one message is copied to. The list comes from the peer, and
     // one advertising five thousand of them would have us send five thousand datagrams
     // per keystroke. Four covers a LAN address, a VPN address and a spare.
@@ -137,6 +141,7 @@ public:
     void handleDatagram(const QString &host, const QByteArray &data);
 
     void sendUdp(QJsonObject payload, const QString &targetIp = QString());
+    void sendUdp(QCborMap payload, const QString &targetIp = QString());
     Q_INVOKABLE void sendPrivate(const QString &text, const QString &toIp);
     Q_INVOKABLE void sendGroupMessage(const QString &gid, const QString &text, const QVector<QString> &members);
     Q_INVOKABLE void sendTyping(const QString &chatId, const QString &targetIp);
@@ -204,7 +209,7 @@ Q_SIGNALS:
     void callEnded(QString ip);
     void voiceDataFrom(QString ip, QByteArray raw);
     void fileMeta(QJsonObject meta);
-    void fileChunk(QJsonObject chunk); // file_data packets -> FileTransferHandler
+    void fileChunkBytes(QString tid, int idx, int total, QByteArray chunk); // file_data -> FileTransferHandler
     void groupInvite(QString groupId, QString name, QString fromIp);
     void errorOccurred(QString message);
     // fromIp is the address the packet arrived on, which is the key a conversation is
@@ -225,6 +230,7 @@ private:
     // Signs once for the peer identity behind these addresses and writes the same bytes
     // to each: one signature for the whole set. An empty list means broadcast.
     void sendUdpToAll(QJsonObject payload, const QVector<QString> &targets);
+    void sendUdpToAll(QCborMap payload, const QVector<QString> &targets);
     void dispatch(const QString &host, QJsonObject msg);
     void handlePresence(const QString &host, QJsonObject msg);
     void decryptMessageText(const QString &peerRef, QJsonObject msg, const std::function<void(QJsonObject)> &done);
@@ -232,7 +238,7 @@ private:
     void replaceVoiceSocket(const QString &ip, QTcpSocket *sock);
     void onVoiceData(QTcpSocket *sock, const QString &ip);
     void onVoiceDisconnected(QTcpSocket *sock, const QString &ip);
-    void sendChunksQueued(const QVector<QJsonObject> &chunks, const QString &toIp, int idx, int batch = 3);
+    void sendChunksQueued(const QVector<QCborMap> &chunks, const QString &toIp, int idx, int batch = 3);
     void pruneStalePeers();
     void evictOldestPeer();
 
@@ -287,6 +293,7 @@ private:
 
     QStringList m_staticPeers; // set via setStaticPeers()
     double m_lastScan = 0.0;
+    double m_sweepIntervalMs = double(kSweepMinMs); // current /24 sweep gap, grows with backoff
 };
 
 } // namespace koutnet

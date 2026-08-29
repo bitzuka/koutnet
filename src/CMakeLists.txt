@@ -217,6 +217,7 @@ qt_add_executable(KOutNet
     network/NetworkManager.cpp
     network/NetworkManager.h
     network/Protocol.h
+    network/Protocol.cpp
     network/VoiceCallManager.cpp
     network/VoiceCallManager.h
     network/FileTransferHandler.cpp

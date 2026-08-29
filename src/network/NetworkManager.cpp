@@ -62,12 +62,13 @@ double nowEpoch()
     return QDateTime::currentMSecsSinceEpoch() / 1000.0;
 }
 
-// Canonical bytes used for HMAC sign/verify: compact JSON of the payload
-// with "_sig" removed (or absent). Both sides must build this identically.
-QByteArray signableBytes(QJsonObject obj)
+// Canonical bytes used for HMAC sign/verify: CBOR of the payload with "_sig"
+// removed (or absent). Both sides must build this identically; protocol::
+// canonicalBytes() is the single source of truth so the wire and the signature
+// never drift apart again.
+QByteArray signableBytes(const QJsonObject &obj)
 {
-    obj.remove(QStringLiteral("_sig"));
-    return QJsonDocument(obj).toJson(QJsonDocument::Compact);
+    return protocol::canonicalBytes(obj);
 }
 
 // Packet types accepted from a host we hold no session key for. Presence has to be
@@ -345,7 +346,7 @@ void NetworkManager::scanArpTable()
     }
 
     const QJsonObject payload = presencePayload();
-    const QByteArray data = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    const QByteArray data = protocol::encodeFrame(payload);
     const quint16 port = protocol::kUdpPortDefault;
 
     int sent = 0;
@@ -412,16 +413,17 @@ void NetworkManager::onBroadcastTimer()
     if (!m_udp)
         return;
 
-    // Backing off also makes the /24 sweep below less loud on public Wi-Fi.
+    // Cheap, always-on beacon: multicast first, then the subnet broadcast. This
+    // keeps us discoverable without ever touching the loud /24 sweep below.
     const int desiredInterval = m_peers.isEmpty() ? kActiveBroadcastMs : kIdleBroadcastMs;
     if (m_broadcastTimer.interval() != desiredInterval)
         m_broadcastTimer.setInterval(desiredInterval);
 
     const QJsonObject payload = presencePayload();
-    const QByteArray data = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    const QByteArray data = protocol::encodeFrame(payload);
     const quint16 port = protocol::kUdpPortDefault;
 
-    m_udp->writeDatagram(data, QHostAddress::Broadcast, port);
+    m_udp->writeDatagram(data, QHostAddress(QStringLiteral("224.0.0.251")), port);
 
     QSet<QString> sentBroadcasts;
     const auto interfaces = QNetworkInterface::allInterfaces();
@@ -441,21 +443,31 @@ void NetworkManager::onBroadcastTimer()
         }
     }
 
-    m_udp->writeDatagram(data, QHostAddress(QStringLiteral("224.0.0.251")), port);
-
+    // /24 sweep: the noisy part. Only while no peer is known, with an exponential
+    // backoff plus +/-15% jitter so an empty network settles down instead of being
+    // scanned every 30-120s forever. The moment a peer answers we stop sweeping
+    // entirely (the beacon above keeps us visible) and reset the backoff, so the
+    // next empty period starts loud again for a quick first find.
     const double now = nowEpoch();
-    const double scanIntervalSec = m_peers.isEmpty() ? 30.0 : 120.0;
-    if (now - m_lastScan > scanIntervalSec) {
-        m_lastScan = now;
-        const auto parts = m_hostIp.split(QLatin1Char('.'));
-        if (parts.size() == 4) {
-            const QString prefix = parts[0] + QLatin1Char('.') + parts[1] + QLatin1Char('.') + parts[2] + QLatin1Char('.');
-            for (int last = 1; last < 255; ++last) {
-                const QString target = prefix + QString::number(last);
-                if (target != m_hostIp)
-                    m_udp->writeDatagram(data, QHostAddress(target), port);
+    if (m_peers.isEmpty()) {
+        const double jitter = 0.85 + 0.30 * QRandomGenerator::global()->generateDouble();
+        const double due = (m_sweepIntervalMs * jitter) / 1000.0;
+        if (now - m_lastScan > due) {
+            m_lastScan = now;
+            const auto parts = m_hostIp.split(QLatin1Char('.'));
+            if (parts.size() == 4) {
+                const QString prefix = parts[0] + QLatin1Char('.') + parts[1] + QLatin1Char('.') + parts[2] + QLatin1Char('.');
+                for (int last = 1; last < 255; ++last) {
+                    const QString target = prefix + QString::number(last);
+                    if (target != m_hostIp)
+                        m_udp->writeDatagram(data, QHostAddress(target), port);
+                }
             }
+            m_sweepIntervalMs = qMin(m_sweepIntervalMs * 2.0, double(kSweepMaxMs));
         }
+    } else {
+        m_sweepIntervalMs = double(kSweepMinMs);
+        m_lastScan = now;
     }
 
     // 5. Static peers: a unicast presence packet each cycle, but only to
@@ -502,14 +514,65 @@ void NetworkManager::onUdpReadyRead()
 
 void NetworkManager::handleDatagram(const QString &host, const QByteArray &data)
 {
-    // Attacker-supplied bytes, so say what was wrong with them.
-    QJsonParseError parseErr;
-    const auto doc = QJsonDocument::fromJson(data, &parseErr);
-    if (parseErr.error != QJsonParseError::NoError || !doc.isObject()) {
-        Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address, %2 the parser message", "UDP parse error from %1: %2", host, parseErr.errorString()));
+    // Attacker-supplied bytes: decode the binary envelope defensively. Decode to
+    // the raw CBOR map - that is the exact payload the signer canonicalised, so
+    // byte-string fields (file_data "data") survive instead of being forced
+    // through JSON and base64.
+    QString type;
+    QCborMap map;
+    if (!protocol::decodeFrame(data, type, map)) {
+        Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address", "Unreadable packet from %1 - dropping it.", host));
         return;
     }
-    dispatch(host, doc.object());
+
+    // Layer 4 - HMAC verification, now on the CBOR map so the canonical bytes the
+    // signer produced match what we verify against (a JSON round-trip would mangle
+    // binary). Presence is exempt: it is broadcast and never carries a _sig.
+    if (m_crypto && !type.isEmpty() && !allowedUnsigned(type)) {
+        if (m_crypto && !m_crypto->checkRate(host))
+            return; // dropped - over rate limit
+
+        const QString claimed = map.value(QStringLiteral("from_id")).toString();
+        const QString peerId = m_crypto->hasSession(claimed) ? claimed : m_crypto->identityForAddress(host);
+        if (!m_crypto->hasSession(peerId)) {
+            Q_EMIT errorOccurred(i18nc("@info:status %1 is a message type, %2 a host address", "Unauthenticated %1 from %2 - dropping.", type, host));
+            return;
+        }
+        const QString sig = map.value(QStringLiteral("_sig")).toString();
+        if (sig.isEmpty() || !m_crypto->verifyPacket(peerId, protocol::canonicalBytes(map), sig)) {
+            Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address", "HMAC verification failed from %1 - dropping.", host));
+            return;
+        }
+
+        // Layer 5 - replay guard, on the identity. The nonce and timestamp are inside
+        // the signature, so a replay verifies as happily without this check.
+        const QString nonce = map.value(QStringLiteral("nonce")).toString();
+        if (!nonce.isEmpty() && !m_crypto->checkReplay(peerId, nonce, map.value(QStringLiteral("ts")).toDouble())) {
+            return; // replayed or outside the timestamp window
+        }
+
+        // from_ip is where the sender believes it lives, not what the peer is filed
+        // under here - the interface would route the message into an empty chat.
+        const QString filedAs = m_peerKeyById.value(peerId);
+        if (!filedAs.isEmpty())
+            map.insert(QStringLiteral("from_ip"), filedAs);
+        map.insert(QStringLiteral("from_id"), peerId);
+    }
+
+    // File chunks carry raw bytes and must not be forced through JSON: hand the
+    // bytes straight to the reassembler. Anything else becomes a QJsonObject for
+    // the existing handlers.
+    if (type == protocol::kMsgFileData) {
+        const QString tid = map.value(QStringLiteral("tid")).toString();
+        const int idx = map.value(QStringLiteral("idx")).toInteger(-1);
+        const int total = map.value(QStringLiteral("total")).toInteger(-1);
+        const QCborValue dataValue = map.value(QStringLiteral("data"));
+        const QByteArray chunk = dataValue.isByteArray() ? dataValue.toByteArray() : QByteArray::fromBase64(dataValue.toString().toLatin1());
+        Q_EMIT fileChunkBytes(tid, idx, total, chunk);
+        return;
+    }
+
+    dispatch(host, protocol::qjsonFromCbor(map));
 }
 
 void NetworkManager::dispatch(const QString &host, QJsonObject msg)
@@ -529,44 +592,11 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
             return; // own broadcast echoed back
     }
 
-    // Layer 4 - HMAC verification. Everything outside the allowlist needs a session
-    // and a valid _sig; an absent one used to be waved through, which let anyone spoof
-    // an already authenticated peer by simply omitting the field.
-    // Presence is exempt first, not only before a session exists: it is broadcast and
-    // never carries a _sig, so every later presence packet from a handshaked peer
-    // failed this check and the peer went stale for good.
-    // Which session is a question about identity, not about where the datagram came
-    // from - with a VPN up the source address is the wrong answer. The HMAC settles
-    // it, since only the holder of that session key can produce one.
-    QString peerId;
-    if (m_crypto && !type.isEmpty() && !allowedUnsigned(type)) {
-        const QString claimed = msg.value(QStringLiteral("from_id")).toString();
-        peerId = m_crypto->hasSession(claimed) ? claimed : m_crypto->identityForAddress(host);
-        if (!m_crypto->hasSession(peerId)) {
-            Q_EMIT errorOccurred(i18nc("@info:status %1 is a message type, %2 a host address", "Unauthenticated %1 from %2 - dropping.", type, host));
-            return;
-        }
-        const QString sig = msg.value(QStringLiteral("_sig")).toString();
-        if (sig.isEmpty() || !m_crypto->verifyPacket(peerId, signableBytes(msg), sig)) {
-            Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address", "HMAC verification failed from %1 - dropping.", host));
-            return;
-        }
-
-        // Layer 5 - replay guard, on the identity. Only presence used to get one, so a
-        // captured packet of any other type could be resent forever: the nonce and the
-        // timestamp are inside the signature, so a replay verifies as happily.
-        const QString nonce = msg.value(QStringLiteral("nonce")).toString();
-        if (!nonce.isEmpty() && !m_crypto->checkReplay(peerId, nonce, msg.value(QStringLiteral("ts")).toDouble())) {
-            return; // replayed or outside the timestamp window
-        }
-
-        // from_ip is where the sender believes it lives, not what the peer is filed
-        // under here - the interface would route the message into an empty chat.
-        const QString filedAs = m_peerKeyById.value(peerId);
-        if (!filedAs.isEmpty())
-            msg[QStringLiteral("from_ip")] = filedAs;
-        msg[QStringLiteral("from_id")] = peerId;
-    }
+    // Layer 4 HMAC verification and the Layer 5 replay guard now live in
+    // handleDatagram(), where they run on the raw CBOR map so the canonical bytes
+    // match the signer's. By the time we get here the packet is authenticated and
+    // its from_id/from_ip are already resolved; pull the identity back for decrypt.
+    const QString peerId = msg.value(QStringLiteral("from_id")).toString();
 
     if (type == protocol::kMsgPresence) {
         handlePresence(host, msg);
@@ -613,8 +643,6 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
         Q_EMIT callEnded(host);
     } else if (type == protocol::kMsgFileMeta) {
         Q_EMIT fileMeta(msg);
-    } else if (type == protocol::kMsgFileData) {
-        Q_EMIT fileChunk(msg);
     } else if (type == protocol::kMsgGroupInv) {
         // The invitation may carry the group key, sealed under our session
         // with the sender. Opening it is a session decrypt, synchronous and
@@ -869,7 +897,45 @@ void NetworkManager::sendUdpToAll(QJsonObject payload, const QVector<QString> &t
             payload[QStringLiteral("_sig")] = m_crypto->signPacket(peerId, signableBytes(payload));
     }
 
-    const QByteArray data = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    const QByteArray data = protocol::encodeFrame(payload);
+
+    if (!targets.isEmpty()) {
+        for (const QString &target : targets)
+            m_udp->writeDatagram(data, QHostAddress(target), protocol::kUdpPortDefault);
+    } else {
+        m_udp->writeDatagram(data, QHostAddress::Broadcast, protocol::kUdpPortDefault);
+    }
+}
+
+void NetworkManager::sendUdp(QCborMap payload, const QString &targetIp)
+{
+    sendUdpToAll(std::move(payload), targetIp.isEmpty() ? QVector<QString>{} : QVector<QString>{targetIp});
+}
+
+void NetworkManager::sendUdpToAll(QCborMap payload, const QVector<QString> &targets)
+{
+    if (!m_udp)
+        return;
+
+    const QString msgType = payload.value(QStringLiteral("type")).toString();
+    if (msgType != protocol::kMsgPresence) {
+        payload.insert(QStringLiteral("nonce"), randomHex(8));
+        payload.insert(QStringLiteral("ts"), nowEpoch());
+
+        if (m_crypto)
+            payload.insert(QStringLiteral("from_id"), m_crypto->ownIdentityId());
+
+        QString peerId;
+        for (const QString &target : targets) {
+            peerId = m_crypto ? m_crypto->identityForAddress(target) : QString();
+            if (!peerId.isEmpty())
+                break;
+        }
+        if (!peerId.isEmpty())
+            payload.insert(QStringLiteral("_sig"), m_crypto->signPacket(peerId, protocol::canonicalBytes(payload)));
+    }
+
+    const QByteArray data = protocol::encodeFrame(payload);
 
     if (!targets.isEmpty()) {
         for (const QString &target : targets)
@@ -1146,29 +1212,28 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
     meta[QStringLiteral("ts")] = nowEpoch();
     sendUdp(meta, toIp);
 
-    // Kept small enough that base64 of one chunk plus the JSON envelope still
-    // fits a single UDP datagram (65507 bytes): 60000 raw bytes encoded as
-    // base64 alone was 80000, which no socket could ever deliver.
-    constexpr int kChunkSize = 48000;
+    // Raw byte string on the wire (no base64), so a chunk can approach the UDP
+    // datagram ceiling; the envelope adds only ~12 bytes of header and fields.
+    constexpr int kChunkSize = 60000;
     const int total = data.size();
     const int totalChunks = (total + kChunkSize - 1) / kChunkSize;
 
-    QVector<QJsonObject> chunks;
+    QVector<QCborMap> chunks;
     int idx = 0;
     for (int offset = 0; offset < total; offset += kChunkSize, ++idx) {
         const QByteArray chunk = data.mid(offset, kChunkSize);
-        QJsonObject c;
-        c[QStringLiteral("type")] = protocol::kMsgFileData;
-        c[QStringLiteral("tid")] = tid;
-        c[QStringLiteral("idx")] = idx;
-        c[QStringLiteral("total")] = totalChunks;
-        c[QStringLiteral("data")] = QString::fromLatin1(chunk.toBase64());
+        QCborMap c;
+        c.insert(QStringLiteral("type"), protocol::kMsgFileData);
+        c.insert(QStringLiteral("tid"), tid);
+        c.insert(QStringLiteral("idx"), idx);
+        c.insert(QStringLiteral("total"), totalChunks);
+        c.insert(QStringLiteral("data"), chunk); // byte string, not base64
         chunks.append(c);
     }
     sendChunksQueued(chunks, toIp, 0);
 }
 
-void NetworkManager::sendChunksQueued(const QVector<QJsonObject> &chunks, const QString &toIp, int idx, int batch)
+void NetworkManager::sendChunksQueued(const QVector<QCborMap> &chunks, const QString &toIp, int idx, int batch)
 {
     if (idx >= chunks.size())
         return;

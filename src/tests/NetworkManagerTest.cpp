@@ -48,15 +48,14 @@ QString freshNonce()
 }
 
 // Has to match NetworkManager's signableBytes() byte for byte or nothing verifies.
-QByteArray signableBytes(QJsonObject obj)
+QByteArray signableBytes(const QJsonObject &obj)
 {
-    obj.remove(QStringLiteral("_sig"));
-    return QJsonDocument(obj).toJson(QJsonDocument::Compact);
+    return protocol::canonicalBytes(obj);
 }
 
 QByteArray toDatagram(const QJsonObject &obj)
 {
-    return QJsonDocument(obj).toJson(QJsonDocument::Compact);
+    return protocol::encodeFrame(obj);
 }
 
 QJsonObject presenceFrom(const CryptoManager &peer, const QString &username = QStringLiteral("peer"), const QString &ip = kPeerIp)

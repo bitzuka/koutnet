@@ -42,6 +42,7 @@ target_include_directories(crypto-manager PRIVATE ${KOUTNET_GENERATED_INCLUDE_DI
 ecm_add_test(
     NetworkManagerTest.cpp
     ../network/NetworkManager.cpp
+    ../network/Protocol.cpp
     ../core/chat/ChatAddress.cpp
     ../core/security/CryptoManager.cpp
     ../core/security/SecretStore.cpp

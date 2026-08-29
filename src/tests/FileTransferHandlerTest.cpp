@@ -34,16 +34,6 @@ QJsonObject metaFor(const QString &tid, qint64 size, const QString &filename)
     return o;
 }
 
-QJsonObject chunkFor(const QString &tid, int idx, int total, const QByteArray &bytes)
-{
-    QJsonObject o;
-    o[QStringLiteral("tid")] = tid;
-    o[QStringLiteral("idx")] = idx;
-    o[QStringLiteral("total")] = total;
-    o[QStringLiteral("data")] = QString::fromLatin1(bytes.toBase64());
-    return o;
-}
-
 } // namespace
 
 class FileTransferHandlerTest : public QObject
@@ -130,7 +120,7 @@ private Q_SLOTS:
         const QByteArray payload = QByteArrayLiteral("contents");
         const QString tid = QStringLiteral("t-name");
         handler.onMeta(metaFor(tid, payload.size(), raw));
-        handler.onChunkMessage(chunkFor(tid, 0, 1, payload));
+        handler.onChunkMessage(tid, 0, 1, payload);
 
         QCOMPARE(rejected.count(), 0);
         QCOMPARE(saved.count(), 1);
@@ -202,13 +192,13 @@ private Q_SLOTS:
         const QByteArray second = QByteArrayLiteral("bbbb");
         handler.onMeta(metaFor(tid, 8, QStringLiteral("resend.bin")));
 
-        handler.onChunkMessage(chunkFor(tid, 0, 2, first));
+        handler.onChunkMessage(tid, 0, 2, first);
         QCOMPARE(handler.pendingBufferedBytes(), 4);
-        handler.onChunkMessage(chunkFor(tid, 0, 2, first));
+        handler.onChunkMessage(tid, 0, 2, first);
         QCOMPARE(rejected.count(), 0);
         QVERIFY2(handler.pendingBufferedBytes() == 4, "a duplicate of a chunk we already hold was counted twice");
 
-        handler.onChunkMessage(chunkFor(tid, 1, 2, second));
+        handler.onChunkMessage(tid, 1, 2, second);
         QCOMPARE(rejected.count(), 0);
         QCOMPARE(saved.count(), 1);
         QCOMPARE(handler.pendingTransferCount(), 0);
@@ -236,7 +226,7 @@ private Q_SLOTS:
         meta[QStringLiteral("encrypted")] = true;
         meta[QStringLiteral("from_ip")] = QStringLiteral("198.51.100.7");
         handler.onMeta(meta);
-        handler.onChunkMessage(chunkFor(tid, 0, 1, cipher));
+        handler.onChunkMessage(tid, 0, 1, cipher);
 
         QCOMPARE(rejected.count(), 0);
         QCOMPARE(received.count(), 1);
@@ -256,7 +246,7 @@ private Q_SLOTS:
         QJsonObject meta = metaFor(tid, 4, QStringLiteral("secret.bin"));
         meta[QStringLiteral("encrypted")] = true;
         handler.onMeta(meta);
-        handler.onChunkMessage(chunkFor(tid, 0, 1, QByteArrayLiteral("ciph")));
+        handler.onChunkMessage(tid, 0, 1, QByteArrayLiteral("ciph"));
 
         QCOMPARE(received.count(), 0);
         QCOMPARE(rejected.count(), 1);
@@ -278,7 +268,7 @@ private Q_SLOTS:
         QJsonObject meta = metaFor(tid, 4, QStringLiteral("secret.bin"));
         meta[QStringLiteral("encrypted")] = true;
         handler.onMeta(meta);
-        handler.onChunkMessage(chunkFor(tid, 0, 1, QByteArrayLiteral("ciph")));
+        handler.onChunkMessage(tid, 0, 1, QByteArrayLiteral("ciph"));
 
         QCOMPARE(received.count(), 0);
         QCOMPARE(rejected.count(), 1);
@@ -292,8 +282,8 @@ private Q_SLOTS:
 
         const QString tid = QStringLiteral("t-conflict");
         handler.onMeta(metaFor(tid, 8, QStringLiteral("conflict.bin")));
-        handler.onChunkMessage(chunkFor(tid, 0, 2, QByteArrayLiteral("aaaa")));
-        handler.onChunkMessage(chunkFor(tid, 0, 2, QByteArrayLiteral("zzzz")));
+        handler.onChunkMessage(tid, 0, 2, QByteArrayLiteral("aaaa"));
+        handler.onChunkMessage(tid, 0, 2, QByteArrayLiteral("zzzz"));
 
         QCOMPARE(rejected.count(), 1);
         QCOMPARE(handler.pendingTransferCount(), 0);
@@ -315,11 +305,11 @@ private Q_SLOTS:
         // One short on purpose: the last chunk would flush to disk and empty the
         // buffers.
         for (int i = 0; i < total - 1; ++i)
-            handler.onChunkMessage(chunkFor(tid, i, total, QByteArrayLiteral("x")));
+            handler.onChunkMessage(tid, i, total, QByteArrayLiteral("x"));
         QCOMPARE(rejected.count(), 0);
         QCOMPARE(handler.pendingBufferedBytes(), total - 1);
 
-        handler.onChunkMessage(chunkFor(tid, 0, total, QByteArray(4096, 'x')));
+        handler.onChunkMessage(tid, 0, total, QByteArray(4096, 'x'));
         QVERIFY2(rejected.count() == 1 || handler.pendingBufferedBytes() > total - 1, "a resent index grew the transfer without being charged for it");
         QCOMPARE(handler.pendingTransferCount(), 0);
         QCOMPARE(handler.pendingBufferedBytes(), 0);
@@ -341,7 +331,7 @@ private Q_SLOTS:
 
         int sent = 0;
         for (int i = 0; i < total && rejected.isEmpty(); ++i) {
-            handler.onChunkMessage(chunkFor(tid, i, total, chunk));
+            handler.onChunkMessage(tid, i, total, chunk);
             ++sent;
         }
 
@@ -373,7 +363,7 @@ private Q_SLOTS:
 
         const QString tid = QStringLiteral("t-headers");
         handler.onMeta(metaFor(tid, 64, QStringLiteral("headers.bin")));
-        handler.onChunkMessage(chunkFor(tid, idx, total, QByteArrayLiteral("data")));
+        handler.onChunkMessage(tid, idx, total, QByteArrayLiteral("data"));
 
         QCOMPARE(saved.count(), 0);
         QCOMPARE(handler.pendingBufferedBytes(), 0);
@@ -382,14 +372,14 @@ private Q_SLOTS:
     void chunksWithoutAMetaAreDropped()
     {
         FileTransferHandler handler;
-        handler.onChunkMessage(chunkFor(QStringLiteral("never-announced"), 0, 1, QByteArrayLiteral("data")));
+        handler.onChunkMessage(QStringLiteral("never-announced"), 0, 1, QByteArrayLiteral("data"));
         QCOMPARE(handler.pendingTransferCount(), 0);
 
         QJsonObject oversized;
         oversized[QStringLiteral("tid")] = QStringLiteral("t-refused");
         oversized[QStringLiteral("size")] = 1e300;
         handler.onMeta(oversized);
-        handler.onChunkMessage(chunkFor(QStringLiteral("t-refused"), 0, 1, QByteArrayLiteral("data")));
+        handler.onChunkMessage(QStringLiteral("t-refused"), 0, 1, QByteArrayLiteral("data"));
         QCOMPARE(handler.pendingTransferCount(), 0);
         QCOMPARE(handler.pendingBufferedBytes(), 0);
 
