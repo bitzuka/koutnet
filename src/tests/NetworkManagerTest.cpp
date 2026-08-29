@@ -58,6 +58,22 @@ QByteArray toDatagram(const QJsonObject &obj)
     return protocol::encodeFrame(obj);
 }
 
+QByteArray toDatagram(const QCborMap &map)
+{
+    return protocol::encodeFrame(map);
+}
+
+// Mirrors signedPacket() but for a CBOR map - file_data carries a raw byte
+// string, so it cannot go through QJsonObject at all.
+QCborMap signedPacket(const CryptoManager &peer, QCborMap map, double ts = -1.0)
+{
+    map.insert(QStringLiteral("nonce"), freshNonce());
+    map.insert(QStringLiteral("ts"), ts < 0.0 ? nowEpoch() : ts);
+    map.insert(QStringLiteral("from_id"), peer.ownIdentityId());
+    map.insert(QStringLiteral("_sig"), peer.signPacket(kSelfLabel, protocol::canonicalBytes(map)));
+    return map;
+}
+
 QJsonObject presenceFrom(const CryptoManager &peer, const QString &username = QStringLiteral("peer"), const QString &ip = kPeerIp)
 {
     QJsonObject o = peer.handshakePayload();
@@ -108,6 +124,7 @@ class NetworkManagerTest : public QObject
     Q_OBJECT
 
 private Q_SLOTS:
+    void fileChunkSurvivesTheWire();
     void malformedBytesAreRefused_data()
     {
         QTest::addColumn<QByteArray>("raw");
@@ -1172,5 +1189,47 @@ int main(int argc, char *argv[])
     NetworkManagerTest tc;
     QTEST_SET_MAIN_SOURCE_PATH
     return QTest::qExec(&tc, argc, argv);
+}
+
+void NetworkManagerTest::fileChunkSurvivesTheWire()
+{
+    // The only end-to-end check of the file_data path: a binary chunk must cross
+    // encodeFrame -> handleDatagram -> fileChunkBytes with every byte intact, not
+    // forced through JSON/base64. Voice is already binary; this is the path that
+    // used to be base64-in-JSON.
+    Harness h;
+    QVERIFY(h.establishSession());
+
+    QSignalSpy chunks(&h.net, &NetworkManager::fileChunkBytes);
+
+    // Non-text, non-base64-friendly bytes: NULs and 0xFF must round-trip.
+    QByteArray blob;
+    blob.resize(60000);
+    for (int i = 0; i < blob.size(); ++i)
+        blob[i] = char(i & 0xFF);
+    blob[0] = '\x00';
+    blob[123] = '\xff';
+
+    QCborMap chunk;
+    chunk.insert(QStringLiteral("type"), protocol::kMsgFileData);
+    chunk.insert(QStringLiteral("tid"), QStringLiteral("wire-tid"));
+    chunk.insert(QStringLiteral("idx"), 4);
+    chunk.insert(QStringLiteral("total"), 9);
+    chunk.insert(QStringLiteral("data"), blob); // byte string, not a string
+
+    h.net.handleDatagram(kPeerIp, toDatagram(signedPacket(h.peer, chunk)));
+
+    QCOMPARE(chunks.count(), 1);
+    const QVariantList args = chunks.first();
+    QCOMPARE(args.at(0).toString(), QStringLiteral("wire-tid"));
+    QCOMPARE(args.at(1).toInt(), 4);
+    QCOMPARE(args.at(2).toInt(), 9);
+    QCOMPARE(args.at(3).toByteArray(), blob);
+
+    // A forged/unsigned file chunk from a stranger must not reach the handler.
+    QCborMap fake = chunk;
+    fake.insert(QStringLiteral("tid"), QStringLiteral("forged"));
+    h.net.handleDatagram(kOtherIp, toDatagram(fake));
+    QCOMPARE(chunks.count(), 1);
 }
 #include "NetworkManagerTest.moc"
