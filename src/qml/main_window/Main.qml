@@ -1401,6 +1401,16 @@ Kirigami.ApplicationWindow {
                 chatTransport.sendFile(peerIp, localFilePath)
             messagesModel.markSent(stamp)
         }
+        onPollRequested: function(question, answers) {
+            // Polls are a Matrix construct; other server-backed transports cannot
+            // carry one yet, so the writer is told rather than left with a blank.
+            if (chatTransport.serverOwnsTimeline(peerIp) && chatTransport.transportName(peerIp) === "matrix") {
+                matrixRooms.sendPoll(peerIp, question, answers, true)
+            } else {
+                root.notify(i18nc("@info", "Polls can only be sent over a Matrix chat."),
+                            Kirigami.MessageType.Information)
+            }
+        }
         onTypingNotice: {
             if (!isSelfChat && chatTransport.supportsTyping(peerIp))
                 chatTransport.sendTyping(peerIp)

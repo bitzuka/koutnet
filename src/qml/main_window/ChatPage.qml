@@ -41,6 +41,8 @@ Kirigami.Page {
     // arrive here as local paths the bridge uploads.
     signal voiceCaptured(string filePath, int durationMs)
     signal stickerRequested(string localFilePath)
+    // A poll to create: question and the non-empty answer options.
+    signal pollRequested(string question, var answers)
     signal callRequested()
     signal profileRequested()
     signal infoRequested()
@@ -497,6 +499,7 @@ Kirigami.Page {
         onLocationRequested: (lat, lon, label) => root.locationRequested(lat, lon, label)
         onVoiceCaptured: (path, ms) => root.voiceCaptured(path, ms)
         onStickerRequested: stickerDialog.open()
+        onPollRequested: (question, answers) => root.pollRequested(question, answers)
         onReplyCancelled: root.clearReply()
         onTypingNotice: root.typingNotice()
     }

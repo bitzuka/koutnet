@@ -53,6 +53,8 @@ ColumnLayout {
     // a clip recorded in the composer: path + length in milliseconds. the bridge
     // uploads it and marks it an MSC3245 voice message.
     signal voiceCaptured(string filePath, int durationMs)
+    // a poll to create: question and the non-empty answer options, in order.
+    signal pollRequested(string question, var answers)
     // One notice per typingNoticeMs and not one per keystroke: a datagram per
     // character is a keylogger as far as the wire is concerned, and it floods.
     signal typingNotice()
@@ -291,6 +293,17 @@ ColumnLayout {
                 onClicked: root.stickerRequested()
             }
 
+            QQC2.ToolButton {
+                Layout.alignment: Qt.AlignBottom
+                display: QQC2.AbstractButton.IconOnly
+                icon.name: "office-chart-pie"
+                text: i18nc("@action:button create a poll to send", "Create a poll")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                QQC2.ToolTip.text: text
+                onClicked: pollDialog.open()
+            }
+
             QQC2.ScrollView {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignBottom
@@ -436,5 +449,59 @@ ColumnLayout {
         voiceRecorder.stop()
         voiceTimer.stop()
         root.recording = false
+    }
+
+    // A small form rather than a full poll editor: a question and a couple of
+    // answer rows that grow on demand. The wire only needs the question and the
+    // option list, so that is all the window collects.
+    Kirigami.PromptDialog {
+        id: pollDialog
+
+        title: i18nc("@title:window create a poll", "Create a poll")
+
+        // The editable answer list. Started with two empties; the dialog collects
+        // the non-empty ones and ignores the rest on send.
+        property var answers: ["", ""]
+
+        standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
+
+        onAccepted: {
+            const chosen = []
+            for (let i = 0; i < pollDialog.answers.length; ++i) {
+                const a = pollDialog.answers[i].trim()
+                if (a.length > 0)
+                    chosen.push(a)
+            }
+            if (questionField.text.trim().length > 0 && chosen.length >= 2)
+                root.pollRequested(questionField.text.trim(), chosen)
+        }
+        onOpened: pollDialog.answers = ["", ""]
+
+        ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            QQC2.TextField {
+                id: questionField
+                Layout.fillWidth: true
+                placeholderText: i18nc("@info:placeholder the poll question", "Question")
+            }
+
+            Repeater {
+                model: pollDialog.answers
+                delegate: QQC2.TextField {
+                    Layout.fillWidth: true
+                    placeholderText: i18nc("@info:placeholder an answer option, %1 is its number", "Answer %1", index + 1)
+                    text: pollDialog.answers[index]
+                    onTextChanged: pollDialog.answers[index] = text
+                }
+            }
+
+            QQC2.Button {
+                Layout.alignment: Qt.AlignLeft
+                text: i18nc("@action:button add another answer row to the poll", "Add answer")
+                icon.name: "list-add"
+                onClicked: pollDialog.answers = pollDialog.answers.concat("")
+            }
+        }
     }
 }
