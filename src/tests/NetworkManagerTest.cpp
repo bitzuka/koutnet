@@ -17,6 +17,7 @@
 
 #include "../core/security/CryptoManager.h"
 #include "../core/security/SecretStore.h"
+#include "../network/DiscoverySweep.h"
 #include "../network/NetworkManager.h"
 #include "../network/Protocol.h"
 
@@ -125,6 +126,7 @@ class NetworkManagerTest : public QObject
 
 private Q_SLOTS:
     void fileChunkSurvivesTheWire();
+    void sweepBackoffGrowsThenCaps();
     void malformedBytesAreRefused_data()
     {
         QTest::addColumn<QByteArray>("raw");
@@ -1231,5 +1233,56 @@ void NetworkManagerTest::fileChunkSurvivesTheWire()
     fake.insert(QStringLiteral("tid"), QStringLiteral("forged"));
     h.net.handleDatagram(kOtherIp, toDatagram(fake));
     QCOMPARE(chunks.count(), 1);
+}
+
+void NetworkManagerTest::sweepBackoffGrowsThenCaps()
+{
+    // The /24 sweep cadence used to be untested timing logic. sweepTick() is the
+    // pure decision it rides on, so we can check it without a socket or clock.
+    // Jitter fixed at 1.0 for determinism; the math is interval-doubling, capped.
+    constexpr double minMs = 2000.0;
+    constexpr double maxMs = 120000.0;
+    const double jitter = 1.0;
+
+    // A known peer suppresses the sweep entirely and resets the gap.
+    {
+        double lastScan = 0.0;
+        double interval = 8000.0;
+        QVERIFY(!koutnet::discovery::sweepTick(5.0, lastScan, interval, /*peersEmpty=*/false, minMs, maxMs, jitter));
+        QCOMPARE(interval, minMs);
+        QCOMPARE(lastScan, 5.0);
+    }
+
+    // Empty network: nothing is due until interval seconds elapse, then it doubles.
+    {
+        double lastScan = 0.0;
+        double interval = minMs; // 2s -> due at t>2s
+        QVERIFY(!koutnet::discovery::sweepTick(1.0, lastScan, interval, true, minMs, maxMs, jitter));
+        QCOMPARE(interval, minMs); // not yet due, unchanged
+
+        QVERIFY(koutnet::discovery::sweepTick(2.5, lastScan, interval, true, minMs, maxMs, jitter));
+        QCOMPARE(interval, 4000.0);
+        QCOMPARE(lastScan, 2.5);
+
+        QVERIFY(!koutnet::discovery::sweepTick(4.0, lastScan, interval, true, minMs, maxMs, jitter)); // 4-2.5=1.5 < 4
+        QVERIFY(koutnet::discovery::sweepTick(7.0, lastScan, interval, true, minMs, maxMs, jitter)); // 7-2.5=4.5 > 4
+        QCOMPARE(interval, 8000.0);
+    }
+
+    // The gap keeps doubling but never exceeds the cap, and stays put there.
+    {
+        double lastScan = 0.0;
+        double interval = minMs;
+        double t = 0.0;
+        for (int i = 0; i < 20; ++i) {
+            t += (interval * jitter) / 1000.0 + 0.1; // advance past the due point
+            QVERIFY(koutnet::discovery::sweepTick(t, lastScan, interval, true, minMs, maxMs, jitter));
+        }
+        QCOMPARE(interval, maxMs);
+        const double capped = interval;
+        t += (interval * jitter) / 1000.0 + 0.1;
+        QVERIFY(koutnet::discovery::sweepTick(t, lastScan, interval, true, minMs, maxMs, jitter));
+        QCOMPARE(interval, capped); // still the cap, never grows past it
+    }
 }
 #include "NetworkManagerTest.moc"

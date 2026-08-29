@@ -4,6 +4,7 @@
 #include "NetworkManager.h"
 #include "../core/security/CryptoManager.h"
 #include "../core/security/SecretStore.h"
+#include "DiscoverySweep.h"
 #include "FileTransferHandler.h"
 #include "Protocol.h"
 
@@ -449,25 +450,17 @@ void NetworkManager::onBroadcastTimer()
     // entirely (the beacon above keeps us visible) and reset the backoff, so the
     // next empty period starts loud again for a quick first find.
     const double now = nowEpoch();
-    if (m_peers.isEmpty()) {
-        const double jitter = 0.85 + 0.30 * QRandomGenerator::global()->generateDouble();
-        const double due = (m_sweepIntervalMs * jitter) / 1000.0;
-        if (now - m_lastScan > due) {
-            m_lastScan = now;
-            const auto parts = m_hostIp.split(QLatin1Char('.'));
-            if (parts.size() == 4) {
-                const QString prefix = parts[0] + QLatin1Char('.') + parts[1] + QLatin1Char('.') + parts[2] + QLatin1Char('.');
-                for (int last = 1; last < 255; ++last) {
-                    const QString target = prefix + QString::number(last);
-                    if (target != m_hostIp)
-                        m_udp->writeDatagram(data, QHostAddress(target), port);
-                }
+    const double jitter = 0.85 + 0.30 * QRandomGenerator::global()->generateDouble();
+    if (koutnet::discovery::sweepTick(now, m_lastScan, m_sweepIntervalMs, m_peers.isEmpty(), kSweepMinMs, kSweepMaxMs, jitter)) {
+        const auto parts = m_hostIp.split(QLatin1Char('.'));
+        if (parts.size() == 4) {
+            const QString prefix = parts[0] + QLatin1Char('.') + parts[1] + QLatin1Char('.') + parts[2] + QLatin1Char('.');
+            for (int last = 1; last < 255; ++last) {
+                const QString target = prefix + QString::number(last);
+                if (target != m_hostIp)
+                    m_udp->writeDatagram(data, QHostAddress(target), port);
             }
-            m_sweepIntervalMs = qMin(m_sweepIntervalMs * 2.0, double(kSweepMaxMs));
         }
-    } else {
-        m_sweepIntervalMs = double(kSweepMinMs);
-        m_lastScan = now;
     }
 
     // 5. Static peers: a unicast presence packet each cycle, but only to
