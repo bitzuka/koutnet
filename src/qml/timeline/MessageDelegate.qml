@@ -46,8 +46,10 @@ Item {
     required property bool showAuthor
     required property bool showDay
 
-    // chatId and poll come from the model roles of the same names; do NOT declare
-    // them here, or the local property shadows the role and polls never render.
+    // The room this row belongs to, fed from MessageTimeline so a poll vote can
+    // name its room on the wire. poll comes from the model role of the same name;
+    // do NOT declare it here or the local property shadows the role.
+    property string chatId: ""
 
     property real contentWidth: root.width
     property real fontScale: 1.0
