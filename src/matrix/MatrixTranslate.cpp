@@ -37,6 +37,8 @@ QString mediaLabel(MediaKind kind, const QString &name)
         return i18nc("@label an attached sound recording that arrived with no file name", "Audio");
     case MediaKind::File:
         return i18nc("@label an attached file that arrived with no file name", "File");
+    case MediaKind::Location:
+        return i18nc("@label a shared location that arrived with no name", "Location");
     case MediaKind::None:
         break;
     }
@@ -188,6 +190,15 @@ Row rowFor(const RawEvent &event)
     // An m.text with an empty body is legal and says nothing.
     if (event.body.isEmpty())
         return row;
+
+    // A poll carries its own renderer; it is not a plain text row even though it
+    // also has a body (used as the question and as the conversation-list preview).
+    if (!event.poll.isEmpty()) {
+        row.kind = RowKind::Poll;
+        row.text = event.body;
+        row.poll = event.poll;
+        return row;
+    }
 
     row.kind = RowKind::Text;
     row.text = event.body;

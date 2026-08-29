@@ -65,6 +65,9 @@ public:
         // into the model by index - which breaks once the list is reordered.
         ShowAuthorRole,
         ShowDayRole,
+        // A poll this row carries (empty map otherwise): question, answers as a
+        // list of {id, body}, and disclosed. The bridge tracks the votes.
+        PollRole,
     };
     Q_ENUM(Roles)
 
@@ -123,6 +126,18 @@ public:
                                             bool isOwn,
                                             double ts,
                                             const QString &senderAvatar = QString());
+
+    // A poll (Matrix m.poll.start). answers is a list of {id, body} maps; the
+    // window renders it as a question with a button per option and votes through
+    // the chat's transport. Idempotent like ingestRemoteMessage.
+    Q_INVOKABLE bool ingestRemotePoll(const QString &remoteId,
+                                      const QString &question,
+                                      const QVariantList &answers,
+                                      bool disclosed,
+                                      const QString &sender,
+                                      bool isOwn,
+                                      double ts,
+                                      const QString &senderAvatar = QString());
 
     // An m.replace that arrived for a message already here. False when the
     // original is not in this conversation, which is the normal case for an

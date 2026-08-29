@@ -33,6 +33,14 @@ Kirigami.Page {
 
     signal sendRequested(string text, string replyExcerpt, string replyAuthor, string replyId)
     signal attachRequested(string localFilePath)
+    // A hidden message (MSC2446): the composer flips the send path for it.
+    signal spoilerRequested(string text)
+    // A shared geo: point, from the composer's location form.
+    signal locationRequested(real latitude, real longitude, string label)
+    // A recorded voice clip (path + length) and an image sent as a sticker both
+    // arrive here as local paths the bridge uploads.
+    signal voiceCaptured(string filePath, int durationMs)
+    signal stickerRequested(string localFilePath)
     signal callRequested()
     signal profileRequested()
     signal infoRequested()
@@ -372,6 +380,12 @@ Kirigami.Page {
         composer.focusInput()
     }
 
+    function pinMessage(msgId) {
+        // Pinning is a Matrix room feature; a LAN peer has no room to pin to.
+        if (chatTransport.transportName(root.peerIp) === "matrix")
+            matrixRooms.pinMessage(root.peerIp, Number(msgId))
+    }
+
     function clearReply() {
         composer.replyAuthor = ""
         composer.replyExcerpt = ""
@@ -397,6 +411,14 @@ Kirigami.Page {
         onAccepted: root.attachRequested(selectedFile.toString().replace("file://", ""))
     }
 
+    // A sticker is any picture; the bridge uploads it and sends it as m.sticker.
+    FileDialog {
+        id: stickerDialog
+        title: i18nc("@title:window", "Send a sticker")
+        nameFilters: [i18nc("@item file type filter", "Images (*.png *.jpg *.jpeg *.gif *.webp)"), i18nc("@item file type filter", "All files (*)")]
+        onAccepted: root.stickerRequested(selectedFile.toString().replace("file://", ""))
+    }
+
     Kirigami.PlaceholderMessage {
         anchors.centerIn: parent
         width: parent.width - Kirigami.Units.gridUnit * 4
@@ -418,6 +440,7 @@ Kirigami.Page {
         visible: root.hasChat
 
         messagesModel: root.messagesModel
+        chatId: root.peerIp
         selfName: root.selfReactionName
         peerName: root.title
         selfDisplayName: root.selfDisplayName
@@ -432,6 +455,7 @@ Kirigami.Page {
         }
 
         onReplyRequested: (row, author, excerpt, msgId) => root.startReply(author, excerpt, msgId)
+        onPinRequested: (row, msgId) => root.pinMessage(msgId)
         onEditRequested: (row, body) => root.startEdit(row, body)
         onReactRequested: (row) => reactionPicker.openFor(row)
         onMenuRequested: (row, author, body, msgId) => {
@@ -469,6 +493,10 @@ Kirigami.Page {
         onEditSubmitted: (row, text) => root.commitEdit(row, text)
         onAttachRequested: fileDialog.open()
         onEmojiRequested: emojiPopup.open()
+        onSpoilerRequested: (text) => root.spoilerRequested(text)
+        onLocationRequested: (lat, lon, label) => root.locationRequested(lat, lon, label)
+        onVoiceCaptured: (path, ms) => root.voiceCaptured(path, ms)
+        onStickerRequested: stickerDialog.open()
         onReplyCancelled: root.clearReply()
         onTypingNotice: root.typingNotice()
     }

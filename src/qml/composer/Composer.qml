@@ -3,7 +3,9 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
+import QtMultimedia
 import org.kde.kirigami as Kirigami
+import Qt.labs.platform 1.1 as Labs
 // TypingIndicator lives under qml/timeline; every file here is one module.
 import koutnet.app
 
@@ -23,6 +25,16 @@ ColumnLayout {
     // second editor on the screen is a second place to look for the text.
     property int editingRow: -1
 
+    // A spoiler carries the text hidden until the reader uncovers it; the toggle
+    // flips the send path to the bridge's formatted-spoiler call instead of plain.
+    property bool spoilerMode: false
+
+    // The voice recorder's state: false until the microphone button is pressed,
+    // true while it is capturing, back to false once the clip is handed off.
+    property bool recording: false
+    property int voiceMs: 0
+    property string voicePath: ""
+
     readonly property bool replying: root.replyExcerpt.length > 0
     readonly property bool editing: root.editingRow >= 0
     readonly property alias text: input.text
@@ -32,6 +44,15 @@ ColumnLayout {
     signal attachRequested()
     signal emojiRequested()
     signal replyCancelled()
+    // Matrix understands a hidden message (MSC2446); other transports get it as
+    // plain text, which the bridge does when it does not know the dialect.
+    signal spoilerRequested(string text)
+    signal locationRequested(real latitude, real longitude, string label)
+    // open the sticker file picker; the page owns the dialog.
+    signal stickerRequested()
+    // a clip recorded in the composer: path + length in milliseconds. the bridge
+    // uploads it and marks it an MSC3245 voice message.
+    signal voiceCaptured(string filePath, int durationMs)
     // One notice per typingNoticeMs and not one per keystroke: a datagram per
     // character is a keylogger as far as the wire is concerned, and it floods.
     signal typingNotice()
@@ -69,6 +90,15 @@ ColumnLayout {
         if (root.editing) {
             root.editSubmitted(root.editingRow, input.text)
             root.cancelEdit()
+            return
+        }
+        // A spoiler is sent as one, not as a normal line; the toggle is cleared so
+        // the next message is plain unless the writer turns it back on.
+        if (root.spoilerMode) {
+            root.spoilerRequested(input.text)
+            root.spoilerMode = false
+            input.clear()
+            root.replyCancelled()
             return
         }
         root.sendRequested(input.text, root.replyExcerpt, root.replyAuthor, root.replyId)
@@ -211,6 +241,56 @@ ColumnLayout {
                 onClicked: root.emojiRequested()
             }
 
+            QQC2.ToolButton {
+                Layout.alignment: Qt.AlignBottom
+                display: QQC2.AbstractButton.IconOnly
+                icon.name: root.spoilerMode ? "visibility" : "visibility-off"
+                text: root.spoilerMode
+                    ? i18nc("@action:button send the next message hidden until revealed", "Spoiler on: the message will be hidden")
+                    : i18nc("@action:button hide the next message until the reader reveals it", "Hide the message as a spoiler")
+                checked: root.spoilerMode
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                QQC2.ToolTip.text: text
+                onClicked: root.spoilerMode = !root.spoilerMode
+            }
+
+            QQC2.ToolButton {
+                Layout.alignment: Qt.AlignBottom
+                display: QQC2.AbstractButton.IconOnly
+                icon.name: "map-symbolic"
+                text: i18nc("@action:button share a location in the message", "Share a location")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                QQC2.ToolTip.text: text
+                onClicked: locationDialog.open()
+            }
+
+            QQC2.ToolButton {
+                Layout.alignment: Qt.AlignBottom
+                display: QQC2.AbstractButton.IconOnly
+                icon.name: root.recording ? "media-playback-stop" : "microphone"
+                text: root.recording
+                    ? i18nc("@action:button stop recording the voice message", "Stop recording")
+                    : i18nc("@action:button record and send a voice message", "Send a voice message")
+                checked: root.recording
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                QQC2.ToolTip.text: text
+                onClicked: root.recording ? root.stopVoice() : root.startVoice()
+            }
+
+            QQC2.ToolButton {
+                Layout.alignment: Qt.AlignBottom
+                display: QQC2.AbstractButton.IconOnly
+                icon.name: "emblem-favorite"
+                text: i18nc("@action:button send a picture as a sticker", "Send a sticker")
+                QQC2.ToolTip.visible: hovered
+                QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+                QQC2.ToolTip.text: text
+                onClicked: root.stickerRequested()
+            }
+
             QQC2.ScrollView {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignBottom
@@ -273,5 +353,88 @@ ColumnLayout {
                 onClicked: root.send()
             }
         }
+    }
+
+    // A small form rather than a map picker: the map would be a second surface to
+    // load, and a coordinate is what the wire actually carries (geo:lat,lon).
+    Kirigami.PromptDialog {
+        id: locationDialog
+
+        title: i18nc("@title:window share a location", "Share a location")
+
+        // Defaults to a recognisable spot so the field is never empty on first try.
+        property real latitude: 0.0
+        property real longitude: 0.0
+        property string label: ""
+
+        onOpened: {
+            locationDialog.latitude = 0.0
+            locationDialog.longitude = 0.0
+            locationDialog.label = ""
+        }
+
+        standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
+
+        onAccepted: root.locationRequested(locationDialog.latitude, locationDialog.longitude, locationDialog.label)
+
+        ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            QQC2.TextField {
+                Layout.fillWidth: true
+                placeholderText: i18nc("@info:placeholder", "Latitude, e.g. 48.858370")
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                onTextChanged: locationDialog.latitude = parseFloat(text) || 0.0
+            }
+
+            QQC2.TextField {
+                Layout.fillWidth: true
+                placeholderText: i18nc("@info:placeholder", "Longitude, e.g. 2.294481")
+                inputMethodHints: Qt.ImhFormattedNumbersOnly
+                onTextChanged: locationDialog.longitude = parseFloat(text) || 0.0
+            }
+
+            QQC2.TextField {
+                Layout.fillWidth: true
+                placeholderText: i18nc("@info:placeholder a name for the shared place", "Label (optional)")
+                onTextChanged: locationDialog.label = text
+            }
+        }
+    }
+
+    // The recorder is a CaptureSession holding an AudioInput and a MediaRecorder;
+    // only one is needed for the whole composer. The clip lands in the temp dir
+    // and is handed to the bridge, which uploads and flags it an MSC3245 voice.
+    CaptureSession {
+        id: capture
+        audioInput: AudioInput {}
+        recorder: MediaRecorder {
+            id: voiceRecorder
+            // Once the file is final, its path and length go to the bridge.
+            onActualLocationChanged: (loc) => root.voiceCaptured(loc.toString(), root.voiceMs)
+        }
+    }
+
+    Timer {
+        id: voiceTimer
+        interval: 1000
+        repeat: true
+        onTriggered: root.voiceMs += 1000
+    }
+
+    function startVoice() {
+        const dir = Labs.StandardPaths.writableLocation(Labs.StandardPaths.TempLocation)
+        root.voicePath = dir + "/koutnet-voice-" + Date.now() + ".m4a"
+        voiceRecorder.outputLocation = root.voicePath
+        root.voiceMs = 0
+        voiceRecorder.record()
+        root.recording = true
+        voiceTimer.restart()
+    }
+
+    function stopVoice() {
+        voiceRecorder.stop()
+        voiceTimer.stop()
+        root.recording = false
     }
 }

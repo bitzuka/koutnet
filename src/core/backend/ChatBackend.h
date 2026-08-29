@@ -67,6 +67,17 @@ public:
     virtual bool supportsEdits(const QString &chatId) const = 0;
     virtual bool supportsReactions(const QString &chatId) const = 0;
 
+    // True for a backend that is wired into the registry and addressable but
+    // not yet carrying live traffic - a scaffold the interface shows as
+    // "preview" rather than offering its actions. Real backends (LAN, Matrix)
+    // answer false; the Rocket.Chat / Telegram / Tox scaffolds answer true
+    // until each is filled in. Defaults to false so an existing backend needs
+    // no change to keep being treated as shipping.
+    virtual bool isPreview() const
+    {
+        return false;
+    }
+
     // Outgoing actions. False means refused here (unknown chat, not signed in,
     // the transport's own reason): the caller must not invent a result.
     virtual bool sendText(const QString &chatId, const QString &text) = 0;

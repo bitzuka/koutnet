@@ -82,6 +82,45 @@ public:
     bool sendEdit(const QString &chatId, double ts, const QString &newText) override;
     bool sendDelete(const QString &chatId, double ts) override;
 
+    // ---- features the interface must offer at parity with other clients ----
+    // quote-reply to a message already on the timeline; ts is the row stamp the
+    // window keeps, not the event id.
+    Q_INVOKABLE bool sendReply(const QString &chatId, double ts, const QString &plainText);
+    // send formatted (HTML) text; plainText is the fallback body. the composer
+    // derives the HTML from whatever markdown the user typed.
+    Q_INVOKABLE bool sendRichText(const QString &chatId, const QString &plainText, const QString &html);
+    // rewrite the room's name or topic. avatar is set through setRoomAvatar().
+    Q_INVOKABLE void setRoomName(const QString &chatId, const QString &name);
+    Q_INVOKABLE void setRoomTopic(const QString &chatId, const QString &topic);
+    Q_INVOKABLE void setRoomAvatar(const QString &chatId, const QString &localFilePath);
+    // pin / unpin a message by its row stamp; the room re-emits pinnedEventsChanged.
+    Q_INVOKABLE void pinMessage(const QString &chatId, double ts);
+    Q_INVOKABLE void unpinMessage(const QString &chatId, double ts);
+    // mute / unmute a user across the whole account.
+    Q_INVOKABLE void ignoreUser(const QString &userId);
+    Q_INVOKABLE void unignoreUser(const QString &userId);
+    // search the loaded timeline of a room for a substring; results arrive via
+    // roomSearchResults(). a server /search is not used - the local history is.
+    Q_INVOKABLE void searchMessages(const QString &chatId, const QString &query);
+    // share a geo: point (Matrix m.location). label is the human text; the uri
+    // is built from the coordinates.
+    Q_INVOKABLE void sendLocation(const QString &chatId, double latitude, double longitude, const QString &label);
+    // send a sticker (Matrix m.sticker). mxcUrl is an already-uploaded media id;
+    // the composer uploads the image and passes the id back.
+    Q_INVOKABLE void sendSticker(const QString &chatId, const QString &mxcUrl, const QString &description);
+    // upload a local image and send it as a sticker; the composer only has a path.
+    Q_INVOKABLE void sendStickerFile(const QString &chatId, const QString &localFilePath);
+    // send a recorded voice message (MSC3245): an m.audio carrying the voice flag.
+    Q_INVOKABLE void sendVoice(const QString &chatId, const QString &localFilePath, int durationMs);
+    // send a poll (MSC3386 stable m.poll.start). disclosed shows results as they
+    // come; undisclosed hides them until the writer closes the poll.
+    Q_INVOKABLE void sendPoll(const QString &chatId, const QString &question, const QStringList &answers, bool disclosed);
+    // cast a vote in a poll (m.poll.response). msgId is the poll's event id; the
+    // window resolves a row stamp to it the same way replies do.
+    Q_INVOKABLE void sendPollVote(const QString &chatId, const QString &msgId, const QString &answerId);
+    // send text hidden until revealed (MSC2446 spoiler), as a formatted m.text.
+    Q_INVOKABLE void sendSpoiler(const QString &chatId, const QString &text);
+
     // rooms are made and joined, not sent, so these sit outside ChatBackend.
     // the window calls them on the bridge directly; each is a sync round trip
     // that answers via roomListed()/roomLeft() or roomOperationFailed().
@@ -128,6 +167,17 @@ Q_SIGNALS:
     // ChatModel::ingestRemoteAttachment() expects. keys: kind, url, name,
     // mime, size, width, height, duration.
     void roomAttachment(QString chatId, QString eventId, QVariantMap media, QString sender, bool isOwn, double ts, QString senderAvatar = QString());
+    // a poll (m.poll.start) arrived. answers is a list of {id, body} maps; the
+    // window renders the voter and sends choices back through sendPollVote().
+    void roomPoll(QString chatId,
+                  QString eventId,
+                  QString question,
+                  QVariantList answers,
+                  bool disclosed,
+                  QString sender,
+                  bool isOwn,
+                  double ts,
+                  QString senderAvatar = QString());
 
     // a reaction to a message. ts is the target message stamp, never the
     // reaction itself - the ReactionStore keys on the target, like the LAN one.
@@ -158,6 +208,19 @@ Q_SIGNALS:
     // so whoever shows the room just asks again.
     void roomInfoChanged(QString chatId);
 
+    // the pinned set moved. each entry is a map shaped like roomMessage()'s
+    // row - eventId, ts, text, sender - resolved from the timeline so the pin
+    // sheet can show what it pins without another round trip.
+    void roomPinnedChanged(QString chatId, QVariantList pinned);
+
+    // results of searchMessages(): a list of maps (eventId, ts, text, sender),
+    // newest first, capped to a sane number.
+    void roomSearchResults(QString chatId, QVariantList results);
+
+    // the account ignore list changed (ignoreUser/unignoreUser). the member list
+    // and the room re-read it to grey out muted users.
+    void ignoreListChanged();
+
     void sendFailed(QString chatId, QString reason);
 
     // an invitation arrived; the list shows it with accept/decline, not as a chat.
@@ -169,6 +232,8 @@ Q_SIGNALS:
     // a room operation the homeserver refused: create, join, invite, kick.
     // one channel for all, since the window answers each with the same toast.
     void roomOperationFailed(QString chatId, QString reason);
+    // a room operation the homeserver accepted (e.g. an avatar was set).
+    void roomOperationSucceeded(QString chatId);
 
     // a one-on-one requested by openDirectChat() is ready, whether an existing
     // direct room was found or the one requestDirectChat() made came through.
@@ -196,6 +261,8 @@ private:
     // a timeline event libQuotient swapped for its decrypted self.
     void revealEvent(Quotient::Room *room, const Quotient::RoomEvent *event);
     Quotient::Room *roomFor(const QString &chatId) const;
+    // the pinned event ids, resolved to timeline rows (see rowForEvent).
+    QVariantList pinnedRows(Quotient::Room *room) const;
     // the invite object for a room we were asked into but have not joined yet
     Quotient::Room *invitedRoomFor(const QString &chatId) const;
     // who sent the invite and their display name; either may be empty early

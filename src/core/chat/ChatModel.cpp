@@ -84,6 +84,8 @@ QVariant ChatModel::data(const QModelIndex &index, int role) const
         return startsRun(index.row());
     case ShowDayRole:
         return startsDay(index.row());
+    case PollRole:
+        return m.poll;
     default:
         return {};
     }
@@ -148,6 +150,7 @@ QHash<int, QByteArray> ChatModel::roleNames() const
         {StampSecsRole, "stampSecs"},
         {ShowAuthorRole, "showAuthor"},
         {ShowDayRole, "showDay"},
+        {PollRole, "poll"},
     };
 }
 
@@ -444,6 +447,39 @@ bool ChatModel::ingestRemoteAttachment(const QString &remoteId,
     e.mediaDurationMs = media.value(QStringLiteral("duration")).toInt();
     // The label, in the same field a LAN attachment puts its file name in.
     e.text = media.value(QStringLiteral("name")).toString();
+
+    appendEntry(e, true);
+    return true;
+}
+
+bool ChatModel::ingestRemotePoll(const QString &remoteId,
+                                 const QString &question,
+                                 const QVariantList &answers,
+                                 bool disclosed,
+                                 const QString &sender,
+                                 bool isOwn,
+                                 double ts,
+                                 const QString &senderAvatar)
+{
+    if (remoteId.isEmpty() || rowForMsgId(remoteId) >= 0)
+        return false;
+
+    MessageEntry e;
+    e.msgId = remoteId;
+    e.sender = sender;
+    e.avatarUrl = senderAvatar;
+    e.ts = ts > 0.0 ? ts : QDateTime::currentMSecsSinceEpoch() / 1000.0;
+    e.isOwn = isOwn;
+    e.msgType = QStringLiteral("private");
+    e.isRead = isOwn;
+    e.text = question;
+    // The question and options ride as structured data the window renders; votes
+    // are tracked by the bridge and not stored, so a reload shows the poll fresh.
+    QVariantMap poll;
+    poll.insert(QStringLiteral("question"), question);
+    poll.insert(QStringLiteral("answers"), answers);
+    poll.insert(QStringLiteral("disclosed"), disclosed);
+    e.poll = poll;
 
     appendEntry(e, true);
     return true;

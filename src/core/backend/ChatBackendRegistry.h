@@ -53,6 +53,9 @@ public:
     Q_INVOKABLE bool supportsTyping(const QString &chatId) const;
     Q_INVOKABLE bool supportsEdits(const QString &chatId) const;
     Q_INVOKABLE bool supportsReactions(const QString &chatId) const;
+    // Whether the chat id's backend is a scaffold shown as "preview" rather
+    // than a shipping transport. QML uses it to gate the placeholder page.
+    Q_INVOKABLE bool isPreview(const QString &chatId) const;
     // What the badge on a conversation row says, for the transport the chat
     // id belongs to - chatid::transportName()'s answer, made QML-visible.
     Q_INVOKABLE QString transportName(const QString &chatId) const;

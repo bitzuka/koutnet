@@ -12,9 +12,12 @@
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QImage>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QMimeDatabase>
+#include <QPointer>
 #include <QSize>
+#include <QTextDocument>
 #include <QUrl>
 
 #include <algorithm>
@@ -44,6 +47,7 @@
 #include <Quotient/events/stateevent.h>
 #include <Quotient/room.h>
 #include <Quotient/roommember.h>
+#include <Quotient/user.h>
 
 #include "core/security/CryptoManager.h"
 #include "network/NetworkManager.h"
@@ -55,11 +59,6 @@ namespace
 {
 using koutnet::matrix::MediaKind;
 using koutnet::matrix::StateChange;
-
-bool isTextLike(RoomMessageEvent::MsgType type)
-{
-    return type == RoomMessageEvent::MsgType::Text || type == RoomMessageEvent::MsgType::Notice || type == RoomMessageEvent::MsgType::Emote;
-}
 
 MediaKind mediaKindOf(RoomMessageEvent::MsgType type)
 {
@@ -89,6 +88,8 @@ QString mediaKindName(MediaKind kind)
         return QStringLiteral("audio");
     case MediaKind::File:
         return QStringLiteral("file");
+    case MediaKind::Location:
+        return QStringLiteral("location");
     case MediaKind::None:
         break;
     }
@@ -315,11 +316,63 @@ koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
     }
 
     if (const auto *message = eventCast<const RoomMessageEvent>(event)) {
-        raw.body = message->plainBody();
-        raw.textLike = isTextLike(message->msgtype());
-        raw.media = mediaKindOf(message->msgtype());
-        if (raw.media != MediaKind::None && !raw.redacted)
-            fillMedia(room, *message, raw);
+        // Read the msgtype from the raw content: the typed MsgType enum does not
+        // have every unstable kind (m.sticker, m.location), and a library whose
+        // message list disagrees with its headers would link nothing.
+        const QJsonObject content = message->contentJson();
+        const QString msgtype = content.value(QStringLiteral("msgtype")).toString();
+        raw.textLike = msgtype == QStringLiteral("m.text") || msgtype == QStringLiteral("m.notice") || msgtype == QStringLiteral("m.emote");
+        if (msgtype == QStringLiteral("m.location")) {
+            // A geo: point is opened as a map, not downloaded; keep the uri as
+            // the body so the row shows where it points, and as the media url so
+            // the attachment block can hand it straight to a map application.
+            raw.media = MediaKind::Location;
+            raw.body = content.value(QStringLiteral("geo_uri")).toString();
+            if (raw.body.isEmpty())
+                raw.body = message->plainBody();
+            raw.mediaUrl = raw.body;
+            raw.mediaName = content.value(QStringLiteral("body")).toString();
+        } else if (msgtype == QStringLiteral("m.sticker")) {
+            // A sticker is an image with a different msgtype; render it as one.
+            raw.media = MediaKind::Image;
+            if (!raw.redacted)
+                fillMedia(room, *message, raw);
+        } else if (msgtype == QStringLiteral("m.poll.start")) {
+            // An interactive poll: keep the question and every option id so the
+            // window can render a voter, not just a list of words.
+            const QJsonObject poll = content.value(QStringLiteral("poll")).toObject();
+            const QString questionText = poll.value(QStringLiteral("question")).toObject().value(QStringLiteral("body")).toString();
+            QVariantList answers;
+            const QJsonArray answersJson = poll.value(QStringLiteral("answers")).toArray();
+            for (const QJsonValue &answer : answersJson) {
+                const QJsonObject answerObj = answer.toObject();
+                QVariantMap entry;
+                entry.insert(QStringLiteral("id"), answerObj.value(QStringLiteral("id")).toString());
+                entry.insert(QStringLiteral("body"), answerObj.value(QStringLiteral("body")).toString());
+                answers.append(entry);
+            }
+            QVariantMap pollMap;
+            pollMap.insert(QStringLiteral("question"), questionText.isEmpty() ? message->plainBody() : questionText);
+            pollMap.insert(QStringLiteral("answers"), answers);
+            pollMap.insert(QStringLiteral("disclosed"), poll.value(QStringLiteral("kind")).toString() == QStringLiteral("disclosed"));
+            raw.poll = pollMap;
+            raw.body = pollMap.value(QStringLiteral("question")).toString();
+        } else {
+            raw.body = message->plainBody();
+            raw.media = mediaKindOf(message->msgtype());
+            if (raw.media != MediaKind::None && !raw.redacted)
+                fillMedia(room, *message, raw);
+        }
+        // MSC2446 spoiler: the hidden text rides in a "spoiler" array or as a
+        // <span data-mx-spoiler> in the formatted body; the window hides it.
+        if (msgtype == QStringLiteral("m.text")
+            && (content.value(QStringLiteral("spoiler")).isArray()
+                || content.value(QStringLiteral("format")).toString().contains(QLatin1String("data-mx-spoiler")))) {
+            raw.spoiler = true;
+            // Wrap in || so the shared TextHandler hides it the same way a LAN
+            // writer's ||secret|| does; revealed, the inner text is what shows.
+            raw.body = QStringLiteral("||%1||").arg(raw.body);
+        }
     } else if (is<EncryptedEvent>(*event)) {
         raw.encrypted = true;
     } else {
@@ -520,6 +573,9 @@ void MatrixRoomBridge::trackRoom(Room *room)
     connect(room, &Room::avatarChanged, this, announceInfo);
     connect(room, &Room::memberListChanged, this, announceInfo);
     connect(room, &Room::namesChanged, this, announceInfo);
+    connect(room, &Room::pinnedEventsChanged, this, [this, room]() {
+        Q_EMIT roomPinnedChanged(chatid::matrixChatId(room->id()), pinnedRows(room));
+    });
 
     // m.call.invite/answer/hangup. libQuotient hands the whole event over; the
     // caller is in the sender, the rest in the content.
@@ -655,6 +711,21 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
         media.insert(QStringLiteral("duration"), row.mediaDurationMs);
         const QString avatar = memberAvatarUrl(room, row.senderId);
         Q_EMIT roomAttachment(chatId, row.msgId, media, row.sender, row.isOwn, row.ts, avatar);
+        break;
+    }
+    case matrix::RowKind::Poll: {
+        // The question and options ride as structured data, not as a string the
+        // window would have to re-parse; votes go back through sendPollVote().
+        const QString avatar = memberAvatarUrl(room, row.senderId);
+        Q_EMIT roomPoll(chatId,
+                        row.msgId,
+                        row.poll.value(QStringLiteral("question")).toString(),
+                        row.poll.value(QStringLiteral("answers")).toList(),
+                        row.poll.value(QStringLiteral("disclosed")).toBool(),
+                        row.sender,
+                        row.isOwn,
+                        row.ts,
+                        avatar);
         break;
     }
     }
@@ -997,6 +1068,396 @@ bool MatrixRoomBridge::sendDelete(const QString &chatId, double ts)
 
     room->redactEvent(eventId);
     return true;
+}
+
+// Build a timeline row map for a single event, the shape roomMessage() uses, so
+// pin and search results can show what they point at without another round trip.
+static QVariantMap rowForEvent(const RoomEvent *ev)
+{
+    QVariantMap m;
+    m.insert(QStringLiteral("eventId"), ev->id());
+    m.insert(QStringLiteral("ts"), ev->originTimestamp().toMSecsSinceEpoch() / 1000.0);
+    m.insert(QStringLiteral("sender"), ev->senderId());
+    if (const auto *me = eventCast<const RoomMessageEvent>(ev))
+        m.insert(QStringLiteral("text"), me->plainBody());
+    return m;
+}
+
+bool MatrixRoomBridge::sendReply(const QString &chatId, double ts, const QString &plainText)
+{
+    if (plainText.trimmed().isEmpty())
+        return false;
+    Room *room = roomFor(chatId);
+    const QString eventId = m_tsToEventId.value(chatId).value(ts);
+    if (room == nullptr || eventId.isEmpty())
+        return false;
+    if (!canSendEncrypted(room)) {
+        Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
+        return false;
+    }
+    room->postText(plainText, std::nullopt, EventRelation::replyTo(eventId));
+    return true;
+}
+
+// Turn the lightweight markdown the composer accepts into an HTML fragment for
+// the formatted body. QTextDocument wraps a whole page, so the <body> inner is
+// pulled out and returned as the inline fragment the homeserver expects.
+static QString markdownToHtml(const QString &markdown)
+{
+    QTextDocument doc;
+    doc.setMarkdown(markdown);
+    QString html = doc.toHtml();
+    const int bodyOpen = html.indexOf(QLatin1String("<body"));
+    const int bodyClose = html.lastIndexOf(QLatin1String("</body>"));
+    if (bodyOpen >= 0 && bodyClose > bodyOpen) {
+        const int tagEnd = html.indexOf(QLatin1String(">"), bodyOpen);
+        html = html.mid(tagEnd + 1, bodyClose - tagEnd - 1);
+    }
+    return html.trimmed();
+}
+
+// Only build an HTML body when there is something to format, so plain messages
+// stay plain and the fallback body is the only thing on the wire.
+static bool looksFormatted(const QString &text)
+{
+    return text.contains(QLatin1String("**")) || text.contains(QLatin1String("__")) || text.contains(QLatin1String("`")) || text.contains(QLatin1String("~~"))
+        || text.contains(QLatin1String("# ")) || text.contains(QLatin1String("\n"));
+}
+
+bool MatrixRoomBridge::sendRichText(const QString &chatId, const QString &plainText, const QString &html)
+{
+    if (plainText.trimmed().isEmpty())
+        return false;
+    Room *room = roomFor(chatId);
+    if (room == nullptr) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status", "That Matrix room is not available in this session."));
+        return false;
+    }
+    if (!canSendEncrypted(room)) {
+        Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
+        return false;
+    }
+    // The composer passes an empty html when it only has markdown; derive the
+    // formatted body here so the window never has to know the markup dialect.
+    QString htmlBody = html;
+    if (htmlBody.isEmpty() && looksFormatted(plainText))
+        htmlBody = markdownToHtml(plainText);
+    const std::optional<QString> htmlOpt = htmlBody.isEmpty() ? std::nullopt : std::optional<QString>(htmlBody);
+    room->postText(plainText, htmlOpt);
+    return true;
+}
+
+void MatrixRoomBridge::setRoomName(const QString &chatId, const QString &name)
+{
+    if (Room *room = roomFor(chatId))
+        room->setName(name);
+}
+
+void MatrixRoomBridge::setRoomTopic(const QString &chatId, const QString &topic)
+{
+    if (Room *room = roomFor(chatId))
+        room->setTopic(topic);
+}
+
+void MatrixRoomBridge::setRoomAvatar(const QString &chatId, const QString &localFilePath)
+{
+    Room *room = roomFor(chatId);
+    if (room == nullptr || room->connection() == nullptr) {
+        Q_EMIT roomOperationFailed(chatId, i18nc("@info:status", "That Matrix room is not available in this session."));
+        return;
+    }
+    // Upload the picture, then point the room's avatar state at the mxc id the
+    // homeserver returns - the same two-step the file transfer uses, so an avatar
+    // and an attachment fail and recover the same way.
+    const QMimeType mime = QMimeDatabase().mimeTypeForFile(localFilePath);
+    auto job = room->connection()->uploadFile(localFilePath, mime.name());
+    connect(job.operator->(), &Quotient::BaseJob::success, this, [this, room, chatId, job]() {
+        Q_UNUSED(this)
+        room->setState(Quotient::RoomAvatarEvent(job->contentUri()));
+        Q_EMIT roomOperationSucceeded(chatId);
+    });
+    connect(job.operator->(), &Quotient::BaseJob::failure, this, [this, chatId, job]() {
+        Q_EMIT roomOperationFailed(chatId, job->errorString());
+    });
+}
+
+void MatrixRoomBridge::pinMessage(const QString &chatId, double ts)
+{
+    Room *room = roomFor(chatId);
+    if (room == nullptr)
+        return;
+    const QString eventId = m_tsToEventId.value(chatId).value(ts);
+    if (eventId.isEmpty())
+        return;
+    QStringList pinned = room->pinnedEventIds();
+    if (!pinned.contains(eventId)) {
+        pinned.append(eventId);
+        room->setPinnedEvents(pinned);
+    }
+}
+
+void MatrixRoomBridge::unpinMessage(const QString &chatId, double ts)
+{
+    Room *room = roomFor(chatId);
+    if (room == nullptr)
+        return;
+    const QString eventId = m_tsToEventId.value(chatId).value(ts);
+    if (eventId.isEmpty())
+        return;
+    QStringList pinned = room->pinnedEventIds();
+    pinned.removeAll(eventId);
+    room->setPinnedEvents(pinned);
+}
+
+void MatrixRoomBridge::ignoreUser(const QString &userId)
+{
+    if (m_manager && m_manager->connection())
+        if (User *u = m_manager->connection()->user(userId))
+            u->ignore();
+}
+
+void MatrixRoomBridge::unignoreUser(const QString &userId)
+{
+    if (m_manager && m_manager->connection())
+        if (User *u = m_manager->connection()->user(userId))
+            u->unmarkIgnore();
+}
+
+void MatrixRoomBridge::searchMessages(const QString &chatId, const QString &query)
+{
+    QVariantList results;
+    if (Room *room = roomFor(chatId)) {
+        const QString q = query.toLower();
+        for (const auto &item : room->messageEvents()) {
+            const RoomEvent *ev = item.event();
+            const auto *me = eventCast<const RoomMessageEvent>(ev);
+            if (!me)
+                continue;
+            if (me->plainBody().toLower().contains(q)) {
+                results.append(rowForEvent(ev));
+                if (results.size() >= 50)
+                    break;
+            }
+        }
+    }
+    Q_EMIT roomSearchResults(chatId, results);
+}
+
+void MatrixRoomBridge::sendLocation(const QString &chatId, double latitude, double longitude, const QString &label)
+{
+    Room *room = roomFor(chatId);
+    if (room == nullptr) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status", "That Matrix room is not available in this session."));
+        return;
+    }
+    if (!canSendEncrypted(room)) {
+        Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
+        return;
+    }
+    // geo: takes lat,lon; the label is what shows before the map opens.
+    const QString geo = QStringLiteral("geo:%1,%2").arg(latitude, 0, 'f', 6).arg(longitude, 0, 'f', 6);
+    QJsonObject content;
+    content.insert(QStringLiteral("msgtype"), QStringLiteral("m.location"));
+    content.insert(QStringLiteral("geo_uri"), geo);
+    content.insert(QStringLiteral("body"), label.isEmpty() ? geo : label);
+    room->postJson(QStringLiteral("m.room.message"), content);
+}
+
+void MatrixRoomBridge::sendSticker(const QString &chatId, const QString &mxcUrl, const QString &description)
+{
+    Room *room = roomFor(chatId);
+    if (room == nullptr) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status", "That Matrix room is not available in this session."));
+        return;
+    }
+    if (!canSendEncrypted(room)) {
+        Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
+        return;
+    }
+    QJsonObject content;
+    content.insert(QStringLiteral("msgtype"), QStringLiteral("m.sticker"));
+    content.insert(QStringLiteral("url"), mxcUrl);
+    content.insert(QStringLiteral("body"), description.isEmpty() ? i18nc("@item a sticker with no caption", "sticker") : description);
+    room->postJson(QStringLiteral("m.room.message"), content);
+}
+
+void MatrixRoomBridge::sendSpoiler(const QString &chatId, const QString &text)
+{
+    if (text.trimmed().isEmpty())
+        return;
+    Room *room = roomFor(chatId);
+    if (room == nullptr) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status", "That Matrix room is not available in this session."));
+        return;
+    }
+    if (!canSendEncrypted(room)) {
+        Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
+        return;
+    }
+    // MSC2446: the hidden text rides in a <span data-mx-spoiler> in the html
+    // body, while the plain body stays readable for clients that ignore it.
+    const QString escaped = text.toHtmlEscaped();
+    const QString html = QStringLiteral("<span data-mx-spoiler>%1</span>").arg(escaped);
+    QJsonObject content;
+    content.insert(QStringLiteral("msgtype"), QStringLiteral("m.text"));
+    content.insert(QStringLiteral("format"), QStringLiteral("org.matrix.custom.html"));
+    content.insert(QStringLiteral("formatted_body"), html);
+    content.insert(QStringLiteral("body"), text);
+    room->postJson(QStringLiteral("m.room.message"), content);
+}
+
+// Upload a local image and send it as a sticker. The composer only has a path,
+// so the mxc id has to come from the homeserver first; the failure path is the
+// same sendFailed() the other sends use.
+void MatrixRoomBridge::sendStickerFile(const QString &chatId, const QString &localFilePath)
+{
+    Room *room = roomFor(chatId);
+    if (room == nullptr || room->connection() == nullptr) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status", "That Matrix room is not available in this session."));
+        return;
+    }
+    if (!canSendEncrypted(room)) {
+        Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
+        return;
+    }
+    const QFileInfo file(localFilePath);
+    if (!file.exists() || !file.isReadable()) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status %1 is a file name", "%1 could not be read, so nothing was sent.", file.fileName()));
+        return;
+    }
+    const QString mimeName = QMimeDatabase().mimeTypeForFile(file).name();
+    auto job = room->connection()->uploadFile(file.absoluteFilePath(), mimeName);
+    connect(job.operator->(), &Quotient::BaseJob::success, this, [this, room, chatId, file, mimeName, job]() {
+        Q_UNUSED(this)
+        QJsonObject content;
+        content.insert(QStringLiteral("msgtype"), QStringLiteral("m.sticker"));
+        content.insert(QStringLiteral("url"), job->contentUri().toString());
+        content.insert(QStringLiteral("body"), file.fileName());
+        QJsonObject info;
+        info.insert(QStringLiteral("mimetype"), mimeName);
+        info.insert(QStringLiteral("size"), file.size());
+        content.insert(QStringLiteral("info"), info);
+        room->postJson(QStringLiteral("m.room.message"), content);
+    });
+    connect(job.operator->(), &Quotient::BaseJob::failure, this, [this, chatId, job]() {
+        Q_EMIT sendFailed(chatId, job->errorString());
+    });
+}
+
+// A recorded voice message (MSC3245): an m.audio carrying the voice flag, so
+// clients that know the extension render a player with a waveform rather than a
+// plain file. The bytes go up the same way a file attachment does.
+void MatrixRoomBridge::sendVoice(const QString &chatId, const QString &localFilePath, int durationMs)
+{
+    Room *room = roomFor(chatId);
+    if (room == nullptr || room->connection() == nullptr) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status", "That Matrix room is not available in this session."));
+        return;
+    }
+    if (!canSendEncrypted(room)) {
+        Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
+        return;
+    }
+    const QFileInfo file(localFilePath);
+    if (!file.exists() || !file.isReadable()) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status %1 is a file name", "%1 could not be read, so nothing was sent.", file.fileName()));
+        return;
+    }
+    const QString mimeName = QMimeDatabase().mimeTypeForFile(file).name();
+    auto job = room->connection()->uploadFile(file.absoluteFilePath(), mimeName);
+    connect(job.operator->(), &Quotient::BaseJob::success, this, [this, room, chatId, file, mimeName, durationMs, job]() {
+        Q_UNUSED(this)
+        QJsonObject content;
+        content.insert(QStringLiteral("msgtype"), QStringLiteral("m.audio"));
+        content.insert(QStringLiteral("url"), job->contentUri().toString());
+        content.insert(QStringLiteral("body"), file.fileName());
+        QJsonObject info;
+        info.insert(QStringLiteral("mimetype"), mimeName);
+        info.insert(QStringLiteral("size"), file.size());
+        info.insert(QStringLiteral("duration"), durationMs);
+        content.insert(QStringLiteral("info"), info);
+        content.insert(QStringLiteral("org.matrix.msc3245.voice"), QJsonObject());
+        room->postJson(QStringLiteral("m.room.message"), content);
+    });
+    connect(job.operator->(), &Quotient::BaseJob::failure, this, [this, chatId, job]() {
+        Q_EMIT sendFailed(chatId, job->errorString());
+    });
+}
+
+// A poll (MSC3386, stable m.poll.start). disclosed shows each vote as it lands;
+// undisclosed keeps them hidden until the poll is closed.
+void MatrixRoomBridge::sendPoll(const QString &chatId, const QString &question, const QStringList &answers, bool disclosed)
+{
+    Room *room = roomFor(chatId);
+    if (room == nullptr) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status", "That Matrix room is not available in this session."));
+        return;
+    }
+    if (!canSendEncrypted(room)) {
+        Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
+        return;
+    }
+    QJsonArray answersJson;
+    int index = 0;
+    for (const QString &answer : answers) {
+        if (answer.trimmed().isEmpty())
+            continue;
+        QJsonObject entry;
+        entry.insert(QStringLiteral("id"), QString::number(index));
+        entry.insert(QStringLiteral("body"), answer);
+        answersJson.append(entry);
+        ++index;
+    }
+    QJsonObject poll;
+    QJsonObject questionJson;
+    questionJson.insert(QStringLiteral("body"), question);
+    poll.insert(QStringLiteral("question"), questionJson);
+    poll.insert(QStringLiteral("kind"), disclosed ? QStringLiteral("disclosed") : QStringLiteral("undisclosed"));
+    poll.insert(QStringLiteral("answers"), answersJson);
+    QJsonObject content;
+    content.insert(QStringLiteral("msgtype"), QStringLiteral("m.poll.start"));
+    content.insert(QStringLiteral("body"), question);
+    content.insert(QStringLiteral("poll"), poll);
+    room->postJson(QStringLiteral("m.room.message"), content);
+}
+
+void MatrixRoomBridge::sendPollVote(const QString &chatId, const QString &msgId, const QString &answerId)
+{
+    Room *room = roomFor(chatId);
+    if (room == nullptr) {
+        Q_EMIT sendFailed(chatId, i18nc("@info:status", "That Matrix room is not available in this session."));
+        return;
+    }
+    if (!canSendEncrypted(room)) {
+        Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
+        return;
+    }
+    QJsonObject answer;
+    answer.insert(QStringLiteral("s"), answerId);
+    QJsonArray answers;
+    answers.append(answer);
+    QJsonObject votes;
+    votes.insert(QStringLiteral("answers"), answers);
+    QJsonObject content;
+    content.insert(QStringLiteral("msgtype"), QStringLiteral("m.poll.response"));
+    content.insert(QStringLiteral("body"), i18nc("@info a poll vote with no readable text", "Voted."));
+    content.insert(QStringLiteral("m.relates_to"),
+                   QJsonObject{{QStringLiteral("rel_type"), QStringLiteral("m.reference")}, {QStringLiteral("event_id"), msgId}});
+    content.insert(QStringLiteral("org.matrix.msc3381.poll.response"), votes);
+    room->postJson(QStringLiteral("m.room.message"), content);
+}
+
+QVariantList MatrixRoomBridge::pinnedRows(Room *room) const
+{
+    QVariantList out;
+    const QStringList ids = room->pinnedEventIds();
+    for (const QString &id : ids) {
+        const auto it = room->findInTimeline(id);
+        if (it == room->historyEdge())
+            continue;
+        out.append(rowForEvent(it->event()));
+    }
+    return out;
 }
 
 void MatrixRoomBridge::createRoom(const QString &name, const QString &topic, const QString &alias, const QStringList &invitedUsers, bool isPrivate)

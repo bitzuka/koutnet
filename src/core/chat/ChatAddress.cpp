@@ -7,6 +7,7 @@ namespace
 const QLatin1String kMatrixPrefix("mx:");
 const QLatin1String kRocketPrefix("rc:");
 const QLatin1String kTelegramPrefix("tg:");
+const QLatin1String kToxPrefix("tox:");
 const QLatin1String kReservedPrefix("__");
 } // namespace
 
@@ -23,6 +24,8 @@ Transport transportOf(const QString &chatId)
         return Transport::RocketChat;
     if (chatId.startsWith(kTelegramPrefix))
         return Transport::Telegram;
+    if (chatId.startsWith(kToxPrefix))
+        return Transport::Tox;
     return Transport::Lan;
 }
 
@@ -81,6 +84,22 @@ QString telegramChatKey(const QString &chatId)
     return chatId.mid(kTelegramPrefix.size());
 }
 
+QString toxChatId(const QString &chatKey)
+{
+    if (chatKey.isEmpty())
+        return {};
+    if (chatKey.startsWith(kToxPrefix))
+        return chatKey;
+    return kToxPrefix + chatKey;
+}
+
+QString toxChatKey(const QString &chatId)
+{
+    if (transportOf(chatId) != Transport::Tox)
+        return {};
+    return chatId.mid(kToxPrefix.size());
+}
+
 QString transportName(const QString &chatId)
 {
     switch (transportOf(chatId)) {
@@ -90,12 +109,33 @@ QString transportName(const QString &chatId)
         return QStringLiteral("rocket.chat");
     case Transport::Telegram:
         return QStringLiteral("telegram");
+    case Transport::Tox:
+        return QStringLiteral("tox");
     case Transport::Reserved:
         return QStringLiteral("reserved");
     case Transport::Lan:
         break;
     }
     return QStringLiteral("lan");
+}
+
+QString transportLabel(Transport transport)
+{
+    switch (transport) {
+    case Transport::Lan:
+        return QStringLiteral("LAN / VPN");
+    case Transport::Matrix:
+        return QStringLiteral("Matrix");
+    case Transport::RocketChat:
+        return QStringLiteral("Rocket.Chat");
+    case Transport::Telegram:
+        return QStringLiteral("Telegram");
+    case Transport::Tox:
+        return QStringLiteral("Tox");
+    case Transport::Reserved:
+        break;
+    }
+    return QStringLiteral("Local");
 }
 
 } // namespace koutnet::chatid

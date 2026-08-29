@@ -35,6 +35,9 @@
 #include "core/tray/TrayIcon.h"
 #include "matrix/MatrixManager.h"
 #include "matrix/MatrixRoomBridge.h"
+#include "rocketchat/RocketChatBackend.h"
+#include "telegram/TelegramBackend.h"
+#include "tox/ToxBackend.h"
 #include "matrix/MatrixVerification.h"
 
 #include "koutnet-version.h"
@@ -185,6 +188,12 @@ int main(int argc, char *argv[])
     auto *chatTransport = new koutnet::ChatBackendRegistry(&app);
     chatTransport->registerBackend(network);
     chatTransport->registerBackend(matrixRooms);
+    // The other three unified transports are scaffolded: registered so the
+    // interface lists them and opens a preview page, with the real protocol
+    // client grown in behind each later.
+    chatTransport->registerBackend(new koutnet::RocketChatBackend(&app));
+    chatTransport->registerBackend(new koutnet::TelegramBackend(&app));
+    chatTransport->registerBackend(new koutnet::ToxBackend(&app));
 
     auto *audioDevices = new koutnet::AudioDevices(&app);
     // owns the notifications, so parent it to the app to outlive the windows

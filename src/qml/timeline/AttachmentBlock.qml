@@ -44,6 +44,9 @@ ColumnLayout {
         && (root.isImage || root.mediaKind === "image")
     readonly property bool showsVideo: root.sourceUrl.length > 0 && root.mediaKind === "video"
     readonly property bool showsAudio: root.sourceUrl.length > 0 && root.mediaKind === "audio"
+    // A geo: point: opened in a map rather than downloaded. The media url is the
+    // geo uri itself, so the same sourceUrl the other branches use carries it.
+    readonly property bool showsLocation: root.sourceUrl.length > 0 && root.mediaKind === "location"
     // An attachment event whose media this session cannot reach. Said in words
     // rather than drawn as a broken frame.
     readonly property bool unreachable: root.sourceUrl.length === 0
@@ -204,10 +207,38 @@ ColumnLayout {
 
     QQC2.ItemDelegate {
         Layout.fillWidth: true
-        visible: !root.showsImage && !root.showsVideo && !root.showsAudio && !root.unreachable
+        visible: !root.showsImage && !root.showsVideo && !root.showsAudio && !root.showsLocation && !root.unreachable
         text: root.fileName
         icon.name: "document-open"
         onClicked: root.fileActivated(root.sourceUrl)
+    }
+
+    // A shared location: a row that opens the geo: uri in whatever maps handler
+    // the platform has, rather than trying to draw a map inside the timeline.
+    RowLayout {
+        Layout.fillWidth: true
+        visible: root.showsLocation
+        spacing: Kirigami.Units.smallSpacing
+
+        QQC2.Label {
+            Layout.fillWidth: true
+            text: root.fileName.length > 0
+                ? i18nc("@info shared location caption", "Location: %1", root.fileName)
+                : i18nc("@info shared location with no caption", "Shared location")
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            font: Kirigami.Theme.smallFont
+        }
+
+        QQC2.ToolButton {
+            display: QQC2.AbstractButton.IconOnly
+            icon.name: "map-symbolic"
+            text: i18nc("@action:button open a shared location in a map", "Open in map")
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            QQC2.ToolTip.text: text
+            onClicked: Qt.openUrlExternally(root.sourceUrl)
+        }
     }
 
     QQC2.Label {

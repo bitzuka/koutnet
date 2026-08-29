@@ -46,6 +46,11 @@ Item {
     required property bool showAuthor
     required property bool showDay
 
+    // The chat this row belongs to, so a poll vote can name its room on the wire.
+    property string chatId: ""
+    // A poll this row carries (empty map otherwise): question, answers, disclosed.
+    property var poll: ({})
+
     property real contentWidth: root.width
     property real fontScale: 1.0
     property string selfName: ""
@@ -62,6 +67,7 @@ Item {
     // The quote travels with the request rather than being looked up again by row:
     // the page would have to reach into the model to find what this is holding.
     signal replyRequested(int row, string author, string excerpt, string msgId)
+    signal pinRequested(int row, string msgId)
     signal editRequested(int row, string body)
     signal reactRequested(int row)
     signal menuRequested(int row, string author, string body, string msgId)
@@ -344,6 +350,45 @@ Item {
                         }
                     }
 
+                    // A poll: the question and one button per option. Voting goes
+                    // straight to the bridge with this row's room and event id; the
+                    // bridge posts an m.poll.response the server fans back as votes.
+                    Loader {
+                        Layout.fillWidth: true
+                        active: root.poll && root.poll.answers && root.poll.answers.length > 0
+                        visible: active
+
+                        sourceComponent: ColumnLayout {
+                            spacing: Kirigami.Units.smallSpacing
+
+                            QQC2.Label {
+                                Layout.fillWidth: true
+                                text: root.poll.question || ""
+                                textFormat: Text.PlainText
+                                font.bold: true
+                                wrapMode: Text.Wrap
+                            }
+
+                            Repeater {
+                                model: root.poll.answers
+                                delegate: QQC2.Button {
+                                    Layout.fillWidth: true
+                                    text: modelData.body || ""
+                                    onClicked: matrixRooms.sendPollVote(root.chatId, root.msgId, modelData.id || "")
+                                }
+                            }
+
+                            QQC2.Label {
+                                Layout.fillWidth: true
+                                visible: root.poll.disclosed === false
+                                text: i18nc("@info poll votes are hidden until closed", "Votes are private until the poll closes.")
+                                textFormat: Text.PlainText
+                                font: Kirigami.Theme.smallFont
+                                color: Kirigami.Theme.disabledTextColor
+                            }
+                        }
+                    }
+
                     // Plain Label rather than SelectableLabel: that one takes the right
                     // button for a copy menu of its own, and the right button on a
                     // message belongs to the message menu.
@@ -351,7 +396,7 @@ Item {
                         id: bodyLabel
 
                         Layout.fillWidth: true
-                        visible: !root.isFile
+                        visible: !root.isFile && !(root.poll && root.poll.answers && root.poll.answers.length > 0)
                         Layout.preferredHeight: visible ? -1 : 0
                         text: root.emojiOnly ? root.text : root.renderedBody
                         textFormat: root.emojiOnly ? Text.PlainText : Text.RichText
@@ -441,6 +486,7 @@ Item {
 
                     onReactRequested: root.reactRequested(root.index)
                     onReplyRequested: root.replyRequested(root.index, root.authorName, root.text, root.msgId)
+                    onPinRequested: root.pinRequested(root.index, root.msgId)
                     onEditRequested: root.editRequested(root.index, root.text)
                     onMenuRequested: root.menuRequested(root.index, root.authorName, root.text, root.msgId)
                 }

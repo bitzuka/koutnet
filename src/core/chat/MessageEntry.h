@@ -42,6 +42,11 @@ struct MessageEntry {
 
     bool isRead = false;
 
+    // A poll this row carries, empty unless it is one. Keys: question (string),
+    // answers (list of {id, body}), disclosed (bool). Votes are tracked by the
+    // bridge, not stored here, so a reload shows the question without the tally.
+    QVariantMap poll;
+
     // True between an outgoing message appearing in the timeline and its
     // datagram being written. Deliberately not serialised - a "sending" state
     // that survived a restart would never resolve.

@@ -32,6 +32,7 @@ MessageEntry MessageEntry::fromJson(const QJsonObject &o)
     e.mediaDurationMs = o.value(QStringLiteral("media_duration_ms")).toInt();
     e.avatarUrl = o.value(QStringLiteral("avatar_url")).toString();
     e.isRead = o.value(QStringLiteral("is_read")).toBool();
+    e.poll = o.value(QStringLiteral("poll")).toObject().toVariantMap();
     e.ensureMsgId();
     return e;
 }
@@ -64,6 +65,8 @@ QJsonObject MessageEntry::toJson() const
     o[QStringLiteral("media_duration_ms")] = mediaDurationMs;
     o[QStringLiteral("avatar_url")] = avatarUrl;
     o[QStringLiteral("is_read")] = isRead;
+    if (!poll.isEmpty())
+        o[QStringLiteral("poll")] = QJsonObject::fromVariantMap(poll);
     return o;
 }
 

@@ -17,6 +17,7 @@ QQC2.Control {
     signal reactRequested()
     signal replyRequested()
     signal editRequested()
+    signal pinRequested()
     signal menuRequested()
 
     padding: Math.round(Kirigami.Units.smallSpacing / 2)
@@ -57,6 +58,18 @@ QQC2.Control {
             QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
             QQC2.ToolTip.text: text
             onClicked: root.replyRequested()
+        }
+
+        QQC2.ToolButton {
+            display: QQC2.AbstractButton.IconOnly
+            icon.name: "pin"
+            icon.width: Kirigami.Units.iconSizes.small
+            icon.height: Kirigami.Units.iconSizes.small
+            text: i18nc("@action:button pin this message to the room", "Pin")
+            QQC2.ToolTip.visible: hovered
+            QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
+            QQC2.ToolTip.text: text
+            onClicked: root.pinRequested()
         }
 
         QQC2.ToolButton {

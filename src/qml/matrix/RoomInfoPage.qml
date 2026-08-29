@@ -6,6 +6,7 @@ import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as Components
 import org.kde.kirigamiaddons.formcard as FormCard
+import QtQuick.Dialogs as Dialogs
 import koutnet.app
 
 // PeerInfoPage's opposite number. That one answers "who is on the other end of
@@ -32,6 +33,9 @@ Kirigami.ScrollablePage {
     // that would be pasted somewhere, and that should take a deliberate click.
     property bool addressExpanded: false
     property bool membersExpanded: true
+    property bool settingsExpanded: false
+    property bool pinnedExpanded: false
+    property bool searchExpanded: false
 
     signal memberActivated(string userId, Item anchorItem)
     signal leaveRequested(string chatId)
@@ -46,6 +50,10 @@ Kirigami.ScrollablePage {
     // note at the top of MatrixRoomBridge.h.
     property var info: null
     property var members: []
+    // Pinned messages (from roomPinnedChanged) and search results, kept here so
+    // the two sections below can list them without another bridge round trip.
+    property var pinned: []
+    property var searchResults: []
 
     readonly property string roomName: root.info ? (root.info.displayName || "") : ""
     readonly property string topic: root.info ? (root.info.topic || "") : ""
@@ -99,6 +107,20 @@ Kirigami.ScrollablePage {
         target: matrixManager
         function onKeyBackupUnlocked() {
             root.refresh()
+        }
+    }
+
+    // The pinned set and search results are emitted by the bridge with the chat
+    // id; re-point them when they are about this room.
+    Connections {
+        target: matrixRooms
+        function onRoomPinnedChanged(chatId, list) {
+            if (chatId === root.chatId)
+                root.pinned = list
+        }
+        function onRoomSearchResults(chatId, list) {
+            if (chatId === root.chatId)
+                root.searchResults = list
         }
     }
 
@@ -181,6 +203,14 @@ Kirigami.ScrollablePage {
                 implicitHeight: Kirigami.Units.gridUnit * 5
                 name: root.roomName
                 source: root.info ? (root.info.avatarUrl || "") : ""
+
+                // The room's picture is one tap from a new one; the picker hands
+                // the path to the bridge, which uploads and points the state at it.
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: avatarDialog.open()
+                }
             }
 
             Kirigami.Heading {
@@ -381,6 +411,126 @@ Kirigami.ScrollablePage {
 
         ChatSection {
             Layout.fillWidth: true
+            text: i18nc("@title:group edit the room's name and topic", "Room settings")
+            expanded: false
+            onToggleRequested: root.settingsExpanded = !root.settingsExpanded
+        }
+
+        FormCard.FormCard {
+            Layout.fillWidth: true
+            visible: root.settingsExpanded
+
+            FormCard.FormTextFieldDelegate {
+                label: i18nc("@label:textbox the room's display name", "Name")
+                text: root.roomName
+                onAccepted: matrixRooms.setRoomName(root.chatId, text)
+            }
+
+            FormCard.FormTextFieldDelegate {
+                label: i18nc("@label:textbox the room's topic", "Topic")
+                text: root.topic
+                onAccepted: matrixRooms.setRoomTopic(root.chatId, text)
+            }
+        }
+
+        ChatSection {
+            Layout.fillWidth: true
+            text: i18nc("@title:group messages pinned in this room", "Pinned messages")
+            itemCount: root.pinned.length
+            expanded: false
+            onToggleRequested: root.pinnedExpanded = !root.pinnedExpanded
+        }
+
+        FormCard.FormCard {
+            Layout.fillWidth: true
+            visible: root.pinnedExpanded
+
+            FormCard.FormTextDelegate {
+                visible: root.pinned.length === 0
+                text: i18nc("@info no messages are pinned in this room", "Nothing pinned yet")
+            }
+
+            Repeater {
+                model: root.pinned
+
+                delegate: FormCard.AbstractFormDelegate {
+                    id: pinDelegate
+                    required property var modelData
+                    Layout.fillWidth: true
+
+                    contentItem: RowLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            text: pinDelegate.modelData.text || pinDelegate.modelData.eventId
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                            wrapMode: Text.WordWrap
+                        }
+                        QQC2.Button {
+                            icon.name: "pin-remove"
+                            text: i18nc("@action:button unpin a message", "Unpin")
+                            onClicked: matrixRooms.unpinMessage(root.chatId, pinDelegate.modelData.ts)
+                        }
+                    }
+                }
+            }
+        }
+
+        ChatSection {
+            Layout.fillWidth: true
+            text: i18nc("@title:group search the room history", "Search")
+            expanded: false
+            onToggleRequested: root.searchExpanded = !root.searchExpanded
+        }
+
+        FormCard.FormCard {
+            Layout.fillWidth: true
+            visible: root.searchExpanded
+
+            FormCard.FormTextFieldDelegate {
+                id: searchField
+                label: i18nc("@label:textbox search the room history", "Search")
+                placeholderText: i18nc("@info:placeholder type to search messages", "Type to search messages")
+                onAccepted: matrixRooms.searchMessages(root.chatId, text)
+            }
+
+            FormCard.FormTextDelegate {
+                visible: root.searchResults.length === 0 && searchField.text.length > 0
+                text: i18nc("@info no messages matched the search", "No matches")
+            }
+
+            Repeater {
+                model: root.searchResults
+
+                delegate: FormCard.AbstractFormDelegate {
+                    id: resultDelegate
+                    required property var modelData
+                    Layout.fillWidth: true
+
+                    contentItem: ColumnLayout {
+                        spacing: 0
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            text: resultDelegate.modelData.text || resultDelegate.modelData.eventId
+                            textFormat: Text.PlainText
+                            elide: Text.ElideRight
+                            wrapMode: Text.WordWrap
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            text: resultDelegate.modelData.sender || ""
+                            textFormat: Text.PlainText
+                            font: Kirigami.Theme.smallFont
+                            color: Kirigami.Theme.disabledTextColor
+                        }
+                    }
+                }
+            }
+        }
+
+        ChatSection {
+            Layout.fillWidth: true
             text: i18nc("@title:group the people in a Matrix room", "Members")
             itemCount: root.members.length
             expanded: root.membersExpanded
@@ -460,6 +610,13 @@ Kirigami.ScrollablePage {
                     }
                 }
             }
+        }
+
+        Dialogs.FileDialog {
+            id: avatarDialog
+            title: i18nc("@title:window", "Set room avatar")
+            nameFilters: [i18nc("@item file type filter", "Images (*.png *.jpg *.jpeg *.gif *.webp)"), i18nc("@item file type filter", "All files (*)")]
+            onAccepted: matrixRooms.setRoomAvatar(root.chatId, selectedFile.toString().replace("file://", ""))
         }
     }
 }

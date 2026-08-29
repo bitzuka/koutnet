@@ -41,8 +41,10 @@ int transportGroup(const QString &chatId)
         return 2;
     case koutnet::chatid::Transport::RocketChat:
         return 3;
-    case koutnet::chatid::Transport::Reserved:
+    case koutnet::chatid::Transport::Tox:
         return 4;
+    case koutnet::chatid::Transport::Reserved:
+        return 5;
     case koutnet::chatid::Transport::Lan:
         break;
     }

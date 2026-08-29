@@ -13,6 +13,7 @@
 #pragma once
 
 #include <QString>
+#include <QVariantMap>
 
 namespace koutnet::matrix
 {
@@ -24,6 +25,7 @@ enum class MediaKind {
     Video,
     Audio,
     File,
+    Location, //!< a geo: point, opened as a map rather than downloaded
 };
 
 // The state changes worth a line in a conversation. Anything a room can do to
@@ -73,6 +75,7 @@ struct RawEvent {
     bool redacted = false;
     bool encrypted = false; // an m.room.encrypted no key arrived for
     bool textLike = false; // m.text, m.notice or m.emote
+    bool spoiler = false; // text hidden until the reader chooses to reveal it
 
     // An attachment, once the bridge has turned the event's mxc:// source into
     // a URL the interface can load. A media kind with an empty mediaUrl means
@@ -91,6 +94,10 @@ struct RawEvent {
     // other than the sender: a kick, a ban, a withdrawn invitation.
     StateChange state = StateChange::None;
     QString stateSubject;
+
+    // A poll this event carries (empty map unless it is m.poll.start). Keys:
+    // question (string), answers (list of {id, body}), disclosed (bool).
+    QVariantMap poll;
 };
 
 enum class RowKind {
@@ -99,6 +106,7 @@ enum class RowKind {
     Encrypted, //!< there is a message here and no key for it; say so
     Attachment, //!< a picture, a recording or a file
     System, //!< the room talking about itself
+    Poll, //!< a question with answer options the reader can vote on
 };
 
 struct Row {
@@ -120,6 +128,10 @@ struct Row {
     int mediaWidth = 0;
     int mediaHeight = 0;
     int mediaDurationMs = 0;
+
+    // A poll this event carries (empty map unless it is m.poll.start). Keys:
+    // question (string), answers (list of {id, body}), disclosed (bool).
+    QVariantMap poll;
 };
 
 Row rowFor(const RawEvent &event);

@@ -136,6 +136,13 @@ bool ChatBackendRegistry::supportsReactions(const QString &chatId) const
     return false;
 }
 
+bool ChatBackendRegistry::isPreview(const QString &chatId) const
+{
+    if (ChatBackend *backend = backendFor(chatId))
+        return backend->isPreview();
+    return false;
+}
+
 QString ChatBackendRegistry::transportName(const QString &chatId) const
 {
     return chatid::transportName(chatId);

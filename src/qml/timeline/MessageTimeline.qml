@@ -28,6 +28,9 @@ Item {
     property string selfDisplayName: ""
     property string selfAvatarSource: ""
     property bool canEditMessages: true
+    // The chat the timeline shows, threaded to each row so a poll vote can name
+    // its room. Empty for the saved-messages chat, which has no polls.
+    property string chatId: ""
 
     // Rows crossing this boundary go through toSourceRow()/fromSourceRow(); every
     // signal this item raises carries a ChatModel row, so nothing above it has to
@@ -254,6 +257,7 @@ Item {
             selfDisplayName: root.selfDisplayName
             selfAvatarSource: root.selfAvatarSource
             canEditMessages: root.canEditMessages
+            chatId: root.chatId
             flashing: flashTarget.msgId.length > 0 && flashTarget.msgId === messageRow.msgId
 
             onReplyRequested: (row, author, excerpt, msgId) =>

@@ -7,8 +7,9 @@ import org.kde.kirigami as Kirigami
 import koutnet.app
 
 // one tab per transport, since each opens a chat differently.
-// only LAN/VPN is wired up; Matrix has its own join/create forms;
-// Telegram and Rocket.Chat are placeholders for now.
+// LAN/VPN and Matrix are live; Rocket.Chat, Telegram and Tox are scaffolded
+// and open a preview page instead of an action form, so the picker never
+// offers a backend the app cannot show.
 Kirigami.Page {
     id: root
 
@@ -79,6 +80,9 @@ Kirigami.Page {
         return ""
     }
 
+    // The five unified transports. LAN and Matrix are live; Rocket.Chat,
+    // Telegram and Tox are scaffolded and open a preview page instead of an
+    // action form, so the picker never offers a backend the app cannot show.
     header: QQC2.TabBar {
         id: tabBar
 
@@ -86,6 +90,7 @@ Kirigami.Page {
         QQC2.TabButton { text: i18nc("@title:tab a transport", "Matrix") }
         QQC2.TabButton { text: i18nc("@title:tab a transport", "Rocket.Chat") }
         QQC2.TabButton { text: i18nc("@title:tab a transport", "LAN / VPN") }
+        QQC2.TabButton { text: i18nc("@title:tab a transport", "Tox") }
     }
 
     StackLayout {
@@ -328,6 +333,17 @@ Kirigami.Page {
                     online: true
                     onClicked: root.startChatWith(model.ip)
                 }
+            }
+        }
+
+        // Tox, not built yet
+        Item {
+            Kirigami.PlaceholderMessage {
+                anchors.centerIn: parent
+                width: parent.width - Kirigami.Units.largeSpacing * 4
+                icon.name: "user-available"
+                text: i18nc("@title a transport", "Tox")
+                explanation: i18nc("@info a transport that is not implemented yet", "Not built yet.")
             }
         }
     }

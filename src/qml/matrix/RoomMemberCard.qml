@@ -275,6 +275,18 @@ QQC2.Popup {
                     root.close()
                 }
             }
+
+            QQC2.Button {
+                Layout.fillWidth: true
+                visible: !root.isSelf && root.userId.length > 0
+                icon.name: "window-close"
+                text: i18nc("@action:button mute a user across the whole account", "Ignore")
+                onClicked: {
+                    matrixRooms.ignoreUser(root.userId)
+                    root.notifyRequested(i18nc("@info:status", "Ignored %1", root.userId))
+                    root.close()
+                }
+            }
         }
     }
 }

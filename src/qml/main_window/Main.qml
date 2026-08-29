@@ -271,6 +271,10 @@ Kirigami.ApplicationWindow {
             if (chatId === root.currentPeerIp && root.chatAtBottom)
                 root.markChatRead(chatId)
         }
+        function onRoomPoll(chatId, eventId, question, answers, disclosed, sender, isOwn, ts, senderAvatar) {
+            // A poll is its own row kind; the window votes through sendPollVote.
+            root.modelForPeer(chatId).ingestRemotePoll(eventId, question, answers, disclosed, sender, isOwn, ts, senderAvatar)
+        }
         // Never a new row: the corrected text replaces what is already on the
         // screen, and false means the original is older than the loaded backlog.
         function onRoomMessageEdited(chatId, eventId, newText) {
@@ -1299,7 +1303,17 @@ Kirigami.ApplicationWindow {
                 // with it, and the reconciliation is what duplicates messages
                 // in every client that has tried it. sendFailed() reports
                 // whatever went wrong.
-                chatTransport.sendText(peerIp, text)
+                if (replyId && replyId.length > 0) {
+                    // A quote-reply: Matrix carries it as m.in_reply_to, which
+                    // the bridge resolves from the row stamp to the event id.
+                    matrixRooms.sendReply(peerIp, Number(replyId), text)
+                } else if (chatTransport.transportName(peerIp) === "matrix") {
+                    // Send formatted when the composer typed markdown; the bridge
+                    // derives the HTML body, so plain text stays plain on the wire.
+                    matrixRooms.sendRichText(peerIp, text, "")
+                } else {
+                    chatTransport.sendText(peerIp, text)
+                }
                 return
             }
             // The quote is stored with the message but not put on the wire: the
@@ -1315,8 +1329,71 @@ Kirigami.ApplicationWindow {
             if (chatTransport.serverOwnsTimeline(peerIp)) {
                 // No local row first, for the same reason as a text message
                 // above: the server echoes the file back through sync
-                // carrying the id the whole room sees.
+                // carrying the id the whole room sees. Matrix uploads the bytes
+                // itself; a preview backend has no real room to hand them to.
+                if (chatTransport.transportName(peerIp) === "matrix")
+                    matrixRooms.sendFile(peerIp, localFilePath)
+                else
+                    chatTransport.sendFile(peerIp, localFilePath)
+                return
+            }
+            const stamp = messagesModel.sendFile(localFilePath, root.looksLikeImage(localFilePath))
+            if (!isSelfChat)
                 chatTransport.sendFile(peerIp, localFilePath)
+            messagesModel.markSent(stamp)
+        }
+        onSpoilerRequested: function(text) {
+            if (chatTransport.serverOwnsTimeline(peerIp)) {
+                // A spoiler is a Matrix construct; other server-backed transports
+                // fall back to plain text here, where the dialect is known.
+                if (chatTransport.transportName(peerIp) === "matrix")
+                    matrixRooms.sendSpoiler(peerIp, text)
+                else
+                    chatTransport.sendText(peerIp, text)
+                return
+            }
+            // No reply field on the LAN wire; the spoiler rides as plain text.
+            const stamp = messagesModel.sendMessage(text, "", "", "")
+            if (stamp === 0)
+                return
+            if (!isSelfChat)
+                chatTransport.sendText(peerIp, text)
+            messagesModel.markSent(stamp)
+        }
+        onLocationRequested: function(latitude, longitude, label) {
+            if (!chatTransport.serverOwnsTimeline(peerIp)) {
+                root.notify(i18nc("@info", "Locations can only be shared over a server-backed chat."),
+                            Kirigami.MessageType.Information)
+                return
+            }
+            if (chatTransport.transportName(peerIp) === "matrix") {
+                matrixRooms.sendLocation(peerIp, latitude, longitude, label)
+            } else {
+                root.notify(i18nc("@info", "This chat cannot share a location yet."),
+                            Kirigami.MessageType.Information)
+            }
+        }
+        onVoiceCaptured: function(filePath, durationMs) {
+            // A voice clip is an m.audio the bridge flags as an MSC3245 voice
+            // message; the LAN side sends it as a plain attachment.
+            if (chatTransport.serverOwnsTimeline(peerIp)) {
+                if (chatTransport.transportName(peerIp) === "matrix")
+                    matrixRooms.sendVoice(peerIp, filePath, durationMs)
+                else
+                    chatTransport.sendFile(peerIp, filePath)
+                return
+            }
+            const stamp = messagesModel.sendFile(filePath, false)
+            if (!isSelfChat)
+                chatTransport.sendFile(peerIp, filePath)
+            messagesModel.markSent(stamp)
+        }
+        onStickerRequested: function(localFilePath) {
+            if (chatTransport.serverOwnsTimeline(peerIp)) {
+                if (chatTransport.transportName(peerIp) === "matrix")
+                    matrixRooms.sendStickerFile(peerIp, localFilePath)
+                else
+                    chatTransport.sendFile(peerIp, localFilePath)
                 return
             }
             const stamp = messagesModel.sendFile(localFilePath, root.looksLikeImage(localFilePath))
