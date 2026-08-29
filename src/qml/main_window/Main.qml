@@ -275,6 +275,10 @@ Kirigami.ApplicationWindow {
             // A poll is its own row kind; the window votes through sendPollVote.
             root.modelForPeer(chatId).ingestRemotePoll(eventId, question, answers, disclosed, sender, isOwn, ts, senderAvatar)
         }
+        function onRoomPollVote(chatId, eventId, answerId, voterId, isOwn) {
+            // Not a row: a vote folded into the tally of the poll it answers.
+            root.modelForPeer(chatId).applyPollResponse(eventId, answerId, voterId, isOwn)
+        }
         // Never a new row: the corrected text replaces what is already on the
         // screen, and false means the original is older than the loaded backlog.
         function onRoomMessageEdited(chatId, eventId, newText) {

@@ -373,15 +373,29 @@ Item {
                                 model: root.poll ? root.poll.answers : []
                                 delegate: QQC2.Button {
                                     Layout.fillWidth: true
-                                    text: modelData.body || ""
+                                    // Highlight the option this account picked so a vote is
+                                    // visible even on an undisclosed poll where the count is hidden.
+                                    property bool chosen: root.poll && root.poll.myVotes ? root.poll.myVotes.indexOf(modelData.id) >= 0 : false
+                                    highlighted: chosen
+                                    text: {
+                                        const c = root.poll && root.poll.counts ? root.poll.counts[index] : 0
+                                        if (root.poll && root.poll.disclosed && c > 0)
+                                            return (modelData.body || "") + "  (" + c + ")"
+                                        return modelData.body || ""
+                                    }
                                     onClicked: matrixRooms.sendPollVote(root.chatId, root.msgId, modelData.id || "")
                                 }
                             }
 
                             QQC2.Label {
                                 Layout.fillWidth: true
-                                visible: root.poll ? (root.poll.disclosed === false) : false
-                                text: i18nc("@info poll votes are hidden until closed", "Votes are private until the poll closes.")
+                                text: {
+                                    if (!root.poll)
+                                        return ""
+                                    if (root.poll.disclosed)
+                                        return i18nc("@info poll tally, %1 is the number of votes cast", "%1 vote(s)", root.poll.totalVotes || 0)
+                                    return i18nc("@info poll votes are hidden until closed", "Votes are private until the poll closes.")
+                                }
                                 textFormat: Text.PlainText
                                 font: Kirigami.Theme.smallFont
                                 color: Kirigami.Theme.disabledTextColor

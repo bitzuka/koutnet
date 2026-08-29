@@ -188,6 +188,17 @@ Row rowFor(const RawEvent &event)
         return row;
     }
 
+    // A vote is not its own row: it amends the tally of the poll it answers, named
+    // by that poll's event id so the window can find the row to update.
+    if (!event.pollStartId.isEmpty()) {
+        row.kind = RowKind::PollVote;
+        row.msgId = event.pollStartId;
+        row.pollAnswerId = event.pollAnswerId;
+        row.senderId = event.senderId;
+        row.isOwn = event.isOwn;
+        return row;
+    }
+
     if (!event.textLike) {
         // A msgtype with no renderer here - m.location, m.key.verification.request
         // and whatever comes next. Named rather than dropped.

@@ -98,6 +98,11 @@ struct RawEvent {
     // A poll this event carries (empty map unless it is m.poll.start). Keys:
     // question (string), answers (list of {id, body}), disclosed (bool).
     QVariantMap poll;
+
+    // A vote on a poll (m.poll.response): the event id of the poll it answers and
+    // the answer id chosen. Both empty unless this is a poll response.
+    QString pollStartId;
+    QString pollAnswerId;
 };
 
 enum class RowKind {
@@ -107,6 +112,7 @@ enum class RowKind {
     Attachment, //!< a picture, a recording or a file
     System, //!< the room talking about itself
     Poll, //!< a question with answer options the reader can vote on
+    PollVote, //!< a vote on a poll, updating the tally of the poll it answers
 };
 
 struct Row {
@@ -132,6 +138,11 @@ struct Row {
     // A poll this event carries (empty map unless it is m.poll.start). Keys:
     // question (string), answers (list of {id, body}), disclosed (bool).
     QVariantMap poll;
+
+    // A vote on a poll (m.poll.response): the event id of the poll it answers and
+    // the answer id chosen. Both empty unless this is a poll response.
+    QString pollStartId;
+    QString pollAnswerId;
 };
 
 Row rowFor(const RawEvent &event);

@@ -179,6 +179,10 @@ Q_SIGNALS:
                   double ts,
                   QString senderAvatar = QString());
 
+    // one vote on a poll (m.poll.response). eventId is the poll start it answers,
+    // answerId the chosen option; the window folds it into that poll's tally.
+    void roomPollVote(QString chatId, QString eventId, QString answerId, QString voterId, bool isOwn);
+
     // a reaction to a message. ts is the target message stamp, never the
     // reaction itself - the ReactionStore keys on the target, like the LAN one.
     void roomReaction(QString chatId, double ts, QString emoji, QString sender, bool added);

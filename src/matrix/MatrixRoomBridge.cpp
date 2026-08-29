@@ -315,6 +315,41 @@ koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
         return raw;
     }
 
+    // Polls are standalone events (m.poll.start / m.poll.response / m.poll.end),
+    // not m.room.message, so they never arrive as a RoomMessageEvent. libQuotient
+    // keeps them as a bare RoomEvent; read the type straight off it. An m.poll.start
+    // is the poll itself; an m.poll.response is one vote that updates its tally.
+    const QString matrixType = event->matrixType();
+    if (matrixType == QStringLiteral("m.poll.start")) {
+        const QJsonObject content = event->contentJson();
+        const QJsonObject poll = content.value(QStringLiteral("poll")).toObject();
+        const QString questionText = poll.value(QStringLiteral("question")).toObject().value(QStringLiteral("body")).toString();
+        QVariantList answers;
+        const QJsonArray answersJson = poll.value(QStringLiteral("answers")).toArray();
+        for (const QJsonValue &answer : answersJson) {
+            const QJsonObject answerObj = answer.toObject();
+            QVariantMap entry;
+            entry.insert(QStringLiteral("id"), answerObj.value(QStringLiteral("id")).toString());
+            entry.insert(QStringLiteral("body"), answerObj.value(QStringLiteral("body")).toString());
+            answers.append(entry);
+        }
+        QVariantMap pollMap;
+        pollMap.insert(QStringLiteral("question"), questionText.isEmpty() ? content.value(QStringLiteral("body")).toString() : questionText);
+        pollMap.insert(QStringLiteral("answers"), answers);
+        pollMap.insert(QStringLiteral("disclosed"), poll.value(QStringLiteral("kind")).toString() == QStringLiteral("disclosed"));
+        raw.poll = pollMap;
+        raw.body = pollMap.value(QStringLiteral("question")).toString();
+        return raw;
+    }
+    if (matrixType == QStringLiteral("m.poll.response")) {
+        const QJsonObject content = event->contentJson();
+        const QJsonObject relates = content.value(QStringLiteral("m.relates_to")).toObject();
+        raw.pollStartId = relates.value(QStringLiteral("event_id")).toString();
+        const QJsonArray answers = content.value(QStringLiteral("poll")).toObject().value(QStringLiteral("answers")).toArray();
+        raw.pollAnswerId = answers.isEmpty() ? QString() : answers.at(0).toObject().value(QStringLiteral("id")).toString();
+        return raw;
+    }
+
     if (const auto *message = eventCast<const RoomMessageEvent>(event)) {
         // Read the msgtype from the raw content: the typed MsgType enum does not
         // have every unstable kind (m.sticker, m.location), and a library whose
@@ -513,6 +548,20 @@ void MatrixRoomBridge::trackRoom(Room *room)
 
     connect(room, &Room::addedMessages, this, [this, room](int fromIndex, int toIndex) {
         publishRange(room, fromIndex, toIndex);
+    });
+    // Polls and poll votes are standalone events (m.poll.start / m.poll.response),
+    // not m.room.message, so addedMessages() never carries them. This signal does,
+    // for every event the room is about to add to its timeline - filter to the
+    // poll kinds and fold them into the conversation the same way.
+    connect(room, &Room::aboutToAddNewMessages, this, [this, room](const Quotient::RoomEventsRange &events) {
+        for (const auto &ev : events) {
+            const RoomEvent *event = ev.get();
+            const QString type = event->matrixType();
+            if (type == QStringLiteral("m.poll.start") || type == QStringLiteral("m.poll.response")
+                || type == QStringLiteral("m.poll.end")) {
+                publishEvent(room, event);
+            }
+        }
     });
     // this is how an outgoing message reaches the timeline, and the only way.
     // addedMessages() fires for a sync span that is not an echo of our own send;
@@ -728,13 +777,21 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
                         avatar);
         break;
     }
+    case matrix::RowKind::PollVote: {
+        // Not a row: an amendment to the poll named by row.msgId. The window keeps
+        // the tally, and the event id here is the poll it votes on, not a message.
+        Q_EMIT roomPollVote(chatId, row.msgId, row.pollAnswerId, row.senderId, row.isOwn);
+        break;
+    }
     }
 
     // the window addresses messages by stamp, the homeserver by event id; both
     // directions are kept so a reaction/edit/unsend resolves to the event it is
     // about. system rows carry a synthetic id that cannot be reacted to, so
-    // they are not indexed - a reaction to a state line has no Matrix event.
-    if (!row.msgId.isEmpty() && row.kind != matrix::RowKind::Skip && row.kind != matrix::RowKind::System && row.ts > 0.0) {
+    // they are not indexed - a reaction to a state line has no Matrix event. A
+    // poll vote names the poll it answers, not itself, so it is not indexed either.
+    if (!row.msgId.isEmpty() && row.kind != matrix::RowKind::Skip && row.kind != matrix::RowKind::System
+        && row.kind != matrix::RowKind::PollVote && row.ts > 0.0) {
         m_tsToEventId[chatId].insert(row.ts, row.msgId);
         m_eventIdToTs[chatId].insert(row.msgId, row.ts);
     }
@@ -1423,10 +1480,9 @@ void MatrixRoomBridge::sendPoll(const QString &chatId, const QString &question, 
     poll.insert(QStringLiteral("kind"), disclosed ? QStringLiteral("disclosed") : QStringLiteral("undisclosed"));
     poll.insert(QStringLiteral("answers"), answersJson);
     QJsonObject content;
-    content.insert(QStringLiteral("msgtype"), QStringLiteral("m.poll.start"));
     content.insert(QStringLiteral("body"), question);
     content.insert(QStringLiteral("poll"), poll);
-    room->postJson(QStringLiteral("m.room.message"), content);
+    room->postJson(QStringLiteral("m.poll.start"), content);
 }
 
 void MatrixRoomBridge::sendPollVote(const QString &chatId, const QString &msgId, const QString &answerId)
@@ -1441,18 +1497,17 @@ void MatrixRoomBridge::sendPollVote(const QString &chatId, const QString &msgId,
         return;
     }
     QJsonObject answer;
-    answer.insert(QStringLiteral("s"), answerId);
+    answer.insert(QStringLiteral("id"), answerId);
     QJsonArray answers;
     answers.append(answer);
     QJsonObject votes;
     votes.insert(QStringLiteral("answers"), answers);
     QJsonObject content;
-    content.insert(QStringLiteral("msgtype"), QStringLiteral("m.poll.response"));
     content.insert(QStringLiteral("body"), i18nc("@info a poll vote with no readable text", "Voted."));
     content.insert(QStringLiteral("m.relates_to"),
                    QJsonObject{{QStringLiteral("rel_type"), QStringLiteral("m.reference")}, {QStringLiteral("event_id"), msgId}});
-    content.insert(QStringLiteral("org.matrix.msc3381.poll.response"), votes);
-    room->postJson(QStringLiteral("m.room.message"), content);
+    content.insert(QStringLiteral("poll"), votes);
+    room->postJson(QStringLiteral("m.poll.response"), content);
 }
 
 QVariantList MatrixRoomBridge::pinnedRows(Room *room) const

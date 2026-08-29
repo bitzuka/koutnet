@@ -473,15 +473,62 @@ bool ChatModel::ingestRemotePoll(const QString &remoteId,
     e.msgType = QStringLiteral("private");
     e.isRead = isOwn;
     e.text = question;
-    // The question and options ride as structured data the window renders; votes
-    // are tracked by the bridge and not stored, so a reload shows the poll fresh.
+    // The question and options ride as structured data the window renders. Votes
+    // are tallied live as m.poll.response events arrive, so the counts start bare.
     QVariantMap poll;
     poll.insert(QStringLiteral("question"), question);
     poll.insert(QStringLiteral("answers"), answers);
     poll.insert(QStringLiteral("disclosed"), disclosed);
+    QVariantList counts;
+    counts.reserve(answers.size());
+    for (int i = 0; i < answers.size(); ++i)
+        counts.append(0);
+    poll.insert(QStringLiteral("counts"), counts);
+    poll.insert(QStringLiteral("totalVotes"), 0);
+    poll.insert(QStringLiteral("myVotes"), QVariantList());
     e.poll = poll;
 
     appendEntry(e, true);
+    return true;
+}
+
+bool ChatModel::applyPollResponse(const QString &pollStartId, const QString &answerId, const QString &voterId, bool isOwn)
+{
+    const int row = rowForMsgId(pollStartId);
+    if (row < 0 || answerId.isEmpty())
+        return false;
+
+    MessageEntry &m = m_messages[row];
+    if (!m.poll.contains(QStringLiteral("answers")))
+        return false;
+
+    QVariantMap poll = m.poll;
+    QVariantList answers = poll.value(QStringLiteral("answers")).toList();
+    QVariantList counts = poll.value(QStringLiteral("counts")).toList();
+    int total = poll.value(QStringLiteral("totalVotes"), 0).toInt();
+    QVariantList myVotes = poll.value(QStringLiteral("myVotes")).toList();
+
+    int answerIndex = -1;
+    for (int i = 0; i < answers.size(); ++i) {
+        if (answers.at(i).toMap().value(QStringLiteral("id")).toString() == answerId) {
+            answerIndex = i;
+            break;
+        }
+    }
+    if (answerIndex < 0)
+        return false;
+
+    const int before = counts.value(answerIndex, 0).toInt();
+    counts[answerIndex] = before + 1;
+    poll.insert(QStringLiteral("counts"), counts);
+    poll.insert(QStringLiteral("totalVotes"), total + 1);
+    if (isOwn && !myVotes.contains(answerId))
+        myVotes.append(answerId);
+    poll.insert(QStringLiteral("myVotes"), myVotes);
+
+    m.poll = poll;
+    const QModelIndex idx = index(row);
+    Q_EMIT dataChanged(idx, idx, {PollRole});
     return true;
 }
 
