@@ -46,10 +46,8 @@ Item {
     required property bool showAuthor
     required property bool showDay
 
-    // The chat this row belongs to, so a poll vote can name its room on the wire.
-    property string chatId: ""
-    // A poll this row carries (empty map otherwise): question, answers, disclosed.
-    property var poll: ({})
+    // chatId and poll come from the model roles of the same names; do NOT declare
+    // them here, or the local property shadows the role and polls never render.
 
     property real contentWidth: root.width
     property real fontScale: 1.0
