@@ -177,6 +177,17 @@ Row rowFor(const RawEvent &event)
         return row;
     }
 
+    // A poll carries its own renderer; it is not a plain text row even though it
+    // also has a body (used as the question and as the conversation-list preview).
+    // Checked before !textLike: m.poll.start is not text-like, so the generic
+    // "cannot show" branch would swallow it and the voter would never appear.
+    if (!event.poll.isEmpty()) {
+        row.kind = RowKind::Poll;
+        row.text = event.body;
+        row.poll = event.poll;
+        return row;
+    }
+
     if (!event.textLike) {
         // A msgtype with no renderer here - m.location, m.key.verification.request
         // and whatever comes next. Named rather than dropped.
@@ -190,15 +201,6 @@ Row rowFor(const RawEvent &event)
     // An m.text with an empty body is legal and says nothing.
     if (event.body.isEmpty())
         return row;
-
-    // A poll carries its own renderer; it is not a plain text row even though it
-    // also has a body (used as the question and as the conversation-list preview).
-    if (!event.poll.isEmpty()) {
-        row.kind = RowKind::Poll;
-        row.text = event.body;
-        row.poll = event.poll;
-        return row;
-    }
 
     row.kind = RowKind::Text;
     row.text = event.body;
