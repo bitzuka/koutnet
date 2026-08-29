@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-24 02:18+0000\n"
+"POT-Creation-Date: 2026-08-29 01:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -312,93 +312,93 @@ msgctxt "@action:inmenu stop hearing calls, and stop being heard"
 msgid "Deafen"
 msgstr ""
 
-#: src/main.cpp:108
+#: src/main.cpp:98
 msgctxt "@title application name"
 msgid "KOutNet"
 msgstr ""
 
-#: src/main.cpp:110
+#: src/main.cpp:100
 msgctxt "@info:whatsthis"
 msgid "P2P encrypted messenger for LAN, VPN and Matrix"
 msgstr ""
 
-#: src/main.cpp:112
+#: src/main.cpp:102
 msgctxt "@info:credit"
 msgid "Copyright 2026 bitzuka"
 msgstr ""
 
-#: src/main.cpp:113
+#: src/main.cpp:103
 msgctxt "@info:credit"
 msgid "bitzuka"
 msgstr ""
 
-#: src/main.cpp:113
+#: src/main.cpp:103
 msgctxt "@info:credit"
 msgid "Author and maintainer"
 msgstr ""
 
-#: src/main.cpp:117
+#: src/main.cpp:107
 msgctxt "NAME OF TRANSLATORS"
 msgid "Your names"
 msgstr ""
 
-#: src/main.cpp:117
+#: src/main.cpp:107
 msgctxt "EMAIL OF TRANSLATORS"
 msgid "Your emails"
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:93
+#: src/matrix/MatrixManager.cpp:96
 msgctxt "@info:status Matrix login stalled after the password was accepted"
 msgid ""
 "The sign-in was accepted but the encryption keys could not be opened in "
 "time. Unlock the wallet if it is asking, and try again."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:96
+#: src/matrix/MatrixManager.cpp:99
 msgctxt "@info:status Matrix login failed"
 msgid ""
 "The homeserver did not answer in time. Nothing was signed in; the attempt is "
 "still running and will report itself in the log."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:144
+#: src/matrix/MatrixManager.cpp:152
 msgctxt "@info:status Matrix connection state"
 msgid "Not signed in"
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:146
+#: src/matrix/MatrixManager.cpp:154
 msgctxt "@info:status Matrix connection state"
 msgid "Signing in..."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:148
+#: src/matrix/MatrixManager.cpp:156
 msgctxt "@info:status Matrix connection state"
 msgid "Syncing..."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:150
+#: src/matrix/MatrixManager.cpp:158
 msgctxt "@info:status Matrix connection state, %1 is a Matrix user id"
 msgid "Signed in as %1"
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:153
+#: src/matrix/MatrixManager.cpp:161
 msgctxt "@info:status Matrix connection state"
 msgid "Reconnecting..."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:154
+#: src/matrix/MatrixManager.cpp:162
 msgctxt ""
 "@info:status Matrix connection state, %1 is what the homeserver or the "
 "network reported"
 msgid "Reconnecting after: %1"
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:158
+#: src/matrix/MatrixManager.cpp:166
 msgctxt "@info:status Matrix connection state"
 msgid "Sign-in failed"
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:212
+#: src/matrix/MatrixManager.cpp:220
 msgctxt ""
 "@info:status the Matrix session could not set up its encryption key store"
 msgid ""
@@ -406,49 +406,49 @@ msgid ""
 "stay unreadable. This usually means the wallet could not be opened."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:237
+#: src/matrix/MatrixManager.cpp:245
 msgctxt ""
 "@info:status a stored Matrix session was refused, %1 is what the homeserver "
 "said"
 msgid "The saved sign-in is no longer accepted (%1). Sign in again."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:280
+#: src/matrix/MatrixManager.cpp:288
 msgctxt "@info:status"
 msgid "The homeserver signed this device out."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:321
+#: src/matrix/MatrixManager.cpp:329
 msgctxt "@info:status Matrix sync gave up with nothing reported"
 msgid "The homeserver stopped answering; no messages are arriving."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:322
+#: src/matrix/MatrixManager.cpp:330
 msgctxt "@info:status Matrix sync gave up, %1 is what libQuotient reported"
 msgid "Syncing failed: %1"
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:364
+#: src/matrix/MatrixManager.cpp:376
 msgctxt "@info:status"
 msgid "No recovery key or passphrase was given."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:369
+#: src/matrix/MatrixManager.cpp:381
 msgctxt "@info:status"
 msgid "That did not unlock the room key backup."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:383
+#: src/matrix/MatrixManager.cpp:401
 msgctxt "@info:status Matrix login"
 msgid "A user name and a password are needed."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:415
+#: src/matrix/MatrixManager.cpp:433
 msgctxt "@info:status Matrix login"
 msgid "Give a homeserver, or write the user ID in full as @name:server."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:485
+#: src/matrix/MatrixManager.cpp:503
 msgctxt ""
 "@info:status a homeserver typed by hand did not answer usefully, %1 is that "
 "address"
@@ -457,17 +457,22 @@ msgid ""
 "the server's redirect so that the address it publishes is used instead."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:515
+#: src/matrix/MatrixManager.cpp:533
 msgctxt "@info:status a stored Matrix session could not be reopened"
 msgid ""
 "The saved sign-in could not be read back from the wallet. Sign in again."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:552
+#: src/matrix/MatrixManager.cpp:570
 msgctxt ""
 "@info:status %1 is the account the token belongs to, %2 the account the "
 "configuration expected"
 msgid "The saved sign-in belongs to %1, not %2. Sign in again."
+msgstr ""
+
+#: src/matrix/MatrixManager.cpp:612
+msgctxt "@info:status Matrix SSO login"
+msgid "A login token is needed to sign in."
 msgstr ""
 
 #: src/matrix/MatrixRoomBridge.cpp:123
@@ -1811,59 +1816,86 @@ msgctxt "@label:textbox"
 msgid "Password"
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:111
+#: src/qml/matrix/MatrixLoginPage.qml:114
+msgctxt "@action:button open the homeserver's single sign-on page in a browser"
+msgid "Sign in with single sign-on"
+msgstr ""
+
+#: src/qml/matrix/MatrixLoginPage.qml:116
+msgctxt "@info:whatsthis"
+msgid ""
+"Opens your homeserver's login page in a browser. When it finishes, paste the "
+"token below or let the browser hand it back."
+msgstr ""
+
+#: src/qml/matrix/MatrixLoginPage.qml:123
+msgctxt "@label:textbox a Matrix SSO login token"
+msgid "SSO token"
+msgstr ""
+
+#: src/qml/matrix/MatrixLoginPage.qml:124
+msgctxt "@info:placeholder"
+msgid "Paste the token from the browser"
+msgstr ""
+
+#: src/qml/matrix/MatrixLoginPage.qml:130
+msgctxt "@action:button submit a pasted SSO token"
+msgid "Use token"
+msgstr ""
+
+#: src/qml/matrix/MatrixLoginPage.qml:144
 msgctxt "@action:button"
 msgid "Sign out"
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:112
+#: src/qml/matrix/MatrixLoginPage.qml:145
 msgctxt "@action:button"
 msgid "Sign in"
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:125
+#: src/qml/matrix/MatrixLoginPage.qml:158
 #: src/qml/profile/not_your_prof/OtherProfile.qml:104
 msgctxt "@title:group"
 msgid "Session"
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:154
+#: src/qml/matrix/MatrixLoginPage.qml:187
 msgctxt "@info:status the session can decrypt and encrypt"
 msgid "Encryption is on for this session"
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:155
+#: src/qml/matrix/MatrixLoginPage.qml:188
 msgctxt "@info:status the session has no encryption keys"
 msgid "Encryption is off for this session"
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:157
+#: src/qml/matrix/MatrixLoginPage.qml:190
 msgctxt "@info:whatsthis"
 msgid ""
 "Encrypted rooms can be read and written. Until this session is verified, "
 "though, other clients may refuse to send it their room keys."
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:158
+#: src/qml/matrix/MatrixLoginPage.qml:191
 msgctxt "@info:whatsthis"
 msgid ""
 "The encryption keys could not be opened, so encrypted rooms cannot be read "
 "or written here. Check that the wallet is running and sign in again."
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:167
+#: src/qml/matrix/MatrixLoginPage.qml:200
 msgctxt "@action:button open the device verification dialog"
 msgid "Verify this session..."
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:169
+#: src/qml/matrix/MatrixLoginPage.qml:202
 msgctxt "@info:whatsthis"
 msgid ""
 "Compare emoji with another Matrix session of yours so that both sides know "
 "this one is really you."
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:194
+#: src/qml/matrix/MatrixLoginPage.qml:227
 msgctxt "@info:status"
 msgid "Enter a user ID and a password."
 msgstr ""
