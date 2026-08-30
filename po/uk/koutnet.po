@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: KOutNet\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-29 01:10+0000\n"
+"POT-Creation-Date: 2026-08-30 21:24+0000\n"
 "PO-Revision-Date: 2026-08-29 00:00+0000\n"
 "Last-Translator: Ukrainian translation team\n"
 "Language-Team: Ukrainian\n"
@@ -25,7 +25,8 @@ msgstr "Пристрій введення звуку недоступний."
 #: src/core/audio/AudioDevices.cpp:177
 msgctxt "@info:status"
 msgid "The input device rejects every format we can read."
-msgstr "Пристрій введення не сприймає жодного з форматів, які ми можемо прочитати."
+msgstr ""
+"Пристрій введення не сприймає жодного з форматів, які ми можемо прочитати."
 
 #: src/core/audio/AudioDevices.cpp:187
 msgctxt "@info:status"
@@ -42,14 +43,14 @@ msgctxt "@info:status"
 msgid "Could not prepare the test tone."
 msgstr "Не вдалося підготувати тестовий тон."
 
-#: src/core/chat/ChatListModel.cpp:20 src/qml/main_window/Main.qml:476
+#: src/core/chat/ChatListModel.cpp:20 src/qml/main_window/Main.qml:484
 #: src/qml/peer/PeerInfoPage.qml:36
 #: src/qml/profile/not_your_prof/OtherProfile.qml:27
 msgctxt "@info a peer that has published no name of its own"
 msgid "Unknown peer"
 msgstr "Невідомий співрозмовник"
 
-#: src/core/chat/ChatListModel.cpp:97
+#: src/core/chat/ChatListModel.cpp:99
 msgctxt ""
 "@info:status conversation list preview of a message this user sent, %1 is "
 "the message"
@@ -270,7 +271,7 @@ msgctxt "@title:menu what to tell peers you are"
 msgid "Presence"
 msgstr "Присутність"
 
-#: src/core/tray/TrayIcon.cpp:92 src/qml/main_window/Main.qml:851
+#: src/core/tray/TrayIcon.cpp:92 src/qml/main_window/Main.qml:875
 msgctxt "@action:inmenu"
 msgid "Quit"
 msgstr "Вийти"
@@ -298,57 +299,57 @@ msgctxt "@action:inmenu bring the window back from the tray"
 msgid "Show the window"
 msgstr "Показати вікно"
 
-#: src/core/tray/TrayIcon.cpp:187 src/qml/main_window/Main.qml:794
+#: src/core/tray/TrayIcon.cpp:187 src/qml/main_window/Main.qml:818
 msgctxt "@action:inmenu let your microphone be heard again"
 msgid "Unmute microphone"
 msgstr "Увімкнути мікрофон"
 
-#: src/core/tray/TrayIcon.cpp:188 src/qml/main_window/Main.qml:795
+#: src/core/tray/TrayIcon.cpp:188 src/qml/main_window/Main.qml:819
 msgctxt "@action:inmenu silence your own microphone"
 msgid "Mute microphone"
 msgstr "Вимкнути мікрофон"
 
-#: src/core/tray/TrayIcon.cpp:197 src/qml/main_window/Main.qml:802
+#: src/core/tray/TrayIcon.cpp:197 src/qml/main_window/Main.qml:826
 msgctxt "@action:inmenu start hearing calls again"
 msgid "Undeafen"
 msgstr "Увімкнути звук"
 
-#: src/core/tray/TrayIcon.cpp:198 src/qml/main_window/Main.qml:803
+#: src/core/tray/TrayIcon.cpp:198 src/qml/main_window/Main.qml:827
 msgctxt "@action:inmenu stop hearing calls, and stop being heard"
 msgid "Deafen"
 msgstr "Вимкнути звук"
 
-#: src/main.cpp:98
+#: src/main.cpp:101
 msgctxt "@title application name"
 msgid "KOutNet"
 msgstr "KOutNet"
 
-#: src/main.cpp:100
+#: src/main.cpp:103
 msgctxt "@info:whatsthis"
 msgid "P2P encrypted messenger for LAN, VPN and Matrix"
 msgstr "P2P-месенджер із шифруванням для локальної мережі, VPN та Matrix"
 
-#: src/main.cpp:102
+#: src/main.cpp:105
 msgctxt "@info:credit"
 msgid "Copyright 2026 bitzuka"
 msgstr "Copyright 2026 bitzuka"
 
-#: src/main.cpp:103
+#: src/main.cpp:106
 msgctxt "@info:credit"
 msgid "bitzuka"
 msgstr "bitzuka"
 
-#: src/main.cpp:103
+#: src/main.cpp:106
 msgctxt "@info:credit"
 msgid "Author and maintainer"
 msgstr "Автор і супровідник"
 
-#: src/main.cpp:107
+#: src/main.cpp:110
 msgctxt "NAME OF TRANSLATORS"
 msgid "Your names"
 msgstr "Ваші імена"
 
-#: src/main.cpp:107
+#: src/main.cpp:110
 msgctxt "EMAIL OF TRANSLATORS"
 msgid "Your emails"
 msgstr "Ваші електронні адреси"
@@ -358,14 +359,18 @@ msgctxt "@info:status Matrix login stalled after the password was accepted"
 msgid ""
 "The sign-in was accepted but the encryption keys could not be opened in "
 "time. Unlock the wallet if it is asking, and try again."
-msgstr "Вхід було прийнято, але ключі шифрування не вдалося відкрити вчасно. Розблокуйте гаманець, якщо він запитує, і спробуйте ще раз."
+msgstr ""
+"Вхід було прийнято, але ключі шифрування не вдалося відкрити вчасно. "
+"Розблокуйте гаманець, якщо він запитує, і спробуйте ще раз."
 
 #: src/matrix/MatrixManager.cpp:99
 msgctxt "@info:status Matrix login failed"
 msgid ""
 "The homeserver did not answer in time. Nothing was signed in; the attempt is "
 "still running and will report itself in the log."
-msgstr "Сервер не відповів вчасно. Вхід не виконано; спроба триває і повідомить про себе у журналі."
+msgstr ""
+"Сервер не відповів вчасно. Вхід не виконано; спроба триває і повідомить про "
+"себе у журналі."
 
 #: src/matrix/MatrixManager.cpp:152
 msgctxt "@info:status Matrix connection state"
@@ -410,7 +415,10 @@ msgctxt ""
 msgid ""
 "Encryption could not be started for this session, so encrypted rooms will "
 "stay unreadable. This usually means the wallet could not be opened."
-msgstr "Не вдалося запустити шифрування для цього сеансу, тому зашифровані кімнати залишатимуться нечитабельними. Зазвичай це означає, що гаманець не вдалося відкрити."
+msgstr ""
+"Не вдалося запустити шифрування для цього сеансу, тому зашифровані кімнати "
+"залишатимуться нечитабельними. Зазвичай це означає, що гаманець не вдалося "
+"відкрити."
 
 #: src/matrix/MatrixManager.cpp:245
 msgctxt ""
@@ -452,7 +460,9 @@ msgstr "Потрібні ім'я користувача та пароль."
 #: src/matrix/MatrixManager.cpp:433
 msgctxt "@info:status Matrix login"
 msgid "Give a homeserver, or write the user ID in full as @name:server."
-msgstr "Вкажіть сервер або запишіть ідентифікатор користувача повністю у вигляді @name:server."
+msgstr ""
+"Вкажіть сервер або запишіть ідентифікатор користувача повністю у вигляді "
+"@name:server."
 
 #: src/matrix/MatrixManager.cpp:503
 msgctxt ""
@@ -461,7 +471,9 @@ msgctxt ""
 msgid ""
 "%1 did not offer a password sign-in. Check the address, or turn on following "
 "the server's redirect so that the address it publishes is used instead."
-msgstr "%1 не запропонував вхід за паролем. Перевірте адресу або увімкніть перехід за перенаправленням сервера, щоб використовувалася адреса, яку він публікує."
+msgstr ""
+"%1 не запропонував вхід за паролем. Перевірте адресу або увімкніть перехід "
+"за перенаправленням сервера, щоб використовувалася адреса, яку він публікує."
 
 #: src/matrix/MatrixManager.cpp:533
 msgctxt "@info:status a stored Matrix session could not be reopened"
@@ -481,41 +493,59 @@ msgctxt "@info:status Matrix SSO login"
 msgid "A login token is needed to sign in."
 msgstr "Для входу потрібен маркер авторизації."
 
-#: src/matrix/MatrixRoomBridge.cpp:123
+#: src/matrix/MatrixRoomBridge.cpp:125
 msgctxt ""
 "@info:status a message for an encrypted room was not sent because the "
 "session has no keys"
 msgid ""
 "This room is end-to-end encrypted and this session could not open its "
 "encryption keys, so nothing was sent."
-msgstr "Ця кімната має наскрізне шифрування, і цей сеанс не зміг відкрити свої ключі шифрування, тому нічого не надіслано."
+msgstr ""
+"Ця кімната має наскрізне шифрування, і цей сеанс не зміг відкрити свої ключі "
+"шифрування, тому нічого не надіслано."
 
-#: src/matrix/MatrixRoomBridge.cpp:710
+#: src/matrix/MatrixRoomBridge.cpp:882
 msgctxt "@info:status a Matrix message was not accepted and nothing said why"
 msgid "The message could not be sent to this room."
 msgstr "Не вдалося надіслати повідомлення до цієї кімнати."
 
-#: src/matrix/MatrixRoomBridge.cpp:711
+#: src/matrix/MatrixRoomBridge.cpp:883
 msgctxt ""
 "@info:status a Matrix message was not accepted, %1 is what the homeserver "
 "reported"
 msgid "The message could not be sent: %1"
 msgstr "Не вдалося надіслати повідомлення: %1"
 
-#: src/matrix/MatrixRoomBridge.cpp:767
+#: src/matrix/MatrixRoomBridge.cpp:939
 msgctxt "@info:status"
 msgid "Not signed in to Matrix, so this message was not sent."
 msgstr "Не виконано вхід у Matrix, тому повідомлення не надіслано."
 
-#: src/matrix/MatrixRoomBridge.cpp:773 src/matrix/MatrixRoomBridge.cpp:792
+#: src/matrix/MatrixRoomBridge.cpp:945 src/matrix/MatrixRoomBridge.cpp:964
+#: src/matrix/MatrixRoomBridge.cpp:1234 src/matrix/MatrixRoomBridge.cpp:1267
+#: src/matrix/MatrixRoomBridge.cpp:1351 src/matrix/MatrixRoomBridge.cpp:1371
+#: src/matrix/MatrixRoomBridge.cpp:1391 src/matrix/MatrixRoomBridge.cpp:1417
+#: src/matrix/MatrixRoomBridge.cpp:1460 src/matrix/MatrixRoomBridge.cpp:1526
+#: src/matrix/MatrixRoomBridge.cpp:1567
 msgctxt "@info:status"
 msgid "That Matrix room is not available in this session."
 msgstr "Цієї кімнати Matrix немає в цьому сеансі."
 
-#: src/matrix/MatrixRoomBridge.cpp:802
+#: src/matrix/MatrixRoomBridge.cpp:974 src/matrix/MatrixRoomBridge.cpp:1431
+#: src/matrix/MatrixRoomBridge.cpp:1472
 msgctxt "@info:status %1 is a file name"
 msgid "%1 could not be read, so nothing was sent."
 msgstr "Не вдалося прочитати %1, тому нічого не надіслано."
+
+#: src/matrix/MatrixRoomBridge.cpp:1381
+msgctxt "@item a sticker with no caption"
+msgid "sticker"
+msgstr ""
+
+#: src/matrix/MatrixRoomBridge.cpp:1579
+msgctxt "@info a poll vote with no readable text"
+msgid "Voted."
+msgstr ""
 
 #: src/matrix/MatrixTranslate.cpp:33
 msgctxt "@label an attached picture that arrived with no file name"
@@ -537,173 +567,179 @@ msgctxt "@label an attached file that arrived with no file name"
 msgid "File"
 msgstr "Файл"
 
-#: src/matrix/MatrixTranslate.cpp:50
+#: src/matrix/MatrixTranslate.cpp:41
+#, fuzzy
+msgctxt "@label a shared location that arrived with no name"
+msgid "Location"
+msgstr "Локальний"
+
+#: src/matrix/MatrixTranslate.cpp:52
 msgctxt "@info in-timeline notice, a room member with no resolvable name"
 msgid "Someone"
 msgstr "Хтось"
 
-#: src/matrix/MatrixTranslate.cpp:51
+#: src/matrix/MatrixTranslate.cpp:53
 msgctxt "@info in-timeline notice, a room member with no resolvable name"
 msgid "someone"
 msgstr "хтось"
 
-#: src/matrix/MatrixTranslate.cpp:57
+#: src/matrix/MatrixTranslate.cpp:59
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 joined the room."
 msgstr "%1 приєднався до кімнати."
 
-#: src/matrix/MatrixTranslate.cpp:59
+#: src/matrix/MatrixTranslate.cpp:61
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 left the room."
 msgstr "%1 залишив кімнату."
 
-#: src/matrix/MatrixTranslate.cpp:61
+#: src/matrix/MatrixTranslate.cpp:63
 msgctxt "@info in-timeline notice, %1 invited %2"
 msgid "%1 invited %2."
 msgstr "%1 запросив %2."
 
-#: src/matrix/MatrixTranslate.cpp:63
+#: src/matrix/MatrixTranslate.cpp:65
 msgctxt "@info in-timeline notice, %1 took back an invitation to %2"
 msgid "%1 withdrew the invitation to %2."
 msgstr "%1 відкликав запрошення для %2."
 
-#: src/matrix/MatrixTranslate.cpp:65
+#: src/matrix/MatrixTranslate.cpp:67
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 declined the invitation."
 msgstr "%1 відхилив запрошення."
 
-#: src/matrix/MatrixTranslate.cpp:67
+#: src/matrix/MatrixTranslate.cpp:69
 msgctxt "@info in-timeline notice, %1 removed %2 from the room"
 msgid "%1 removed %2 from the room."
 msgstr "%1 вилучив %2 із кімнати."
 
-#: src/matrix/MatrixTranslate.cpp:69
+#: src/matrix/MatrixTranslate.cpp:71
 msgctxt "@info in-timeline notice, %1 banned %2"
 msgid "%1 banned %2 from the room."
 msgstr "%1 заблокував %2 у кімнаті."
 
-#: src/matrix/MatrixTranslate.cpp:71
+#: src/matrix/MatrixTranslate.cpp:73
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 banned themselves from the room."
 msgstr "%1 заблокував себе у кімнаті."
 
-#: src/matrix/MatrixTranslate.cpp:73
+#: src/matrix/MatrixTranslate.cpp:75
 msgctxt "@info in-timeline notice, %1 lifted a ban on %2"
 msgid "%1 unbanned %2."
 msgstr "%1 зняв блокування з %2."
 
-#: src/matrix/MatrixTranslate.cpp:75
+#: src/matrix/MatrixTranslate.cpp:77
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 lifted their own ban."
 msgstr "%1 зняв своє блокування."
 
-#: src/matrix/MatrixTranslate.cpp:77
+#: src/matrix/MatrixTranslate.cpp:79
 msgctxt "@info in-timeline notice, %1 asked to be let into the room"
 msgid "%1 asked for an invitation."
 msgstr "%1 запитав запрошення."
 
-#: src/matrix/MatrixTranslate.cpp:79
+#: src/matrix/MatrixTranslate.cpp:81
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 set a display name for this room."
 msgstr "%1 встановив відображуване ім'я для цієї кімнати."
 
-#: src/matrix/MatrixTranslate.cpp:81
+#: src/matrix/MatrixTranslate.cpp:83
 msgctxt "@info in-timeline notice, %1 is the new name, %2 the old one"
 msgid "%1 changed their display name from %2."
 msgstr "%1 змінив своє відображуване ім'я з %2."
 
-#: src/matrix/MatrixTranslate.cpp:83
+#: src/matrix/MatrixTranslate.cpp:85
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 cleared their display name."
 msgstr "%1 видалив своє відображуване ім'я."
 
-#: src/matrix/MatrixTranslate.cpp:85
+#: src/matrix/MatrixTranslate.cpp:87
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 changed their picture."
 msgstr "%1 змінив своє зображення."
 
-#: src/matrix/MatrixTranslate.cpp:87
+#: src/matrix/MatrixTranslate.cpp:89
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 created the room."
 msgstr "%1 створив кімнату."
 
-#: src/matrix/MatrixTranslate.cpp:89
+#: src/matrix/MatrixTranslate.cpp:91
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 upgraded the room to a newer version."
 msgstr "%1 оновив кімнату до новішої версії."
 
-#: src/matrix/MatrixTranslate.cpp:91
+#: src/matrix/MatrixTranslate.cpp:93
 msgctxt "@info in-timeline notice, %1 is a room member, %2 the new room name"
 msgid "%1 named the room %2."
 msgstr "%1 назвав кімнату %2."
 
-#: src/matrix/MatrixTranslate.cpp:93
+#: src/matrix/MatrixTranslate.cpp:95
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 cleared the room name."
 msgstr "%1 видалив назву кімнати."
 
-#: src/matrix/MatrixTranslate.cpp:95
+#: src/matrix/MatrixTranslate.cpp:97
 msgctxt "@info in-timeline notice, %1 is a room member, %2 the new topic"
 msgid "%1 changed the topic to: %2"
 msgstr "%1 змінив тему на: %2"
 
-#: src/matrix/MatrixTranslate.cpp:97
+#: src/matrix/MatrixTranslate.cpp:99
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 cleared the topic."
 msgstr "%1 видалив тему."
 
-#: src/matrix/MatrixTranslate.cpp:99
+#: src/matrix/MatrixTranslate.cpp:101
 msgctxt ""
 "@info in-timeline notice, %1 is a room member, %2 the new room address"
 msgid "%1 set the room address to %2."
 msgstr "%1 встановив адресу кімнати на %2."
 
-#: src/matrix/MatrixTranslate.cpp:101
+#: src/matrix/MatrixTranslate.cpp:103
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 cleared the room address."
 msgstr "%1 видалив адресу кімнати."
 
-#: src/matrix/MatrixTranslate.cpp:103
+#: src/matrix/MatrixTranslate.cpp:105
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 changed the room picture."
 msgstr "%1 змінив зображення кімнати."
 
-#: src/matrix/MatrixTranslate.cpp:105
+#: src/matrix/MatrixTranslate.cpp:107
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 turned on end-to-end encryption."
 msgstr "%1 увімкнув наскрізне шифрування."
 
-#: src/matrix/MatrixTranslate.cpp:108
+#: src/matrix/MatrixTranslate.cpp:110
 msgctxt ""
 "@info in-timeline notice, 'permissions' means Matrix power levels, %1 is a "
 "room member"
 msgid "%1 changed who is allowed to do what here."
 msgstr "%1 змінив, хто й що може тут робити."
 
-#: src/matrix/MatrixTranslate.cpp:113
+#: src/matrix/MatrixTranslate.cpp:115
 msgctxt ""
 "@info in-timeline notice, a room state change this build has no words for"
 msgid "%1 changed something about the room."
 msgstr "%1 змінив щось у кімнаті."
 
-#: src/matrix/MatrixTranslate.cpp:144
+#: src/matrix/MatrixTranslate.cpp:146
 msgctxt ""
 "@info in-timeline notice, %1 is who sent the message that was withdrawn"
 msgid "%1 deleted a message."
 msgstr "%1 видалив повідомлення."
 
-#: src/matrix/MatrixTranslate.cpp:157
+#: src/matrix/MatrixTranslate.cpp:159
 msgctxt ""
 "@info in-timeline notice, an encrypted message that could not be decrypted"
 msgid "An encrypted message this device has no key for."
 msgstr "Зашифроване повідомлення, для якого в цього пристрою немає ключа."
 
-#: src/matrix/MatrixTranslate.cpp:183
+#: src/matrix/MatrixTranslate.cpp:207
 msgctxt "@info in-timeline notice, a Matrix message this build cannot render"
 msgid "A message this version cannot show."
 msgstr "Повідомлення, яке ця версія не може показати."
 
-#: src/matrix/MatrixTranslate.cpp:184
+#: src/matrix/MatrixTranslate.cpp:208
 msgctxt "@info in-timeline notice, %1 is the description the sender gave"
 msgid "A message this version cannot show: %1"
 msgstr "Повідомлення, яке ця версія не може показати: %1"
@@ -723,7 +759,9 @@ msgctxt "@info:status a verification request has been sent to another device"
 msgid ""
 "Waiting for the other session to accept. Open it and answer the request "
 "there."
-msgstr "Очікуємо, поки інший сеанс прийме. Відкрийте його та відповідайте на запит там."
+msgstr ""
+"Очікуємо, поки інший сеанс прийме. Відкрийте його та відповідайте на запит "
+"там."
 
 #: src/matrix/MatrixVerification.cpp:152
 msgctxt "@info:status the two devices are exchanging verification keys"
@@ -750,7 +788,9 @@ msgctxt "@info:status a Matrix device was verified, %1 is the device id"
 msgid ""
 "Session %1 is verified. Encrypted rooms should start filling in as its keys "
 "arrive."
-msgstr "Сеанс %1 перевірено. Зашифровані кімнати почнуть заповнюватися, коли надійдуть його ключі."
+msgstr ""
+"Сеанс %1 перевірено. Зашифровані кімнати почнуть заповнюватися, коли "
+"надійдуть його ключі."
 
 #: src/matrix/MatrixVerification.cpp:288
 msgctxt "@info:status a device verification ran out of time"
@@ -773,7 +813,10 @@ msgid ""
 "The two sessions did not match. Nothing was verified, and somebody may be "
 "listening in - do not use this session for anything private until you have "
 "checked it another way."
-msgstr "Сеанси не збіглися. Нічого не перевірено, і хтось може підслуховувати — не використовуйте цей сеанс для приватних справ, доки не перевірите його іншим способом."
+msgstr ""
+"Сеанси не збіглися. Нічого не перевірено, і хтось може підслуховувати — не "
+"використовуйте цей сеанс для приватних справ, доки не перевірите його іншим "
+"способом."
 
 #: src/matrix/MatrixVerification.cpp:313
 msgctxt "@info:status a device verification failed for a protocol reason"
@@ -790,92 +833,96 @@ msgctxt "@info:status file transfer refused"
 msgid "Too many concurrent incoming transfers."
 msgstr "Забагато одночасних вхідних передавань."
 
-#: src/network/FileTransferHandler.cpp:123
+#: src/network/FileTransferHandler.cpp:120
 msgctxt "@info:status file transfer refused"
 msgid "The chunk count exceeds the limit."
 msgstr "Кількість частин перевищує ліміт."
 
-#: src/network/FileTransferHandler.cpp:135
+#: src/network/FileTransferHandler.cpp:131
 msgctxt "@info:status file transfer refused"
 msgid "A chunk was resent with different contents."
 msgstr "Частину надіслано повторно з іншим вмістом."
 
-#: src/network/FileTransferHandler.cpp:144
+#: src/network/FileTransferHandler.cpp:140
 msgctxt "@info:status file transfer refused"
 msgid "The transfer exceeded the size limit."
 msgstr "Передавання перевищило ліміт розміру."
 
-#: src/network/FileTransferHandler.cpp:168
+#: src/network/FileTransferHandler.cpp:164
 msgctxt "@info:status file transfer refused"
 msgid "The peer sent an encrypted file, and this build cannot open it."
-msgstr "Співрозмовник надіслав зашифрований файл, і ця збірка не може його відкрити."
+msgstr ""
+"Співрозмовник надіслав зашифрований файл, і ця збірка не може його відкрити."
 
-#: src/network/FileTransferHandler.cpp:174
+#: src/network/FileTransferHandler.cpp:170
 msgctxt "@info:status file transfer refused"
 msgid "The received file failed to decrypt - dropped."
 msgstr "Отриманий файл не вдалося розшифрувати — видалено."
 
-#: src/network/FileTransferHandler.cpp:185
+#: src/network/FileTransferHandler.cpp:181
 msgctxt "@info:status file transfer refused"
 msgid "Failed to write the file to disk."
 msgstr "Не вдалося записати файл на диск."
 
-#: src/network/FileTransferHandler.cpp:200
+#: src/network/FileTransferHandler.cpp:196
 msgctxt "@info:status file transfer refused"
 msgid "The transfer timed out while incomplete."
 msgstr "Час передавання вийшов, поки воно не завершилося."
 
-#: src/network/NetworkManager.cpp:258
+#: src/network/NetworkManager.cpp:260
 msgctxt "@info:status %1 is a port number"
 msgid "UDP bind failed on port %1."
 msgstr "Не вдалося прив'язати UDP до порту %1."
 
-#: src/network/NetworkManager.cpp:268
+#: src/network/NetworkManager.cpp:270
 msgctxt "@info:status %1 is a port number"
 msgid "TCP listen failed on port %1."
 msgstr "Не вдалося слухати TCP на порту %1."
 
-#: src/network/NetworkManager.cpp:509
-msgctxt "@info:status %1 is a host address, %2 the parser message"
-msgid "UDP parse error from %1: %2"
-msgstr "Помилка розбору UDP від %1: %2"
+#: src/network/NetworkManager.cpp:517
+#, fuzzy
+msgctxt "@info:status %1 is a host address"
+msgid "Unreadable packet from %1 - dropping it."
+msgstr "Неавтентифікований %1 від %2 — видаляємо."
 
-#: src/network/NetworkManager.cpp:546
+#: src/network/NetworkManager.cpp:531
 msgctxt "@info:status %1 is a message type, %2 a host address"
 msgid "Unauthenticated %1 from %2 - dropping."
 msgstr "Неавтентифікований %1 від %2 — видаляємо."
 
-#: src/network/NetworkManager.cpp:551
+#: src/network/NetworkManager.cpp:536
 msgctxt "@info:status %1 is a host address"
 msgid "HMAC verification failed from %1 - dropping."
 msgstr "Не вдалося перевірити HMAC від %1 — видаляємо."
 
-#: src/network/NetworkManager.cpp:810
+#: src/network/NetworkManager.cpp:831
 msgctxt "@info:status %1 is a host address, %2 a byte count"
 msgid "Voice frame from %1 declared %2 bytes - dropping the connection."
 msgstr "Голосовий кадр від %1 оголосив %2 байтів — розриваємо з'єднання."
 
-#: src/network/NetworkManager.cpp:953
+#: src/network/NetworkManager.cpp:1012
 msgctxt "@info:status"
 msgid "Failed to create a group key - refusing to send in the clear."
-msgstr "Не вдалося створити груповий ключ — відмовляємося надсилати у відкритому вигляді."
+msgstr ""
+"Не вдалося створити груповий ключ — відмовляємося надсилати у відкритому "
+"вигляді."
 
-#: src/network/NetworkManager.cpp:961
+#: src/network/NetworkManager.cpp:1020
 msgctxt "@info:status"
 msgid "Failed to encrypt the group message - not sent."
 msgstr "Не вдалося зашифрувати групове повідомлення — не надіслано."
 
-#: src/network/NetworkManager.cpp:1104
+#: src/network/NetworkManager.cpp:1163
 msgctxt "@info:status %1 is a file path"
 msgid "File not found: %1"
 msgstr "Файл не знайдено: %1"
 
-#: src/network/NetworkManager.cpp:1128
+#: src/network/NetworkManager.cpp:1187
 msgctxt "@info:status %1 is a file path"
 msgid "Refused to send %1: larger than the transfer limit."
 msgstr "Відмовлено надсилати %1: більший за ліміт передавання."
 
-#: src/network/NetworkManager.cpp:1214
+#: src/network/NetworkManager.cpp:1272
 msgctxt "@info:status %1 is a host address, %2 a socket error message"
 msgid "Voice connect to %1 failed: %2"
 msgstr "Не вдалося підключитися голосом до %1: %2"
@@ -940,61 +987,158 @@ msgctxt "@action:button abandon the outgoing call"
 msgid "Cancel"
 msgstr "Скасувати"
 
-#: src/qml/composer/Composer.qml:112
+#: src/qml/composer/Composer.qml:146
 msgctxt "@info:status the composer is rewriting an existing message"
 msgid "Editing a message"
 msgstr "Редагування повідомлення"
 
-#: src/qml/composer/Composer.qml:123
+#: src/qml/composer/Composer.qml:157
 msgctxt "@action:button leave the message as it was"
 msgid "Cancel the edit"
 msgstr "Скасувати редагування"
 
-#: src/qml/composer/Composer.qml:154
+#: src/qml/composer/Composer.qml:188
 msgctxt ""
 "@info:status what a message being written is answering, %1 is the author"
 msgid "Replying to %1"
 msgstr "Відповідь %1"
 
-#: src/qml/composer/Composer.qml:176
+#: src/qml/composer/Composer.qml:210
 msgctxt "@action:button stop replying to the quoted message"
 msgid "Cancel the reply"
 msgstr "Скасувати відповідь"
 
-#: src/qml/composer/Composer.qml:196
+#: src/qml/composer/Composer.qml:230
 msgctxt "@action:button attach a file to the message"
 msgid "Attach a file"
 msgstr "Прикріпити файл"
 
-#: src/qml/composer/Composer.qml:207
+#: src/qml/composer/Composer.qml:241
 msgctxt "@action:button open the emoji picker"
 msgid "Insert an emoji"
 msgstr "Вставити емодзі"
 
-#: src/qml/composer/Composer.qml:226
+#: src/qml/composer/Composer.qml:253
+msgctxt "@action:button send the next message hidden until revealed"
+msgid "Spoiler on: the message will be hidden"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:254
+msgctxt "@action:button hide the next message until the reader reveals it"
+msgid "Hide the message as a spoiler"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:266
+msgctxt "@action:button share a location in the message"
+msgid "Share a location"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:278
+msgctxt "@action:button stop recording the voice message"
+msgid "Stop recording"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:279
+msgctxt "@action:button record and send a voice message"
+msgid "Send a voice message"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:291
+msgctxt "@action:button send a picture as a sticker"
+msgid "Send a sticker"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:302
+#, fuzzy
+msgctxt "@action:button create a poll to send"
+msgid "Create a poll"
+msgstr "Створити кімнату"
+
+#: src/qml/composer/Composer.qml:321
 msgctxt "@info:placeholder"
 msgid "Write a message..."
 msgstr "Напишіть повідомлення…"
 
-#: src/qml/composer/Composer.qml:261
+#: src/qml/composer/Composer.qml:356
 msgctxt "@action:button save the message being rewritten"
 msgid "Save"
 msgstr "Зберегти"
 
-#: src/qml/composer/Composer.qml:262
+#: src/qml/composer/Composer.qml:357
 msgctxt "@action:button"
 msgid "Send"
 msgstr "Надіслати"
 
-#: src/qml/composer/Composer.qml:271
+#: src/qml/composer/Composer.qml:366
 msgctxt "@info:tooltip"
 msgid "Save the change. Escape leaves the message as it was."
 msgstr "Зберегти зміну. Escape залишає повідомлення без змін."
 
-#: src/qml/composer/Composer.qml:272
+#: src/qml/composer/Composer.qml:367
 msgctxt "@info:tooltip"
 msgid "Send the message. Shift+Enter writes a new line instead."
 msgstr "Надіслати повідомлення. Shift+Enter замість цього починає новий рядок."
+
+#: src/qml/composer/Composer.qml:378
+msgctxt "@title:window share a location"
+msgid "Share a location"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:400
+msgctxt "@info:placeholder"
+msgid "Latitude, e.g. 48.858370"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:407
+msgctxt "@info:placeholder"
+msgid "Longitude, e.g. 2.294481"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:414
+#, fuzzy
+msgctxt "@info:placeholder a name for the shared place"
+msgid "Label (optional)"
+msgstr "Тема (необов'язково)"
+
+#: src/qml/composer/Composer.qml:421
+msgctxt "@action:button fill the coordinates from the device's position"
+msgid "Use my location"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:446
+#, fuzzy
+msgctxt "@title:window pick a sticker image"
+msgid "Choose a sticker"
+msgstr "Вибрати шпалери"
+
+#: src/qml/composer/Composer.qml:447
+#, fuzzy
+msgctxt "@item:filter image files"
+msgid "Images (*.png *.jpg *.jpeg *.webp *.gif)"
+msgstr "Images (*.png *.jpg *.jpeg *.webp *.gif)"
+
+#: src/qml/composer/Composer.qml:535
+#, fuzzy
+msgctxt "@title:window create a poll"
+msgid "Create a poll"
+msgstr "Створити кімнату"
+
+#: src/qml/composer/Composer.qml:561
+msgctxt "@info:placeholder the poll question"
+msgid "Question"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:568
+#, fuzzy
+msgctxt "@info:placeholder an answer option, %1 is its number"
+msgid "Answer %1"
+msgstr "Відповісти"
+
+#: src/qml/composer/Composer.qml:576
+#, fuzzy
+msgctxt "@action:button add another answer row to the poll"
+msgid "Add answer"
+msgstr "Відповісти"
 
 #: src/qml/composer/EmojiGrid.qml:87
 msgctxt "@info shown when a search matches no emoji"
@@ -1067,10 +1211,12 @@ msgctxt "@info"
 msgid ""
 "Start one from the button in the toolbar, or wait for someone to write to "
 "you."
-msgstr "Почніть із кнопки на панелі інструментів або зачекайте, доки хтось напише вам."
+msgstr ""
+"Почніть із кнопки на панелі інструментів або зачекайте, доки хтось напише "
+"вам."
 
 #: src/qml/main_window/ChatListPage.qml:240
-#: src/qml/main_window/ChatPage.qml:408
+#: src/qml/main_window/ChatPage.qml:432
 msgctxt "@action:button start a conversation"
 msgid "New chat"
 msgstr "Новий чат"
@@ -1139,22 +1285,22 @@ msgctxt "@action:button decline a room invitation"
 msgid "Decline"
 msgstr "Відхилити"
 
-#: src/qml/main_window/ChatPage.qml:69
+#: src/qml/main_window/ChatPage.qml:79
 msgctxt "@title a room whose name has not been synced yet"
 msgid "Room"
 msgstr "Кімната"
 
-#: src/qml/main_window/ChatPage.qml:71
+#: src/qml/main_window/ChatPage.qml:81
 msgctxt "@title a peer that has published no name of its own"
 msgid "Unknown peer"
 msgstr "Невідомий співрозмовник"
 
-#: src/qml/main_window/ChatPage.qml:72
+#: src/qml/main_window/ChatPage.qml:82
 msgctxt "@title"
 msgid "Chat"
 msgstr "Чат"
 
-#: src/qml/main_window/ChatPage.qml:157
+#: src/qml/main_window/ChatPage.qml:167
 msgctxt "@info:status %1 is how many people are in a room"
 msgid "%1 member"
 msgid_plural "%1 members"
@@ -1162,37 +1308,37 @@ msgstr[0] "%1 учасник"
 msgstr[1] "%1 учасники"
 msgstr[2] "%1 учасників"
 
-#: src/qml/main_window/ChatPage.qml:176
+#: src/qml/main_window/ChatPage.qml:186
 msgctxt "@action:button show the room's topic, address and members"
 msgid "Room information"
 msgstr "Інформація про кімнату"
 
-#: src/qml/main_window/ChatPage.qml:177
+#: src/qml/main_window/ChatPage.qml:187
 msgctxt "@action:button show who is on the other end of this conversation"
 msgid "Details"
 msgstr "Подробиці"
 
-#: src/qml/main_window/ChatPage.qml:184
+#: src/qml/main_window/ChatPage.qml:194
 msgctxt "@action:button start a voice call"
 msgid "Call"
 msgstr "Дзвінок"
 
-#: src/qml/main_window/ChatPage.qml:259
+#: src/qml/main_window/ChatPage.qml:269
 msgctxt "@action:inmenu"
 msgid "Reply"
 msgstr "Відповісти"
 
-#: src/qml/main_window/ChatPage.qml:264
+#: src/qml/main_window/ChatPage.qml:274
 msgctxt "@action:inmenu"
 msgid "Copy"
 msgstr "Копіювати"
 
-#: src/qml/main_window/ChatPage.qml:269
+#: src/qml/main_window/ChatPage.qml:279
 msgctxt "@info:status"
 msgid "Message copied to the clipboard"
 msgstr "Повідомлення скопійовано до буфера обміну"
 
-#: src/qml/main_window/ChatPage.qml:274
+#: src/qml/main_window/ChatPage.qml:284
 msgctxt ""
 "@action:inmenu copy the code out of a message; the count is how many fenced "
 "blocks it has"
@@ -1202,59 +1348,78 @@ msgstr[0] "Копіювати код"
 msgstr[1] "Копіювати блоки коду"
 msgstr[2] "Копіювати блоків коду"
 
-#: src/qml/main_window/ChatPage.qml:279
+#: src/qml/main_window/ChatPage.qml:289
 msgctxt "@info:status"
 msgid "Code copied to the clipboard"
 msgstr "Код скопійовано до буфера обміну"
 
-#: src/qml/main_window/ChatPage.qml:283
+#: src/qml/main_window/ChatPage.qml:293
 msgctxt "@action:inmenu add a reaction"
 msgid "React"
 msgstr "Реагувати"
 
-#: src/qml/main_window/ChatPage.qml:288
+#: src/qml/main_window/ChatPage.qml:298
 msgctxt "@action:inmenu forward this message"
 msgid "Forward"
 msgstr "Переслати"
 
-#: src/qml/main_window/ChatPage.qml:294
+#: src/qml/main_window/ChatPage.qml:304
 msgctxt "@action:inmenu change what this message says"
 msgid "Edit"
 msgstr "Редагувати"
 
-#: src/qml/main_window/ChatPage.qml:300
+#: src/qml/main_window/ChatPage.qml:310
 msgctxt "@action:inmenu delete this message"
 msgid "Delete"
 msgstr "Видалити"
 
-#: src/qml/main_window/ChatPage.qml:319
+#: src/qml/main_window/ChatPage.qml:329
 msgctxt "@title:window"
 msgid "Delete this message?"
 msgstr "Видалити це повідомлення?"
 
-#: src/qml/main_window/ChatPage.qml:320
+#: src/qml/main_window/ChatPage.qml:330
 msgctxt "@info"
 msgid ""
 "It will be removed from this conversation and from the other end of it. This "
 "cannot be undone."
-msgstr "Його буде видалено з цієї розмови та з іншого її боку. Це неможливо скасувати."
+msgstr ""
+"Його буде видалено з цієї розмови та з іншого її боку. Це неможливо "
+"скасувати."
 
-#: src/qml/main_window/ChatPage.qml:324
+#: src/qml/main_window/ChatPage.qml:334
 msgctxt "@action:button confirm deleting a message"
 msgid "Delete"
 msgstr "Видалити"
 
-#: src/qml/main_window/ChatPage.qml:396
+#: src/qml/main_window/ChatPage.qml:412
 msgctxt "@title:window"
 msgid "Attach a file"
 msgstr "Прикріпити файл"
 
-#: src/qml/main_window/ChatPage.qml:405
+#: src/qml/main_window/ChatPage.qml:419
+msgctxt "@title:window"
+msgid "Send a sticker"
+msgstr ""
+
+#: src/qml/main_window/ChatPage.qml:420 src/qml/matrix/RoomInfoPage.qml:617
+#, fuzzy
+msgctxt "@item file type filter"
+msgid "Images (*.png *.jpg *.jpeg *.gif *.webp)"
+msgstr "Images (*.png *.jpg *.jpeg *.webp)"
+
+#: src/qml/main_window/ChatPage.qml:420 src/qml/matrix/RoomInfoPage.qml:617
+#, fuzzy
+msgctxt "@item file type filter"
+msgid "All files (*)"
+msgstr "Усі файли (*)"
+
+#: src/qml/main_window/ChatPage.qml:429
 msgctxt "@info"
 msgid "No conversation open"
 msgstr "Немає відкритої розмови"
 
-#: src/qml/main_window/ChatPage.qml:406
+#: src/qml/main_window/ChatPage.qml:430
 msgctxt "@info"
 msgid "Pick a chat from the list, or start a new one."
 msgstr "Виберіть чат зі списку або почніть новий."
@@ -1301,102 +1466,102 @@ msgctxt "@info unread count too large to show exactly"
 msgid "99+"
 msgstr "99+"
 
-#: src/qml/main_window/Main.qml:22 src/qml/main_window/Main.qml:748
+#: src/qml/main_window/Main.qml:22 src/qml/main_window/Main.qml:772
 msgctxt "@title:window"
 msgid "KOutNet"
 msgstr "KOutNet"
 
-#: src/qml/main_window/Main.qml:338
+#: src/qml/main_window/Main.qml:346
 msgctxt "@info:notification a Matrix room invitation"
 msgid "Invited to a room"
 msgstr "Запрошено до кімнати"
 
-#: src/qml/main_window/Main.qml:340
+#: src/qml/main_window/Main.qml:348
 msgctxt "@info:notification %1 is who invited, %2 is the room"
 msgid "%1 invited you to %2"
 msgstr "%1 запросив вас до %2"
 
-#: src/qml/main_window/Main.qml:393
+#: src/qml/main_window/Main.qml:401
 msgctxt "@info:status %1 is the reason the wallet gave"
 msgid "Signed in, but the session could not be saved: %1"
 msgstr "Виконано вхід, але сеанс не вдалося зберегти: %1"
 
-#: src/qml/main_window/Main.qml:411
+#: src/qml/main_window/Main.qml:419
 msgctxt "@item contact list, chat with yourself"
 msgid "Favorites"
 msgstr "Вибране"
 
-#: src/qml/main_window/Main.qml:494
+#: src/qml/main_window/Main.qml:502
 msgctxt "@info:status"
 msgid "Calls are not available in this chat."
 msgstr "Дзвінки недоступні в цьому чаті."
 
-#: src/qml/main_window/Main.qml:755
+#: src/qml/main_window/Main.qml:779
 msgctxt "@action:inmenu the list of conversations"
 msgid "Chats"
 msgstr "Чати"
 
-#: src/qml/main_window/Main.qml:766
+#: src/qml/main_window/Main.qml:790
 msgctxt "@action:inmenu room invitations waiting, %1 is how many"
 msgid "Invitations (%1)"
 msgstr "Запрошення (%1)"
 
-#: src/qml/main_window/Main.qml:767
+#: src/qml/main_window/Main.qml:791
 msgctxt "@action:inmenu room invitations waiting"
 msgid "Invitations"
 msgstr "Запрошення"
 
-#: src/qml/main_window/Main.qml:773
+#: src/qml/main_window/Main.qml:797
 msgctxt "@action:inmenu"
 msgid "Notes"
 msgstr "Нотатки"
 
-#: src/qml/main_window/Main.qml:778
+#: src/qml/main_window/Main.qml:802
 msgctxt "@action:inmenu the log of past calls"
 msgid "Call log"
 msgstr "Журнал дзвінків"
 
-#: src/qml/main_window/Main.qml:808
+#: src/qml/main_window/Main.qml:832
 msgctxt "@action:inmenu hang up every call in progress"
 msgid "End all calls"
 msgstr "Завершити всі дзвінки"
 
-#: src/qml/main_window/Main.qml:817
+#: src/qml/main_window/Main.qml:841
 msgctxt "@action:inmenu"
 msgid "My profile"
 msgstr "Мій профіль"
 
-#: src/qml/main_window/Main.qml:822
+#: src/qml/main_window/Main.qml:846
 msgctxt "@action:inmenu"
 msgid "Settings"
 msgstr "Налаштування"
 
-#: src/qml/main_window/Main.qml:828
+#: src/qml/main_window/Main.qml:852
 msgctxt "@action:inmenu"
 msgid "About KOutNet"
 msgstr "Про KOutNet"
 
-#: src/qml/main_window/Main.qml:835
+#: src/qml/main_window/Main.qml:859
 msgctxt "@action:inmenu go back to the full three-column layout"
 msgid "Leave compact mode"
 msgstr "Вийти з компактного режиму"
 
-#: src/qml/main_window/Main.qml:836
+#: src/qml/main_window/Main.qml:860
 msgctxt "@action:inmenu switch to a reduced layout for a narrow window"
 msgid "Compact mode"
 msgstr "Компактний режим"
 
-#: src/qml/main_window/Main.qml:842
+#: src/qml/main_window/Main.qml:866
 msgctxt "@action:inmenu leave full screen"
 msgid "Exit full screen"
 msgstr "Вийти з повноекранного режиму"
 
-#: src/qml/main_window/Main.qml:843
+#: src/qml/main_window/Main.qml:867
 msgctxt "@action:inmenu"
 msgid "Full screen"
 msgstr "На весь екран"
 
-#: src/qml/main_window/Main.qml:890
+#: src/qml/main_window/Main.qml:914
 msgctxt "@info:status %1 is a number of peers"
 msgid "%1 peer on the network"
 msgid_plural "%1 peers on the network"
@@ -1404,202 +1569,232 @@ msgstr[0] "%1 співрозмовник у мережі"
 msgstr[1] "%1 співрозмовники у мережі"
 msgstr[2] "%1 співрозмовників у мережі"
 
-#: src/qml/main_window/Main.qml:1249
+#: src/qml/main_window/Main.qml:1273
 msgctxt "@title:window"
 msgid "Clear this chat?"
 msgstr "Очистити цей чат?"
 
-#: src/qml/main_window/Main.qml:1250
+#: src/qml/main_window/Main.qml:1274
 msgctxt "@info"
 msgid "Every message in it is deleted from this device. There is no way back."
-msgstr "Кожне повідомлення в ньому видаляється з цього пристрою. Шляху назад немає."
+msgstr ""
+"Кожне повідомлення в ньому видаляється з цього пристрою. Шляху назад немає."
 
-#: src/qml/main_window/Main.qml:1254
+#: src/qml/main_window/Main.qml:1278
 msgctxt "@action:button"
 msgid "Clear"
 msgstr "Очистити"
 
-#: src/qml/main_window/Main.qml:1338
+#: src/qml/main_window/Main.qml:1385
+msgctxt "@info"
+msgid "Locations can only be shared over a server-backed chat."
+msgstr ""
+
+#: src/qml/main_window/Main.qml:1392
+msgctxt "@info"
+msgid "This chat cannot share a location yet."
+msgstr ""
+
+#: src/qml/main_window/Main.qml:1430
+msgctxt "@info"
+msgid "Polls can only be sent over a Matrix chat."
+msgstr ""
+
+#: src/qml/main_window/Main.qml:1445
 msgctxt "@info"
 msgid "Forwarding messages is not implemented yet."
 msgstr "Пересилання повідомлень ще не реалізовано."
 
-#: src/qml/main_window/Main.qml:1380
+#: src/qml/main_window/Main.qml:1487
 msgctxt "@info:status"
 msgid "Settings saved"
 msgstr "Налаштування збережено"
 
-#: src/qml/main_window/NewChatPage.qml:25
+#: src/qml/main_window/NewChatPage.qml:26
 msgctxt "@title:window"
 msgid "New chat"
 msgstr "Новий чат"
 
-#: src/qml/main_window/NewChatPage.qml:46
+#: src/qml/main_window/NewChatPage.qml:47
 msgctxt "@info:status a Matrix id was typed without its leading @"
 msgid "A Matrix id starts with @, as in @name:server."
 msgstr "Ідентифікатор Matrix починається з @, наприклад @name:server."
 
-#: src/qml/main_window/NewChatPage.qml:49
+#: src/qml/main_window/NewChatPage.qml:50
 msgctxt "@info:status a Matrix id was typed without a server part"
 msgid "A Matrix id needs a server, as in @name:server."
 msgstr "Ідентифікатор Matrix потребує сервера, наприклад @name:server."
 
-#: src/qml/main_window/NewChatPage.qml:53
+#: src/qml/main_window/NewChatPage.qml:54
 msgctxt "@info:status a Matrix id was typed with nothing before the colon"
 msgid "There is no name before the colon in this Matrix id."
 msgstr "У цьому ідентифікаторі Matrix немає імені перед двокрапкою."
 
-#: src/qml/main_window/NewChatPage.qml:55
+#: src/qml/main_window/NewChatPage.qml:56
 msgctxt "@info:status a Matrix id was typed with nothing after the colon"
 msgid "There is no server after the colon in this Matrix id."
 msgstr "У цьому ідентифікаторі Matrix немає сервера після двокрапки."
 
-#: src/qml/main_window/NewChatPage.qml:67
+#: src/qml/main_window/NewChatPage.qml:68
 msgctxt ""
 "@info:status a Matrix id has an upper case letter, which is usually a typo"
 msgid ""
 "This id has a capital letter. Most servers register names in lower case, so "
 "check it is exactly right."
-msgstr "У цьому ідентифікаторі є велика літера. Більшість серверів реєструють імена у нижньому регістрі, тому перевірте, чи все правильно."
+msgstr ""
+"У цьому ідентифікаторі є велика літера. Більшість серверів реєструють імена "
+"у нижньому регістрі, тому перевірте, чи все правильно."
 
-#: src/qml/main_window/NewChatPage.qml:85
+#: src/qml/main_window/NewChatPage.qml:89
 msgctxt "@title:tab a transport"
 msgid "Telegram"
 msgstr "Telegram"
 
-#: src/qml/main_window/NewChatPage.qml:86
+#: src/qml/main_window/NewChatPage.qml:90
 msgctxt "@title:tab a transport"
 msgid "Matrix"
 msgstr "Matrix"
 
-#: src/qml/main_window/NewChatPage.qml:87
+#: src/qml/main_window/NewChatPage.qml:91
 msgctxt "@title:tab a transport"
 msgid "Rocket.Chat"
 msgstr "Rocket.Chat"
 
-#: src/qml/main_window/NewChatPage.qml:88
+#: src/qml/main_window/NewChatPage.qml:92
 msgctxt "@title:tab a transport"
 msgid "LAN / VPN"
 msgstr "LAN / VPN"
 
-#: src/qml/main_window/NewChatPage.qml:101
+#: src/qml/main_window/NewChatPage.qml:93
+msgctxt "@title:tab a transport"
+msgid "Tox"
+msgstr ""
+
+#: src/qml/main_window/NewChatPage.qml:106
 msgctxt "@title a transport"
 msgid "Telegram"
 msgstr "Telegram"
 
-#: src/qml/main_window/NewChatPage.qml:102
-#: src/qml/main_window/NewChatPage.qml:261
+#: src/qml/main_window/NewChatPage.qml:107
+#: src/qml/main_window/NewChatPage.qml:266
+#: src/qml/main_window/NewChatPage.qml:346
 #: src/qml/settings/SettingsPage.qml:781 src/qml/settings/SettingsPage.qml:792
 msgctxt "@info a transport that is not implemented yet"
 msgid "Not built yet."
 msgstr "Ще не зібрано."
 
-#: src/qml/main_window/NewChatPage.qml:120
+#: src/qml/main_window/NewChatPage.qml:125
 msgctxt "@info:status the Matrix tab needs a signed-in account"
 msgid "Sign in to a Matrix account to join or create rooms."
-msgstr "Увійдіть у обліковий запис Matrix, щоб приєднатися до кімнат або створити їх."
+msgstr ""
+"Увійдіть у обліковий запис Matrix, щоб приєднатися до кімнат або створити їх."
 
-#: src/qml/main_window/NewChatPage.qml:129
+#: src/qml/main_window/NewChatPage.qml:134
 msgctxt "@label:textbox"
 msgid "Matrix room address"
 msgstr "Адреса кімнати Matrix"
 
-#: src/qml/main_window/NewChatPage.qml:139
+#: src/qml/main_window/NewChatPage.qml:144
 msgctxt "@info:placeholder a Matrix room address or id"
 msgid "#room:server"
 msgstr "#room:server"
 
-#: src/qml/main_window/NewChatPage.qml:144
+#: src/qml/main_window/NewChatPage.qml:149
 msgctxt "@action:button join the room whose address was typed"
 msgid "Join"
 msgstr "Приєднатися"
 
-#: src/qml/main_window/NewChatPage.qml:159
+#: src/qml/main_window/NewChatPage.qml:164
 msgctxt "@label:textbox"
 msgid "Private chat with a Matrix user"
 msgstr "Приватний чат з користувачем Matrix"
 
-#: src/qml/main_window/NewChatPage.qml:165
+#: src/qml/main_window/NewChatPage.qml:170
 msgctxt "@info:placeholder a Matrix identity to talk to one-on-one"
 msgid "@user:server"
 msgstr "@user:server"
 
-#: src/qml/main_window/NewChatPage.qml:181
+#: src/qml/main_window/NewChatPage.qml:186
 msgctxt "@action:button open a private chat with the user typed above"
 msgid "Open private chat"
 msgstr "Відкрити приватний чат"
 
-#: src/qml/main_window/NewChatPage.qml:195
+#: src/qml/main_window/NewChatPage.qml:200
 msgctxt "@label:textbox"
 msgid "New room"
 msgstr "Нова кімната"
 
-#: src/qml/main_window/NewChatPage.qml:201
+#: src/qml/main_window/NewChatPage.qml:206
 msgctxt "@info:placeholder a name for the new room"
 msgid "Room name"
 msgstr "Назва кімнати"
 
-#: src/qml/main_window/NewChatPage.qml:207
+#: src/qml/main_window/NewChatPage.qml:212
 msgctxt "@info:placeholder the topic of the new room"
 msgid "Topic (optional)"
 msgstr "Тема (необов'язково)"
 
-#: src/qml/main_window/NewChatPage.qml:213
+#: src/qml/main_window/NewChatPage.qml:218
 msgctxt "@info:placeholder a Matrix address to give the new room"
 msgid "Address like #room:server (optional)"
 msgstr "Адреса вигляду #room:server (необов'язково)"
 
-#: src/qml/main_window/NewChatPage.qml:219
+#: src/qml/main_window/NewChatPage.qml:224
 msgctxt ""
 "@info:placeholder Matrix addresses of people to invite, separated by commas"
 msgid "Invite @user:server, ... (optional)"
 msgstr "Запросити @user:server, … (необов'язково)"
 
-#: src/qml/main_window/NewChatPage.qml:233
+#: src/qml/main_window/NewChatPage.qml:238
 msgctxt ""
 "@option:check create a room that does not appear in the public directory"
 msgid "Private"
 msgstr "Приватна"
 
-#: src/qml/main_window/NewChatPage.qml:239
+#: src/qml/main_window/NewChatPage.qml:244
 msgctxt "@action:button create a room with what was typed above"
 msgid "Create room"
 msgstr "Створити кімнату"
 
-#: src/qml/main_window/NewChatPage.qml:260
+#: src/qml/main_window/NewChatPage.qml:265
 msgctxt "@title a transport"
 msgid "Rocket.Chat"
 msgstr "Rocket.Chat"
 
-#: src/qml/main_window/NewChatPage.qml:277
+#: src/qml/main_window/NewChatPage.qml:282
 msgctxt "@label:textbox"
 msgid "Address of the peer"
 msgstr "Адреса співрозмовника"
 
-#: src/qml/main_window/NewChatPage.qml:287
+#: src/qml/main_window/NewChatPage.qml:292
 msgctxt "@info:placeholder an IPv4 address"
 msgid "192.168.1.42"
 msgstr "192.168.1.42"
 
-#: src/qml/main_window/NewChatPage.qml:292
+#: src/qml/main_window/NewChatPage.qml:297
 msgctxt "@action:button open a chat with the address that was typed"
 msgid "Open"
 msgstr "Відкрити"
 
-#: src/qml/main_window/NewChatPage.qml:313
+#: src/qml/main_window/NewChatPage.qml:318
 msgctxt "@title:group peers whose presence broadcasts are arriving"
 msgid "On the network now"
 msgstr "Зараз у мережі"
 
-#: src/qml/main_window/NewChatPage.qml:321
+#: src/qml/main_window/NewChatPage.qml:326
 msgctxt "@info"
 msgid "Nobody is broadcasting"
 msgstr "Ніхто не транслює"
 
-#: src/qml/main_window/NewChatPage.qml:322
+#: src/qml/main_window/NewChatPage.qml:327
 msgctxt "@info"
 msgid "KOutNet is listening, but it's quiet here for now..."
 msgstr "KOutNet слухає, але поки тут тихо…"
+
+#: src/qml/main_window/NewChatPage.qml:345
+msgctxt "@title a transport"
+msgid "Tox"
+msgstr ""
 
 #: src/qml/matrix/DeviceVerificationDialog.qml:24
 msgctxt "@title:dialog"
@@ -1611,7 +1806,9 @@ msgctxt "@info:whatsthis"
 msgid ""
 "Verifying tells your other sessions that this one is really yours, so they "
 "will send it the keys "
-msgstr "Перевірка повідомляє вашим іншим сеансам, що цей справді ваш, тож вони надішлють йому ключі"
+msgstr ""
+"Перевірка повідомляє вашим іншим сеансам, що цей справді ваш, тож вони "
+"надішлють йому ключі"
 
 #: src/qml/matrix/DeviceVerificationDialog.qml:89
 msgctxt "@info the other client has to be open at the same time"
@@ -1643,14 +1840,18 @@ msgctxt "@info:status this account has no other sessions to verify against"
 msgid ""
 "This account has no other sessions. Sign in with another Matrix client "
 "first, then come back here."
-msgstr "У цього облікового запису немає інших сеансів. Спочатку увійдіть через інший клієнт Matrix, а потім поверніться сюди."
+msgstr ""
+"У цього облікового запису немає інших сеансів. Спочатку увійдіть через інший "
+"клієнт Matrix, а потім поверніться сюди."
 
 #: src/qml/matrix/DeviceVerificationDialog.qml:152
 msgctxt "@info:status verification needs a working key store"
 msgid ""
 "This session could not open its encryption keys, so it cannot be verified. "
 "Check that the wallet is running and sign in again."
-msgstr "Цей сеанс не зміг відкрити свої ключі шифрування, тому його не можна перевірити. Перевірте, що гаманець запущено, і увійдіть знову."
+msgstr ""
+"Цей сеанс не зміг відкрити свої ключі шифрування, тому його не можна "
+"перевірити. Перевірте, що гаманець запущено, і увійдіть знову."
 
 #: src/qml/matrix/DeviceVerificationDialog.qml:164
 msgctxt "@action:button ask every already-verified session at once"
@@ -1718,7 +1919,9 @@ msgctxt "@info"
 msgid ""
 "When someone invites you to a Matrix room, it shows up here to accept or "
 "decline."
-msgstr "Коли хтось запрошує вас до кімнати Matrix, вона з'являється тут, щоб прийняти чи відхилити."
+msgstr ""
+"Коли хтось запрошує вас до кімнати Matrix, вона з'являється тут, щоб "
+"прийняти чи відхилити."
 
 #: src/qml/matrix/InvitationsPage.qml:71
 msgctxt ""
@@ -1737,7 +1940,10 @@ msgid ""
 "The homeserver stores an encrypted copy of this account's room keys. Unlock "
 "it with the recovery key from when the backup was made, or with the backup "
 "passphrase."
-msgstr "Сервер зберігає зашифровану копію ключів кімнат цього облікового запису. Відкрийте її ключем відновлення, створеним під час резервного копіювання, або парольною фразою резервної копії."
+msgstr ""
+"Сервер зберігає зашифровану копію ключів кімнат цього облікового запису. "
+"Відкрийте її ключем відновлення, створеним під час резервного копіювання, "
+"або парольною фразою резервної копії."
 
 #: src/qml/matrix/KeyBackupDialog.qml:26
 msgctxt "@action:button try the entered string against the room key backup"
@@ -1774,7 +1980,9 @@ msgctxt "@info:whatsthis"
 msgid ""
 "Signing in here puts your Matrix rooms in the conversation list beside the "
 "peers found on the local network."
-msgstr "Вхід тут додає ваші кімнати Matrix до списку розмов поруч із співрозмовниками, знайденими у локальній мережі."
+msgstr ""
+"Вхід тут додає ваші кімнати Matrix до списку розмов поруч із "
+"співрозмовниками, знайденими у локальній мережі."
 
 #: src/qml/matrix/MatrixLoginPage.qml:53
 msgctxt "@label:textbox"
@@ -1801,7 +2009,9 @@ msgctxt "@info:whatsthis"
 msgid ""
 "With no homeserver typed above, the address has to come from the server's "
 "published record, so this cannot be turned off."
-msgstr "Якщо сервер вище не вказано, адреса має надійти з опублікованого запису сервера, тому це не можна вимкнути."
+msgstr ""
+"Якщо сервер вище не вказано, адреса має надійти з опублікованого запису "
+"сервера, тому це не можна вимкнути."
 
 #: src/qml/matrix/MatrixLoginPage.qml:76
 msgctxt "@info:whatsthis"
@@ -1809,7 +2019,10 @@ msgid ""
 "Matrix servers can publish a different address for clients to use. Leave "
 "this off to connect to exactly what you typed, which is what to do if the "
 "published address is blocked on your network."
-msgstr "Сервери Matrix можуть публікувати іншу адресу для клієнтів. Залиште це вимкненим, щоб підключатися саме до того, що ви ввели, — це варто зробити, якщо опубліковану адресу заблоковано у вашій мережі."
+msgstr ""
+"Сервери Matrix можуть публікувати іншу адресу для клієнтів. Залиште це "
+"вимкненим, щоб підключатися саме до того, що ви ввели, — це варто зробити, "
+"якщо опубліковану адресу заблоковано у вашій мережі."
 
 #: src/qml/matrix/MatrixLoginPage.qml:88
 msgctxt "@label:textbox a Matrix user identifier"
@@ -1836,7 +2049,9 @@ msgctxt "@info:whatsthis"
 msgid ""
 "Opens your homeserver's login page in a browser. When it finishes, paste the "
 "token below or let the browser hand it back."
-msgstr "Відкриває сторінку входу вашого сервера у браузері. Коли завершиться, вставте маркер нижче або дозвольте браузеру повернути його."
+msgstr ""
+"Відкриває сторінку входу вашого сервера у браузері. Коли завершиться, "
+"вставте маркер нижче або дозвольте браузеру повернути його."
 
 #: src/qml/matrix/MatrixLoginPage.qml:123
 msgctxt "@label:textbox a Matrix SSO login token"
@@ -1884,14 +2099,18 @@ msgctxt "@info:whatsthis"
 msgid ""
 "Encrypted rooms can be read and written. Until this session is verified, "
 "though, other clients may refuse to send it their room keys."
-msgstr "Зашифровані кімнати можна читати й писати. Проте, доки цей сеанс не перевірено, інші клієнти можуть відмовитися надсилати йому свої ключі кімнат."
+msgstr ""
+"Зашифровані кімнати можна читати й писати. Проте, доки цей сеанс не "
+"перевірено, інші клієнти можуть відмовитися надсилати йому свої ключі кімнат."
 
 #: src/qml/matrix/MatrixLoginPage.qml:191
 msgctxt "@info:whatsthis"
 msgid ""
 "The encryption keys could not be opened, so encrypted rooms cannot be read "
 "or written here. Check that the wallet is running and sign in again."
-msgstr "Не вдалося відкрити ключі шифрування, тому зашифровані кімнати тут не можна прочитати чи записати. Перевірте, що гаманець запущено, і увійдіть знову."
+msgstr ""
+"Не вдалося відкрити ключі шифрування, тому зашифровані кімнати тут не можна "
+"прочитати чи записати. Перевірте, що гаманець запущено, і увійдіть знову."
 
 #: src/qml/matrix/MatrixLoginPage.qml:200
 msgctxt "@action:button open the device verification dialog"
@@ -1903,57 +2122,61 @@ msgctxt "@info:whatsthis"
 msgid ""
 "Compare emoji with another Matrix session of yours so that both sides know "
 "this one is really you."
-msgstr "Порівняйте емодзі з іншим вашим сеансом Matrix, щоб обидві сторони знали, що цей справді ваш."
+msgstr ""
+"Порівняйте емодзі з іншим вашим сеансом Matrix, щоб обидві сторони знали, що "
+"цей справді ваш."
 
 #: src/qml/matrix/MatrixLoginPage.qml:227
 msgctxt "@info:status"
 msgid "Enter a user ID and a password."
 msgstr "Введіть ідентифікатор користувача та пароль."
 
-#: src/qml/matrix/RoomInfoPage.qml:70
+#: src/qml/matrix/RoomInfoPage.qml:78
 msgctxt "@title:window the topic, address and members of a Matrix room"
 msgid "Room information"
 msgstr "Інформація про кімнату"
 
-#: src/qml/matrix/RoomInfoPage.qml:119
+#: src/qml/matrix/RoomInfoPage.qml:141
 msgctxt ""
 "@action:button back to the conversation from the room information page"
 msgid "Back"
 msgstr "Назад"
 
-#: src/qml/matrix/RoomInfoPage.qml:127
+#: src/qml/matrix/RoomInfoPage.qml:148
 msgctxt "@action:button copy the room's address so it can be pasted elsewhere"
 msgid "Copy address"
 msgstr "Копіювати адресу"
 
-#: src/qml/matrix/RoomInfoPage.qml:132
+#: src/qml/matrix/RoomInfoPage.qml:153
 msgctxt "@info:status"
 msgid "Room address copied to the clipboard"
 msgstr "Адресу кімнати скопійовано до буфера обміну"
 
-#: src/qml/matrix/RoomInfoPage.qml:136
+#: src/qml/matrix/RoomInfoPage.qml:157
 msgctxt "@action:button leave a Matrix room"
 msgid "Leave room"
 msgstr "Покинути кімнату"
 
-#: src/qml/matrix/RoomInfoPage.qml:152
+#: src/qml/matrix/RoomInfoPage.qml:173
 msgctxt "@title:window"
 msgid "Leave this room?"
 msgstr "Покинути цю кімнату?"
 
-#: src/qml/matrix/RoomInfoPage.qml:153
+#: src/qml/matrix/RoomInfoPage.qml:174
 msgctxt "@info"
 msgid ""
 "You will stop receiving messages from it. Getting back in may need a new "
 "invitation."
-msgstr "Ви перестанете отримувати з неї повідомлення. Щоб повернутися, може знадобитися нове запрошення."
+msgstr ""
+"Ви перестанете отримувати з неї повідомлення. Щоб повернутися, може "
+"знадобитися нове запрошення."
 
-#: src/qml/matrix/RoomInfoPage.qml:157
+#: src/qml/matrix/RoomInfoPage.qml:178
 msgctxt "@action:button confirm leaving a Matrix room"
 msgid "Leave"
 msgstr "Покинути"
 
-#: src/qml/matrix/RoomInfoPage.qml:211
+#: src/qml/matrix/RoomInfoPage.qml:240
 msgctxt ""
 "@info:status %1 is how many people are in the room, %2 how many have been "
 "invited and not joined"
@@ -1963,7 +2186,7 @@ msgstr[0] "%1 учасник, %2 запрошено"
 msgstr[1] "%1 учасники, %2 запрошено"
 msgstr[2] "%1 учасників, %2 запрошено"
 
-#: src/qml/matrix/RoomInfoPage.qml:213
+#: src/qml/matrix/RoomInfoPage.qml:242
 msgctxt "@info:status %1 is how many people are in the room"
 msgid "%1 member"
 msgid_plural "%1 members"
@@ -1971,168 +2194,253 @@ msgstr[0] "%1 учасник"
 msgstr[1] "%1 учасники"
 msgstr[2] "%1 учасників"
 
-#: src/qml/matrix/RoomInfoPage.qml:223
+#: src/qml/matrix/RoomInfoPage.qml:252
 msgctxt "@title:group what a Matrix room is for"
 msgid "Topic"
 msgstr "Тема"
 
-#: src/qml/matrix/RoomInfoPage.qml:243
+#: src/qml/matrix/RoomInfoPage.qml:272
 msgctxt "@info the room has set no topic"
 msgid "No topic set"
 msgstr "Тему не встановлено"
 
-#: src/qml/matrix/RoomInfoPage.qml:255
+#: src/qml/matrix/RoomInfoPage.qml:284
 msgctxt "@title:group whether this room is encrypted"
 msgid "Encryption"
 msgstr "Шифрування"
 
-#: src/qml/matrix/RoomInfoPage.qml:267
+#: src/qml/matrix/RoomInfoPage.qml:296
 msgctxt "@info:status the room is not encrypted"
 msgid "Not encrypted"
 msgstr "Не зашифровано"
 
-#: src/qml/matrix/RoomInfoPage.qml:269
+#: src/qml/matrix/RoomInfoPage.qml:298
 msgctxt "@info:status the room is end to end encrypted"
 msgid "End to end encrypted"
 msgstr "Наскрізне шифрування"
 
-#: src/qml/matrix/RoomInfoPage.qml:270
+#: src/qml/matrix/RoomInfoPage.qml:299
 msgctxt "@info:status the room is encrypted but this session has no keys"
 msgid "Encrypted, and unreadable here"
 msgstr "Зашифровано, і тут нечитабельно"
 
-#: src/qml/matrix/RoomInfoPage.qml:273
+#: src/qml/matrix/RoomInfoPage.qml:302
 msgctxt "@info:whatsthis"
 msgid ""
 "Messages here are readable by the homeserver and by anybody it federates "
 "with."
-msgstr "Повідомлення тут може прочитати сервер і будь-хто, з ким він федерується."
+msgstr ""
+"Повідомлення тут може прочитати сервер і будь-хто, з ким він федерується."
 
-#: src/qml/matrix/RoomInfoPage.qml:276
+#: src/qml/matrix/RoomInfoPage.qml:305
 msgctxt "@info:whatsthis"
 msgid ""
 "Messages here are encrypted for the devices in the room, so the homeserver "
 "stores them but cannot read them. Messages sent before this device joined "
 "stay unreadable, because their keys were never sent to it."
-msgstr "Повідомлення тут зашифровано для пристроїв у кімнаті, тому сервер зберігає їх, але не може прочитати. Повідомлення, надіслані до того, як цей пристрій приєднався, залишаються нечитабельними, бо їхні ключі йому ніколи не надсилалися."
+msgstr ""
+"Повідомлення тут зашифровано для пристроїв у кімнаті, тому сервер зберігає "
+"їх, але не може прочитати. Повідомлення, надіслані до того, як цей пристрій "
+"приєднався, залишаються нечитабельними, бо їхні ключі йому ніколи не "
+"надсилалися."
 
-#: src/qml/matrix/RoomInfoPage.qml:278
+#: src/qml/matrix/RoomInfoPage.qml:307
 msgctxt "@info:whatsthis"
 msgid ""
 "This session could not open its encryption keys, so nothing in this room can "
 "be read and nothing can be sent to it."
-msgstr "Цей сеанс не зміг відкрити свої ключі шифрування, тому нічого в цій кімнаті не можна прочитати й нічого не можна надіслати."
+msgstr ""
+"Цей сеанс не зміг відкрити свої ключі шифрування, тому нічого в цій кімнаті "
+"не можна прочитати й нічого не можна надіслати."
 
-#: src/qml/matrix/RoomInfoPage.qml:289
+#: src/qml/matrix/RoomInfoPage.qml:318
 msgctxt "@info:status device verification could not be checked"
 msgid "Verification unknown"
 msgstr "Перевірку невідомо"
 
-#: src/qml/matrix/RoomInfoPage.qml:291
+#: src/qml/matrix/RoomInfoPage.qml:320
 msgctxt "@info:status all of this account's own sessions are verified"
 msgid "Your other sessions are verified"
 msgstr "Ваші інші сеанси перевірено"
 
-#: src/qml/matrix/RoomInfoPage.qml:292
+#: src/qml/matrix/RoomInfoPage.qml:321
 msgctxt "@info:status some of this account's own sessions are unverified"
 msgid "Some of your sessions are unverified"
 msgstr "Деякі ваші сеанси не перевірено"
 
-#: src/qml/matrix/RoomInfoPage.qml:295
+#: src/qml/matrix/RoomInfoPage.qml:324
 msgctxt "@info:whatsthis"
 msgid ""
 "The trust table could not be read, so nothing here has been checked either "
 "way."
-msgstr "Таблицю довіри не вдалося прочитати, тому нічого тут не перевірено жодним чином."
+msgstr ""
+"Таблицю довіри не вдалося прочитати, тому нічого тут не перевірено жодним "
+"чином."
 
-#: src/qml/matrix/RoomInfoPage.qml:298
+#: src/qml/matrix/RoomInfoPage.qml:327
 msgctxt "@info:whatsthis"
 msgid ""
 "Every other session on this account has been verified from here, so they "
 "will share their room keys with this one."
-msgstr "Кожен інший сеанс цього облікового запису перевірено звідси, тож вони ділитимуться своїми ключами кімнат із цим."
+msgstr ""
+"Кожен інший сеанс цього облікового запису перевірено звідси, тож вони "
+"ділитимуться своїми ключами кімнат із цим."
 
-#: src/qml/matrix/RoomInfoPage.qml:300
+#: src/qml/matrix/RoomInfoPage.qml:329
 msgctxt "@info:whatsthis"
 msgid ""
 "An unverified session is refused keys by some clients, which is why parts of "
 "an encrypted room can stay unreadable. Verify this one against another "
 "session of yours to fix that."
-msgstr "Деякі клієнти відмовляють неперевіреному сеансу в ключах, тому частини зашифрованої кімнати можуть залишатися нечитабельними. Перевірте цей сеанс проти іншого вашого сеансу, щоб виправити це."
+msgstr ""
+"Деякі клієнти відмовляють неперевіреному сеансу в ключах, тому частини "
+"зашифрованої кімнати можуть залишатися нечитабельними. Перевірте цей сеанс "
+"проти іншого вашого сеансу, щоб виправити це."
 
-#: src/qml/matrix/RoomInfoPage.qml:309
+#: src/qml/matrix/RoomInfoPage.qml:338
 msgctxt "@action:button open the device verification dialog"
 msgid "Verify sessions..."
 msgstr "Перевірити сеанси…"
 
-#: src/qml/matrix/RoomInfoPage.qml:311
+#: src/qml/matrix/RoomInfoPage.qml:340
 msgctxt "@info:whatsthis"
 msgid ""
 "Compare emoji with another Matrix session of yours to prove this one is the "
 "same person."
-msgstr "Порівняйте емодзі з іншим вашим сеансом Matrix, щоб довести, що це та сама особа."
+msgstr ""
+"Порівняйте емодзі з іншим вашим сеансом Matrix, щоб довести, що це та сама "
+"особа."
 
-#: src/qml/matrix/RoomInfoPage.qml:325
+#: src/qml/matrix/RoomInfoPage.qml:354
 msgctxt "@action:button the room key backup is already unlocked"
 msgid "Room keys restored from backup"
 msgstr "Ключі кімнати відновлено з резервної копії"
 
-#: src/qml/matrix/RoomInfoPage.qml:326
+#: src/qml/matrix/RoomInfoPage.qml:355
 msgctxt "@action:button open the dialog that unlocks the room key backup"
 msgid "Restore room keys from backup..."
 msgstr "Відновити ключі кімнати з резервної копії…"
 
-#: src/qml/matrix/RoomInfoPage.qml:329
+#: src/qml/matrix/RoomInfoPage.qml:358
 msgctxt "@info:whatsthis"
 msgid ""
 "The backup on the homeserver was already unlocked in this session, so "
 "messages from the past appear as their keys arrive."
-msgstr "Резервну копію на сервері вже відкрито в цьому сеансі, тому повідомлення з минулого з'являються, коли надходять їхні ключі."
+msgstr ""
+"Резервну копію на сервері вже відкрито в цьому сеансі, тому повідомлення з "
+"минулого з'являються, коли надходять їхні ключі."
 
-#: src/qml/matrix/RoomInfoPage.qml:331
+#: src/qml/matrix/RoomInfoPage.qml:360
 msgctxt "@info:whatsthis"
 msgid ""
 "Ask the homeserver for the encrypted copy of the room keys. A recovery key "
 "or the backup passphrase unlocks it; messages sent before this device joined "
 "become readable after this."
-msgstr "Запитайте у сервера зашифровану копію ключів кімнат. Ключ відновлення або парольна фраза резервної копії відкриває її; повідомлення, надіслані до того, як цей пристрій приєднався, стають читабельними після цього."
+msgstr ""
+"Запитайте у сервера зашифровану копію ключів кімнат. Ключ відновлення або "
+"парольна фраза резервної копії відкриває її; повідомлення, надіслані до "
+"того, як цей пристрій приєднався, стають читабельними після цього."
 
-#: src/qml/matrix/RoomInfoPage.qml:343
+#: src/qml/matrix/RoomInfoPage.qml:372
 msgctxt "@title:group what this room is called on the network"
 msgid "Address"
 msgstr "Адреса"
 
-#: src/qml/matrix/RoomInfoPage.qml:356
+#: src/qml/matrix/RoomInfoPage.qml:385
 msgctxt "@label the address a room is published under"
 msgid "Main address"
 msgstr "Основна адреса"
 
-#: src/qml/matrix/RoomInfoPage.qml:367
+#: src/qml/matrix/RoomInfoPage.qml:396
 msgctxt "@label another address the same room answers to"
 msgid "Also reachable as"
 msgstr "Також доступна як"
 
-#: src/qml/matrix/RoomInfoPage.qml:377
+#: src/qml/matrix/RoomInfoPage.qml:406
 msgctxt "@label the room's internal identifier"
 msgid "Room identifier"
 msgstr "Ідентифікатор кімнати"
 
-#: src/qml/matrix/RoomInfoPage.qml:384
+#: src/qml/matrix/RoomInfoPage.qml:413
+#, fuzzy
+msgctxt "@title:group edit the room's name and topic"
+msgid "Room settings"
+msgstr "Налаштування"
+
+#: src/qml/matrix/RoomInfoPage.qml:423
+msgctxt "@label:textbox the room's display name"
+msgid "Name"
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:429
+#, fuzzy
+msgctxt "@label:textbox the room's topic"
+msgid "Topic"
+msgstr "Тема"
+
+#: src/qml/matrix/RoomInfoPage.qml:437
+#, fuzzy
+msgctxt "@title:group messages pinned in this room"
+msgid "Pinned messages"
+msgstr "%1 непрочитане повідомлення"
+
+#: src/qml/matrix/RoomInfoPage.qml:449
+#, fuzzy
+msgctxt "@info no messages are pinned in this room"
+msgid "Nothing pinned yet"
+msgstr "Поки нічого не додано до черги"
+
+#: src/qml/matrix/RoomInfoPage.qml:471
+msgctxt "@action:button unpin a message"
+msgid "Unpin"
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:481
+#, fuzzy
+msgctxt "@title:group search the room history"
+msgid "Search"
+msgstr "Пошук"
+
+#: src/qml/matrix/RoomInfoPage.qml:492
+#, fuzzy
+msgctxt "@label:textbox search the room history"
+msgid "Search"
+msgstr "Пошук"
+
+#: src/qml/matrix/RoomInfoPage.qml:493
+#, fuzzy
+msgctxt "@info:placeholder type to search messages"
+msgid "Type to search messages"
+msgstr "Перейти до %1 непрочитаного повідомлення"
+
+#: src/qml/matrix/RoomInfoPage.qml:499
+msgctxt "@info no messages matched the search"
+msgid "No matches"
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:533
 msgctxt "@title:group the people in a Matrix room"
 msgid "Members"
 msgstr "Учасники"
 
-#: src/qml/matrix/RoomInfoPage.qml:397
+#: src/qml/matrix/RoomInfoPage.qml:546
 msgctxt "@info the member list has not arrived yet"
 msgid "No members loaded"
 msgstr "Учасників не завантажено"
 
-#: src/qml/matrix/RoomInfoPage.qml:399
+#: src/qml/matrix/RoomInfoPage.qml:548
 msgctxt "@info:whatsthis"
 msgid ""
 "A homeserver sends the member list lazily, so it may fill in a moment after "
 "the room opens."
-msgstr "Сервер надсилає список учасників із запізненням, тому він може заповнитися за мить після відкриття кімнати."
+msgstr ""
+"Сервер надсилає список учасників із запізненням, тому він може заповнитися "
+"за мить після відкриття кімнати."
+
+#: src/qml/matrix/RoomInfoPage.qml:616
+msgctxt "@title:window"
+msgid "Set room avatar"
+msgstr ""
 
 #: src/qml/matrix/RoomMemberCard.qml:125
 msgctxt "@label:textbox caption over a Matrix user identifier"
@@ -2186,14 +2494,18 @@ msgctxt "@info:whatsthis about the signed-in account's own sessions"
 msgid ""
 "These are your own sessions. Verify them from the room information column to "
 "let them share room keys."
-msgstr "Це ваші власні сеанси. Перевірте їх у стовпці інформації про кімнату, щоб вони ділилися ключами кімнат."
+msgstr ""
+"Це ваші власні сеанси. Перевірте їх у стовпці інформації про кімнату, щоб "
+"вони ділилися ключами кімнат."
 
 #: src/qml/matrix/RoomMemberCard.qml:221
 msgctxt "@info:whatsthis about another person's sessions"
 msgid ""
 "KOutNet cannot verify another person's device yet. Anything unverified here "
 "was not checked by this application."
-msgstr "KOutNet поки не може перевірити пристрій іншої особи. Усе неперевірене тут не було перевірено цією програмою."
+msgstr ""
+"KOutNet поки не може перевірити пристрій іншої особи. Усе неперевірене тут "
+"не було перевірено цією програмою."
 
 #: src/qml/matrix/RoomMemberCard.qml:237
 msgctxt "@action:button copy a member's Matrix address"
@@ -2219,6 +2531,16 @@ msgstr "Вилучити"
 msgctxt "@action:button ban a member from a room"
 msgid "Ban"
 msgstr "Заблокувати"
+
+#: src/qml/matrix/RoomMemberCard.qml:283
+msgctxt "@action:button mute a user across the whole account"
+msgid "Ignore"
+msgstr ""
+
+#: src/qml/matrix/RoomMemberCard.qml:286
+msgctxt "@info:status"
+msgid "Ignored %1"
+msgstr ""
 
 #: src/qml/matrix/RoomRoles.qml:22
 msgctxt "@info:status a Matrix room member with full power in the room"
@@ -2297,14 +2619,18 @@ msgctxt "@info:whatsthis"
 msgid ""
 "A key exchange with this peer succeeded. Messages and calls are encrypted "
 "with X25519 and AES-256-GCM."
-msgstr "Обмін ключами з цим співрозмовником успішний. Повідомлення та дзвінки зашифровано за допомогою X25519 і AES-256-GCM."
+msgstr ""
+"Обмін ключами з цим співрозмовником успішний. Повідомлення та дзвінки "
+"зашифровано за допомогою X25519 і AES-256-GCM."
 
 #: src/qml/peer/PeerInfoPage.qml:161
 msgctxt "@info:whatsthis"
 msgid ""
 "No key exchange has happened with this peer yet, so nothing sent to it is "
 "protected."
-msgstr "Обміну ключами з цим співрозмовником ще не було, тому ніщо надіслане йому не захищено."
+msgstr ""
+"Обміну ключами з цим співрозмовником ще не було, тому ніщо надіслане йому не "
+"захищено."
 
 #: src/qml/peer/PeerInfoPage.qml:179
 msgctxt "@label the peer's identity key, shortened for reading aloud"
@@ -2346,7 +2672,9 @@ msgctxt "@info:whatsthis"
 msgid ""
 "Addresses appear here once a signed packet has actually arrived from one. "
 "What a peer advertises about itself is not listed."
-msgstr "Адреси з'являються тут, щойно від однієї надійде справді підписаний пакет. Те, що співрозмовник повідомляє про себе, не вказується."
+msgstr ""
+"Адреси з'являються тут, щойно від однієї надійде справді підписаний пакет. "
+"Те, що співрозмовник повідомляє про себе, не вказується."
 
 #: src/qml/peer/PeerInfoPage.qml:251
 msgctxt "@info:whatsthis the address most recently heard from"
@@ -2408,7 +2736,9 @@ msgstr "Опис відсутній"
 msgctxt "@info:whatsthis"
 msgid ""
 "Messages and calls with this peer are encrypted with X25519 and AES-256-GCM."
-msgstr "Повідомлення та дзвінки з цим співрозмовником зашифровано за допомогою X25519 і AES-256-GCM."
+msgstr ""
+"Повідомлення та дзвінки з цим співрозмовником зашифровано за допомогою "
+"X25519 і AES-256-GCM."
 
 #: src/qml/profile/not_your_prof/OtherProfile.qml:120
 msgctxt "@info:whatsthis"
@@ -2638,7 +2968,9 @@ msgctxt "@info:whatsthis"
 msgid ""
 "Follows the system until a language is picked here. Takes effect the next "
 "time KOutNet starts."
-msgstr "Слідує системі, доки тут не вибрано мову. Набирає чинності під час наступного запуску KOutNet."
+msgstr ""
+"Слідує системі, доки тут не вибрано мову. Набирає чинності під час "
+"наступного запуску KOutNet."
 
 #: src/qml/settings/SettingsPage.qml:392
 msgctxt "@title:group"
@@ -2680,7 +3012,9 @@ msgctxt "@info:whatsthis"
 msgid ""
 "A picture behind the interface. Stays on this device and is never sent to "
 "anyone."
-msgstr "Зображення позаду інтерфейсу. Залишається на цьому пристрої і нікому не надсилається."
+msgstr ""
+"Зображення позаду інтерфейсу. Залишається на цьому пристрої і нікому не "
+"надсилається."
 
 #: src/qml/settings/SettingsPage.qml:439
 msgctxt "@label:slider how much of the wallpaper shows through"
@@ -2697,7 +3031,9 @@ msgctxt "@info:tooltip"
 msgid ""
 "A veil over the picture keeps the interface readable even at the top of the "
 "range."
-msgstr "Вуаль над зображенням зберігає читабельність інтерфейсу навіть угорі діапазону."
+msgstr ""
+"Вуаль над зображенням зберігає читабельність інтерфейсу навіть угорі "
+"діапазону."
 
 #: src/qml/settings/SettingsPage.qml:480
 msgctxt "@action:button"
@@ -2714,7 +3050,9 @@ msgctxt "@info:whatsthis"
 msgid ""
 "A reduced layout for a narrow window: the conversation list and the "
 "conversation only, with tighter rows."
-msgstr "Скорочене розташування для вузького вікна: лише список розмов і сама розмова з компактнішими рядками."
+msgstr ""
+"Скорочене розташування для вузького вікна: лише список розмов і сама розмова "
+"з компактнішими рядками."
 
 #: src/qml/settings/SettingsPage.qml:499
 msgctxt "@title:group the system tray icon and notifications"
@@ -2841,7 +3179,9 @@ msgctxt "@info:whatsthis"
 msgid ""
 "Leave empty for a server running on this machine. Takes effect the next time "
 "the account signs in."
-msgstr "Залиште порожнім для сервера, що працює на цьому комп'ютері. Набирає чинності під час наступного входу облікового запису."
+msgstr ""
+"Залиште порожнім для сервера, що працює на цьому комп'ютері. Набирає "
+"чинності під час наступного входу облікового запису."
 
 #: src/qml/settings/SettingsPage.qml:717
 msgctxt "@label:spinbox"
@@ -2981,7 +3321,9 @@ msgctxt "@item:inlistbox file dialog filter, keep the glob patterns"
 msgid ""
 "Media (*.mp3 *.flac *.ogg *.opus *.wav *.m4a *.aac *.mp4 *.mkv *.webm *.avi "
 "*.mov)"
-msgstr "Media (*.mp3 *.flac *.ogg *.opus *.wav *.m4a *.aac *.mp4 *.mkv *.webm *.avi *.mov)"
+msgstr ""
+"Media (*.mp3 *.flac *.ogg *.opus *.wav *.m4a *.aac *.mp4 *.mkv *.webm *.avi "
+"*.mov)"
 
 #: src/qml/tabs/PlayerPage.qml:122
 msgctxt "@item:inlistbox file dialog filter, keep the glob pattern"
@@ -3038,22 +3380,37 @@ msgctxt "@info:tooltip video player"
 msgid "Fullscreen"
 msgstr "На весь екран"
 
-#: src/qml/timeline/AttachmentBlock.qml:165
+#: src/qml/timeline/AttachmentBlock.qml:168
 msgctxt "@action:button pause the attached recording"
 msgid "Pause"
 msgstr "Пауза"
 
-#: src/qml/timeline/AttachmentBlock.qml:166
+#: src/qml/timeline/AttachmentBlock.qml:169
 msgctxt "@action:button play the attached recording"
 msgid "Play"
 msgstr "Відтворити"
 
-#: src/qml/timeline/AttachmentBlock.qml:195
+#: src/qml/timeline/AttachmentBlock.qml:198
 msgctxt "@action:button open the attachment outside this window"
 msgid "Open"
 msgstr "Відкрити"
 
-#: src/qml/timeline/AttachmentBlock.qml:216
+#: src/qml/timeline/AttachmentBlock.qml:226
+msgctxt "@info shared location caption"
+msgid "Location: %1"
+msgstr ""
+
+#: src/qml/timeline/AttachmentBlock.qml:227
+msgctxt "@info shared location with no caption"
+msgid "Shared location"
+msgstr ""
+
+#: src/qml/timeline/AttachmentBlock.qml:236
+msgctxt "@action:button open a shared location in a map"
+msgid "Open in map"
+msgstr ""
+
+#: src/qml/timeline/AttachmentBlock.qml:247
 msgctxt "@info:status %1 is the attachment's name"
 msgid "%1 cannot be opened from here."
 msgstr "%1 не можна відкрити звідси."
@@ -3088,57 +3445,72 @@ msgctxt "@info:tooltip state of an outgoing message"
 msgid "Sent - delivery not confirmed"
 msgstr "Надіслано — доставку не підтверджено"
 
-#: src/qml/timeline/MessageActions.qml:43
+#: src/qml/timeline/MessageActions.qml:44
 msgctxt "@action:button react to this message with an emoji"
 msgid "React"
 msgstr "Реагувати"
 
-#: src/qml/timeline/MessageActions.qml:55
+#: src/qml/timeline/MessageActions.qml:56
 msgctxt "@action:button quote this message in your next one"
 msgid "Reply"
 msgstr "Відповісти"
 
 #: src/qml/timeline/MessageActions.qml:68
+msgctxt "@action:button pin this message to the room"
+msgid "Pin"
+msgstr ""
+
+#: src/qml/timeline/MessageActions.qml:81
 msgctxt "@action:button change what this message says"
 msgid "Edit"
 msgstr "Редагувати"
 
-#: src/qml/timeline/MessageActions.qml:80
+#: src/qml/timeline/MessageActions.qml:93
 msgctxt "@action:button everything else that can be done to this message"
 msgid "More"
 msgstr "Більше"
 
-#: src/qml/timeline/MessageDelegate.qml:81
+#: src/qml/timeline/MessageDelegate.qml:92
 msgctxt "@info:placeholder the local user, as the author of their own message"
 msgid "You"
 msgstr "Ви"
 
-#: src/qml/timeline/MessageDelegate.qml:87
+#: src/qml/timeline/MessageDelegate.qml:98
 msgctxt "@info run header over your own messages, %1 is your own display name"
 msgid "%1 (you)"
 msgstr "%1 (ви)"
 
-#: src/qml/timeline/MessageDelegate.qml:301
+#: src/qml/timeline/MessageDelegate.qml:312
 msgctxt "@info:tooltip when a message was sent, %1 is a date and time"
 msgid "Sent %1"
 msgstr "Надіслано %1"
 
-#: src/qml/timeline/MessageDelegate.qml:403
+#: src/qml/timeline/MessageDelegate.qml:401
+msgctxt "@info poll tally, %1 is the number of votes cast"
+msgid "%1 vote(s)"
+msgstr ""
+
+#: src/qml/timeline/MessageDelegate.qml:402
+msgctxt "@info poll votes are hidden until closed"
+msgid "Votes are private until the poll closes."
+msgstr ""
+
+#: src/qml/timeline/MessageDelegate.qml:467
 msgctxt "@info:status the message was changed after it was sent"
 msgid "edited"
 msgstr "змінено"
 
-#: src/qml/timeline/MessageTimeline.qml:278
+#: src/qml/timeline/MessageTimeline.qml:284
 msgctxt "@info an open conversation with no messages in it"
 msgid "Nothing here yet"
 msgstr "Тут поки нічого немає"
 
-#: src/qml/timeline/MessageTimeline.qml:279
+#: src/qml/timeline/MessageTimeline.qml:285
 msgctxt "@info"
 msgid "Write something below, or drop a file on this window to send it."
 msgstr "Напишіть щось нижче або перетягніть файл у це вікно, щоб надіслати."
 
-#: src/qml/timeline/MessageTimeline.qml:292
+#: src/qml/timeline/MessageTimeline.qml:298
 msgctxt "@action:button go to the oldest message not yet read, %1 is a number"
 msgid "Jump to %1 unread message"
 msgid_plural "Jump to %1 unread messages"
@@ -3146,7 +3518,7 @@ msgstr[0] "Перейти до %1 непрочитаного повідомле�
 msgstr[1] "Перейти до %1 непрочитаних повідомлень"
 msgstr[2] "Перейти до %1 непрочитаних повідомлень"
 
-#: src/qml/timeline/MessageTimeline.qml:315
+#: src/qml/timeline/MessageTimeline.qml:321
 msgctxt "@action:button scroll the conversation back to the newest message"
 msgid "Jump to the latest message"
 msgstr "Перейти до останнього повідомлення"
@@ -3230,7 +3602,9 @@ msgctxt "@info"
 msgid ""
 "Join like-minded KOutNet people in our community: <a "
 "href=\"telegram\">@KOutNet</a>"
-msgstr "Приєднуйтесь до однодумців KOutNet у нашій спільноті: <a href=\"telegram\">@KOutNet</a>"
+msgstr ""
+"Приєднуйтесь до однодумців KOutNet у нашій спільноті: <a "
+"href=\"telegram\">@KOutNet</a>"
 
 #: src/qml/welcome/WelcomeScreen.qml:117
 msgctxt "@label"
@@ -3242,12 +3616,19 @@ msgctxt "@info"
 msgid ""
 "Want to help make KOutNet better? Visit our <a href=\"github\">GitHub page</"
 "a>. Report bugs or contribute code, anyone can do it."
-msgstr "Хочете допомогти зробити KOutNet кращим? Відвідайте нашу <a href=\"github\">сторінку GitHub</a>. Повідомляйте про вади або долучайтеся до коду — це може кожен."
+msgstr ""
+"Хочете допомогти зробити KOutNet кращим? Відвідайте нашу <a "
+"href=\"github\">сторінку GitHub</a>. Повідомляйте про вади або долучайтеся "
+"до коду — це може кожен."
 
 #: src/qml/welcome/WelcomeScreen.qml:132
 msgctxt "@action:button"
 msgid "Continue"
 msgstr "Продовжити"
+
+#~ msgctxt "@info:status %1 is a host address, %2 the parser message"
+#~ msgid "UDP parse error from %1: %2"
+#~ msgstr "Помилка розбору UDP від %1: %2"
 
 #~ msgctxt "theme name"
 #~ msgid "Aurora"
@@ -3288,4 +3669,3 @@ msgstr "Продовжити"
 #~ msgctxt "theme name"
 #~ msgid "Sunset"
 #~ msgstr "Захід сонця"
-
