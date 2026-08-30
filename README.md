@@ -3,6 +3,9 @@
 [![build](https://github.com/bitzuka/koutnet/actions/workflows/build.yml/badge.svg)](https://github.com/bitzuka/koutnet/actions/workflows/build.yml)
 [![lint](https://github.com/bitzuka/koutnet/actions/workflows/lint.yml/badge.svg)](https://github.com/bitzuka/koutnet/actions/workflows/lint.yml)
 ![License](https://img.shields.io/badge/License-GPL--3.0--only%20OR%20LicenseRef--KDE--Accepted--GPL-red?style=plastic&logo=gnu&logoColor=white)
+![Qt](https://img.shields.io/badge/Qt-6.4%2B-blue?style=plastic&logo=qt&logoColor=white)
+![C++](https://img.shields.io/badge/C%2B%2B-20-blue?style=plastic&logo=cplusplus&logoColor=white)
+[![GitHub issues](https://img.shields.io/github/issues/bitzuka/koutnet?style=plastic)](https://github.com/bitzuka/koutnet/issues)
 
 An encrypted messenger that does not need a service in the middle. On a local
 network or a VPN it finds its peers by itself over UDP and talks to them
@@ -46,20 +49,25 @@ as unsupported until somebody says otherwise.
   group seals under a key of its own, kept in KWallet and handed to an invitee
   only under the session with them; groups that predate this keep working on
   the shared passphrase.
+- **Polls.** Create and vote on polls with multiple choice answers. Votes are
+  tallied live as responses arrive, with deduplication by voter. Polls work
+  over both LAN and Matrix, and the renderer handles the MSC3381 format used
+  by NeoChat and current servers.
 - **Voice calls.** TCP with a four-byte length prefix per frame, a per-peer
   jitter buffer, and a mixer that clamps rather than wraps, so several people
   talking at once does not turn into noise. The same channel carries Matrix
   room calls: the room signals them with m.call events, and the media runs
   under a per-call shared key installed in place of the handshake.
 - **File transfer.** Chunked at 48000 bytes over UDP, reassembled with a size
-  cap, a concurrency cap and a TTL on incomplete transfers.
+  cap, a concurrency cap and a TTL on incomplete transfers. An ACK per transfer
+  lets the sender retransmit on loss instead of silently dropping the tail.
 - **The rest of the window.** A notes page, a media player, and a three-column
   layout - conversation list, conversation, details - that folds to one column
   on a narrow window. The interface is Kirigami
   and kirigami-addons throughout, so it takes its colours from the Plasma colour
   scheme; the only choice the app makes for itself is dark, light or follow the
   desktop. Every user-visible string goes through ki18n and the catalogs are in
-  `po/`, though only the English source is complete so far.
+  `po/`, with Ukrainian fully translated and 12 more languages started.
 - **Matrix mode.** Signing in to a homeserver puts your joined rooms in the
   same conversation list as the peers found on the local network, marked with
   a badge and otherwise identical; plain text and encrypted messages read and
@@ -259,8 +267,8 @@ GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL. Full texts are in `LICENSES/`.
 
 ## Borrowed code
 
-The emoji picker, the emoji tables and the message text handler come from
-[NeoChat](https://invent.kde.org/network/neochat), as does the notification
-plumbing. Their authors are credited in the SPDX headers of the files
-concerned, and each of those files says which NeoChat file it came from.
-Writing any of it a second time would have been work for its own sake.
+The emoji picker, the emoji tables, the message text handler and the poll event
+classes come from [NeoChat](https://invent.kde.org/network/neochat), as does
+the notification plumbing. Their authors are credited in the SPDX headers of
+the files concerned, and each of those files says which NeoChat file it came
+from. Writing any of it a second time would have been work for its own sake.
