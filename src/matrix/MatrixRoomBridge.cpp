@@ -415,6 +415,38 @@ koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
             pollMap.insert(QStringLiteral("disclosed"), poll.value(QStringLiteral("kind")).toString() == QStringLiteral("disclosed"));
             raw.poll = pollMap;
             raw.body = pollMap.value(QStringLiteral("question")).toString();
+        } else if (msgtype == QStringLiteral("org.matrix.msc3381.poll.start")) {
+            // NeoChat and Element also send polls as an m.room.message whose msgtype
+            // is the unstable MSC3381 type; the poll nests under the same key, with
+            // the question and answers carried in org.matrix.msc1767.text.
+            const QJsonObject poll = content.value(QStringLiteral("org.matrix.msc3381.poll.start")).toObject();
+            const QString textKey = QStringLiteral("org.matrix.msc1767.text");
+            QString questionText = poll.value(QStringLiteral("question")).toObject().value(textKey).toString();
+            if (questionText.isEmpty())
+                questionText = content.value(textKey).toString();
+            QVariantList answers;
+            const QJsonArray answersJson = poll.value(QStringLiteral("answers")).toArray();
+            for (const QJsonValue &answer : answersJson) {
+                const QJsonObject answerObj = answer.toObject();
+                QVariantMap entry;
+                entry.insert(QStringLiteral("id"), answerObj.value(QStringLiteral("id")).toString());
+                entry.insert(QStringLiteral("body"), answerObj.value(textKey).toString());
+                answers.append(entry);
+            }
+            QVariantMap pollMap2;
+            pollMap2.insert(QStringLiteral("question"), questionText.isEmpty() ? message->plainBody() : questionText);
+            pollMap2.insert(QStringLiteral("answers"), answers);
+            pollMap2.insert(QStringLiteral("disclosed"), poll.value(QStringLiteral("kind")).toString() == QStringLiteral("org.matrix.msc3381.poll.disclosed"));
+            raw.poll = pollMap2;
+            raw.body = pollMap2.value(QStringLiteral("question")).toString();
+        } else if (msgtype == QStringLiteral("org.matrix.msc3381.poll.response")) {
+            const QJsonObject relates = content.value(QStringLiteral("m.relates_to")).toObject();
+            raw.pollStartId = relates.value(QStringLiteral("event_id")).toString();
+            const QJsonArray answers = content.value(QStringLiteral("org.matrix.msc3381.poll.response")).toObject().value(QStringLiteral("answers")).toArray();
+            if (!answers.isEmpty())
+                raw.pollAnswerId = answers.at(0).isObject()
+                    ? answers.at(0).toObject().value(QStringLiteral("id")).toString()
+                    : answers.at(0).toString();
         } else {
             raw.body = message->plainBody();
             raw.media = mediaKindOf(message->msgtype());
