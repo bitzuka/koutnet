@@ -6,18 +6,10 @@ import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.components as Components
 import koutnet.app
 
-// Bottom to top, over a model turned round - see core/chat/ReversedChatModel.h
-// for why the reversal is a proxy and not a change to ChatModel. Three attempts
-// to keep the list the natural way up and call positionViewAtEnd() failed alike:
-// rows above the fold are never built, so QQuickListView guesses where they are
-// from an average row height, and one-word replies mixed with pictures have no
-// average worth having. That guess is what originY and contentHeight are made
-// of, it is corrected as each real row appears, and what is anchored to it moves
-// too - the flick bounds, and the scrollbar's own idea of where it is (the drag
-// that scrolled to a blank page). Bottom to top the guess sits off the top where
-// nothing looks at it; the end the view rests against is the newest message,
-// built and measured, so the reader's position is exact. New messages insert at
-// row 0, the end that does not move.
+// Bottom to top over a ReversedChatModel: QQuickListView extrapolates from
+// built rows, and a natural top-to-bottom view guesses from rows never built,
+// drifting the position on every scroll. Row 0 (newest) is always built and
+// measured, so the reader's position is exact.
 Item {
     id: root
 
@@ -40,14 +32,9 @@ Item {
         sourceModel: root.messagesModel
     }
 
-    // originY and contentHeight are each estimated, but their sum is the position
-    // of row 0 and row 0 is a real built item, so the two errors cancel and the
-    // distance comes out exact.
-    //
-    // Written out rather than taken from atYEnd, which compares floats: contentY
-    // settles on -643.2 against a height of 643 and the view never admits to
-    // being at the end, which leaves the jump button up for good and stops every
-    // read receipt this window would have sent.
+    // originY + contentHeight = position of row 0, which is a real built item,
+    // so the two estimate errors cancel. atYEnd uses float comparison and never
+    // settles, which left the jump button permanently visible.
     readonly property real tailDistance: messagesList.originY + messagesList.contentHeight
         + messagesList.bottomMargin - messagesList.height - messagesList.contentY
 
@@ -56,10 +43,8 @@ Item {
     // pixel of slack and not a screenful.
     readonly property bool atBottom: Math.round(root.tailDistance) <= 1
 
-    // Whether the view was following the newest message when the row arriving now
-    // was handed over. Sampled before the insert: by the time count has changed
-    // the new row is already in contentHeight, atBottom reads false, and a test
-    // made there would drop out of a conversation the reader never left.
+    // Sampled before the insert: after count changes, atBottom reads false and
+    // a test there would drop out of a conversation the reader never left.
     property bool followTail: true
 
     onMessagesModelChanged: root.followTail = true
@@ -90,19 +75,12 @@ Item {
     // the anchor item belongs to a delegate, so nothing may hold on to it.
     signal avatarActivated(bool own, Item anchorItem)
 
-    // A delivery mark sits at the trailing edge of its message and the scrollbar
-    // at the trailing edge of the view, so the collision is horizontal. wip19
-    // answered it on the other axis by shortening the list from the bottom, which
-    // moved no mark and left a dead band across the foot of the conversation.
-    // Unconditional rather than held only while the scrollbar is up: the
-    // shortened version decided on contentHeight, which is re-derived on every
-    // resize, and QML reported the binding loop.
+    // Horizontal collision between delivery marks and the scrollbar.
+    // Unconditional to avoid a binding loop on contentHeight.
     readonly property real scrollBarRoom: Math.max(Kirigami.Units.smallSpacing,
                                                    verticalScrollBar.implicitWidth)
 
-    // A cap of 46 grid units here, on the reading-length argument, read as the
-    // conversation floating in the middle of the screen once the column filled the
-    // window; the column is the measure now, less the scrollbar's own track.
+    // Column-width minus scrollbar track.
     readonly property real messageWidth: messagesList.width
         - Kirigami.Units.largeSpacing * 2 - root.scrollBarRoom
 
@@ -144,10 +122,8 @@ Item {
         root.jumpToRow(root.messagesModel.firstUnreadRow())
     }
 
-    // Held here rather than on the delegate because a delegate that scrolls out of
-    // view is recycled and would forget. By id and not by row: reversed, every row
-    // number shifts the moment a message arrives and the flash would walk down to
-    // the message underneath.
+    // Held here because a recycled delegate forgets. By id, not row: row
+    // numbers shift on every insert in a reversed list.
     QtObject {
         id: flashTarget
         property string msgId: ""
@@ -187,18 +163,9 @@ Item {
         spacing: 0
         topMargin: Kirigami.Units.smallSpacing
         bottomMargin: Kirigami.Units.smallSpacing
-        // On, and it is the fix for the stall rather than a saving. A destroyed
-        // delegate is rebuilt from nothing, and it enters the view short - the
-        // Loaders are inactive and an Image has no sourceSize yet - then grows once
-        // it has measured itself. Every one of those rebuilds moves the average row
-        // height QQuickListView extrapolates the rows it has never built from, and
-        // the whole coordinate system slides with it: measured at 1200px of drift in
-        // originY + contentHeight over one scroll up and back, against 3px with
-        // reuse on. Sliding away from the reader is what the stall was - scrolling
-        // down moved the newest message down by nearly as much as it moved the view.
-        // Recycled delegates keep the heights they already resolved, so the estimate
-        // holds still. See onReused in MessageDelegate for the state that has to be
-        // put back by hand.
+        // Fix for the stall: destroyed delegates re-enter short and shift the
+        // row height estimate, sliding the view away from the reader. Recycled
+        // delegates keep their heights so the estimate holds.
         reuseItems: true
 
         QQC2.ScrollBar.vertical: QQC2.ScrollBar {
@@ -241,11 +208,8 @@ Item {
         // the drift it was meant to hide: it releases every built row and
         // re-derives the origin from whatever is visible afterwards.
 
-        // A scrollbar drag writes contentY straight from originY and contentHeight,
-        // still guesses about rows never built, and a long one can leave the viewport
-        // where the list has no items at all - a blank page with no way back but the
-        // jump button. Only once the view has stopped, because an empty middle
-        // during a refill is ordinary.
+        // A scrollbar drag can land in an empty stretch of unbuilt rows. Only
+        // guard after the view stops, since an empty middle during refill is ordinary.
         onContentYChanged: emptyViewGuard.restart()
 
         delegate: MessageDelegate {
@@ -304,10 +268,8 @@ Item {
         onClicked: root.jumpToFirstUnread()
     }
 
-    // Only up while there is somewhere to go back from: an always-there button is
-    // one nobody reads, and it keeps its corner clear of the newest message's
-    // delivery mark, since it shows exactly when that message is off screen. No
-    // room is reserved for it; reserving some is what wip19 did.
+    // Only up while there is somewhere to go back from. No room reserved:
+    // reserving some is what wip19 did.
     Components.FloatingButton {
         id: jumpButton
 
