@@ -411,7 +411,7 @@ Kirigami.ScrollablePage {
         ChatSection {
             Layout.fillWidth: true
             text: i18nc("@title:group edit the room's name and topic", "Room settings")
-            expanded: false
+            expanded: root.settingsExpanded
             onToggleRequested: root.settingsExpanded = !root.settingsExpanded
         }
 
@@ -436,7 +436,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             text: i18nc("@title:group messages pinned in this room", "Pinned messages")
             itemCount: root.pinned.length
-            expanded: false
+            expanded: root.pinnedExpanded
             onToggleRequested: root.pinnedExpanded = !root.pinnedExpanded
         }
 
@@ -479,7 +479,7 @@ Kirigami.ScrollablePage {
         ChatSection {
             Layout.fillWidth: true
             text: i18nc("@title:group search the room history", "Search")
-            expanded: false
+            expanded: root.searchExpanded
             onToggleRequested: root.searchExpanded = !root.searchExpanded
         }
 
@@ -615,7 +615,7 @@ Kirigami.ScrollablePage {
             id: avatarDialog
             title: i18nc("@title:window", "Set room avatar")
             nameFilters: [i18nc("@item file type filter", "Images (*.png *.jpg *.jpeg *.gif *.webp)"), i18nc("@item file type filter", "All files (*)")]
-            onAccepted: matrixRooms.setRoomAvatar(root.chatId, selectedFile.toString().replace("file://", ""))
+            onAccepted: matrixRooms.setRoomAvatar(root.chatId, selectedFile.toLocalFile())
         }
     }
 }
