@@ -4,6 +4,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
+import koutnet.app
 
 // The connection mode sits on the left edge rather than three pages into the
 // settings because it is the thing this application is for.
@@ -73,8 +74,7 @@ QQC2.Control {
                     icon.name: modelData.icon
                     current: root.currentMode === modelData.mode
                     unavailableReason: networkManager.modeAvailable(modelData.mode) ? "" : modelData.reason
-                    // touch UnreadManager.total so the badge updates when unread moves
-                    unread: (UnreadManager.total, root.chats ? root.chats.unreadForGroup(modelData.mode) : 0)
+                    unread: root.chats ? root.chats.unreadForGroup(modelData.mode) : 0
 
                     onPicked: root.modeSelected(modelData.mode)
                 }

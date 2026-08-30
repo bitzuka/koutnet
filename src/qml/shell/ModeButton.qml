@@ -84,7 +84,8 @@ Delegates.RoundedItemDelegate {
                 anchors.centerIn: parent
                 text: root.unread > 99 ? i18nc("@info a large unread count is capped", "99+") : String(root.unread)
                 color: "white"
-                font.pixelSize: Kirigami.Units.smallFont.pixelSize
+                font.pointSize: Kirigami.Theme.smallFont.pointSize
+                font.family: Kirigami.Theme.smallFont.family
             }
         }
     }
