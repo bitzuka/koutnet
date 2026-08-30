@@ -666,12 +666,14 @@ Kirigami.ApplicationWindow {
         pageStack.currentIndex = 1
     }
 
-    // true when the details page (room or peer info) is on the stack.
-    // read from depth, not a flag, so a direct pop() cannot leave it stale.
-    readonly property bool peerInfoOpen: pageStack.depth > 2
+    // True when the details page is up, on either stack: PeerInfoPage is a
+    // pageStack column, RoomInfoPage rides on layers so it can be dismissed at
+    // any width. Reading both keeps the toggle honest.
+    readonly property bool peerInfoOpen: pageStack.depth > 2 || pageStack.layers.depth > 1
 
-    // pop the details page if it is up; the while covers a stray extra push
     function closePeerInfo() {
+        while (pageStack.layers.depth > 1)
+            pageStack.layers.pop()
         while (pageStack.depth > 2)
             pageStack.pop()
     }
@@ -681,14 +683,11 @@ Kirigami.ApplicationWindow {
             root.closePeerInfo()
             return
         }
-        // The actions that ask for this are hidden in compact mode, but a keyboard
-        // shortcut or a peer card can still get here.
+        // Hidden in compact mode, but a keyboard shortcut can still get here.
         if (root.compact)
             return
-        // Room info is shown on its own overlay layer, not as a third pageStack
-        // column: a column would persist on wide windows with no way to dismiss it
-        // (the global toolbar only draws a back arrow for the first two columns).
-        // A layer overlays at every width and is always closable.
+        // Room info goes on the overlay layer so it is closable at every width;
+        // a peer info stays a pageStack column beside the conversation.
         if (root.currentIsRoom)
             pageStack.layers.push(roomInfoComponent)
         else {
@@ -753,13 +752,10 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // Single binding, not two: StandardKey.FullScreen resolves to F11 on this
+    // platform too, and two shortcuts on the same key would toggle twice.
     Shortcut {
-        sequence: StandardKey.FullScreen
-        onActivated: root.toggleFullScreen()
-    }
-
-    Shortcut {
-        sequence: "F11"
+        sequences: [StandardKey.FullScreen, "F11"]
         context: Qt.ApplicationShortcut
         onActivated: root.toggleFullScreen()
     }
@@ -1324,9 +1320,14 @@ Kirigami.ApplicationWindow {
                 // in every client that has tried it. sendFailed() reports
                 // whatever went wrong.
                 if (replyId && replyId.length > 0) {
-                    // A quote-reply: Matrix carries it as m.in_reply_to, which
-                    // the bridge resolves from the row stamp to the event id.
-                    matrixRooms.sendReply(peerIp, Number(replyId), text)
+                    // replyId is the Matrix event id; the bridge resolves an
+                    // event by the row's stamp, so look the stamp up here.
+                    const row = messagesModel ? messagesModel.rowForMsgId(replyId) : -1
+                    const stamp = row >= 0 ? messagesModel.stampForRow(row) : 0
+                    if (stamp > 0)
+                        matrixRooms.sendReply(peerIp, stamp, text)
+                    else
+                        matrixRooms.sendRichText(peerIp, text, "")
                 } else if (chatTransport.transportName(peerIp) === "matrix") {
                     // Send formatted when the composer typed markdown; the bridge
                     // derives the HTML body, so plain text stays plain on the wire.
