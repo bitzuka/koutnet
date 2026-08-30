@@ -201,7 +201,7 @@ private Q_SLOTS:
         QVERIFY(crypto.decrypt(sealed, QStringLiteral("wrong")) != plain);
     }
 
-    // The point of AES-GCM: a flipped bit has to be refused outright rather than
+    // The point of authenticated encryption: a flipped bit has to be refused rather than
     // decrypted into something that merely looks wrong. The flip goes into the
     // decoded bytes, not the base64 text, whose spare bits can absorb an edit.
     void tamperedCipherTextFails()

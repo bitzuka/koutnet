@@ -115,7 +115,7 @@ FormCard.FormCardPage {
             description: i18nc("@info:whatsthis",
                               "Opens your homeserver's login page in a browser. When it finishes, paste the token below or let the browser hand it back.")
             enabled: !matrixManager.loggedIn && !matrixManager.busy && homeserverField.text.trim().length > 0
-            onClicked: Qt.openUrlExternally(matrixManager.ssoLoginUrl(homeserverField.text))
+            onClicked: matrixManager.startSsoLogin(homeserverField.text.trim())
         }
 
         FormCard.FormTextFieldDelegate {

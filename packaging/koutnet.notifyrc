@@ -19,7 +19,7 @@
 [Global]
 IconName=org.kde.koutnet
 Name=KOutNet
-Comment=P2P encrypted messenger for LAN, VPN and relay
+Comment=P2P encrypted messenger for LAN, VPN and Matrix
 DesktopEntry=org.kde.koutnet
 
 # Window behind something else, but somebody is at the machine. The screen is
