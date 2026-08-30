@@ -384,8 +384,11 @@ Kirigami.Page {
 
     function pinMessage(msgId) {
         // Pinning is a Matrix room feature; a LAN peer has no room to pin to.
-        if (chatTransport.transportName(root.peerIp) === "matrix")
-            matrixRooms.pinMessage(root.peerIp, Number(msgId))
+        if (chatTransport.transportName(root.peerIp) !== "matrix" || !root.messagesModel)
+            return
+        const row = root.messagesModel.rowForMsgId(msgId)
+        if (row >= 0)
+            matrixRooms.pinMessage(root.peerIp, root.messagesModel.stampForRow(row))
     }
 
     function clearReply() {
@@ -410,7 +413,7 @@ Kirigami.Page {
     FileDialog {
         id: fileDialog
         title: i18nc("@title:window", "Attach a file")
-        onAccepted: root.attachRequested(selectedFile.toString().replace("file://", ""))
+        onAccepted: root.attachRequested(selectedFile.toLocalFile())
     }
 
     // A sticker is any picture; the bridge uploads it and sends it as m.sticker.
@@ -418,7 +421,7 @@ Kirigami.Page {
         id: stickerDialog
         title: i18nc("@title:window", "Send a sticker")
         nameFilters: [i18nc("@item file type filter", "Images (*.png *.jpg *.jpeg *.gif *.webp)"), i18nc("@item file type filter", "All files (*)")]
-        onAccepted: root.stickerRequested(selectedFile.toString().replace("file://", ""))
+        onAccepted: root.stickerRequested(selectedFile.toLocalFile())
     }
 
     Kirigami.PlaceholderMessage {
@@ -481,6 +484,7 @@ Kirigami.Page {
     onPeerIpChanged: {
         root.clearReply()
         composer.cancelEdit()
+        composer.cancelVoice()
     }
 
     footer: Composer {
@@ -498,7 +502,7 @@ Kirigami.Page {
         onSpoilerRequested: (text) => root.spoilerRequested(text)
         onLocationRequested: (lat, lon, label) => root.locationRequested(lat, lon, label)
         onVoiceCaptured: (path, ms) => root.voiceCaptured(path, ms)
-        onStickerRequested: stickerDialog.open()
+        onStickerPickRequested: stickerDialog.open()
         onPollRequested: (question, answers) => root.pollRequested(question, answers)
         onReplyCancelled: root.clearReply()
         onTypingNotice: root.typingNotice()

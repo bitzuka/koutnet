@@ -22,16 +22,12 @@ ColumnLayout {
     property bool peerTyping: false
     property string peerName: ""
 
-    // An edit takes over the composer rather than opening a field of its own: a
-    // second editor on the screen is a second place to look for the text.
+    // Edit takes over the composer: a second editor is a second place to look.
     property int editingRow: -1
 
-    // A spoiler carries the text hidden until the reader uncovers it; the toggle
-    // flips the send path to the bridge's formatted-spoiler call instead of plain.
+    // A spoiler carries the text hidden until the reader uncovers it.
     property bool spoilerMode: false
 
-    // The voice recorder's state: false until the microphone button is pressed,
-    // true while it is capturing, back to false once the clip is handed off.
     property bool recording: false
     property int voiceMs: 0
     property string voicePath: ""
@@ -50,15 +46,15 @@ ColumnLayout {
     // plain text, which the bridge does when it does not know the dialect.
     signal spoilerRequested(string text)
     signal locationRequested(real latitude, real longitude, string label)
-    // open the sticker file picker; the page owns the dialog.
-    signal stickerRequested(string filePath)
-    // a clip recorded in the composer: path + length in milliseconds. the bridge
-    // uploads it and marks it an MSC3245 voice message.
+    // Ask the page to open a single sticker picker. The page owns the dialog
+    // and converts the URL to a local path; this signal carries nothing.
+    signal stickerPickRequested()
+    // Path and duration of a recorded voice clip.
     signal voiceCaptured(string filePath, int durationMs)
     // a poll to create: question and the non-empty answer options, in order.
     signal pollRequested(string question, var answers)
-    // One notice per typingNoticeMs and not one per keystroke: a datagram per
-    // character is a keylogger as far as the wire is concerned, and it floods.
+    // One notice per typingNoticeMs, not one per keystroke: a datagram per
+    // character is a keylogger and it floods.
     signal typingNotice()
 
     readonly property int typingNoticeMs: 3000
@@ -96,8 +92,7 @@ ColumnLayout {
             root.cancelEdit()
             return
         }
-        // A spoiler is sent as one, not as a normal line; the toggle is cleared so
-        // the next message is plain unless the writer turns it back on.
+        // Sent as a spoiler, then toggle is cleared.
         if (root.spoilerMode) {
             root.spoilerRequested(input.text)
             root.spoilerMode = false
@@ -292,7 +287,7 @@ ColumnLayout {
                 QQC2.ToolTip.visible: hovered
                 QQC2.ToolTip.delay: Kirigami.Units.toolTipDelay
                 QQC2.ToolTip.text: text
-                onClicked: stickerDialog.open()
+                onClicked: root.stickerPickRequested()
             }
 
             QQC2.ToolButton {
@@ -438,24 +433,10 @@ ColumnLayout {
         }
     }
 
-    // A sticker is any local image; the picked file is handed to the bridge, which
-    // uploads it and posts an m.sticker. The dialog yields a file:// URL, so it is
-    // turned into a plain path before it leaves the composer.
-    Labs.FileDialog {
-        id: stickerDialog
-        title: i18nc("@title:window pick a sticker image", "Choose a sticker")
-        nameFilters: [i18nc("@item:filter image files", "Images (*.png *.jpg *.jpeg *.webp *.gif)")]
-        folder: Labs.StandardPaths.writableLocation(Labs.StandardPaths.PicturesLocation)
+    // The sticker picker lives on ChatPage. Composer only asks for it, so the
+    // path is picked once and does not travel through two dialogs.
 
-        onAccepted: {
-            const f = stickerDialog.file.toString()
-            root.stickerRequested(f.startsWith("file://") ? f.slice(7) : f)
-        }
-    }
-
-    // The recorder is a CaptureSession holding an AudioInput and a MediaRecorder;
-    // only one is needed for the whole composer. The clip lands in the temp dir
-    // and is handed to the bridge, which uploads and flags it an MSC3245 voice.
+    // One CaptureSession for the whole composer.
     CaptureSession {
         id: capture
         audioInput: AudioInput {}
@@ -469,10 +450,7 @@ ColumnLayout {
             // The file therefore uses a .m4a extension and the bridge tags it audio/mp4
             // so the bytes, extension and mime agree (a .ogg name around MP4 bytes is
             // what made the server reject it before).
-            // actualLocationChanged fires when the recorder resolves the output path,
-            // which is at the START of recording - not when the clip is finalised. So it
-            // only records the path here; the clip is handed off after stop() in
-            // stopVoice() once the recorder has flushed the file to disk.
+            // Fires at record START, not finalisation; only the path is recorded here.
             onActualLocationChanged: (loc) => root.voiceActualPath = loc
         }
     }
@@ -484,10 +462,8 @@ ColumnLayout {
         onTriggered: root.voiceMs += 1000
     }
 
-    // Safety net: hand the clip off once the recorder has had time to flush the
-    // MP4 trailer to disk after stop(); actualLocationChanged only names the path at
-    // record start, so it cannot be trusted to mean "file ready". This timer is the
-    // real hand-off; voiceActualPath (if set) is preferred over the intended path.
+    // Waits for the MP4 trailer to flush after stop(). voiceActualPath
+    // (if set) is preferred over the intended path.
     Timer {
         id: voiceFlushTimer
         interval: 1200
@@ -510,9 +486,9 @@ ColumnLayout {
         voiceRecorder.stop()
         voiceTimer.stop()
         root.recording = false
-        // Hand the clip off only after the recorder has flushed the trailer. Doing it
-        // here directly, or from actualLocationChanged (which fires at record start),
-        // uploads an empty/incomplete file and the server answers "Request data not ready".
+        // Hand the clip off only after the recorder has flushed the trailer.
+        // Doing it here or from actualLocationChanged (which fires at record
+        // start) uploads an incomplete file.
         voiceFlushTimer.restart()
     }
 
@@ -526,9 +502,7 @@ ColumnLayout {
         root.voiceCaptured(filePath, root.voiceMs)
     }
 
-    // A small form rather than a full poll editor: a question and a couple of
-    // answer rows that grow on demand. The wire only needs the question and the
-    // option list, so that is all the window collects.
+    // A question and growing answer rows; the wire only needs the option list.
     Kirigami.PromptDialog {
         id: pollDialog
 
