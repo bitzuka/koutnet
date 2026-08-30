@@ -8,6 +8,7 @@
 #include <QString>
 #include <QVariantMap>
 #include <QVector>
+#include <QHash>
 
 #include "MessageEntry.h"
 
@@ -209,6 +210,15 @@ private:
 
     QString m_chatId;
     QVector<MessageEntry> m_messages;
+
+    struct PendingPollVote {
+        QString answerId;
+        QString voterId;
+        bool isOwn = false;
+    };
+    // Sync can deliver a response before the referenced start event. Keep it
+    // until the poll arrives instead of silently losing the vote.
+    QHash<QString, QVector<PendingPollVote>> m_pendingPollVotes;
 
     QPointer<HistoryManager> m_history;
     QPointer<ReactionStore> m_reactions;

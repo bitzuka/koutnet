@@ -493,14 +493,29 @@ bool ChatModel::ingestRemotePoll(const QString &remoteId,
     e.poll = poll;
 
     appendEntry(e, true);
+
+    // Replay votes that arrived before this poll start event.
+    const auto it = m_pendingPollVotes.find(remoteId);
+    if (it != m_pendingPollVotes.end()) {
+        for (const auto &vote : std::as_const(*it))
+            applyPollResponse(remoteId, vote.answerId, vote.voterId, vote.isOwn);
+        m_pendingPollVotes.erase(it);
+    }
+
     return true;
 }
 
 bool ChatModel::applyPollResponse(const QString &pollStartId, const QString &answerId, const QString &voterId, bool isOwn)
 {
     const int row = rowForMsgId(pollStartId);
-    if (row < 0 || answerId.isEmpty())
+    if (row < 0 || answerId.isEmpty()) {
+        // Matrix may deliver a response before the start event (different timelines,
+        // or the start was not yet in our timeline). Stash it so ingestRemotePoll can
+        // replay it once the poll appears.
+        if (row < 0 && !answerId.isEmpty())
+            m_pendingPollVotes[pollStartId].append({answerId, voterId, isOwn});
         return false;
+    }
 
     MessageEntry &m = m_messages[row];
     if (!m.poll.contains(QStringLiteral("answers")))
