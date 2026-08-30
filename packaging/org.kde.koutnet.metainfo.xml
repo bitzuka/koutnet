@@ -10,19 +10,19 @@
   <project_group>KDE</project_group>
 
   <name>KOutNet</name>
-  <summary>Encrypted messenger for local networks, VPNs and relays</summary>
+  <summary>Encrypted messenger for local networks, VPNs and Matrix</summary>
 
   <description>
     <p>
       KOutNet is a messenger that works without a central service. On a local
       network or a VPN it finds its peers by itself and talks to them
-      directly. Where that is not possible it can route through a relay you
-      choose or host yourself.
+      directly. It can also connect to Matrix rooms through a homeserver.
     </p>
     <p>
       Direct messages and voice calls are encrypted end to end with an X25519
-      key exchange and AES-256-GCM. It also carries a media player and a notes
-      tab, so the things people usually alt-tab away for stay in one window.
+      key exchange and XChaCha20-Poly1305. It also carries a media player and a
+      notes tab, so the things people usually alt-tab away for stay in one
+      window.
     </p>
   </description>
 

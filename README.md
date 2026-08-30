@@ -101,7 +101,7 @@ as unsupported until somebody says otherwise.
 ## Dependencies
 
 - **Qt 6.4+**: Core, Gui, Widgets, Quick, QuickControls2, QuickDialogs2,
-  Multimedia, Network. Test as well, if you build the test suite.
+  Multimedia, Network, Positioning. Test as well, if you build the test suite.
 - **KDE Frameworks 6.8+**: Config, CoreAddons, I18n (I18nQml comes in the same
   package), IdleTime, Kirigami, Notifications, StatusNotifierItem, Wallet.
   ColorScheme as well, from 6.6, for the dark/light/system setting. The floor
@@ -131,7 +131,8 @@ cannot drift out of step:
 zypper install gcc-c++ cmake ninja pkgconf-pkg-config kf6-extra-cmake-modules \
   'cmake(Qt6Core)' 'cmake(Qt6Gui)' 'cmake(Qt6Qml)' 'cmake(Qt6Quick)' \
   'cmake(Qt6QuickControls2)' 'cmake(Qt6QuickDialogs2)' 'cmake(Qt6Multimedia)' \
-  'cmake(Qt6Network)' 'cmake(Qt6Widgets)' 'cmake(Qt6Test)' 'cmake(KF6Config)' \
+  'cmake(Qt6Network)' 'cmake(Qt6Positioning)' 'cmake(Qt6Widgets)' 'cmake(Qt6Test)' \
+  'cmake(KF6Config)' \
   'cmake(KF6CoreAddons)' 'cmake(KF6I18n)' 'cmake(KF6IdleTime)' \
   'cmake(KF6Kirigami)' 'cmake(KF6Notifications)' 'cmake(KF6StatusNotifierItem)' \
   'cmake(KF6Wallet)' 'cmake(KF6ColorScheme)' 'cmake(KF6KirigamiAddons)' \
@@ -141,7 +142,7 @@ zypper install gcc-c++ cmake ninja pkgconf-pkg-config kf6-extra-cmake-modules \
 On Debian or Ubuntu the same set is, roughly:
 
 ```
-qt6-base-dev qt6-declarative-dev qt6-multimedia-dev libkf6config-dev
+qt6-base-dev qt6-declarative-dev qt6-multimedia-dev qt6-positioning-dev libkf6config-dev
 libkf6coreaddons-dev libkf6i18n-dev libkf6idletime-dev libkf6kirigami-dev
 libkf6kirigamiaddons-dev libkf6notifications-dev libkf6statusnotifieritem-dev
 libkf6colorscheme-dev libkf6wallet-dev extra-cmake-modules libsodium-dev
@@ -170,6 +171,8 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ```
 
+Pass `-DBUILD_TESTING=OFF` when configuring an application-only build.
+
 KDECMakeSettings collects executables in the build tree rather than next to
 the objects, so it runs without installing:
 
@@ -185,8 +188,8 @@ cmake --install build
 
 ## Tests
 
-Six suites, built by default, plus the AppStream check KDECMakeSettings adds;
-pass `-DBUILD_TESTING=OFF` to skip them.
+Eight suites, built by default, plus the AppStream check KDECMakeSettings adds;
+pass `-DBUILD_TESTING=OFF` to skip the suites.
 
 - `koutnet-crypto-manager` - key handling, the XChaCha20-Poly1305 and
   passphrase paths, replay and rate limiting, and what happens to malformed
@@ -205,6 +208,9 @@ pass `-DBUILD_TESTING=OFF` to skip them.
 - `koutnet-matrix-wiring` - the Matrix addressing and file-naming path, kept
   free of Quotient types exactly so the decisions worth checking run without a
   homeserver or a network.
+- `koutnet-matrix-login` - the server-independent Matrix SSO redirect and
+  recovery-key validation helpers.
+- `koutnet-chat-address` - the chat-id prefixes used to route each transport.
 - `appstreamtest` - validates the installed metainfo against `appstreamcli`.
 
 ```bash
