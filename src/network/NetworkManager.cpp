@@ -120,15 +120,13 @@ void NetworkManager::setActiveCalls(const QSet<QString> &ips)
 
 void NetworkManager::setStaticPeers(const QStringList &ips)
 {
-    // Deliberately not re-read from AppSettings here: main.cpp passes the
-    // value once at start and on change.
+    // Deliberately not re-read from AppSettings: main.cpp passes the value once.
     m_staticPeers = ips;
 }
 
 void NetworkManager::setProfile(const QString &handle, const QString &displayName, const QString &bio, const QString &revision)
 {
-    // Presence goes out on a short timer, so anything in here is paid for repeatedly;
-    // a long bio gets cut rather than pushing the packet towards fragmentation.
+    // Presence goes out on a short timer, so anything in here is paid for repeatedly; a long bio gets cut.
     constexpr int kMaxBioChars = 280;
 
     const QString trimmedBio = bio.left(kMaxBioChars);
@@ -212,8 +210,6 @@ QString NetworkManager::ensureGroupKey(const QString &gid)
 
 void NetworkManager::setConnectionMode(ConnectionMode mode)
 {
-    // Nothing to tear up or down here since the relay tunnel was cut: the mode
-    // only tells QML which transport to route through.
     m_mode = mode;
     if (!m_running)
         return; // applied on next start()
@@ -248,7 +244,6 @@ bool NetworkManager::start()
 {
     const quint16 udpPort = protocol::kUdpPortDefault;
     const quint16 tcpPort = protocol::kTcpPortDefault;
-    m_voiceTcpPort = tcpPort;
 
     m_udp = new QUdpSocket(this);
     bool bound = m_udp->bind(QHostAddress::AnyIPv4, udpPort, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
@@ -260,6 +255,7 @@ bool NetworkManager::start()
         Q_EMIT errorOccurred(i18nc("@info:status %1 is a port number", "UDP bind failed on port %1.", int(udpPort)));
         return false;
     }
+    m_udpPort = m_udp->localPort();
     connect(m_udp, &QUdpSocket::readyRead, this, &NetworkManager::onUdpReadyRead);
 
     m_udp->joinMulticastGroup(QHostAddress(QStringLiteral("224.0.0.251")));
@@ -271,6 +267,7 @@ bool NetworkManager::start()
             return false;
         }
     }
+    m_voiceTcpPort = m_tcpServer->serverPort();
     connect(m_tcpServer, &QTcpServer::newConnection, this, &NetworkManager::onNewTcpConnection);
 
     m_running = true;
@@ -313,11 +310,13 @@ void NetworkManager::stop()
         m_udp->close();
         m_udp->deleteLater();
         m_udp = nullptr;
+        m_udpPort = 0;
     }
     if (m_tcpServer) {
         m_tcpServer->close();
         m_tcpServer->deleteLater();
         m_tcpServer = nullptr;
+        m_voiceTcpPort = 0;
     }
 }
 
@@ -348,12 +347,12 @@ void NetworkManager::scanArpTable()
 
     const QJsonObject payload = presencePayload();
     const QByteArray data = protocol::encodeFrame(payload);
-    const quint16 port = protocol::kUdpPortDefault;
-
     int sent = 0;
     for (const auto &ip : std::as_const(ips)) {
         if (ip != m_hostIp && !ip.startsWith(QLatin1String("169.254"))) {
-            m_udp->writeDatagram(data, QHostAddress(ip), port);
+            m_udp->writeDatagram(data, QHostAddress(ip), protocol::kUdpPortDefault);
+            if (m_udpPort != protocol::kUdpPortDefault)
+                m_udp->writeDatagram(data, QHostAddress(ip), m_udpPort);
             ++sent;
         }
     }
@@ -422,9 +421,9 @@ void NetworkManager::onBroadcastTimer()
 
     const QJsonObject payload = presencePayload();
     const QByteArray data = protocol::encodeFrame(payload);
-    const quint16 port = protocol::kUdpPortDefault;
-
-    m_udp->writeDatagram(data, QHostAddress(QStringLiteral("224.0.0.251")), port);
+    m_udp->writeDatagram(data, QHostAddress(QStringLiteral("224.0.0.251")), m_udpPort);
+    if (m_udpPort != protocol::kUdpPortDefault)
+        m_udp->writeDatagram(data, QHostAddress(QStringLiteral("224.0.0.251")), protocol::kUdpPortDefault);
 
     QSet<QString> sentBroadcasts;
     const auto interfaces = QNetworkInterface::allInterfaces();
@@ -438,7 +437,9 @@ void NetworkManager::onBroadcastTimer()
                 continue;
             const QString bcast = entry.broadcast().toString();
             if (!bcast.isEmpty() && bcast != QLatin1String("0.0.0.0") && !sentBroadcasts.contains(bcast)) {
-                m_udp->writeDatagram(data, entry.broadcast(), port);
+                m_udp->writeDatagram(data, entry.broadcast(), m_udpPort);
+                if (m_udpPort != protocol::kUdpPortDefault)
+                    m_udp->writeDatagram(data, entry.broadcast(), protocol::kUdpPortDefault);
                 sentBroadcasts.insert(bcast);
             }
         }
@@ -458,17 +459,16 @@ void NetworkManager::onBroadcastTimer()
             for (int last = 1; last < 255; ++last) {
                 const QString target = prefix + QString::number(last);
                 if (target != m_hostIp)
-                    m_udp->writeDatagram(data, QHostAddress(target), port);
+                    m_udp->writeDatagram(data, QHostAddress(target), m_udpPort);
             }
         }
     }
 
-    // 5. Static peers: a unicast presence packet each cycle, but only to
-    //    addresses that have not answered yet. A peer that answers keeps
-    //    itself alive from then on; a silent one is not reminded every cycle.
+    // Static peers: unicast each cycle to addresses that have not answered yet.
+    // A silent one is not reminded every cycle.
     const QStringList targets = staticUnicastTargets(m_staticPeers, m_peers, m_hostIp);
     for (const QString &target : std::as_const(targets))
-        m_udp->writeDatagram(data, QHostAddress(target), port);
+        m_udp->writeDatagram(data, QHostAddress(target), m_udpPort);
 
     pruneStalePeers();
 }
@@ -507,10 +507,8 @@ void NetworkManager::onUdpReadyRead()
 
 void NetworkManager::handleDatagram(const QString &host, const QByteArray &data)
 {
-    // Attacker-supplied bytes: decode the binary envelope defensively. Decode to
-    // the raw CBOR map - that is the exact payload the signer canonicalised, so
-    // byte-string fields (file_data "data") survive instead of being forced
-    // through JSON and base64.
+    // Attacker-supplied bytes: decode defensively. Raw CBOR so binary fields
+    // survive instead of being forced through JSON and base64.
     QString type;
     QCborMap map;
     if (!protocol::decodeFrame(data, type, map)) {
@@ -518,9 +516,16 @@ void NetworkManager::handleDatagram(const QString &host, const QByteArray &data)
         return;
     }
 
-    // Layer 4 - HMAC verification, now on the CBOR map so the canonical bytes the
-    // signer produced match what we verify against (a JSON round-trip would mangle
-    // binary). Presence is exempt: it is broadcast and never carries a _sig.
+    // The header type is the one authentication branches on, so the payload's
+    // "type" field must match it.
+    const QString payloadType = map.value(QStringLiteral("type")).toString();
+    if (payloadType != type) {
+        Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address", "Mismatched frame from %1 - dropping it.", host));
+        return;
+    }
+
+    // HMAC verification on the CBOR map so canonical bytes match the signer's.
+    // Presence is exempt: it is broadcast and never carries a _sig.
     if (m_crypto && !type.isEmpty() && !allowedUnsigned(type)) {
         if (m_crypto && !m_crypto->checkRate(host))
             return; // dropped - over rate limit
@@ -562,6 +567,35 @@ void NetworkManager::handleDatagram(const QString &host, const QByteArray &data)
         const QCborValue dataValue = map.value(QStringLiteral("data"));
         const QByteArray chunk = dataValue.isByteArray() ? dataValue.toByteArray() : QByteArray::fromBase64(dataValue.toString().toLatin1());
         Q_EMIT fileChunkBytes(tid, idx, total, chunk);
+
+        // Track received chunks per transfer. When all arrive, ACK the sender.
+        if (!tid.isEmpty() && total > 0 && idx >= 0) {
+            IncomingTransfer &inc = m_incomingTransfers[tid];
+            if (inc.total == 0) {
+                inc.total = total;
+                inc.fromIp = host;
+            }
+            inc.received.insert(idx);
+            if (inc.received.size() >= inc.total) {
+                QCborMap ack;
+                ack.insert(QStringLiteral("type"), protocol::kMsgFileAck);
+                ack.insert(QStringLiteral("tid"), tid);
+                ack.insert(QStringLiteral("from_ip"), m_hostIp);
+                sendUdp(ack, inc.fromIp);
+                m_incomingTransfers.remove(tid);
+            }
+        }
+        return;
+    }
+
+    if (type == protocol::kMsgFileAck) {
+        const QString tid = map.value(QStringLiteral("tid")).toString();
+        auto it = m_outgoingTransfers.find(tid);
+        if (it != m_outgoingTransfers.end()) {
+            if (it->timer)
+                it->timer->stop();
+            m_outgoingTransfers.erase(it);
+        }
         return;
     }
 
@@ -585,10 +619,9 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
             return; // own broadcast echoed back
     }
 
-    // Layer 4 HMAC verification and the Layer 5 replay guard now live in
-    // handleDatagram(), where they run on the raw CBOR map so the canonical bytes
-    // match the signer's. By the time we get here the packet is authenticated and
-    // its from_id/from_ip are already resolved; pull the identity back for decrypt.
+    // Layer 4 HMAC verification and Layer 5 replay guard now live in
+    // handleDatagram() on the raw CBOR map; by the time we get here the packet
+    // is authenticated and from_id/from_ip are resolved.
     const QString peerId = msg.value(QStringLiteral("from_id")).toString();
 
     if (type == protocol::kMsgPresence) {
@@ -599,8 +632,8 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
             Q_EMIT message(decrypted);
         });
     } else if (type == protocol::kMsgPrivate) {
-        // Against every address of ours, not just the primary one: comparing with
-        // m_hostIp alone dropped this without a word on any multi-homed machine.
+        // Against every address of ours, not just the primary one:
+        // comparing with m_hostIp alone dropped this on multi-homed machines.
         if (myIps.contains(msg.value(QStringLiteral("to")).toString())) {
             decryptMessageText(peerId, msg, [this](QJsonObject decrypted) {
                 Q_EMIT message(decrypted);
@@ -608,8 +641,7 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
         }
     } else if (type == protocol::kMsgCallReq) {
         if (!m_activeCalls.isEmpty()) {
-            // already on a call, and the busy reply is cheaper for the caller to
-            // hear than a ringing window that answers nothing
+            // already on a call; busy is cheaper for the caller than ringing forever
             sendCallBusy(host);
         } else {
             m_ringingCalls.insert(host);
@@ -617,8 +649,7 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
         }
     } else if (type == protocol::kMsgCallAccept) {
         // The whole point of the state machine: a call_accept from a peer we
-        // never called is a session-holder trying to open our microphone. The
-        // accept is only real when it answers a call_req of ours.
+        // never called is a session-holder trying to open our microphone.
         if (!m_pendingCalls.remove(host))
             return;
         Q_EMIT callAccepted(msg.value(QStringLiteral("username")).toString(QStringLiteral("?")), host);
@@ -627,10 +658,8 @@ void NetworkManager::dispatch(const QString &host, QJsonObject msg)
             return;
         Q_EMIT callRejected(host);
     } else if (type == protocol::kMsgCallEnd) {
-        // call_end carries two meanings - "your ring was cancelled" to a caller
-        // still waiting and "the call is over" to a peer we are talking to. A
-        // call_end for a call in neither state is stale or forged and cancels
-        // nothing.
+        // call_end carries two meanings: "your ring was cancelled" to a caller
+        // and "the call is over" to a connected peer.
         if (!m_pendingCalls.remove(host) && !m_ringingCalls.remove(host) && !m_activeCalls.contains(host))
             return;
         Q_EMIT callEnded(host);
@@ -660,11 +689,8 @@ void NetworkManager::decryptMessageText(const QString &peerRef, QJsonObject msg,
         return;
     }
 
-    // A group message is sealed under its own key; anything without a gid -
-    // private messages sent before the handshake, old group traffic - falls
-    // back to the shared app-wide passphrase, and to cleartext when none
-    // exists. A group whose key we do not hold lands on the same fallback:
-    // the sender no longer uses it, so the text simply fails to open.
+    // A group message is sealed under its own key; anything without a gid falls
+    // back to the shared passphrase, and to cleartext when none exists.
     QString passphrase = m_groupPassphrase;
     const QVariant gid = msg.value(QStringLiteral("gid"));
     if (!gid.isNull()) {
@@ -674,8 +700,7 @@ void NetworkManager::decryptMessageText(const QString &peerRef, QJsonObject msg,
     }
 
     // The sender "encrypted" flag used to decide this, so clearing it was enough to
-    // have the text handed to the UI unchecked. What matters is whether we hold a key
-    // for this channel; decrypt() refuses cleartext once we do.
+    // have the text handed unchecked. What matters is whether we hold a key.
     if (!m_crypto->hasSession(peerRef) && passphrase.isEmpty()) {
         done(msg);
         return;
@@ -694,8 +719,7 @@ void NetworkManager::decryptMessageText(const QString &peerRef, QJsonObject msg,
 
 void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
 {
-    // Only ever a delivery candidate: a host at one address can advertise any other,
-    // and trusting that is how it becomes a lie the interface repeats.
+    // Only ever a delivery candidate: a host at one address can advertise any other.
     const QString advertised = msg.value(QStringLiteral("ip")).toString();
     const QSet<QString> myIps = m_localIps.isEmpty() ? QSet<QString>{m_hostIp} : m_localIps;
     if (myIps.contains(advertised) || myIps.contains(host))
@@ -736,8 +760,8 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
         }
     }
 
-    // One entry per identity, filed under the address first heard: two contacts for one
-    // person is worse than a stale address, and deliveryAddresses() keeps the rest.
+    // One entry per identity, filed under the address first heard: two contacts
+    // for one person is worse than a stale address.
     const QString key = m_peerKeyById.value(peerId, host);
     msg[QStringLiteral("ip")] = key;
     if (!advertised.isEmpty() && advertised != key)
@@ -750,8 +774,8 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
     if (m_crypto)
         msg[QStringLiteral("e2e")] = m_crypto->hasSession(peerId.isEmpty() ? host : peerId);
     if (isNew) {
-        // A flood of spoofed presences must not grow the peer table without bound:
-        // the oldest entry makes room for the newcomer, like the replay buckets do.
+        // Spoofed presences must not grow the peer table without bound:
+        // the oldest entry makes room, like the replay buckets do.
         if (m_peers.size() >= kMaxPeers)
             evictOldestPeer();
         m_peers[key] = msg;
@@ -791,8 +815,7 @@ void NetworkManager::onNewTcpConnection()
         if (ip.startsWith(QLatin1String("::ffff:")))
             ip = ip.mid(7);
 
-        // A reconnecting peer arrives while the last socket is still in the map, and
-        // assigning over it stranded that socket, still reporting the call as ended.
+        // A reconnecting peer arrives while the last socket is still in the map.
         replaceVoiceSocket(ip, sock);
         connect(sock, &QTcpSocket::readyRead, this, [this, sock, ip] {
             onVoiceData(sock, ip);
@@ -817,15 +840,14 @@ void NetworkManager::replaceVoiceSocket(const QString &ip, QTcpSocket *sock)
 
 void NetworkManager::onVoiceData(QTcpSocket *sock, const QString &ip)
 {
-    // Reassemble whole frames first. The old code called whatever had arrived a frame,
-    // which is why encrypted voice never worked: the GCM tag was mid-slice.
+    // Reassemble whole frames; TCP may split one frame across reads.
     QByteArray buf = m_voiceRxBuffers.value(sock) + sock->readAll();
     QVector<QByteArray> frames;
 
     while (buf.size() >= protocol::kFrameHeaderBytes) {
         const quint32 len = readLengthPrefix(buf);
         if (len == 0 || len > protocol::kMaxVoiceFrameBytes) {
-            // a peer-supplied length, so a silly one asks us to allocate a gigabyte
+            // peer-supplied length: a silly one asks us to allocate a gigabyte
             m_voiceRxBuffers.remove(sock);
             Q_EMIT errorOccurred(
                 i18nc("@info:status %1 is a host address, %2 a byte count", "Voice frame from %1 declared %2 bytes - dropping the connection.", ip, len));
@@ -841,7 +863,7 @@ void NetworkManager::onVoiceData(QTcpSocket *sock, const QString &ip)
     }
 
     // Remainder goes back before anything is emitted: a listener may hang up
-    // the call, and that erases this socket's buffer underneath us.
+    // and erase this socket's buffer underneath us.
     m_voiceRxBuffers[sock] = buf;
 
     for (const auto &frame : std::as_const(frames)) {
@@ -862,24 +884,23 @@ void NetworkManager::sendUdp(QJsonObject payload, const QString &targetIp)
     sendUdpToAll(std::move(payload), targetIp.isEmpty() ? QVector<QString>{} : QVector<QString>{targetIp});
 }
 
-void NetworkManager::sendUdpToAll(QJsonObject payload, const QVector<QString> &targets)
+bool NetworkManager::sendUdpToAll(QJsonObject payload, const QVector<QString> &targets)
 {
     if (!m_udp)
-        return;
+        return false;
 
     const QString msgType = payload.value(QStringLiteral("type")).toString();
     if (msgType != protocol::kMsgPresence) {
         payload[QStringLiteral("nonce")] = randomHex(8);
         payload[QStringLiteral("ts")] = nowEpoch();
 
-        // Who this is from, so the far side finds the session even when the route picks
-        // an unfamiliar interface. Before the signature, so it is only a claim.
+        // Who this is from, so the far side finds the session. Before the signature,
+        // so it is only a claim.
         if (m_crypto)
             payload[QStringLiteral("from_id")] = m_crypto->ownIdentityId();
 
-        // Layer 4 - HMAC-sign unicast packets once a session key exists with the
-        // target; broadcasts have no single peer session to sign for. One signature for
-        // the whole set, since these addresses are one peer holding one session key.
+        // HMAC-sign unicast packets once a session key exists; broadcasts have
+        // no single peer session to sign for.
         QString peerId;
         for (const QString &target : targets) {
             peerId = m_crypto ? m_crypto->identityForAddress(target) : QString();
@@ -898,6 +919,7 @@ void NetworkManager::sendUdpToAll(QJsonObject payload, const QVector<QString> &t
     } else {
         m_udp->writeDatagram(data, QHostAddress::Broadcast, protocol::kUdpPortDefault);
     }
+    return true;
 }
 
 void NetworkManager::sendUdp(QCborMap payload, const QString &targetIp)
@@ -905,10 +927,10 @@ void NetworkManager::sendUdp(QCborMap payload, const QString &targetIp)
     sendUdpToAll(std::move(payload), targetIp.isEmpty() ? QVector<QString>{} : QVector<QString>{targetIp});
 }
 
-void NetworkManager::sendUdpToAll(QCborMap payload, const QVector<QString> &targets)
+bool NetworkManager::sendUdpToAll(QCborMap payload, const QVector<QString> &targets)
 {
     if (!m_udp)
-        return;
+        return false;
 
     const QString msgType = payload.value(QStringLiteral("type")).toString();
     if (msgType != protocol::kMsgPresence) {
@@ -936,6 +958,7 @@ void NetworkManager::sendUdpToAll(QCborMap payload, const QVector<QString> &targ
     } else {
         m_udp->writeDatagram(data, QHostAddress::Broadcast, protocol::kUdpPortDefault);
     }
+    return true;
 }
 
 QVector<QString> NetworkManager::deliveryAddresses(const QString &toIp) const
@@ -944,8 +967,7 @@ QVector<QString> NetworkManager::deliveryAddresses(const QString &toIp) const
     if (!toIp.isEmpty())
         targets.append(toIp);
 
-    // Addresses a signed packet has actually arrived from come first: one of
-    // those is worth more than anything the peer claims about itself.
+    // Addresses a signed packet has actually arrived from come first.
     if (m_crypto) {
         const QString peerId = m_crypto->identityForAddress(toIp);
         const auto observed = m_crypto->addressesFor(peerId);
@@ -957,8 +979,7 @@ QVector<QString> NetworkManager::deliveryAddresses(const QString &toIp) const
         }
     }
 
-    // Then the ones it advertised, which are guesses - and the reason for the cap,
-    // since the list arrives at whatever length the sender felt like sending.
+    // Then the advertised ones, which are guesses - and the reason for the cap.
     const auto altIps = m_peers.value(toIp).value(QStringLiteral("all_ips")).toArray();
     for (const auto &v : altIps) {
         if (targets.size() >= kMaxDeliveryAddresses)
@@ -970,14 +991,13 @@ QVector<QString> NetworkManager::deliveryAddresses(const QString &toIp) const
     return targets;
 }
 
-void NetworkManager::sendPrivate(const QString &text, const QString &toIp)
+bool NetworkManager::sendPrivate(const QString &text, const QString &toIp)
 {
     QString outText = text;
     bool encrypted = false;
 
     if (m_crypto) {
-        // A session is the better key when there is one. The group passphrase still
-        // protects a message sent before the handshake with this peer completed.
+    // A session is the better key when there is one.
         const QString passphrase = m_crypto->hasSession(toIp) ? QString() : m_groupPassphrase;
         const QString cipherText = m_crypto->encrypt(text, passphrase, toIp);
         if (cipherText != text) {
@@ -993,18 +1013,15 @@ void NetworkManager::sendPrivate(const QString &text, const QString &toIp)
     payload[QStringLiteral("from_ip")] = m_hostIp;
     payload[QStringLiteral("encrypted")] = encrypted;
 
-    // One signed datagram copied to every address this peer answers on. It used to be
-    // a sendUdp() per address, and since the signature was made for the address it was
-    // aimed at, every copy but the first went out unsigned and was dropped.
+    // One signed datagram copied to every address this peer answers on.
     sendUdpToAll(payload, deliveryAddresses(toIp));
+    return true;
 }
 
 void NetworkManager::sendGroupMessage(const QString &gid, const QString &text, const QVector<QString> &members)
 {
-    // One key per group. The group's first message creates it; without a wallet
-    // the generated key still protects this session, it just does not survive a
-    // restart. The old shared passphrase is not used for a group that has a key
-    // of its own, which is the point of this state existing.
+    // One key per group. Created on first message; without a wallet the generated
+    // key protects this session only.
     QString passphrase = groupKeyFor(gid);
     if (passphrase.isEmpty())
         passphrase = ensureGroupKey(gid);
@@ -1015,8 +1032,8 @@ void NetworkManager::sendGroupMessage(const QString &gid, const QString &text, c
 
     const QString cipherText = m_crypto->encrypt(text, passphrase, QString());
     if (cipherText == text) {
-        // encrypt() hands back the plaintext when it fails, and sending that
-        // would leak the message the user thinks is protected
+        // encrypt() returns plaintext on failure; sending that would leak the
+        // message the user thinks is protected.
         Q_EMIT errorOccurred(i18nc("@info:status", "Failed to encrypt the group message - not sent."));
         return;
     }
@@ -1044,7 +1061,7 @@ void NetworkManager::sendTyping(const QString &chatId, const QString &targetIp)
 void NetworkManager::sendCallRequest(const QString &toIp)
 {
     // The accept/reject/busy/end for this ring only counts against a request
-    // that was actually sent - this is what the dispatch() gate looks at.
+    // that was actually sent.
     m_pendingCalls.insert(toIp);
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgCallReq;
@@ -1077,8 +1094,7 @@ void NetworkManager::sendCallBusy(const QString &toIp)
 
 void NetworkManager::sendCallEnd(const QString &toIp)
 {
-    // The remote's end of the ring no longer needs an answer, and a stale
-    // accept must not be able to complete a call we have given up on.
+    // The remote's end of the ring no longer needs an answer.
     m_pendingCalls.remove(toIp);
     m_ringingCalls.remove(toIp);
     QJsonObject payload;
@@ -1125,8 +1141,8 @@ void NetworkManager::sendReadReceipt(const QString &toIp, const QString &chatId)
     payload[QStringLiteral("type")] = protocol::kMsgRead;
     payload[QStringLiteral("from_ip")] = m_hostIp;
     payload[QStringLiteral("chat_id")] = chatId;
-    // Every address the peer answers on, as sendPrivate() does: a lost receipt leaves
-    // the sender message showing as unconfirmed forever.
+    // Every address the peer answers on: a lost receipt leaves the sender
+    // showing as unconfirmed forever.
     sendUdpToAll(payload, deliveryAddresses(toIp));
 }
 
@@ -1136,18 +1152,14 @@ void NetworkManager::sendGroupInvite(const QString &gid, const QString &gname, c
     payload[QStringLiteral("type")] = protocol::kMsgGroupInv;
     payload[QStringLiteral("gid")] = gid;
     payload[QStringLiteral("gname")] = gname;
-    // The group key rides along only under a session with the invitee: out in
-    // the open it would hand the group to every sniffer on the LAN, and an
-    // invitee without one joins blind, catching up when a key arrives some
-    // safer way. sendGroupMessage() is happy to create a key on this side, so
-    // this does not even have to be the group's first message.
+    // The group key rides along only under a session with the invitee.
     const QString key = groupKeyFor(gid);
     if (!key.isEmpty() && m_crypto && m_crypto->hasSession(toIp))
         payload[QStringLiteral("key")] = m_crypto->encrypt(key, QString(), toIp);
     sendUdp(payload, toIp);
 }
 
-void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePath, const QByteArray &rawBytes, const QString &filename)
+bool NetworkManager::sendFileInternal(const QString &toIp, const QString &filePath, const QByteArray &rawBytes, const QString &filename)
 {
     QByteArray data;
     QString fname;
@@ -1161,16 +1173,14 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
         QFile file(filePath);
         if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
             Q_EMIT errorOccurred(i18nc("@info:status %1 is a file path", "File not found: %1", filePath));
-            return;
+        return false;
         }
         data = file.readAll();
         fname = QFileInfo(filePath).fileName();
         ext = QFileInfo(filePath).suffix().toLower();
     }
 
-    // Sealed whole before chunking: one nonce and tag for the transfer,
-    // and sizes count the ciphertext. No session for the peer means
-    // plaintext and no flag, as before.
+    // Sealed whole before chunking: one nonce and tag for the transfer.
     bool encrypted = false;
     if (m_crypto) {
         const QByteArray sealed = m_crypto->encryptFileBytes(toIp, data);
@@ -1180,12 +1190,10 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
         }
     }
 
-    // The far side refuses anything past this cap, so sending it would only
-    // burn the network: refuse up front instead of reading a multi-gigabyte
-    // file into memory and chunking it into nothing.
+    // The far side refuses anything past this cap.
     if (data.size() > FileTransferHandler::kMaxTransferBytes) {
         Q_EMIT errorOccurred(i18nc("@info:status %1 is a file path", "Refused to send %1: larger than the transfer limit.", filePath));
-        return;
+        return false;
     }
 
     static const QSet<QString> kImageExts =
@@ -1205,8 +1213,7 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
     meta[QStringLiteral("ts")] = nowEpoch();
     sendUdp(meta, toIp);
 
-    // Raw byte string on the wire (no base64), so a chunk can approach the UDP
-    // datagram ceiling; the envelope adds only ~12 bytes of header and fields.
+    // Raw byte string on the wire, so a chunk can approach the UDP ceiling.
     constexpr int kChunkSize = 60000;
     const int total = data.size();
     const int totalChunks = (total + kChunkSize - 1) / kChunkSize;
@@ -1224,20 +1231,43 @@ void NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
         chunks.append(c);
     }
     sendChunksQueued(chunks, toIp, 0);
+    return true;
 }
 
 void NetworkManager::sendChunksQueued(const QVector<QCborMap> &chunks, const QString &toIp, int idx, int batch)
 {
-    if (idx >= chunks.size())
+    if (idx >= chunks.size()) {
+        // All chunks sent. Wait for an ACK; retransmit if none arrives.
+        if (!chunks.isEmpty()) {
+            const QString tid = chunks.first().value(QStringLiteral("tid")).toString();
+            if (!tid.isEmpty() && !m_outgoingTransfers.contains(tid)) {
+                auto *timer = new QTimer(this);
+                timer->setSingleShot(true);
+                connect(timer, &QTimer::timeout, this, [this, tid]() {
+                    auto it = m_outgoingTransfers.find(tid);
+                    if (it == m_outgoingTransfers.end())
+                        return;
+                    // Retransmit: send all chunks again.
+                    for (const QCborMap &chunk : it->chunks)
+                        sendUdp(chunk, it->toIp);
+                    // Restart the timer for another attempt.
+                    if (it->timer)
+                        it->timer->start(kFileRetransmitMs);
+                });
+                m_outgoingTransfers.insert(tid, OutgoingTransfer(chunks, toIp, timer));
+                timer->start(kFileRetransmitMs);
+            }
+        }
         return;
+    }
 
     const int end = qMin(idx + batch, chunks.size());
     for (int i = idx; i < end; ++i)
         sendUdp(chunks[i], toIp);
 
-    const int total = chunks.size();
-    const int delay = total > 100 ? 8 : (total > 20 ? 5 : 2);
-    QTimer::singleShot(delay, this, [this, chunks, toIp, end, batch] {
+    // Pace below the receiver's rate limit: one packet per 6 ms is ~166/s,
+    // well under the 200/s cap.
+    QTimer::singleShot(6 * batch, this, [this, chunks, toIp, end, batch] {
         sendChunksQueued(chunks, toIp, end, batch);
     });
 }
@@ -1274,8 +1304,7 @@ bool NetworkManager::connectVoice(const QString &ip)
         sock->deleteLater();
     });
 
-    // No waitForConnected: it blocked the GUI thread for up to three seconds while the
-    // callee ringtone was supposed to be playing.
+    // No waitForConnected: it blocked the GUI while the ringtone played.
     sock->connectToHost(QHostAddress(ip), m_voiceTcpPort);
 
     return true;
@@ -1286,8 +1315,7 @@ bool NetworkManager::sendVoice(const QString &ip, const QByteArray &data)
     auto *sock = m_voiceConnections.value(ip, nullptr);
     if (!sock || sock->state() != QTcpSocket::ConnectedState)
         return false;
-    // Same cap the receiver enforces, so we never send a frame a correct peer
-    // would have to hang up on.
+    // Same cap the receiver enforces.
     if (data.isEmpty() || quint32(data.size()) > protocol::kMaxVoiceFrameBytes)
         return false;
 
@@ -1308,11 +1336,7 @@ void NetworkManager::disconnectVoice(const QString &ip)
     }
 }
 
-// The LAN/VPN half of the ChatBackend interface: what the window can ask of
-// any chat, answered for a chat id that is a datagram destination. The three
-// room-shaped queries are always empty - a LAN chat is a peer, not a room -
-// and the capability flags are the other way round: LAN has calls, typing,
-// edits and no server echo, so Main.qml renders a local row before sending.
+// LAN chat id is a datagram destination, not a room.
 chatid::Transport NetworkManager::transport() const
 {
     return chatid::Transport::Lan;
@@ -1320,9 +1344,7 @@ chatid::Transport NetworkManager::transport() const
 
 bool NetworkManager::canHandle(const QString &chatId) const
 {
-    // Everything without a foreign prefix is ours: a bare address is all a
-    // datagram can be sent to, and the reserved chats ("__self__") are
-    // guarded by the window before anything is asked of them.
+    // Everything without a foreign prefix is ours.
     return chatid::transportOf(chatId) == chatid::Transport::Lan;
 }
 
@@ -1374,8 +1396,7 @@ bool NetworkManager::sendFile(const QString &chatId, const QString &localFilePat
 
 void NetworkManager::markRead(const QString &chatId)
 {
-    // The chat id of a LAN chat is the peer address, so the receipt goes back
-    // to the same place the message came from.
+    // The chat id of a LAN chat is the peer address.
     sendReadReceipt(chatId, QStringLiteral("dm"));
 }
 
@@ -1391,8 +1412,7 @@ bool NetworkManager::leaveChat(const QString &)
 
 bool NetworkManager::sendEdit(const QString &chatId, double ts, const QString &newText)
 {
-    // A LAN chat's identifier is its address, so both ends of the edit packet
-    // are the same string the message was filed under.
+    // A LAN chat's identifier is its address, so both ends are the same string.
     sendMessageEdit(chatId, chatId, ts, newText);
     return true;
 }

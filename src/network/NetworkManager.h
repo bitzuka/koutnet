@@ -87,6 +87,14 @@ public:
     {
         return m_hostIp;
     }
+    quint16 udpPort() const
+    {
+        return m_udpPort;
+    }
+    quint16 tcpPort() const
+    {
+        return m_voiceTcpPort;
+    }
     const QMap<QString, QJsonObject> &peers() const
     {
         return m_peers;
@@ -142,7 +150,7 @@ public:
 
     void sendUdp(QJsonObject payload, const QString &targetIp = QString());
     void sendUdp(QCborMap payload, const QString &targetIp = QString());
-    Q_INVOKABLE void sendPrivate(const QString &text, const QString &toIp);
+    Q_INVOKABLE bool sendPrivate(const QString &text, const QString &toIp);
     Q_INVOKABLE void sendGroupMessage(const QString &gid, const QString &text, const QVector<QString> &members);
     Q_INVOKABLE void sendTyping(const QString &chatId, const QString &targetIp);
     Q_INVOKABLE void sendCallRequest(const QString &toIp);
@@ -162,7 +170,7 @@ public:
     Q_INVOKABLE void sendMessageDelete(const QString &toIp, const QString &chatId, double ts);
     Q_INVOKABLE void sendReadReceipt(const QString &toIp, const QString &chatId);
     Q_INVOKABLE void sendGroupInvite(const QString &gid, const QString &gname, const QString &toIp);
-    void sendFileInternal(const QString &toIp, const QString &filePath, const QByteArray &rawBytes = {}, const QString &filename = QStringLiteral("file"));
+    bool sendFileInternal(const QString &toIp, const QString &filePath, const QByteArray &rawBytes = {}, const QString &filename = QStringLiteral("file"));
 
     // ChatBackend interface. Registered with ChatBackendRegistry in main.cpp;
     // the window routes every chat action through chatTransport, and the flags
@@ -229,8 +237,10 @@ private:
     QJsonObject presencePayload() const;
     // Signs once for the peer identity behind these addresses and writes the same bytes
     // to each: one signature for the whole set. An empty list means broadcast.
-    void sendUdpToAll(QJsonObject payload, const QVector<QString> &targets);
-    void sendUdpToAll(QCborMap payload, const QVector<QString> &targets);
+    bool sendUdpToAll(QJsonObject payload, const QVector<QString> &targets);
+    bool sendUdpToAll(QCborMap payload, const QVector<QString> &targets);
+    quint16 udpPortFor(const QString &ip) const;
+    quint16 tcpPortFor(const QString &ip) const;
     void dispatch(const QString &host, QJsonObject msg);
     void handlePresence(const QString &host, QJsonObject msg);
     void decryptMessageText(const QString &peerRef, QJsonObject msg, const std::function<void(QJsonObject)> &done);
@@ -270,10 +280,34 @@ private:
     QSet<QString> m_ringingCalls;
     QSet<QString> m_activeCalls;
 
+    quint16 m_udpPort = 0;
     quint16 m_voiceTcpPort = 0;
 
     QTimer m_broadcastTimer;
     QTimer m_ipRefreshTimer;
+
+    // Outgoing file transfers: tid -> {chunks, target, timer}. If no ACK arrives
+    // within kFileRetransmitMs, all chunks are sent again. Simple and sufficient
+    // for LAN where loss is rare but not impossible.
+    struct OutgoingTransfer {
+        QVector<QCborMap> chunks;
+        QString toIp;
+        QTimer *timer = nullptr;
+        OutgoingTransfer() = default;
+        OutgoingTransfer(QVector<QCborMap> c, QString ip, QTimer *t)
+            : chunks(std::move(c)), toIp(std::move(ip)), timer(t) {}
+    };
+    QHash<QString, OutgoingTransfer> m_outgoingTransfers;
+    static constexpr int kFileRetransmitMs = 5000;
+
+    // Incoming file transfers: tid -> {received indices, total, sender}.
+    // When all chunks arrive, a file_ack is sent back so the sender can clean up.
+    struct IncomingTransfer {
+        QSet<int> received;
+        int total = 0;
+        QString fromIp;
+    };
+    QHash<QString, IncomingTransfer> m_incomingTransfers;
 
     // No relay / tunnel members here any more; the mode is gone for good.
     ConnectionMode m_mode = ConnectionMode::LanOrVpn;
