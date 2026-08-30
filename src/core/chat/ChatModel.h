@@ -3,12 +3,12 @@
 #pragma once
 
 #include <QAbstractListModel>
+#include <QHash>
 #include <QPointer>
 #include <QQmlEngine>
 #include <QString>
 #include <QVariantMap>
 #include <QVector>
-#include <QHash>
 
 #include "MessageEntry.h"
 
@@ -126,16 +126,12 @@ public:
                                             const QString &sender,
                                             bool isOwn,
                                             double ts,
-                                       const QString &senderAvatar = QString());
+                                            const QString &senderAvatar = QString());
 
     // Fold one m.poll.response into the tally of the poll it answers. voterId is
     // the sender of the vote; isOwn marks a vote cast by this account (so the
     // window can highlight it). Returns false when the poll is unknown here.
-    Q_INVOKABLE bool applyPollResponse(const QString &pollStartId,
-                                       const QString &answerId,
-                                       const QString &voterId,
-                                       bool isOwn);
-
+    Q_INVOKABLE bool applyPollResponse(const QString &pollStartId, const QString &answerId, const QString &voterId, bool isOwn);
 
     // A poll (Matrix m.poll.start). answers is a list of {id, body} maps; the
     // window renders it as a question with a button per option and votes through

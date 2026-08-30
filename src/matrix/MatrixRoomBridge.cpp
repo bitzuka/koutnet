@@ -4,8 +4,8 @@
 
 #include "MatrixManager.h"
 #include "MatrixTranslate.h"
-#include "pollevent.h"
 #include "core/chat/ChatAddress.h"
+#include "pollevent.h"
 
 #include <KLocalizedString>
 
@@ -331,8 +331,7 @@ static QVariantMap pollFromContent(const QJsonObject &content)
     }
 
     const QString kind = poll.value(QStringLiteral("kind")).toString();
-    const bool disclosed = kind == QStringLiteral("disclosed")
-        || kind == QStringLiteral("org.matrix.msc3381.poll.disclosed");
+    const bool disclosed = kind == QStringLiteral("disclosed") || kind == QStringLiteral("org.matrix.msc3381.poll.disclosed");
 
     QVariantMap out;
     out.insert(QStringLiteral("question"), question);
@@ -422,9 +421,7 @@ koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
             raw.pollStartId = relates.value(QStringLiteral("event_id")).toString();
             const QJsonArray answers = content.value(QStringLiteral("org.matrix.msc3381.poll.response")).toObject().value(QStringLiteral("answers")).toArray();
             if (!answers.isEmpty())
-                raw.pollAnswerId = answers.at(0).isObject()
-                    ? answers.at(0).toObject().value(QStringLiteral("id")).toString()
-                    : answers.at(0).toString();
+                raw.pollAnswerId = answers.at(0).isObject() ? answers.at(0).toObject().value(QStringLiteral("id")).toString() : answers.at(0).toString();
         } else {
             raw.body = message->plainBody();
             raw.media = mediaKindOf(message->msgtype());
@@ -817,8 +814,8 @@ void MatrixRoomBridge::publishEvent(Room *room, const RoomEvent *event)
     // about. system rows carry a synthetic id that cannot be reacted to, so
     // they are not indexed - a reaction to a state line has no Matrix event. A
     // poll vote names the poll it answers, not itself, so it is not indexed either.
-    if (!row.msgId.isEmpty() && row.kind != matrix::RowKind::Skip && row.kind != matrix::RowKind::System
-        && row.kind != matrix::RowKind::PollVote && row.ts > 0.0) {
+    if (!row.msgId.isEmpty() && row.kind != matrix::RowKind::Skip && row.kind != matrix::RowKind::System && row.kind != matrix::RowKind::PollVote
+        && row.ts > 0.0) {
         m_tsToEventId[chatId].insert(row.ts, row.msgId);
         m_eventIdToTs[chatId].insert(row.msgId, row.ts);
     }
@@ -1400,9 +1397,7 @@ void MatrixRoomBridge::sendStickerFile(const QString &chatId, const QString &loc
     }
     // The composer hands over a file:// URL straight from a dialog or the
     // recorder; QFileInfo will not stat that, so turn it into a local path first.
-    const QString path = localFilePath.startsWith(QStringLiteral("file://"))
-        ? QUrl(localFilePath).toLocalFile()
-        : localFilePath;
+    const QString path = localFilePath.startsWith(QStringLiteral("file://")) ? QUrl(localFilePath).toLocalFile() : localFilePath;
     const QFileInfo file(path);
     if (!file.exists() || !file.isReadable()) {
         Q_EMIT sendFailed(chatId, i18nc("@info:status %1 is a file name", "%1 could not be read, so nothing was sent.", file.fileName()));
@@ -1441,9 +1436,7 @@ void MatrixRoomBridge::sendVoice(const QString &chatId, const QString &localFile
         Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
         return;
     }
-    const QString path = localFilePath.startsWith(QStringLiteral("file://"))
-        ? QUrl(localFilePath).toLocalFile()
-        : localFilePath;
+    const QString path = localFilePath.startsWith(QStringLiteral("file://")) ? QUrl(localFilePath).toLocalFile() : localFilePath;
     const QFileInfo file(path);
     if (!file.exists() || !file.isReadable()) {
         Q_EMIT sendFailed(chatId, i18nc("@info:status %1 is a file name", "%1 could not be read, so nothing was sent.", file.fileName()));
@@ -1522,8 +1515,7 @@ void MatrixRoomBridge::sendPoll(const QString &chatId, const QString &question, 
     // Keep the unstable shape for compatibility with existing readers.
     QJsonObject inner;
     inner.insert(QStringLiteral("kind"),
-                 disclosed ? QStringLiteral("org.matrix.msc3381.poll.disclosed")
-                           : QStringLiteral("org.matrix.msc3381.poll.undisclosed"));
+                 disclosed ? QStringLiteral("org.matrix.msc3381.poll.disclosed") : QStringLiteral("org.matrix.msc3381.poll.undisclosed"));
     inner.insert(QStringLiteral("max_selections"), 1);
     inner.insert(QStringLiteral("question"), QJsonObject{{QStringLiteral("org.matrix.msc1767.text"), question}});
     inner.insert(QStringLiteral("answers"), answersJson);

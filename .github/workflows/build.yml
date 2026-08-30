@@ -63,6 +63,7 @@ jobs:
             'cmake(Qt6QuickDialogs2)' \
             'cmake(Qt6Multimedia)' \
             'cmake(Qt6Network)' \
+            'cmake(Qt6Positioning)' \
             'cmake(Qt6Widgets)' \
             'cmake(Qt6Test)' \
             'cmake(KF6Config)' \
@@ -121,6 +122,7 @@ jobs:
             'cmake(Qt6QuickDialogs2)' \
             'cmake(Qt6Multimedia)' \
             'cmake(Qt6Network)' \
+            'cmake(Qt6Positioning)' \
             'cmake(Qt6Widgets)' \
             'cmake(Qt6Test)' \
             'cmake(KF6Config)' \

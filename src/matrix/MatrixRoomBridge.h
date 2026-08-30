@@ -17,9 +17,9 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>
-#include <QVariant>
 
 #include "core/backend/ChatBackend.h"
 

@@ -35,10 +35,10 @@
 #include "core/tray/TrayIcon.h"
 #include "matrix/MatrixManager.h"
 #include "matrix/MatrixRoomBridge.h"
+#include "matrix/MatrixVerification.h"
 #include "rocketchat/RocketChatBackend.h"
 #include "telegram/TelegramBackend.h"
 #include "tox/ToxBackend.h"
-#include "matrix/MatrixVerification.h"
 
 #include "koutnet-version.h"
 #include "koutnet_app_debug.h"

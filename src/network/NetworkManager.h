@@ -295,7 +295,11 @@ private:
         QTimer *timer = nullptr;
         OutgoingTransfer() = default;
         OutgoingTransfer(QVector<QCborMap> c, QString ip, QTimer *t)
-            : chunks(std::move(c)), toIp(std::move(ip)), timer(t) {}
+            : chunks(std::move(c))
+            , toIp(std::move(ip))
+            , timer(t)
+        {
+        }
     };
     QHash<QString, OutgoingTransfer> m_outgoingTransfers;
     static constexpr int kFileRetransmitMs = 5000;
