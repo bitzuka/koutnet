@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: KOutNet\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-24 02:18+0000\n"
+"POT-Creation-Date: 2026-08-30 23:07+0000\n"
 "PO-Revision-Date: 2026-08-03 14:41+0000\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -41,14 +41,14 @@ msgctxt "@info:status"
 msgid "Could not prepare the test tone."
 msgstr ""
 
-#: src/core/chat/ChatListModel.cpp:20 src/qml/main_window/Main.qml:476
+#: src/core/chat/ChatListModel.cpp:20 src/qml/main_window/Main.qml:484
 #: src/qml/peer/PeerInfoPage.qml:36
 #: src/qml/profile/not_your_prof/OtherProfile.qml:27
 msgctxt "@info a peer that has published no name of its own"
 msgid "Unknown peer"
 msgstr ""
 
-#: src/core/chat/ChatListModel.cpp:97
+#: src/core/chat/ChatListModel.cpp:99
 msgctxt ""
 "@info:status conversation list preview of a message this user sent, %1 is "
 "the message"
@@ -263,7 +263,7 @@ msgctxt "@title:menu what to tell peers you are"
 msgid "Presence"
 msgstr ""
 
-#: src/core/tray/TrayIcon.cpp:92 src/qml/main_window/Main.qml:851
+#: src/core/tray/TrayIcon.cpp:92 src/qml/main_window/Main.qml:871
 msgctxt "@action:inmenu"
 msgid "Quit"
 msgstr ""
@@ -290,113 +290,113 @@ msgctxt "@action:inmenu bring the window back from the tray"
 msgid "Show the window"
 msgstr ""
 
-#: src/core/tray/TrayIcon.cpp:187 src/qml/main_window/Main.qml:794
+#: src/core/tray/TrayIcon.cpp:187 src/qml/main_window/Main.qml:814
 msgctxt "@action:inmenu let your microphone be heard again"
 msgid "Unmute microphone"
 msgstr ""
 
-#: src/core/tray/TrayIcon.cpp:188 src/qml/main_window/Main.qml:795
+#: src/core/tray/TrayIcon.cpp:188 src/qml/main_window/Main.qml:815
 msgctxt "@action:inmenu silence your own microphone"
 msgid "Mute microphone"
 msgstr ""
 
-#: src/core/tray/TrayIcon.cpp:197 src/qml/main_window/Main.qml:802
+#: src/core/tray/TrayIcon.cpp:197 src/qml/main_window/Main.qml:822
 msgctxt "@action:inmenu start hearing calls again"
 msgid "Undeafen"
 msgstr ""
 
-#: src/core/tray/TrayIcon.cpp:198 src/qml/main_window/Main.qml:803
+#: src/core/tray/TrayIcon.cpp:198 src/qml/main_window/Main.qml:823
 msgctxt "@action:inmenu stop hearing calls, and stop being heard"
 msgid "Deafen"
 msgstr ""
 
-#: src/main.cpp:108
+#: src/main.cpp:101
 msgctxt "@title application name"
 msgid "KOutNet"
 msgstr ""
 
-#: src/main.cpp:110
+#: src/main.cpp:103
 msgctxt "@info:whatsthis"
 msgid "P2P encrypted messenger for LAN, VPN and Matrix"
 msgstr ""
 
-#: src/main.cpp:112
+#: src/main.cpp:105
 msgctxt "@info:credit"
 msgid "Copyright 2026 bitzuka"
 msgstr ""
 
-#: src/main.cpp:113
+#: src/main.cpp:106
 msgctxt "@info:credit"
 msgid "bitzuka"
 msgstr ""
 
-#: src/main.cpp:113
+#: src/main.cpp:106
 msgctxt "@info:credit"
 msgid "Author and maintainer"
 msgstr ""
 
-#: src/main.cpp:117
+#: src/main.cpp:110
 msgctxt "NAME OF TRANSLATORS"
 msgid "Your names"
 msgstr ""
 
-#: src/main.cpp:117
+#: src/main.cpp:110
 msgctxt "EMAIL OF TRANSLATORS"
 msgid "Your emails"
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:93
+#: src/matrix/MatrixManager.cpp:96
 msgctxt "@info:status Matrix login stalled after the password was accepted"
 msgid ""
 "The sign-in was accepted but the encryption keys could not be opened in "
 "time. Unlock the wallet if it is asking, and try again."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:96
+#: src/matrix/MatrixManager.cpp:99
 msgctxt "@info:status Matrix login failed"
 msgid ""
 "The homeserver did not answer in time. Nothing was signed in; the attempt is "
 "still running and will report itself in the log."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:144
+#: src/matrix/MatrixManager.cpp:152
 msgctxt "@info:status Matrix connection state"
 msgid "Not signed in"
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:146
+#: src/matrix/MatrixManager.cpp:154
 msgctxt "@info:status Matrix connection state"
 msgid "Signing in..."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:148
+#: src/matrix/MatrixManager.cpp:156
 msgctxt "@info:status Matrix connection state"
 msgid "Syncing..."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:150
+#: src/matrix/MatrixManager.cpp:158
 msgctxt "@info:status Matrix connection state, %1 is a Matrix user id"
 msgid "Signed in as %1"
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:153
+#: src/matrix/MatrixManager.cpp:161
 msgctxt "@info:status Matrix connection state"
 msgid "Reconnecting..."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:154
+#: src/matrix/MatrixManager.cpp:162
 msgctxt ""
 "@info:status Matrix connection state, %1 is what the homeserver or the "
 "network reported"
 msgid "Reconnecting after: %1"
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:158
+#: src/matrix/MatrixManager.cpp:166
 msgctxt "@info:status Matrix connection state"
 msgid "Sign-in failed"
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:212
+#: src/matrix/MatrixManager.cpp:220
 msgctxt ""
 "@info:status the Matrix session could not set up its encryption key store"
 msgid ""
@@ -404,49 +404,49 @@ msgid ""
 "stay unreadable. This usually means the wallet could not be opened."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:237
+#: src/matrix/MatrixManager.cpp:245
 msgctxt ""
 "@info:status a stored Matrix session was refused, %1 is what the homeserver "
 "said"
 msgid "The saved sign-in is no longer accepted (%1). Sign in again."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:280
+#: src/matrix/MatrixManager.cpp:288
 msgctxt "@info:status"
 msgid "The homeserver signed this device out."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:321
+#: src/matrix/MatrixManager.cpp:329
 msgctxt "@info:status Matrix sync gave up with nothing reported"
 msgid "The homeserver stopped answering; no messages are arriving."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:322
+#: src/matrix/MatrixManager.cpp:330
 msgctxt "@info:status Matrix sync gave up, %1 is what libQuotient reported"
 msgid "Syncing failed: %1"
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:364
+#: src/matrix/MatrixManager.cpp:376
 msgctxt "@info:status"
 msgid "No recovery key or passphrase was given."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:369
+#: src/matrix/MatrixManager.cpp:381
 msgctxt "@info:status"
 msgid "That did not unlock the room key backup."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:383
+#: src/matrix/MatrixManager.cpp:401
 msgctxt "@info:status Matrix login"
 msgid "A user name and a password are needed."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:415
+#: src/matrix/MatrixManager.cpp:433
 msgctxt "@info:status Matrix login"
 msgid "Give a homeserver, or write the user ID in full as @name:server."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:485
+#: src/matrix/MatrixManager.cpp:503
 msgctxt ""
 "@info:status a homeserver typed by hand did not answer usefully, %1 is that "
 "address"
@@ -455,20 +455,30 @@ msgid ""
 "the server's redirect so that the address it publishes is used instead."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:515
+#: src/matrix/MatrixManager.cpp:533
 msgctxt "@info:status a stored Matrix session could not be reopened"
 msgid ""
 "The saved sign-in could not be read back from the wallet. Sign in again."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:552
+#: src/matrix/MatrixManager.cpp:570
 msgctxt ""
 "@info:status %1 is the account the token belongs to, %2 the account the "
 "configuration expected"
 msgid "The saved sign-in belongs to %1, not %2. Sign in again."
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:123
+#: src/matrix/MatrixManager.cpp:614
+msgctxt "@info:status Matrix SSO login"
+msgid "Choose a homeserver before completing SSO sign-in."
+msgstr ""
+
+#: src/matrix/MatrixManager.cpp:623
+msgctxt "@info:status Matrix SSO login"
+msgid "A login token is needed to sign in."
+msgstr ""
+
+#: src/matrix/MatrixRoomBridge.cpp:124
 msgctxt ""
 "@info:status a message for an encrypted room was not sent because the "
 "session has no keys"
@@ -477,31 +487,47 @@ msgid ""
 "encryption keys, so nothing was sent."
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:710
+#: src/matrix/MatrixRoomBridge.cpp:865
 msgctxt "@info:status a Matrix message was not accepted and nothing said why"
 msgid "The message could not be sent to this room."
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:711
+#: src/matrix/MatrixRoomBridge.cpp:866
 msgctxt ""
 "@info:status a Matrix message was not accepted, %1 is what the homeserver "
 "reported"
 msgid "The message could not be sent: %1"
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:767
+#: src/matrix/MatrixRoomBridge.cpp:922
 msgctxt "@info:status"
 msgid "Not signed in to Matrix, so this message was not sent."
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:773 src/matrix/MatrixRoomBridge.cpp:792
+#: src/matrix/MatrixRoomBridge.cpp:928 src/matrix/MatrixRoomBridge.cpp:947
+#: src/matrix/MatrixRoomBridge.cpp:1208 src/matrix/MatrixRoomBridge.cpp:1241
+#: src/matrix/MatrixRoomBridge.cpp:1330 src/matrix/MatrixRoomBridge.cpp:1350
+#: src/matrix/MatrixRoomBridge.cpp:1370 src/matrix/MatrixRoomBridge.cpp:1394
+#: src/matrix/MatrixRoomBridge.cpp:1437 src/matrix/MatrixRoomBridge.cpp:1504
+#: src/matrix/MatrixRoomBridge.cpp:1543
 msgctxt "@info:status"
 msgid "That Matrix room is not available in this session."
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:802
+#: src/matrix/MatrixRoomBridge.cpp:957 src/matrix/MatrixRoomBridge.cpp:1408
+#: src/matrix/MatrixRoomBridge.cpp:1449
 msgctxt "@info:status %1 is a file name"
 msgid "%1 could not be read, so nothing was sent."
+msgstr ""
+
+#: src/matrix/MatrixRoomBridge.cpp:1360
+msgctxt "@item a sticker with no caption"
+msgid "sticker"
+msgstr ""
+
+#: src/matrix/MatrixRoomBridge.cpp:1555
+msgctxt "@info a poll vote with no readable text"
+msgid "Voted."
 msgstr ""
 
 #: src/matrix/MatrixTranslate.cpp:33
@@ -524,173 +550,178 @@ msgctxt "@label an attached file that arrived with no file name"
 msgid "File"
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:50
+#: src/matrix/MatrixTranslate.cpp:41
+msgctxt "@label a shared location that arrived with no name"
+msgid "Location"
+msgstr ""
+
+#: src/matrix/MatrixTranslate.cpp:52
 msgctxt "@info in-timeline notice, a room member with no resolvable name"
 msgid "Someone"
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:51
+#: src/matrix/MatrixTranslate.cpp:53
 msgctxt "@info in-timeline notice, a room member with no resolvable name"
 msgid "someone"
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:57
+#: src/matrix/MatrixTranslate.cpp:59
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 joined the room."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:59
+#: src/matrix/MatrixTranslate.cpp:61
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 left the room."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:61
+#: src/matrix/MatrixTranslate.cpp:63
 msgctxt "@info in-timeline notice, %1 invited %2"
 msgid "%1 invited %2."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:63
+#: src/matrix/MatrixTranslate.cpp:65
 msgctxt "@info in-timeline notice, %1 took back an invitation to %2"
 msgid "%1 withdrew the invitation to %2."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:65
+#: src/matrix/MatrixTranslate.cpp:67
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 declined the invitation."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:67
+#: src/matrix/MatrixTranslate.cpp:69
 msgctxt "@info in-timeline notice, %1 removed %2 from the room"
 msgid "%1 removed %2 from the room."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:69
+#: src/matrix/MatrixTranslate.cpp:71
 msgctxt "@info in-timeline notice, %1 banned %2"
 msgid "%1 banned %2 from the room."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:71
+#: src/matrix/MatrixTranslate.cpp:73
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 banned themselves from the room."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:73
+#: src/matrix/MatrixTranslate.cpp:75
 msgctxt "@info in-timeline notice, %1 lifted a ban on %2"
 msgid "%1 unbanned %2."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:75
+#: src/matrix/MatrixTranslate.cpp:77
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 lifted their own ban."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:77
+#: src/matrix/MatrixTranslate.cpp:79
 msgctxt "@info in-timeline notice, %1 asked to be let into the room"
 msgid "%1 asked for an invitation."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:79
+#: src/matrix/MatrixTranslate.cpp:81
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 set a display name for this room."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:81
+#: src/matrix/MatrixTranslate.cpp:83
 msgctxt "@info in-timeline notice, %1 is the new name, %2 the old one"
 msgid "%1 changed their display name from %2."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:83
+#: src/matrix/MatrixTranslate.cpp:85
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 cleared their display name."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:85
+#: src/matrix/MatrixTranslate.cpp:87
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 changed their picture."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:87
+#: src/matrix/MatrixTranslate.cpp:89
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 created the room."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:89
+#: src/matrix/MatrixTranslate.cpp:91
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 upgraded the room to a newer version."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:91
+#: src/matrix/MatrixTranslate.cpp:93
 msgctxt "@info in-timeline notice, %1 is a room member, %2 the new room name"
 msgid "%1 named the room %2."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:93
+#: src/matrix/MatrixTranslate.cpp:95
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 cleared the room name."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:95
+#: src/matrix/MatrixTranslate.cpp:97
 msgctxt "@info in-timeline notice, %1 is a room member, %2 the new topic"
 msgid "%1 changed the topic to: %2"
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:97
+#: src/matrix/MatrixTranslate.cpp:99
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 cleared the topic."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:99
+#: src/matrix/MatrixTranslate.cpp:101
 msgctxt ""
 "@info in-timeline notice, %1 is a room member, %2 the new room address"
 msgid "%1 set the room address to %2."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:101
+#: src/matrix/MatrixTranslate.cpp:103
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 cleared the room address."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:103
+#: src/matrix/MatrixTranslate.cpp:105
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 changed the room picture."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:105
+#: src/matrix/MatrixTranslate.cpp:107
 msgctxt "@info in-timeline notice, %1 is a room member"
 msgid "%1 turned on end-to-end encryption."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:108
+#: src/matrix/MatrixTranslate.cpp:110
 msgctxt ""
 "@info in-timeline notice, 'permissions' means Matrix power levels, %1 is a "
 "room member"
 msgid "%1 changed who is allowed to do what here."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:113
+#: src/matrix/MatrixTranslate.cpp:115
 msgctxt ""
 "@info in-timeline notice, a room state change this build has no words for"
 msgid "%1 changed something about the room."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:144
+#: src/matrix/MatrixTranslate.cpp:146
 msgctxt ""
 "@info in-timeline notice, %1 is who sent the message that was withdrawn"
 msgid "%1 deleted a message."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:157
+#: src/matrix/MatrixTranslate.cpp:159
 msgctxt ""
 "@info in-timeline notice, an encrypted message that could not be decrypted"
 msgid "An encrypted message this device has no key for."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:183
+#: src/matrix/MatrixTranslate.cpp:207
 msgctxt "@info in-timeline notice, a Matrix message this build cannot render"
 msgid "A message this version cannot show."
 msgstr ""
 
-#: src/matrix/MatrixTranslate.cpp:184
+#: src/matrix/MatrixTranslate.cpp:208
 msgctxt "@info in-timeline notice, %1 is the description the sender gave"
 msgid "A message this version cannot show: %1"
 msgstr ""
@@ -767,12 +798,12 @@ msgctxt "@info:status a device verification failed for a protocol reason"
 msgid "The verification could not be completed. Nothing was verified."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:88
+#: src/network/FileTransferHandler.cpp:90
 msgctxt "@info:status file transfer refused"
 msgid "The announced size is not a usable length."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:93
+#: src/network/FileTransferHandler.cpp:95
 msgctxt "@info:status file transfer refused"
 msgid "Too many concurrent incoming transfers."
 msgstr ""
@@ -782,87 +813,102 @@ msgctxt "@info:status file transfer refused"
 msgid "The chunk count exceeds the limit."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:135
+#: src/network/FileTransferHandler.cpp:129
+msgctxt "@info:status file transfer refused"
+msgid "The chunk count changed during the transfer."
+msgstr ""
+
+#: src/network/FileTransferHandler.cpp:139
 msgctxt "@info:status file transfer refused"
 msgid "A chunk was resent with different contents."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:144
+#: src/network/FileTransferHandler.cpp:148
 msgctxt "@info:status file transfer refused"
-msgid "The transfer exceeded the size limit."
+msgid "The transfer exceeded the pending memory limit."
 msgstr ""
 
 #: src/network/FileTransferHandler.cpp:168
 msgctxt "@info:status file transfer refused"
+msgid "The received data does not match the announced size."
+msgstr ""
+
+#: src/network/FileTransferHandler.cpp:178
+msgctxt "@info:status file transfer refused"
 msgid "The peer sent an encrypted file, and this build cannot open it."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:174
+#: src/network/FileTransferHandler.cpp:184
 msgctxt "@info:status file transfer refused"
 msgid "The received file failed to decrypt - dropped."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:185
+#: src/network/FileTransferHandler.cpp:195
 msgctxt "@info:status file transfer refused"
 msgid "Failed to write the file to disk."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:200
+#: src/network/FileTransferHandler.cpp:210
 msgctxt "@info:status file transfer refused"
 msgid "The transfer timed out while incomplete."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:258
+#: src/network/NetworkManager.cpp:255
 msgctxt "@info:status %1 is a port number"
 msgid "UDP bind failed on port %1."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:268
+#: src/network/NetworkManager.cpp:266
 msgctxt "@info:status %1 is a port number"
 msgid "TCP listen failed on port %1."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:509
-msgctxt "@info:status %1 is a host address, %2 the parser message"
-msgid "UDP parse error from %1: %2"
+#: src/network/NetworkManager.cpp:515
+msgctxt "@info:status %1 is a host address"
+msgid "Unreadable packet from %1 - dropping it."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:546
+#: src/network/NetworkManager.cpp:523
+msgctxt "@info:status %1 is a host address"
+msgid "Mismatched frame from %1 - dropping it."
+msgstr ""
+
+#: src/network/NetworkManager.cpp:536
 msgctxt "@info:status %1 is a message type, %2 a host address"
 msgid "Unauthenticated %1 from %2 - dropping."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:551
+#: src/network/NetworkManager.cpp:541
 msgctxt "@info:status %1 is a host address"
 msgid "HMAC verification failed from %1 - dropping."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:810
+#: src/network/NetworkManager.cpp:853
 msgctxt "@info:status %1 is a host address, %2 a byte count"
 msgid "Voice frame from %1 declared %2 bytes - dropping the connection."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:953
+#: src/network/NetworkManager.cpp:1029
 msgctxt "@info:status"
 msgid "Failed to create a group key - refusing to send in the clear."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:961
+#: src/network/NetworkManager.cpp:1037
 msgctxt "@info:status"
 msgid "Failed to encrypt the group message - not sent."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:1104
+#: src/network/NetworkManager.cpp:1175
 msgctxt "@info:status %1 is a file path"
 msgid "File not found: %1"
 msgstr ""
 
-#: src/network/NetworkManager.cpp:1128
+#: src/network/NetworkManager.cpp:1195
 msgctxt "@info:status %1 is a file path"
 msgid "Refused to send %1: larger than the transfer limit."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:1214
+#: src/network/NetworkManager.cpp:1302
 msgctxt "@info:status %1 is a host address, %2 a socket error message"
 msgid "Voice connect to %1 failed: %2"
 msgstr ""
@@ -927,60 +973,140 @@ msgctxt "@action:button abandon the outgoing call"
 msgid "Cancel"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:112
+#: src/qml/composer/Composer.qml:141
 msgctxt "@info:status the composer is rewriting an existing message"
 msgid "Editing a message"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:123
+#: src/qml/composer/Composer.qml:152
 msgctxt "@action:button leave the message as it was"
 msgid "Cancel the edit"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:154
+#: src/qml/composer/Composer.qml:183
 msgctxt ""
 "@info:status what a message being written is answering, %1 is the author"
 msgid "Replying to %1"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:176
+#: src/qml/composer/Composer.qml:205
 msgctxt "@action:button stop replying to the quoted message"
 msgid "Cancel the reply"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:196
+#: src/qml/composer/Composer.qml:225
 msgctxt "@action:button attach a file to the message"
 msgid "Attach a file"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:207
+#: src/qml/composer/Composer.qml:236
 msgctxt "@action:button open the emoji picker"
 msgid "Insert an emoji"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:226
+#: src/qml/composer/Composer.qml:248
+msgctxt "@action:button send the next message hidden until revealed"
+msgid "Spoiler on: the message will be hidden"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:249
+msgctxt "@action:button hide the next message until the reader reveals it"
+msgid "Hide the message as a spoiler"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:261
+msgctxt "@action:button share a location in the message"
+msgid "Share a location"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:273
+msgctxt "@action:button stop recording the voice message"
+msgid "Stop recording"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:274
+msgctxt "@action:button record and send a voice message"
+msgid "Send a voice message"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:286
+msgctxt "@action:button send a picture as a sticker"
+msgid "Send a sticker"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:297
+msgctxt "@action:button create a poll to send"
+msgid "Create a poll"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:316
 msgctxt "@info:placeholder"
 msgid "Write a message..."
 msgstr ""
 
-#: src/qml/composer/Composer.qml:261
+#: src/qml/composer/Composer.qml:351
 msgctxt "@action:button save the message being rewritten"
 msgid "Save"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:262
+#: src/qml/composer/Composer.qml:352
 msgctxt "@action:button"
 msgid "Send"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:271
+#: src/qml/composer/Composer.qml:361
 msgctxt "@info:tooltip"
 msgid "Save the change. Escape leaves the message as it was."
 msgstr ""
 
-#: src/qml/composer/Composer.qml:272
+#: src/qml/composer/Composer.qml:362
 msgctxt "@info:tooltip"
 msgid "Send the message. Shift+Enter writes a new line instead."
+msgstr ""
+
+#: src/qml/composer/Composer.qml:373
+msgctxt "@title:window share a location"
+msgid "Share a location"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:395
+msgctxt "@info:placeholder"
+msgid "Latitude, e.g. 48.858370"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:402
+msgctxt "@info:placeholder"
+msgid "Longitude, e.g. 2.294481"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:409
+msgctxt "@info:placeholder a name for the shared place"
+msgid "Label (optional)"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:416
+msgctxt "@action:button fill the coordinates from the device's position"
+msgid "Use my location"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:509
+msgctxt "@title:window create a poll"
+msgid "Create a poll"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:535
+msgctxt "@info:placeholder the poll question"
+msgid "Question"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:542
+msgctxt "@info:placeholder an answer option, %1 is its number"
+msgid "Answer %1"
+msgstr ""
+
+#: src/qml/composer/Composer.qml:550
+msgctxt "@action:button add another answer row to the poll"
+msgid "Add answer"
 msgstr ""
 
 #: src/qml/composer/EmojiGrid.qml:87
@@ -1057,7 +1183,7 @@ msgid ""
 msgstr ""
 
 #: src/qml/main_window/ChatListPage.qml:240
-#: src/qml/main_window/ChatPage.qml:408
+#: src/qml/main_window/ChatPage.qml:435
 msgctxt "@action:button start a conversation"
 msgid "New chat"
 msgstr ""
@@ -1126,59 +1252,59 @@ msgctxt "@action:button decline a room invitation"
 msgid "Decline"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:69
+#: src/qml/main_window/ChatPage.qml:79
 msgctxt "@title a room whose name has not been synced yet"
 msgid "Room"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:71
+#: src/qml/main_window/ChatPage.qml:81
 msgctxt "@title a peer that has published no name of its own"
 msgid "Unknown peer"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:72
+#: src/qml/main_window/ChatPage.qml:82
 msgctxt "@title"
 msgid "Chat"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:157
+#: src/qml/main_window/ChatPage.qml:167
 msgctxt "@info:status %1 is how many people are in a room"
 msgid "%1 member"
 msgid_plural "%1 members"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/qml/main_window/ChatPage.qml:176
+#: src/qml/main_window/ChatPage.qml:186
 msgctxt "@action:button show the room's topic, address and members"
 msgid "Room information"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:177
+#: src/qml/main_window/ChatPage.qml:187
 msgctxt "@action:button show who is on the other end of this conversation"
 msgid "Details"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:184
+#: src/qml/main_window/ChatPage.qml:194
 msgctxt "@action:button start a voice call"
 msgid "Call"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:259
+#: src/qml/main_window/ChatPage.qml:269
 msgctxt "@action:inmenu"
 msgid "Reply"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:264
+#: src/qml/main_window/ChatPage.qml:274
 msgctxt "@action:inmenu"
 msgid "Copy"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:269
+#: src/qml/main_window/ChatPage.qml:279
 msgctxt "@info:status"
 msgid "Message copied to the clipboard"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:274
+#: src/qml/main_window/ChatPage.qml:284
 msgctxt ""
 "@action:inmenu copy the code out of a message; the count is how many fenced "
 "blocks it has"
@@ -1187,59 +1313,74 @@ msgid_plural "Copy the code blocks"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/qml/main_window/ChatPage.qml:279
+#: src/qml/main_window/ChatPage.qml:289
 msgctxt "@info:status"
 msgid "Code copied to the clipboard"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:283
+#: src/qml/main_window/ChatPage.qml:293
 msgctxt "@action:inmenu add a reaction"
 msgid "React"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:288
+#: src/qml/main_window/ChatPage.qml:298
 msgctxt "@action:inmenu forward this message"
 msgid "Forward"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:294
+#: src/qml/main_window/ChatPage.qml:304
 msgctxt "@action:inmenu change what this message says"
 msgid "Edit"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:300
+#: src/qml/main_window/ChatPage.qml:310
 msgctxt "@action:inmenu delete this message"
 msgid "Delete"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:319
+#: src/qml/main_window/ChatPage.qml:329
 msgctxt "@title:window"
 msgid "Delete this message?"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:320
+#: src/qml/main_window/ChatPage.qml:330
 msgctxt "@info"
 msgid ""
 "It will be removed from this conversation and from the other end of it. This "
 "cannot be undone."
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:324
+#: src/qml/main_window/ChatPage.qml:334
 msgctxt "@action:button confirm deleting a message"
 msgid "Delete"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:396
+#: src/qml/main_window/ChatPage.qml:415
 msgctxt "@title:window"
 msgid "Attach a file"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:405
+#: src/qml/main_window/ChatPage.qml:422
+msgctxt "@title:window"
+msgid "Send a sticker"
+msgstr ""
+
+#: src/qml/main_window/ChatPage.qml:423 src/qml/matrix/RoomInfoPage.qml:617
+msgctxt "@item file type filter"
+msgid "Images (*.png *.jpg *.jpeg *.gif *.webp)"
+msgstr ""
+
+#: src/qml/main_window/ChatPage.qml:423 src/qml/matrix/RoomInfoPage.qml:617
+msgctxt "@item file type filter"
+msgid "All files (*)"
+msgstr ""
+
+#: src/qml/main_window/ChatPage.qml:432
 msgctxt "@info"
 msgid "No conversation open"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:406
+#: src/qml/main_window/ChatPage.qml:433
 msgctxt "@info"
 msgid "Pick a chat from the list, or start a new one."
 msgstr ""
@@ -1285,159 +1426,174 @@ msgctxt "@info unread count too large to show exactly"
 msgid "99+"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:22 src/qml/main_window/Main.qml:748
+#: src/qml/main_window/Main.qml:22 src/qml/main_window/Main.qml:768
 msgctxt "@title:window"
 msgid "KOutNet"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:338
+#: src/qml/main_window/Main.qml:346
 msgctxt "@info:notification a Matrix room invitation"
 msgid "Invited to a room"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:340
+#: src/qml/main_window/Main.qml:348
 msgctxt "@info:notification %1 is who invited, %2 is the room"
 msgid "%1 invited you to %2"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:393
+#: src/qml/main_window/Main.qml:401
 msgctxt "@info:status %1 is the reason the wallet gave"
 msgid "Signed in, but the session could not be saved: %1"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:411
+#: src/qml/main_window/Main.qml:419
 msgctxt "@item contact list, chat with yourself"
 msgid "Favorites"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:494
+#: src/qml/main_window/Main.qml:502
 msgctxt "@info:status"
 msgid "Calls are not available in this chat."
 msgstr ""
 
-#: src/qml/main_window/Main.qml:755
+#: src/qml/main_window/Main.qml:775
 msgctxt "@action:inmenu the list of conversations"
 msgid "Chats"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:766
+#: src/qml/main_window/Main.qml:786
 msgctxt "@action:inmenu room invitations waiting, %1 is how many"
 msgid "Invitations (%1)"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:767
+#: src/qml/main_window/Main.qml:787
 msgctxt "@action:inmenu room invitations waiting"
 msgid "Invitations"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:773
+#: src/qml/main_window/Main.qml:793
 msgctxt "@action:inmenu"
 msgid "Notes"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:778
+#: src/qml/main_window/Main.qml:798
 msgctxt "@action:inmenu the log of past calls"
 msgid "Call log"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:808
+#: src/qml/main_window/Main.qml:828
 msgctxt "@action:inmenu hang up every call in progress"
 msgid "End all calls"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:817
+#: src/qml/main_window/Main.qml:837
 msgctxt "@action:inmenu"
 msgid "My profile"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:822
+#: src/qml/main_window/Main.qml:842
 msgctxt "@action:inmenu"
 msgid "Settings"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:828
+#: src/qml/main_window/Main.qml:848
 msgctxt "@action:inmenu"
 msgid "About KOutNet"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:835
+#: src/qml/main_window/Main.qml:855
 msgctxt "@action:inmenu go back to the full three-column layout"
 msgid "Leave compact mode"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:836
+#: src/qml/main_window/Main.qml:856
 msgctxt "@action:inmenu switch to a reduced layout for a narrow window"
 msgid "Compact mode"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:842
+#: src/qml/main_window/Main.qml:862
 msgctxt "@action:inmenu leave full screen"
 msgid "Exit full screen"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:843
+#: src/qml/main_window/Main.qml:863
 msgctxt "@action:inmenu"
 msgid "Full screen"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:890
+#: src/qml/main_window/Main.qml:910
 msgctxt "@info:status %1 is a number of peers"
 msgid "%1 peer on the network"
 msgid_plural "%1 peers on the network"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/qml/main_window/Main.qml:1249
+#: src/qml/main_window/Main.qml:1269
 msgctxt "@title:window"
 msgid "Clear this chat?"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:1250
+#: src/qml/main_window/Main.qml:1270
 msgctxt "@info"
 msgid "Every message in it is deleted from this device. There is no way back."
 msgstr ""
 
-#: src/qml/main_window/Main.qml:1254
+#: src/qml/main_window/Main.qml:1274
 msgctxt "@action:button"
 msgid "Clear"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:1338
+#: src/qml/main_window/Main.qml:1386
+msgctxt "@info"
+msgid "Locations can only be shared over a server-backed chat."
+msgstr ""
+
+#: src/qml/main_window/Main.qml:1393
+msgctxt "@info"
+msgid "This chat cannot share a location yet."
+msgstr ""
+
+#: src/qml/main_window/Main.qml:1431
+msgctxt "@info"
+msgid "Polls can only be sent over a Matrix chat."
+msgstr ""
+
+#: src/qml/main_window/Main.qml:1446
 msgctxt "@info"
 msgid "Forwarding messages is not implemented yet."
 msgstr ""
 
-#: src/qml/main_window/Main.qml:1380
+#: src/qml/main_window/Main.qml:1488
 msgctxt "@info:status"
 msgid "Settings saved"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:25
+#: src/qml/main_window/NewChatPage.qml:26
 msgctxt "@title:window"
 msgid "New chat"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:46
+#: src/qml/main_window/NewChatPage.qml:47
 msgctxt "@info:status a Matrix id was typed without its leading @"
 msgid "A Matrix id starts with @, as in @name:server."
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:49
+#: src/qml/main_window/NewChatPage.qml:50
 msgctxt "@info:status a Matrix id was typed without a server part"
 msgid "A Matrix id needs a server, as in @name:server."
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:53
+#: src/qml/main_window/NewChatPage.qml:54
 msgctxt "@info:status a Matrix id was typed with nothing before the colon"
 msgid "There is no name before the colon in this Matrix id."
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:55
+#: src/qml/main_window/NewChatPage.qml:56
 msgctxt "@info:status a Matrix id was typed with nothing after the colon"
 msgid "There is no server after the colon in this Matrix id."
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:67
+#: src/qml/main_window/NewChatPage.qml:68
 msgctxt ""
 "@info:status a Matrix id has an upper case letter, which is usually a typo"
 msgid ""
@@ -1445,143 +1601,154 @@ msgid ""
 "check it is exactly right."
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:85
+#: src/qml/main_window/NewChatPage.qml:89
 msgctxt "@title:tab a transport"
 msgid "Telegram"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:86
+#: src/qml/main_window/NewChatPage.qml:90
 msgctxt "@title:tab a transport"
 msgid "Matrix"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:87
+#: src/qml/main_window/NewChatPage.qml:91
 msgctxt "@title:tab a transport"
 msgid "Rocket.Chat"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:88
+#: src/qml/main_window/NewChatPage.qml:92
 msgctxt "@title:tab a transport"
 msgid "LAN / VPN"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:101
+#: src/qml/main_window/NewChatPage.qml:93
+msgctxt "@title:tab a transport"
+msgid "Tox"
+msgstr ""
+
+#: src/qml/main_window/NewChatPage.qml:106
 msgctxt "@title a transport"
 msgid "Telegram"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:102
-#: src/qml/main_window/NewChatPage.qml:261
+#: src/qml/main_window/NewChatPage.qml:107
+#: src/qml/main_window/NewChatPage.qml:266
+#: src/qml/main_window/NewChatPage.qml:346
 #: src/qml/settings/SettingsPage.qml:781 src/qml/settings/SettingsPage.qml:792
 msgctxt "@info a transport that is not implemented yet"
 msgid "Not built yet."
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:120
+#: src/qml/main_window/NewChatPage.qml:125
 msgctxt "@info:status the Matrix tab needs a signed-in account"
 msgid "Sign in to a Matrix account to join or create rooms."
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:129
+#: src/qml/main_window/NewChatPage.qml:134
 msgctxt "@label:textbox"
 msgid "Matrix room address"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:139
+#: src/qml/main_window/NewChatPage.qml:144
 msgctxt "@info:placeholder a Matrix room address or id"
 msgid "#room:server"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:144
+#: src/qml/main_window/NewChatPage.qml:149
 msgctxt "@action:button join the room whose address was typed"
 msgid "Join"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:159
+#: src/qml/main_window/NewChatPage.qml:164
 msgctxt "@label:textbox"
 msgid "Private chat with a Matrix user"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:165
+#: src/qml/main_window/NewChatPage.qml:170
 msgctxt "@info:placeholder a Matrix identity to talk to one-on-one"
 msgid "@user:server"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:181
+#: src/qml/main_window/NewChatPage.qml:186
 msgctxt "@action:button open a private chat with the user typed above"
 msgid "Open private chat"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:195
+#: src/qml/main_window/NewChatPage.qml:200
 msgctxt "@label:textbox"
 msgid "New room"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:201
+#: src/qml/main_window/NewChatPage.qml:206
 msgctxt "@info:placeholder a name for the new room"
 msgid "Room name"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:207
+#: src/qml/main_window/NewChatPage.qml:212
 msgctxt "@info:placeholder the topic of the new room"
 msgid "Topic (optional)"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:213
+#: src/qml/main_window/NewChatPage.qml:218
 msgctxt "@info:placeholder a Matrix address to give the new room"
 msgid "Address like #room:server (optional)"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:219
+#: src/qml/main_window/NewChatPage.qml:224
 msgctxt ""
 "@info:placeholder Matrix addresses of people to invite, separated by commas"
 msgid "Invite @user:server, ... (optional)"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:233
+#: src/qml/main_window/NewChatPage.qml:238
 msgctxt ""
 "@option:check create a room that does not appear in the public directory"
 msgid "Private"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:239
+#: src/qml/main_window/NewChatPage.qml:244
 msgctxt "@action:button create a room with what was typed above"
 msgid "Create room"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:260
+#: src/qml/main_window/NewChatPage.qml:265
 msgctxt "@title a transport"
 msgid "Rocket.Chat"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:277
+#: src/qml/main_window/NewChatPage.qml:282
 msgctxt "@label:textbox"
 msgid "Address of the peer"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:287
+#: src/qml/main_window/NewChatPage.qml:292
 msgctxt "@info:placeholder an IPv4 address"
 msgid "192.168.1.42"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:292
+#: src/qml/main_window/NewChatPage.qml:297
 msgctxt "@action:button open a chat with the address that was typed"
 msgid "Open"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:313
+#: src/qml/main_window/NewChatPage.qml:318
 msgctxt "@title:group peers whose presence broadcasts are arriving"
 msgid "On the network now"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:321
+#: src/qml/main_window/NewChatPage.qml:326
 msgctxt "@info"
 msgid "Nobody is broadcasting"
 msgstr ""
 
-#: src/qml/main_window/NewChatPage.qml:322
+#: src/qml/main_window/NewChatPage.qml:327
 msgctxt "@info"
 msgid "KOutNet is listening, but it's quiet here for now..."
+msgstr ""
+
+#: src/qml/main_window/NewChatPage.qml:345
+msgctxt "@title a transport"
+msgid "Tox"
 msgstr ""
 
 #: src/qml/matrix/DeviceVerificationDialog.qml:24
@@ -1809,107 +1976,134 @@ msgctxt "@label:textbox"
 msgid "Password"
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:111
+#: src/qml/matrix/MatrixLoginPage.qml:114
+msgctxt "@action:button open the homeserver's single sign-on page in a browser"
+msgid "Sign in with single sign-on"
+msgstr ""
+
+#: src/qml/matrix/MatrixLoginPage.qml:116
+msgctxt "@info:whatsthis"
+msgid ""
+"Opens your homeserver's login page in a browser. When it finishes, paste the "
+"token below or let the browser hand it back."
+msgstr ""
+
+#: src/qml/matrix/MatrixLoginPage.qml:123
+msgctxt "@label:textbox a Matrix SSO login token"
+msgid "SSO token"
+msgstr ""
+
+#: src/qml/matrix/MatrixLoginPage.qml:124
+msgctxt "@info:placeholder"
+msgid "Paste the token from the browser"
+msgstr ""
+
+#: src/qml/matrix/MatrixLoginPage.qml:130
+msgctxt "@action:button submit a pasted SSO token"
+msgid "Use token"
+msgstr ""
+
+#: src/qml/matrix/MatrixLoginPage.qml:144
 msgctxt "@action:button"
 msgid "Sign out"
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:112
+#: src/qml/matrix/MatrixLoginPage.qml:145
 msgctxt "@action:button"
 msgid "Sign in"
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:125
+#: src/qml/matrix/MatrixLoginPage.qml:158
 #: src/qml/profile/not_your_prof/OtherProfile.qml:104
 msgctxt "@title:group"
 msgid "Session"
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:154
+#: src/qml/matrix/MatrixLoginPage.qml:187
 msgctxt "@info:status the session can decrypt and encrypt"
 msgid "Encryption is on for this session"
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:155
+#: src/qml/matrix/MatrixLoginPage.qml:188
 msgctxt "@info:status the session has no encryption keys"
 msgid "Encryption is off for this session"
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:157
+#: src/qml/matrix/MatrixLoginPage.qml:190
 msgctxt "@info:whatsthis"
 msgid ""
 "Encrypted rooms can be read and written. Until this session is verified, "
 "though, other clients may refuse to send it their room keys."
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:158
+#: src/qml/matrix/MatrixLoginPage.qml:191
 msgctxt "@info:whatsthis"
 msgid ""
 "The encryption keys could not be opened, so encrypted rooms cannot be read "
 "or written here. Check that the wallet is running and sign in again."
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:167
+#: src/qml/matrix/MatrixLoginPage.qml:200
 msgctxt "@action:button open the device verification dialog"
 msgid "Verify this session..."
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:169
+#: src/qml/matrix/MatrixLoginPage.qml:202
 msgctxt "@info:whatsthis"
 msgid ""
 "Compare emoji with another Matrix session of yours so that both sides know "
 "this one is really you."
 msgstr ""
 
-#: src/qml/matrix/MatrixLoginPage.qml:194
+#: src/qml/matrix/MatrixLoginPage.qml:227
 msgctxt "@info:status"
 msgid "Enter a user ID and a password."
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:70
+#: src/qml/matrix/RoomInfoPage.qml:78
 msgctxt "@title:window the topic, address and members of a Matrix room"
 msgid "Room information"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:119
+#: src/qml/matrix/RoomInfoPage.qml:141
 msgctxt ""
 "@action:button back to the conversation from the room information page"
 msgid "Back"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:127
+#: src/qml/matrix/RoomInfoPage.qml:148
 msgctxt "@action:button copy the room's address so it can be pasted elsewhere"
 msgid "Copy address"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:132
+#: src/qml/matrix/RoomInfoPage.qml:153
 msgctxt "@info:status"
 msgid "Room address copied to the clipboard"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:136
+#: src/qml/matrix/RoomInfoPage.qml:157
 msgctxt "@action:button leave a Matrix room"
 msgid "Leave room"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:152
+#: src/qml/matrix/RoomInfoPage.qml:173
 msgctxt "@title:window"
 msgid "Leave this room?"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:153
+#: src/qml/matrix/RoomInfoPage.qml:174
 msgctxt "@info"
 msgid ""
 "You will stop receiving messages from it. Getting back in may need a new "
 "invitation."
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:157
+#: src/qml/matrix/RoomInfoPage.qml:178
 msgctxt "@action:button confirm leaving a Matrix room"
 msgid "Leave"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:211
+#: src/qml/matrix/RoomInfoPage.qml:240
 msgctxt ""
 "@info:status %1 is how many people are in the room, %2 how many have been "
 "invited and not joined"
@@ -1918,51 +2112,51 @@ msgid_plural "%1 members, %2 invited"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/qml/matrix/RoomInfoPage.qml:213
+#: src/qml/matrix/RoomInfoPage.qml:242
 msgctxt "@info:status %1 is how many people are in the room"
 msgid "%1 member"
 msgid_plural "%1 members"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/qml/matrix/RoomInfoPage.qml:223
+#: src/qml/matrix/RoomInfoPage.qml:252
 msgctxt "@title:group what a Matrix room is for"
 msgid "Topic"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:243
+#: src/qml/matrix/RoomInfoPage.qml:272
 msgctxt "@info the room has set no topic"
 msgid "No topic set"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:255
+#: src/qml/matrix/RoomInfoPage.qml:284
 msgctxt "@title:group whether this room is encrypted"
 msgid "Encryption"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:267
+#: src/qml/matrix/RoomInfoPage.qml:296
 msgctxt "@info:status the room is not encrypted"
 msgid "Not encrypted"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:269
+#: src/qml/matrix/RoomInfoPage.qml:298
 msgctxt "@info:status the room is end to end encrypted"
 msgid "End to end encrypted"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:270
+#: src/qml/matrix/RoomInfoPage.qml:299
 msgctxt "@info:status the room is encrypted but this session has no keys"
 msgid "Encrypted, and unreadable here"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:273
+#: src/qml/matrix/RoomInfoPage.qml:302
 msgctxt "@info:whatsthis"
 msgid ""
 "Messages here are readable by the homeserver and by anybody it federates "
 "with."
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:276
+#: src/qml/matrix/RoomInfoPage.qml:305
 msgctxt "@info:whatsthis"
 msgid ""
 "Messages here are encrypted for the devices in the room, so the homeserver "
@@ -1970,43 +2164,43 @@ msgid ""
 "stay unreadable, because their keys were never sent to it."
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:278
+#: src/qml/matrix/RoomInfoPage.qml:307
 msgctxt "@info:whatsthis"
 msgid ""
 "This session could not open its encryption keys, so nothing in this room can "
 "be read and nothing can be sent to it."
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:289
+#: src/qml/matrix/RoomInfoPage.qml:318
 msgctxt "@info:status device verification could not be checked"
 msgid "Verification unknown"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:291
+#: src/qml/matrix/RoomInfoPage.qml:320
 msgctxt "@info:status all of this account's own sessions are verified"
 msgid "Your other sessions are verified"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:292
+#: src/qml/matrix/RoomInfoPage.qml:321
 msgctxt "@info:status some of this account's own sessions are unverified"
 msgid "Some of your sessions are unverified"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:295
+#: src/qml/matrix/RoomInfoPage.qml:324
 msgctxt "@info:whatsthis"
 msgid ""
 "The trust table could not be read, so nothing here has been checked either "
 "way."
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:298
+#: src/qml/matrix/RoomInfoPage.qml:327
 msgctxt "@info:whatsthis"
 msgid ""
 "Every other session on this account has been verified from here, so they "
 "will share their room keys with this one."
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:300
+#: src/qml/matrix/RoomInfoPage.qml:329
 msgctxt "@info:whatsthis"
 msgid ""
 "An unverified session is refused keys by some clients, which is why parts of "
@@ -2014,36 +2208,36 @@ msgid ""
 "session of yours to fix that."
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:309
+#: src/qml/matrix/RoomInfoPage.qml:338
 msgctxt "@action:button open the device verification dialog"
 msgid "Verify sessions..."
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:311
+#: src/qml/matrix/RoomInfoPage.qml:340
 msgctxt "@info:whatsthis"
 msgid ""
 "Compare emoji with another Matrix session of yours to prove this one is the "
 "same person."
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:325
+#: src/qml/matrix/RoomInfoPage.qml:354
 msgctxt "@action:button the room key backup is already unlocked"
 msgid "Room keys restored from backup"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:326
+#: src/qml/matrix/RoomInfoPage.qml:355
 msgctxt "@action:button open the dialog that unlocks the room key backup"
 msgid "Restore room keys from backup..."
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:329
+#: src/qml/matrix/RoomInfoPage.qml:358
 msgctxt "@info:whatsthis"
 msgid ""
 "The backup on the homeserver was already unlocked in this session, so "
 "messages from the past appear as their keys arrive."
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:331
+#: src/qml/matrix/RoomInfoPage.qml:360
 msgctxt "@info:whatsthis"
 msgid ""
 "Ask the homeserver for the encrypted copy of the room keys. A recovery key "
@@ -2051,41 +2245,96 @@ msgid ""
 "become readable after this."
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:343
+#: src/qml/matrix/RoomInfoPage.qml:372
 msgctxt "@title:group what this room is called on the network"
 msgid "Address"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:356
+#: src/qml/matrix/RoomInfoPage.qml:385
 msgctxt "@label the address a room is published under"
 msgid "Main address"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:367
+#: src/qml/matrix/RoomInfoPage.qml:396
 msgctxt "@label another address the same room answers to"
 msgid "Also reachable as"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:377
+#: src/qml/matrix/RoomInfoPage.qml:406
 msgctxt "@label the room's internal identifier"
 msgid "Room identifier"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:384
+#: src/qml/matrix/RoomInfoPage.qml:413
+msgctxt "@title:group edit the room's name and topic"
+msgid "Room settings"
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:423
+msgctxt "@label:textbox the room's display name"
+msgid "Name"
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:429
+msgctxt "@label:textbox the room's topic"
+msgid "Topic"
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:437
+msgctxt "@title:group messages pinned in this room"
+msgid "Pinned messages"
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:449
+msgctxt "@info no messages are pinned in this room"
+msgid "Nothing pinned yet"
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:471
+msgctxt "@action:button unpin a message"
+msgid "Unpin"
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:481
+msgctxt "@title:group search the room history"
+msgid "Search"
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:492
+msgctxt "@label:textbox search the room history"
+msgid "Search"
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:493
+msgctxt "@info:placeholder type to search messages"
+msgid "Type to search messages"
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:499
+msgctxt "@info no messages matched the search"
+msgid "No matches"
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:533
 msgctxt "@title:group the people in a Matrix room"
 msgid "Members"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:397
+#: src/qml/matrix/RoomInfoPage.qml:546
 msgctxt "@info the member list has not arrived yet"
 msgid "No members loaded"
 msgstr ""
 
-#: src/qml/matrix/RoomInfoPage.qml:399
+#: src/qml/matrix/RoomInfoPage.qml:548
 msgctxt "@info:whatsthis"
 msgid ""
 "A homeserver sends the member list lazily, so it may fill in a moment after "
 "the room opens."
+msgstr ""
+
+#: src/qml/matrix/RoomInfoPage.qml:616
+msgctxt "@title:window"
+msgid "Set room avatar"
 msgstr ""
 
 #: src/qml/matrix/RoomMemberCard.qml:125
@@ -2171,6 +2420,16 @@ msgstr ""
 #: src/qml/matrix/RoomMemberCard.qml:272
 msgctxt "@action:button ban a member from a room"
 msgid "Ban"
+msgstr ""
+
+#: src/qml/matrix/RoomMemberCard.qml:283
+msgctxt "@action:button mute a user across the whole account"
+msgid "Ignore"
+msgstr ""
+
+#: src/qml/matrix/RoomMemberCard.qml:286
+msgctxt "@info:status"
+msgid "Ignored %1"
 msgstr ""
 
 #: src/qml/matrix/RoomRoles.qml:22
@@ -2824,24 +3083,24 @@ msgctxt ""
 msgid "Apply connection settings"
 msgstr ""
 
-#: src/qml/shell/ConnectionRail.qml:37
+#: src/qml/shell/ConnectionRail.qml:38
 msgctxt ""
 "@item connection mode, peers found on the local network or over a VPN adapter"
 msgid "Local network or VPN"
 msgstr ""
 
-#: src/qml/shell/ConnectionRail.qml:39
+#: src/qml/shell/ConnectionRail.qml:40
 msgctxt "@info:tooltip why a connection mode cannot be used"
 msgid "no local interface is up"
 msgstr ""
 
-#: src/qml/shell/ConnectionRail.qml:43
+#: src/qml/shell/ConnectionRail.qml:44
 msgctxt ""
 "@item connection mode, a Matrix homeserver at whatever address is configured"
 msgid "Matrix"
 msgstr ""
 
-#: src/qml/shell/ConnectionRail.qml:45
+#: src/qml/shell/ConnectionRail.qml:46
 msgctxt "@info:tooltip why a connection mode cannot be used"
 msgid "not built yet"
 msgstr ""
@@ -2992,22 +3251,37 @@ msgctxt "@info:tooltip video player"
 msgid "Fullscreen"
 msgstr ""
 
-#: src/qml/timeline/AttachmentBlock.qml:165
+#: src/qml/timeline/AttachmentBlock.qml:168
 msgctxt "@action:button pause the attached recording"
 msgid "Pause"
 msgstr ""
 
-#: src/qml/timeline/AttachmentBlock.qml:166
+#: src/qml/timeline/AttachmentBlock.qml:169
 msgctxt "@action:button play the attached recording"
 msgid "Play"
 msgstr ""
 
-#: src/qml/timeline/AttachmentBlock.qml:195
+#: src/qml/timeline/AttachmentBlock.qml:198
 msgctxt "@action:button open the attachment outside this window"
 msgid "Open"
 msgstr ""
 
-#: src/qml/timeline/AttachmentBlock.qml:216
+#: src/qml/timeline/AttachmentBlock.qml:226
+msgctxt "@info shared location caption"
+msgid "Location: %1"
+msgstr ""
+
+#: src/qml/timeline/AttachmentBlock.qml:227
+msgctxt "@info shared location with no caption"
+msgid "Shared location"
+msgstr ""
+
+#: src/qml/timeline/AttachmentBlock.qml:236
+msgctxt "@action:button open a shared location in a map"
+msgid "Open in map"
+msgstr ""
+
+#: src/qml/timeline/AttachmentBlock.qml:247
 msgctxt "@info:status %1 is the attachment's name"
 msgid "%1 cannot be opened from here."
 msgstr ""
@@ -3042,64 +3316,79 @@ msgctxt "@info:tooltip state of an outgoing message"
 msgid "Sent - delivery not confirmed"
 msgstr ""
 
-#: src/qml/timeline/MessageActions.qml:43
+#: src/qml/timeline/MessageActions.qml:44
 msgctxt "@action:button react to this message with an emoji"
 msgid "React"
 msgstr ""
 
-#: src/qml/timeline/MessageActions.qml:55
+#: src/qml/timeline/MessageActions.qml:56
 msgctxt "@action:button quote this message in your next one"
 msgid "Reply"
 msgstr ""
 
 #: src/qml/timeline/MessageActions.qml:68
+msgctxt "@action:button pin this message to the room"
+msgid "Pin"
+msgstr ""
+
+#: src/qml/timeline/MessageActions.qml:81
 msgctxt "@action:button change what this message says"
 msgid "Edit"
 msgstr ""
 
-#: src/qml/timeline/MessageActions.qml:80
+#: src/qml/timeline/MessageActions.qml:93
 msgctxt "@action:button everything else that can be done to this message"
 msgid "More"
 msgstr ""
 
-#: src/qml/timeline/MessageDelegate.qml:81
+#: src/qml/timeline/MessageDelegate.qml:92
 msgctxt "@info:placeholder the local user, as the author of their own message"
 msgid "You"
 msgstr ""
 
-#: src/qml/timeline/MessageDelegate.qml:87
+#: src/qml/timeline/MessageDelegate.qml:98
 msgctxt "@info run header over your own messages, %1 is your own display name"
 msgid "%1 (you)"
 msgstr ""
 
-#: src/qml/timeline/MessageDelegate.qml:301
+#: src/qml/timeline/MessageDelegate.qml:312
 msgctxt "@info:tooltip when a message was sent, %1 is a date and time"
 msgid "Sent %1"
 msgstr ""
 
-#: src/qml/timeline/MessageDelegate.qml:403
+#: src/qml/timeline/MessageDelegate.qml:401
+msgctxt "@info poll tally, %1 is the number of votes cast"
+msgid "%1 vote(s)"
+msgstr ""
+
+#: src/qml/timeline/MessageDelegate.qml:402
+msgctxt "@info poll votes are hidden until closed"
+msgid "Votes are private until the poll closes."
+msgstr ""
+
+#: src/qml/timeline/MessageDelegate.qml:467
 msgctxt "@info:status the message was changed after it was sent"
 msgid "edited"
 msgstr ""
 
-#: src/qml/timeline/MessageTimeline.qml:278
+#: src/qml/timeline/MessageTimeline.qml:248
 msgctxt "@info an open conversation with no messages in it"
 msgid "Nothing here yet"
 msgstr ""
 
-#: src/qml/timeline/MessageTimeline.qml:279
+#: src/qml/timeline/MessageTimeline.qml:249
 msgctxt "@info"
 msgid "Write something below, or drop a file on this window to send it."
 msgstr ""
 
-#: src/qml/timeline/MessageTimeline.qml:292
+#: src/qml/timeline/MessageTimeline.qml:262
 msgctxt "@action:button go to the oldest message not yet read, %1 is a number"
 msgid "Jump to %1 unread message"
 msgid_plural "Jump to %1 unread messages"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/qml/timeline/MessageTimeline.qml:315
+#: src/qml/timeline/MessageTimeline.qml:283
 msgctxt "@action:button scroll the conversation back to the newest message"
 msgid "Jump to the latest message"
 msgstr ""
