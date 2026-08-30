@@ -45,6 +45,11 @@ Item {
     required property int mediaDuration
     required property bool showAuthor
     required property bool showDay
+    // The poll this row carries, from the model role of the same name (a PollRole
+    // QVariantMap, empty for non-poll rows). Declared like every other role so that
+    // root.poll resolves to the model value; without it root.poll is undefined and
+    // the voting UI never shows, leaving only the question text.
+    required property var poll
 
     // The room this row belongs to, fed from MessageTimeline so a poll vote can
     // name its room on the wire. poll comes from the model role of the same name;
