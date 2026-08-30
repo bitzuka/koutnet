@@ -4,6 +4,7 @@
 
 #include "MatrixManager.h"
 #include "MatrixTranslate.h"
+#include "pollevent.h"
 #include "core/chat/ChatAddress.h"
 
 #include <KLocalizedString>
@@ -367,36 +368,32 @@ koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
         return raw;
     }
 
-    // Polls are standalone events (m.poll.start / m.poll.response / m.poll.end),
-    // not m.room.message, so they never arrive as a RoomMessageEvent. libQuotient
-    // keeps them as a bare RoomEvent; read the type straight off it. Two wire
-    // forms exist in the wild: the stable m.poll.* and the long-lived unstable
-    // org.matrix.msc3381.poll.* that NeoChat and many servers still emit, so both
-    // are accepted on read. This client writes the MSC3381 form to match them.
-    const QString matrixType = event->matrixType();
-    // A poll start, however it was sent, carries its data in the content; read it
-    // there so we never mistake a real poll for a plain message.
-    const QVariantMap pollStart = pollFromContent(event->contentJson());
-    if (!pollStart.isEmpty()) {
-        raw.poll = pollStart;
-        raw.body = pollStart.value(QStringLiteral("question")).toString();
+    // Polls are first-class event types once pollevent.h registers them with
+    // libQuotient, so the library hands us a typed PollStartEvent / PollResponseEvent
+    // (NeoChat's exact parsing) instead of a bare RoomEvent we must guess at. The
+    // unstable org.matrix.msc3381.poll.* wire form used by NeoChat and most servers
+    // is what these classes parse.
+    if (const auto *poll = eventCast<const Quotient::PollStartEvent>(event)) {
+        QVariantList answers;
+        for (const auto &a : poll->answers()) {
+            QVariantMap e;
+            e.insert(QStringLiteral("id"), a.id);
+            e.insert(QStringLiteral("body"), a.text);
+            answers.append(e);
+        }
+        QVariantMap pollMap;
+        pollMap.insert(QStringLiteral("question"), poll->question());
+        pollMap.insert(QStringLiteral("answers"), answers);
+        pollMap.insert(QStringLiteral("disclosed"), poll->kind() == PollKind::Disclosed);
+        raw.poll = pollMap;
+        raw.body = poll->question();
         return raw;
     }
-    if (matrixType == QStringLiteral("m.poll.response")
-        || matrixType == QStringLiteral("org.matrix.msc3381.poll.response")) {
-        const QJsonObject content = event->contentJson();
-        const QJsonObject relates = content.value(QStringLiteral("m.relates_to")).toObject();
-        raw.pollStartId = relates.value(QStringLiteral("event_id")).toString();
-        const QString answerKey = matrixType == QStringLiteral("m.poll.response")
-            ? QStringLiteral("poll")
-            : QStringLiteral("org.matrix.msc3381.poll.response");
-        const QJsonArray answers = content.value(answerKey).toObject().value(QStringLiteral("answers")).toArray();
-        if (!answers.isEmpty()) {
-            const QJsonValue first = answers.at(0);
-            raw.pollAnswerId = first.isObject()
-                ? first.toObject().value(QStringLiteral("id")).toString()
-                : first.toString();
-        }
+    if (const auto *vote = eventCast<const Quotient::PollResponseEvent>(event)) {
+        const std::optional<Quotient::EventRelation> rel = vote->relatesTo();
+        raw.pollStartId = rel ? rel->eventId : QString();
+        const QStringList selections = vote->selections();
+        raw.pollAnswerId = selections.isEmpty() ? QString() : selections.first();
         return raw;
     }
 
@@ -602,9 +599,10 @@ void MatrixRoomBridge::trackRoom(Room *room)
     connect(room, &Room::aboutToAddNewMessages, this, [this, room](const Quotient::RoomEventsRange &events) {
         for (const auto &ev : events) {
             const RoomEvent *event = ev.get();
-            const QString type = event->matrixType();
-            if (type == QStringLiteral("m.poll.start") || type == QStringLiteral("m.poll.response")
-                || type == QStringLiteral("m.poll.end")) {
+            // The poll event types are registered with libQuotient via pollevent.h,
+            // so a poll arrives typed as PollStartEvent / PollResponseEvent; publish it
+            // the same way as addedMessages so it lands in the conversation.
+            if (eventCast<const Quotient::PollStartEvent>(event) || eventCast<const Quotient::PollResponseEvent>(event)) {
                 publishEvent(room, event);
             }
         }

@@ -228,6 +228,8 @@ qt_add_executable(KOutNet
     matrix/MatrixManager.h
     matrix/MatrixRoomBridge.cpp
     matrix/MatrixRoomBridge.h
+    matrix/pollevent.cpp
+    matrix/pollevent.h
     matrix/MatrixVerification.cpp
     matrix/MatrixVerification.h
     matrix/MatrixLoginUtils.cpp
