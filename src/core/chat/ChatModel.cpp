@@ -486,6 +486,10 @@ bool ChatModel::ingestRemotePoll(const QString &remoteId,
     poll.insert(QStringLiteral("counts"), counts);
     poll.insert(QStringLiteral("totalVotes"), 0);
     poll.insert(QStringLiteral("myVotes"), QVariantList());
+    // voterId -> chosen answerId, so a voter counts once and can only move their
+    // vote; without it repeated clicks would inflate the tally (and the server
+    // aggregates by voter, not by event, so our local count must too).
+    poll.insert(QStringLiteral("voters"), QVariantMap());
     e.poll = poll;
 
     appendEntry(e, true);
@@ -507,7 +511,9 @@ bool ChatModel::applyPollResponse(const QString &pollStartId, const QString &ans
     QVariantList counts = poll.value(QStringLiteral("counts")).toList();
     int total = poll.value(QStringLiteral("totalVotes"), 0).toInt();
     QVariantList myVotes = poll.value(QStringLiteral("myVotes")).toList();
+    QVariantMap voters = poll.value(QStringLiteral("voters")).toMap();
 
+    // index of the newly chosen answer
     int answerIndex = -1;
     for (int i = 0; i < answers.size(); ++i) {
         if (answers.at(i).toMap().value(QStringLiteral("id")).toString() == answerId) {
@@ -518,10 +524,41 @@ bool ChatModel::applyPollResponse(const QString &pollStartId, const QString &ans
     if (answerIndex < 0)
         return false;
 
+    // A voter may change their vote but must count once. Track each voter's current
+    // choice and move the tally instead of stacking clicks - a re-vote or a duplicate
+    // server echo for the same option changes nothing, and switching options shifts
+    // the count rather than adding to it.
+    const QString prev = voters.value(voterId).toString();
+    if (!prev.isEmpty() && prev == answerId)
+        return false;
+
+    if (!prev.isEmpty()) {
+        int prevIndex = -1;
+        for (int i = 0; i < answers.size(); ++i) {
+            if (answers.at(i).toMap().value(QStringLiteral("id")).toString() == prev) {
+                prevIndex = i;
+                break;
+            }
+        }
+        if (prevIndex >= 0) {
+            const int before = counts.value(prevIndex, 0).toInt();
+            counts[prevIndex] = qMax(0, before - 1);
+        }
+        total = qMax(0, total - 1);
+        if (isOwn) {
+            const int pos = myVotes.indexOf(prev);
+            if (pos >= 0)
+                myVotes.removeAt(pos);
+        }
+    }
+
     const int before = counts.value(answerIndex, 0).toInt();
     counts[answerIndex] = before + 1;
+    total += 1;
+    voters.insert(voterId, answerId);
     poll.insert(QStringLiteral("counts"), counts);
-    poll.insert(QStringLiteral("totalVotes"), total + 1);
+    poll.insert(QStringLiteral("totalVotes"), total);
+    poll.insert(QStringLiteral("voters"), voters);
     if (isOwn && !myVotes.contains(answerId))
         myVotes.append(answerId);
     poll.insert(QStringLiteral("myVotes"), myVotes);
