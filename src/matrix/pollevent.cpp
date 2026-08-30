@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2022 Tobias Fella <tobias.fella@kde.org>
 // SPDX-License-Identifier: LGPL-2.0-or-later
 //
-// Taken verbatim from NeoChat (src/libneochat/events/pollevent.cpp).
+// Based on NeoChat's poll event implementation (src/libneochat/events/
+// pollevent.cpp), modified for KOutNet's stable/unstable poll compatibility.
 
 #include "pollevent.h"
 

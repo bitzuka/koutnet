@@ -1,9 +1,9 @@
 // SPDX-FileCopyrightText: 2022 Tobias Fella <tobias.fella@kde.org>
 // SPDX-License-Identifier: LGPL-2.0-or-later
 //
-// Taken verbatim from NeoChat (src/libneochat/events/pollevent.h) so that
-// libQuotient natively understands the poll event types and parses them exactly
-// the way NeoChat does. KOutNet renders and votes through this same shape.
+// Based on the poll event declarations in NeoChat (src/libneochat/events/
+// pollevent.h), with KOutNet changes for stable Matrix poll names and formats.
+// This file is maintained locally; it is not a verbatim copy.
 
 #pragma once
 
