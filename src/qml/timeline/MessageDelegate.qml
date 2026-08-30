@@ -360,7 +360,7 @@ Item {
                     // bridge posts an m.poll.response the server fans back as votes.
                     Loader {
                         Layout.fillWidth: true
-                        active: root.poll ? (root.poll.answers && root.poll.answers.length > 0) : false
+                        active: root.poll ? ((root.poll.answers ? root.poll.answers.length : 0) > 0) : false
                         visible: active
 
                         sourceComponent: ColumnLayout {

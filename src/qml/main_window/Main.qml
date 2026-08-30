@@ -685,8 +685,16 @@ Kirigami.ApplicationWindow {
         // shortcut or a peer card can still get here.
         if (root.compact)
             return
-        pageStack.push(root.currentIsRoom ? roomInfoComponent : peerInfoComponent)
-        pageStack.currentIndex = pageStack.depth - 1
+        // Room info is shown on its own overlay layer, not as a third pageStack
+        // column: a column would persist on wide windows with no way to dismiss it
+        // (the global toolbar only draws a back arrow for the first two columns).
+        // A layer overlays at every width and is always closable.
+        if (root.currentIsRoom)
+            pageStack.layers.push(roomInfoComponent)
+        else {
+            pageStack.push(peerInfoComponent)
+            pageStack.currentIndex = pageStack.depth - 1
+        }
     }
 
     // An InlineMessage in the footer rather than the modal sheet this used to be,
@@ -727,10 +735,12 @@ Kirigami.ApplicationWindow {
             source: appSettings.wallpaperPath
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
-            // The window is large and the file is whatever the user picked, so
-            // it is scaled once on load rather than on every frame.
-            sourceSize.width: parent.width
-            sourceSize.height: parent.height
+            // Decoded once at a fixed cap rather than bound to parent.width/height:
+            // binding sourceSize to the live size forces a re-decode on every resize,
+            // which blanks the wallpaper for a moment during a drag. A fixed cap is
+            // scaled by the GPU on resize, so the picture stays put.
+            sourceSize.width: 2560
+            sourceSize.height: 1440
         }
 
         // The scrim is floored rather than allowed to reach zero: at zero the
@@ -745,6 +755,12 @@ Kirigami.ApplicationWindow {
 
     Shortcut {
         sequence: StandardKey.FullScreen
+        onActivated: root.toggleFullScreen()
+    }
+
+    Shortcut {
+        sequence: "F11"
+        context: Qt.ApplicationShortcut
         onActivated: root.toggleFullScreen()
     }
 

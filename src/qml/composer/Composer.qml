@@ -35,6 +35,7 @@ ColumnLayout {
     property bool recording: false
     property int voiceMs: 0
     property string voicePath: ""
+    property string voiceActualPath: ""
 
     readonly property bool replying: root.replyExcerpt.length > 0
     readonly property bool editing: root.editingRow >= 0
@@ -468,10 +469,11 @@ ColumnLayout {
             // The file therefore uses a .m4a extension and the bridge tags it audio/mp4
             // so the bytes, extension and mime agree (a .ogg name around MP4 bytes is
             // what made the server reject it before).
-            // actualLocationChanged hands the finished, flushed file over. The signal
-            // delivers a file:// URL string (not a QUrl), so pass it straight through;
-            // the bridge normalises file:// to a local path.
-            onActualLocationChanged: (loc) => root.handVoiceOff(loc)
+            // actualLocationChanged fires when the recorder resolves the output path,
+            // which is at the START of recording - not when the clip is finalised. So it
+            // only records the path here; the clip is handed off after stop() in
+            // stopVoice() once the recorder has flushed the file to disk.
+            onActualLocationChanged: (loc) => root.voiceActualPath = loc
         }
     }
 
@@ -482,19 +484,21 @@ ColumnLayout {
         onTriggered: root.voiceMs += 1000
     }
 
-    // Safety net: hand the clip off once the recorder has had time to flush, in
-    // case actualLocationChanged never fires. ActualLocationChanged sets the guard
-    // first, so this is a no-op when the real signal did its job.
+    // Safety net: hand the clip off once the recorder has had time to flush the
+    // MP4 trailer to disk after stop(); actualLocationChanged only names the path at
+    // record start, so it cannot be trusted to mean "file ready". This timer is the
+    // real hand-off; voiceActualPath (if set) is preferred over the intended path.
     Timer {
         id: voiceFlushTimer
-        interval: 800
-        onTriggered: root.handVoiceOff(root.voicePath)
+        interval: 1200
+        onTriggered: root.handVoiceOff(root.voiceActualPath || root.voicePath)
     }
 
     function startVoice() {
         const dir = Labs.StandardPaths.writableLocation(Labs.StandardPaths.TempLocation)
         root.voicePath = dir + "/koutnet-voice-" + Date.now() + ".m4a"
         voiceRecorder.outputLocation = root.voicePath
+        root.voiceActualPath = ""
         root.voiceMs = 0
         root.voiceHandedOff = false
         voiceRecorder.record()
@@ -506,10 +510,9 @@ ColumnLayout {
         voiceRecorder.stop()
         voiceTimer.stop()
         root.recording = false
-        // Do not hand the clip off yet: the recorder may still be flushing the
-        // file, and uploading too early fails with "Request data not ready".
-        // actualLocationChanged fires once the bytes are on disk and does the
-        // handoff; voiceFlushTimer covers the rare case it does not.
+        // Hand the clip off only after the recorder has flushed the trailer. Doing it
+        // here directly, or from actualLocationChanged (which fires at record start),
+        // uploads an empty/incomplete file and the server answers "Request data not ready".
         voiceFlushTimer.restart()
     }
 
