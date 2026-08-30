@@ -997,7 +997,7 @@ bool NetworkManager::sendPrivate(const QString &text, const QString &toIp)
     bool encrypted = false;
 
     if (m_crypto) {
-    // A session is the better key when there is one.
+        // A session is the better key when there is one.
         const QString passphrase = m_crypto->hasSession(toIp) ? QString() : m_groupPassphrase;
         const QString cipherText = m_crypto->encrypt(text, passphrase, toIp);
         if (cipherText != text) {
@@ -1173,7 +1173,7 @@ bool NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
         QFile file(filePath);
         if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
             Q_EMIT errorOccurred(i18nc("@info:status %1 is a file path", "File not found: %1", filePath));
-        return false;
+            return false;
         }
         data = file.readAll();
         fname = QFileInfo(filePath).fileName();
