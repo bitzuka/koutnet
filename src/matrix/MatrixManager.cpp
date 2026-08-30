@@ -574,11 +574,17 @@ bool MatrixManager::resumeSession()
     return true;
 }
 
-QString MatrixManager::ssoLoginUrl(const QString &homeserverUrl) const
+QString MatrixManager::ssoLoginUrl(const QString &homeserverUrl)
 {
     QUrl base = QUrl::fromUserInput(homeserverUrl.trimmed());
     if (base.scheme().isEmpty())
         base.setScheme(QStringLiteral("https"));
+    if (!base.isValid() || base.host().isEmpty())
+        return QString();
+    // The QML path calls this function and then completeSsoLogin(), without
+    // calling startSsoLogin(). Keep the homeserver with the generated URL so
+    // the token-only completion API is independent of how the browser opened.
+    m_ssoHomeserver = base.toString();
     // The redirect the homeserver is told to use; once SSO is done the browser
     // lands here with a loginToken we hand to loginWithToken().
     return matrix::ssoRedirectUrl(base, QUrl(QStringLiteral("koutnet://sso"))).toString();
@@ -586,8 +592,9 @@ QString MatrixManager::ssoLoginUrl(const QString &homeserverUrl) const
 
 void MatrixManager::startSsoLogin(const QString &homeserverUrl)
 {
-    m_ssoHomeserver = homeserverUrl.trimmed();
-    QDesktopServices::openUrl(QUrl(ssoLoginUrl(homeserverUrl)));
+    const QString url = ssoLoginUrl(homeserverUrl);
+    if (!url.isEmpty())
+        QDesktopServices::openUrl(QUrl(url));
 }
 
 void MatrixManager::onSsoRedirect(const QUrl &url)
@@ -603,6 +610,10 @@ void MatrixManager::onSsoRedirect(const QUrl &url)
 
 void MatrixManager::completeSsoLogin(const QString &token)
 {
+    if (m_ssoHomeserver.isEmpty()) {
+        setState(State::Failed, i18nc("@info:status Matrix SSO login", "Choose a homeserver before completing SSO sign-in."));
+        return;
+    }
     loginWithToken(m_ssoHomeserver, token);
 }
 

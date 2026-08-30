@@ -106,7 +106,7 @@ public:
     Q_INVOKABLE void loginWithToken(const QString &homeserverUrl, const QString &token);
     // The URL the SSO flow opens in a browser; the homeserver answers it with a
     // loginToken we turn into a session via loginWithToken().
-    Q_INVOKABLE QString ssoLoginUrl(const QString &homeserverUrl) const;
+    Q_INVOKABLE QString ssoLoginUrl(const QString &homeserverUrl);
     // Opens ssoLoginUrl() in the browser and wires the koutnet:// redirect back
     // here, so a successful SSO hands us the token without a copy and paste.
     Q_INVOKABLE void startSsoLogin(const QString &homeserverUrl);
