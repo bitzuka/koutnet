@@ -30,6 +30,7 @@ constexpr quint8 kCodeCallReject = 8;
 constexpr quint8 kCodeCallEnd = 9;
 constexpr quint8 kCodeFileMeta = 10;
 constexpr quint8 kCodeFileData = 11;
+constexpr quint8 kCodeFileAck = 18;
 constexpr quint8 kCodeGroupInv = 12;
 constexpr quint8 kCodeTyping = 13;
 constexpr quint8 kCodeReaction = 14;
@@ -91,6 +92,8 @@ quint8 messageTypeCode(const QString &type)
         return kCodeFileMeta;
     if (type == kMsgFileData)
         return kCodeFileData;
+    if (type == kMsgFileAck)
+        return kCodeFileAck;
     if (type == kMsgGroupInv)
         return kCodeGroupInv;
     if (type == kMsgTyping)
@@ -131,6 +134,8 @@ QLatin1StringView messageTypeName(quint8 code)
         return kMsgFileMeta;
     case kCodeFileData:
         return kMsgFileData;
+    case kCodeFileAck:
+        return kMsgFileAck;
     case kCodeGroupInv:
         return kMsgGroupInv;
     case kCodeTyping:
@@ -223,7 +228,8 @@ bool decodeFrame(const QByteArray &data, QString &outType, QCborMap &outMap)
         return false;
 
     const quint8 typeCode = quint8(data.at(5));
-    if (typeCode == 0)
+    const QLatin1StringView typeName = messageTypeName(typeCode);
+    if (typeName.isEmpty())
         return false;
 
     quint32 len = 0;
@@ -242,7 +248,11 @@ bool decodeFrame(const QByteArray &data, QString &outType, QCborMap &outMap)
         return false;
 
     outMap = value.toMap();
-    outType = messageTypeName(typeCode);
+    const QCborValue payloadType = outMap.value(QStringLiteral("type"));
+    if (!payloadType.isString() || messageTypeCode(payloadType.toString()) != typeCode)
+        return false;
+
+    outType = typeName;
     return true;
 }
 

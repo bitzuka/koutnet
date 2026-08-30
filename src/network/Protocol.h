@@ -23,6 +23,7 @@ inline constexpr QLatin1StringView kMsgCallReject("call_reject");
 inline constexpr QLatin1StringView kMsgCallEnd("call_end");
 inline constexpr QLatin1StringView kMsgFileMeta("file_meta");
 inline constexpr QLatin1StringView kMsgFileData("file_data");
+inline constexpr QLatin1StringView kMsgFileAck("file_ack");
 inline constexpr QLatin1StringView kMsgGroupInv("group_invite");
 inline constexpr QLatin1StringView kMsgTyping("typing");
 inline constexpr QLatin1StringView kMsgReaction("reaction");
@@ -70,8 +71,9 @@ inline constexpr quint32 kWireMaxPayload = 16u * 1024u * 1024u;
 
 // Stable numeric codes for the message types above. Both ends must agree, so
 // this mapping - not string hashing - is the contract. Presence stays 1 to
-// keep the wire ugly-stable, the rest follow in dispatch order.
-quint8 messageTypeCode(QLatin1StringView type);
+// keep the wire ugly-stable, the rest follow in dispatch order. Returns 0 for
+// unknown types; the caller drops such frames.
+quint8 messageTypeCode(const QString &type);
 QLatin1StringView messageTypeName(quint8 code);
 
 // Encode a message object into a binary wire frame. The object MUST carry a
