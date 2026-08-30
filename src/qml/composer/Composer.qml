@@ -463,9 +463,15 @@ ColumnLayout {
             audioBitRate: 24000
             audioSampleRate: 48000
             audioChannelCount: 1
-            // The clip is handed over when recording stops; relying on the
-            // actualLocation signal alone left sends that never fired.
-            onActualLocationChanged: (loc) => root.handVoiceOff(loc.toLocalFile())
+            // NOTE: QMediaFormat is not instantiable from QML in this Qt build, so the
+            // container cannot be forced to Ogg/Opus here; the recorder emits MP4/AAC.
+            // The file therefore uses a .m4a extension and the bridge tags it audio/mp4
+            // so the bytes, extension and mime agree (a .ogg name around MP4 bytes is
+            // what made the server reject it before).
+            // actualLocationChanged hands the finished, flushed file over. The signal
+            // delivers a file:// URL string (not a QUrl), so pass it straight through;
+            // the bridge normalises file:// to a local path.
+            onActualLocationChanged: (loc) => root.handVoiceOff(loc)
         }
     }
 
@@ -476,9 +482,18 @@ ColumnLayout {
         onTriggered: root.voiceMs += 1000
     }
 
+    // Safety net: hand the clip off once the recorder has had time to flush, in
+    // case actualLocationChanged never fires. ActualLocationChanged sets the guard
+    // first, so this is a no-op when the real signal did its job.
+    Timer {
+        id: voiceFlushTimer
+        interval: 800
+        onTriggered: root.handVoiceOff(root.voicePath)
+    }
+
     function startVoice() {
         const dir = Labs.StandardPaths.writableLocation(Labs.StandardPaths.TempLocation)
-        root.voicePath = dir + "/koutnet-voice-" + Date.now() + ".ogg"
+        root.voicePath = dir + "/koutnet-voice-" + Date.now() + ".m4a"
         voiceRecorder.outputLocation = root.voicePath
         root.voiceMs = 0
         root.voiceHandedOff = false
@@ -491,9 +506,11 @@ ColumnLayout {
         voiceRecorder.stop()
         voiceTimer.stop()
         root.recording = false
-        // Hand the finished clip to the bridge directly; the recorder has flushed
-        // it by the time stop() returns, so the path is valid and the send fires.
-        root.handVoiceOff(root.voicePath)
+        // Do not hand the clip off yet: the recorder may still be flushing the
+        // file, and uploading too early fails with "Request data not ready".
+        // actualLocationChanged fires once the bytes are on disk and does the
+        // handoff; voiceFlushTimer covers the rare case it does not.
+        voiceFlushTimer.restart()
     }
 
     // Either the recorder's actualLocation signal or stopVoice() may fire; only

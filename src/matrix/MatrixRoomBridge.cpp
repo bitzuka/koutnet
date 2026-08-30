@@ -1472,7 +1472,20 @@ void MatrixRoomBridge::sendVoice(const QString &chatId, const QString &localFile
         Q_EMIT sendFailed(chatId, i18nc("@info:status %1 is a file name", "%1 could not be read, so nothing was sent.", file.fileName()));
         return;
     }
-    const QString mimeName = QStringLiteral("audio/ogg");
+    const QString ext = file.suffix().toLower();
+    QString mimeName = QStringLiteral("audio/ogg");
+    if (ext == QStringLiteral("m4a") || ext == QStringLiteral("mp4"))
+        mimeName = QStringLiteral("audio/mp4");
+    else if (ext == QStringLiteral("aac"))
+        mimeName = QStringLiteral("audio/aac");
+    else if (ext == QStringLiteral("ogg"))
+        mimeName = QStringLiteral("audio/ogg");
+    else if (ext == QStringLiteral("wav"))
+        mimeName = QStringLiteral("audio/wav");
+    else if (ext == QStringLiteral("flac"))
+        mimeName = QStringLiteral("audio/flac");
+    else if (ext == QStringLiteral("mp3"))
+        mimeName = QStringLiteral("audio/mpeg");
     auto job = room->connection()->uploadFile(file.absoluteFilePath(), mimeName);
     connect(job.operator->(), &Quotient::BaseJob::success, this, [this, room, chatId, file, mimeName, durationMs, job]() {
         Q_UNUSED(this)
