@@ -27,6 +27,9 @@ public:
     // Cap on concurrent in-flight transfers, so peers spamming file_meta without
     // ever sending chunks cannot grow m_pending unboundedly.
     static constexpr int kMaxPendingTransfers = 50;
+    // The per-transfer cap is not enough: many incomplete transfers could otherwise
+    // consume one cap each before their TTL expires.
+    static constexpr qint64 kMaxPendingBytes = 256LL * 1024 * 1024;
     static constexpr qint64 kPendingTransferTtlMs = 10 * 60 * 1000; // 10 min
     // Filename length cap in UTF-8 bytes, the unit the filesystem counts in, with
     // room left for the "(2)" a name collision appends.
@@ -76,6 +79,7 @@ private:
         QJsonObject meta;
         QMap<int, QByteArray> chunks; // idx -> raw chunk bytes
         int total = -1;
+        qint64 announcedBytes = -1;
         qint64 receivedBytes = 0;
         qint64 startedAtMs = 0;
     };

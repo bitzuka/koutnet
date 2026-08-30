@@ -14,6 +14,8 @@
 #include <QStandardPaths>
 #include <QtNumeric> // qIsFinite, on a value that came straight off the wire
 
+#include <cmath>
+
 namespace koutnet
 {
 
@@ -84,7 +86,7 @@ void FileTransferHandler::onMeta(const QJsonObject &meta)
     // qint64 is undefined behaviour, not a big number that fails the test below.
     const QJsonValue sizeValue = meta.value(QStringLiteral("size"));
     const double announced = sizeValue.toDouble(-1.0);
-    if (!sizeValue.isDouble() || !qIsFinite(announced) || announced < 0.0 || announced > double(m_maxTransferBytes)) {
+    if (!sizeValue.isDouble() || !qIsFinite(announced) || announced < 0.0 || std::trunc(announced) != announced || announced > double(m_maxTransferBytes)) {
         Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The announced size is not a usable length."));
         return; // no entry created - onChunkMessage will drop its chunks
     }
@@ -96,7 +98,8 @@ void FileTransferHandler::onMeta(const QJsonObject &meta)
 
     PendingTransfer &t = m_pending[tid];
     t.meta = meta;
-    t.total = -1; // filled in once the first chunk arrives with its "total" field
+    t.total = -1; // filled in once, by the first chunk's "total" field
+    t.announcedBytes = qint64(announced);
     t.chunks.clear();
     t.receivedBytes = 0;
     t.startedAtMs = QDateTime::currentMSecsSinceEpoch();
@@ -121,6 +124,11 @@ void FileTransferHandler::onChunkMessage(const QString &tid, int idx, int total,
         return;
     }
 
+    if (t.total >= 0 && t.total != total) {
+        m_pending.remove(tid);
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The chunk count changed during the transfer."));
+        return;
+    }
     t.total = total;
 
     const auto held = t.chunks.constFind(idx);
@@ -135,9 +143,9 @@ void FileTransferHandler::onChunkMessage(const QString &tid, int idx, int total,
     // Count the delta against what is already held for this index: insert()
     // replaces, so one byte now and full size later used to cost nothing.
     t.receivedBytes += chunk.size() - (held != t.chunks.constEnd() ? held->size() : 0);
-    if (t.receivedBytes > m_maxTransferBytes) {
+    if (t.receivedBytes > m_maxTransferBytes || t.receivedBytes > t.announcedBytes || pendingBufferedBytes() > kMaxPendingBytes) {
         m_pending.remove(tid);
-        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The transfer exceeded the size limit."));
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The transfer exceeded the pending memory limit."));
         return;
     }
     t.chunks.insert(idx, chunk);
@@ -153,6 +161,12 @@ void FileTransferHandler::onChunkMessage(const QString &tid, int idx, int total,
             return;
         }
         full.append(t.chunks.value(i));
+    }
+
+    if (full.size() != t.announcedBytes) {
+        m_pending.remove(tid);
+        Q_EMIT transferRejected(tid, i18nc("@info:status file transfer refused", "The received data does not match the announced size."));
+        return;
     }
 
     // The sender's meta decides: no flag means plaintext as before;
