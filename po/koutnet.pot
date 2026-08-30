@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-30 21:24+0000\n"
+"POT-Creation-Date: 2026-08-30 23:07+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -265,7 +265,7 @@ msgctxt "@title:menu what to tell peers you are"
 msgid "Presence"
 msgstr ""
 
-#: src/core/tray/TrayIcon.cpp:92 src/qml/main_window/Main.qml:875
+#: src/core/tray/TrayIcon.cpp:92 src/qml/main_window/Main.qml:871
 msgctxt "@action:inmenu"
 msgid "Quit"
 msgstr ""
@@ -292,22 +292,22 @@ msgctxt "@action:inmenu bring the window back from the tray"
 msgid "Show the window"
 msgstr ""
 
-#: src/core/tray/TrayIcon.cpp:187 src/qml/main_window/Main.qml:818
+#: src/core/tray/TrayIcon.cpp:187 src/qml/main_window/Main.qml:814
 msgctxt "@action:inmenu let your microphone be heard again"
 msgid "Unmute microphone"
 msgstr ""
 
-#: src/core/tray/TrayIcon.cpp:188 src/qml/main_window/Main.qml:819
+#: src/core/tray/TrayIcon.cpp:188 src/qml/main_window/Main.qml:815
 msgctxt "@action:inmenu silence your own microphone"
 msgid "Mute microphone"
 msgstr ""
 
-#: src/core/tray/TrayIcon.cpp:197 src/qml/main_window/Main.qml:826
+#: src/core/tray/TrayIcon.cpp:197 src/qml/main_window/Main.qml:822
 msgctxt "@action:inmenu start hearing calls again"
 msgid "Undeafen"
 msgstr ""
 
-#: src/core/tray/TrayIcon.cpp:198 src/qml/main_window/Main.qml:827
+#: src/core/tray/TrayIcon.cpp:198 src/qml/main_window/Main.qml:823
 msgctxt "@action:inmenu stop hearing calls, and stop being heard"
 msgid "Deafen"
 msgstr ""
@@ -470,12 +470,17 @@ msgctxt ""
 msgid "The saved sign-in belongs to %1, not %2. Sign in again."
 msgstr ""
 
-#: src/matrix/MatrixManager.cpp:612
+#: src/matrix/MatrixManager.cpp:614
+msgctxt "@info:status Matrix SSO login"
+msgid "Choose a homeserver before completing SSO sign-in."
+msgstr ""
+
+#: src/matrix/MatrixManager.cpp:623
 msgctxt "@info:status Matrix SSO login"
 msgid "A login token is needed to sign in."
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:125
+#: src/matrix/MatrixRoomBridge.cpp:124
 msgctxt ""
 "@info:status a message for an encrypted room was not sent because the "
 "session has no keys"
@@ -484,45 +489,45 @@ msgid ""
 "encryption keys, so nothing was sent."
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:882
+#: src/matrix/MatrixRoomBridge.cpp:865
 msgctxt "@info:status a Matrix message was not accepted and nothing said why"
 msgid "The message could not be sent to this room."
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:883
+#: src/matrix/MatrixRoomBridge.cpp:866
 msgctxt ""
 "@info:status a Matrix message was not accepted, %1 is what the homeserver "
 "reported"
 msgid "The message could not be sent: %1"
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:939
+#: src/matrix/MatrixRoomBridge.cpp:922
 msgctxt "@info:status"
 msgid "Not signed in to Matrix, so this message was not sent."
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:945 src/matrix/MatrixRoomBridge.cpp:964
-#: src/matrix/MatrixRoomBridge.cpp:1234 src/matrix/MatrixRoomBridge.cpp:1267
-#: src/matrix/MatrixRoomBridge.cpp:1351 src/matrix/MatrixRoomBridge.cpp:1371
-#: src/matrix/MatrixRoomBridge.cpp:1391 src/matrix/MatrixRoomBridge.cpp:1417
-#: src/matrix/MatrixRoomBridge.cpp:1460 src/matrix/MatrixRoomBridge.cpp:1526
-#: src/matrix/MatrixRoomBridge.cpp:1567
+#: src/matrix/MatrixRoomBridge.cpp:928 src/matrix/MatrixRoomBridge.cpp:947
+#: src/matrix/MatrixRoomBridge.cpp:1208 src/matrix/MatrixRoomBridge.cpp:1241
+#: src/matrix/MatrixRoomBridge.cpp:1330 src/matrix/MatrixRoomBridge.cpp:1350
+#: src/matrix/MatrixRoomBridge.cpp:1370 src/matrix/MatrixRoomBridge.cpp:1394
+#: src/matrix/MatrixRoomBridge.cpp:1437 src/matrix/MatrixRoomBridge.cpp:1504
+#: src/matrix/MatrixRoomBridge.cpp:1543
 msgctxt "@info:status"
 msgid "That Matrix room is not available in this session."
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:974 src/matrix/MatrixRoomBridge.cpp:1431
-#: src/matrix/MatrixRoomBridge.cpp:1472
+#: src/matrix/MatrixRoomBridge.cpp:957 src/matrix/MatrixRoomBridge.cpp:1408
+#: src/matrix/MatrixRoomBridge.cpp:1449
 msgctxt "@info:status %1 is a file name"
 msgid "%1 could not be read, so nothing was sent."
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:1381
+#: src/matrix/MatrixRoomBridge.cpp:1360
 msgctxt "@item a sticker with no caption"
 msgid "sticker"
 msgstr ""
 
-#: src/matrix/MatrixRoomBridge.cpp:1579
+#: src/matrix/MatrixRoomBridge.cpp:1555
 msgctxt "@info a poll vote with no readable text"
 msgid "Voted."
 msgstr ""
@@ -795,102 +800,117 @@ msgctxt "@info:status a device verification failed for a protocol reason"
 msgid "The verification could not be completed. Nothing was verified."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:88
+#: src/network/FileTransferHandler.cpp:90
 msgctxt "@info:status file transfer refused"
 msgid "The announced size is not a usable length."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:93
+#: src/network/FileTransferHandler.cpp:95
 msgctxt "@info:status file transfer refused"
 msgid "Too many concurrent incoming transfers."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:120
+#: src/network/FileTransferHandler.cpp:123
 msgctxt "@info:status file transfer refused"
 msgid "The chunk count exceeds the limit."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:131
+#: src/network/FileTransferHandler.cpp:129
+msgctxt "@info:status file transfer refused"
+msgid "The chunk count changed during the transfer."
+msgstr ""
+
+#: src/network/FileTransferHandler.cpp:139
 msgctxt "@info:status file transfer refused"
 msgid "A chunk was resent with different contents."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:140
+#: src/network/FileTransferHandler.cpp:148
 msgctxt "@info:status file transfer refused"
-msgid "The transfer exceeded the size limit."
+msgid "The transfer exceeded the pending memory limit."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:164
+#: src/network/FileTransferHandler.cpp:168
+msgctxt "@info:status file transfer refused"
+msgid "The received data does not match the announced size."
+msgstr ""
+
+#: src/network/FileTransferHandler.cpp:178
 msgctxt "@info:status file transfer refused"
 msgid "The peer sent an encrypted file, and this build cannot open it."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:170
+#: src/network/FileTransferHandler.cpp:184
 msgctxt "@info:status file transfer refused"
 msgid "The received file failed to decrypt - dropped."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:181
+#: src/network/FileTransferHandler.cpp:195
 msgctxt "@info:status file transfer refused"
 msgid "Failed to write the file to disk."
 msgstr ""
 
-#: src/network/FileTransferHandler.cpp:196
+#: src/network/FileTransferHandler.cpp:210
 msgctxt "@info:status file transfer refused"
 msgid "The transfer timed out while incomplete."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:260
+#: src/network/NetworkManager.cpp:255
 msgctxt "@info:status %1 is a port number"
 msgid "UDP bind failed on port %1."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:270
+#: src/network/NetworkManager.cpp:266
 msgctxt "@info:status %1 is a port number"
 msgid "TCP listen failed on port %1."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:517
+#: src/network/NetworkManager.cpp:515
 msgctxt "@info:status %1 is a host address"
 msgid "Unreadable packet from %1 - dropping it."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:531
+#: src/network/NetworkManager.cpp:523
+msgctxt "@info:status %1 is a host address"
+msgid "Mismatched frame from %1 - dropping it."
+msgstr ""
+
+#: src/network/NetworkManager.cpp:536
 msgctxt "@info:status %1 is a message type, %2 a host address"
 msgid "Unauthenticated %1 from %2 - dropping."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:536
+#: src/network/NetworkManager.cpp:541
 msgctxt "@info:status %1 is a host address"
 msgid "HMAC verification failed from %1 - dropping."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:831
+#: src/network/NetworkManager.cpp:853
 msgctxt "@info:status %1 is a host address, %2 a byte count"
 msgid "Voice frame from %1 declared %2 bytes - dropping the connection."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:1012
+#: src/network/NetworkManager.cpp:1029
 msgctxt "@info:status"
 msgid "Failed to create a group key - refusing to send in the clear."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:1020
+#: src/network/NetworkManager.cpp:1037
 msgctxt "@info:status"
 msgid "Failed to encrypt the group message - not sent."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:1163
+#: src/network/NetworkManager.cpp:1175
 msgctxt "@info:status %1 is a file path"
 msgid "File not found: %1"
 msgstr ""
 
-#: src/network/NetworkManager.cpp:1187
+#: src/network/NetworkManager.cpp:1195
 msgctxt "@info:status %1 is a file path"
 msgid "Refused to send %1: larger than the transfer limit."
 msgstr ""
 
-#: src/network/NetworkManager.cpp:1272
+#: src/network/NetworkManager.cpp:1302
 msgctxt "@info:status %1 is a host address, %2 a socket error message"
 msgid "Voice connect to %1 failed: %2"
 msgstr ""
@@ -955,148 +975,138 @@ msgctxt "@action:button abandon the outgoing call"
 msgid "Cancel"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:146
+#: src/qml/composer/Composer.qml:141
 msgctxt "@info:status the composer is rewriting an existing message"
 msgid "Editing a message"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:157
+#: src/qml/composer/Composer.qml:152
 msgctxt "@action:button leave the message as it was"
 msgid "Cancel the edit"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:188
+#: src/qml/composer/Composer.qml:183
 msgctxt ""
 "@info:status what a message being written is answering, %1 is the author"
 msgid "Replying to %1"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:210
+#: src/qml/composer/Composer.qml:205
 msgctxt "@action:button stop replying to the quoted message"
 msgid "Cancel the reply"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:230
+#: src/qml/composer/Composer.qml:225
 msgctxt "@action:button attach a file to the message"
 msgid "Attach a file"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:241
+#: src/qml/composer/Composer.qml:236
 msgctxt "@action:button open the emoji picker"
 msgid "Insert an emoji"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:253
+#: src/qml/composer/Composer.qml:248
 msgctxt "@action:button send the next message hidden until revealed"
 msgid "Spoiler on: the message will be hidden"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:254
+#: src/qml/composer/Composer.qml:249
 msgctxt "@action:button hide the next message until the reader reveals it"
 msgid "Hide the message as a spoiler"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:266
+#: src/qml/composer/Composer.qml:261
 msgctxt "@action:button share a location in the message"
 msgid "Share a location"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:278
+#: src/qml/composer/Composer.qml:273
 msgctxt "@action:button stop recording the voice message"
 msgid "Stop recording"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:279
+#: src/qml/composer/Composer.qml:274
 msgctxt "@action:button record and send a voice message"
 msgid "Send a voice message"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:291
+#: src/qml/composer/Composer.qml:286
 msgctxt "@action:button send a picture as a sticker"
 msgid "Send a sticker"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:302
+#: src/qml/composer/Composer.qml:297
 msgctxt "@action:button create a poll to send"
 msgid "Create a poll"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:321
+#: src/qml/composer/Composer.qml:316
 msgctxt "@info:placeholder"
 msgid "Write a message..."
 msgstr ""
 
-#: src/qml/composer/Composer.qml:356
+#: src/qml/composer/Composer.qml:351
 msgctxt "@action:button save the message being rewritten"
 msgid "Save"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:357
+#: src/qml/composer/Composer.qml:352
 msgctxt "@action:button"
 msgid "Send"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:366
+#: src/qml/composer/Composer.qml:361
 msgctxt "@info:tooltip"
 msgid "Save the change. Escape leaves the message as it was."
 msgstr ""
 
-#: src/qml/composer/Composer.qml:367
+#: src/qml/composer/Composer.qml:362
 msgctxt "@info:tooltip"
 msgid "Send the message. Shift+Enter writes a new line instead."
 msgstr ""
 
-#: src/qml/composer/Composer.qml:378
+#: src/qml/composer/Composer.qml:373
 msgctxt "@title:window share a location"
 msgid "Share a location"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:400
+#: src/qml/composer/Composer.qml:395
 msgctxt "@info:placeholder"
 msgid "Latitude, e.g. 48.858370"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:407
+#: src/qml/composer/Composer.qml:402
 msgctxt "@info:placeholder"
 msgid "Longitude, e.g. 2.294481"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:414
+#: src/qml/composer/Composer.qml:409
 msgctxt "@info:placeholder a name for the shared place"
 msgid "Label (optional)"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:421
+#: src/qml/composer/Composer.qml:416
 msgctxt "@action:button fill the coordinates from the device's position"
 msgid "Use my location"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:446
-msgctxt "@title:window pick a sticker image"
-msgid "Choose a sticker"
-msgstr ""
-
-#: src/qml/composer/Composer.qml:447
-msgctxt "@item:filter image files"
-msgid "Images (*.png *.jpg *.jpeg *.webp *.gif)"
-msgstr ""
-
-#: src/qml/composer/Composer.qml:535
+#: src/qml/composer/Composer.qml:509
 msgctxt "@title:window create a poll"
 msgid "Create a poll"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:561
+#: src/qml/composer/Composer.qml:535
 msgctxt "@info:placeholder the poll question"
 msgid "Question"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:568
+#: src/qml/composer/Composer.qml:542
 msgctxt "@info:placeholder an answer option, %1 is its number"
 msgid "Answer %1"
 msgstr ""
 
-#: src/qml/composer/Composer.qml:576
+#: src/qml/composer/Composer.qml:550
 msgctxt "@action:button add another answer row to the poll"
 msgid "Add answer"
 msgstr ""
@@ -1175,7 +1185,7 @@ msgid ""
 msgstr ""
 
 #: src/qml/main_window/ChatListPage.qml:240
-#: src/qml/main_window/ChatPage.qml:432
+#: src/qml/main_window/ChatPage.qml:435
 msgctxt "@action:button start a conversation"
 msgid "New chat"
 msgstr ""
@@ -1347,32 +1357,32 @@ msgctxt "@action:button confirm deleting a message"
 msgid "Delete"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:412
+#: src/qml/main_window/ChatPage.qml:415
 msgctxt "@title:window"
 msgid "Attach a file"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:419
+#: src/qml/main_window/ChatPage.qml:422
 msgctxt "@title:window"
 msgid "Send a sticker"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:420 src/qml/matrix/RoomInfoPage.qml:617
+#: src/qml/main_window/ChatPage.qml:423 src/qml/matrix/RoomInfoPage.qml:617
 msgctxt "@item file type filter"
 msgid "Images (*.png *.jpg *.jpeg *.gif *.webp)"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:420 src/qml/matrix/RoomInfoPage.qml:617
+#: src/qml/main_window/ChatPage.qml:423 src/qml/matrix/RoomInfoPage.qml:617
 msgctxt "@item file type filter"
 msgid "All files (*)"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:429
+#: src/qml/main_window/ChatPage.qml:432
 msgctxt "@info"
 msgid "No conversation open"
 msgstr ""
 
-#: src/qml/main_window/ChatPage.qml:430
+#: src/qml/main_window/ChatPage.qml:433
 msgctxt "@info"
 msgid "Pick a chat from the list, or start a new one."
 msgstr ""
@@ -1418,7 +1428,7 @@ msgctxt "@info unread count too large to show exactly"
 msgid "99+"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:22 src/qml/main_window/Main.qml:772
+#: src/qml/main_window/Main.qml:22 src/qml/main_window/Main.qml:768
 msgctxt "@title:window"
 msgid "KOutNet"
 msgstr ""
@@ -1448,114 +1458,114 @@ msgctxt "@info:status"
 msgid "Calls are not available in this chat."
 msgstr ""
 
-#: src/qml/main_window/Main.qml:779
+#: src/qml/main_window/Main.qml:775
 msgctxt "@action:inmenu the list of conversations"
 msgid "Chats"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:790
+#: src/qml/main_window/Main.qml:786
 msgctxt "@action:inmenu room invitations waiting, %1 is how many"
 msgid "Invitations (%1)"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:791
+#: src/qml/main_window/Main.qml:787
 msgctxt "@action:inmenu room invitations waiting"
 msgid "Invitations"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:797
+#: src/qml/main_window/Main.qml:793
 msgctxt "@action:inmenu"
 msgid "Notes"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:802
+#: src/qml/main_window/Main.qml:798
 msgctxt "@action:inmenu the log of past calls"
 msgid "Call log"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:832
+#: src/qml/main_window/Main.qml:828
 msgctxt "@action:inmenu hang up every call in progress"
 msgid "End all calls"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:841
+#: src/qml/main_window/Main.qml:837
 msgctxt "@action:inmenu"
 msgid "My profile"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:846
+#: src/qml/main_window/Main.qml:842
 msgctxt "@action:inmenu"
 msgid "Settings"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:852
+#: src/qml/main_window/Main.qml:848
 msgctxt "@action:inmenu"
 msgid "About KOutNet"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:859
+#: src/qml/main_window/Main.qml:855
 msgctxt "@action:inmenu go back to the full three-column layout"
 msgid "Leave compact mode"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:860
+#: src/qml/main_window/Main.qml:856
 msgctxt "@action:inmenu switch to a reduced layout for a narrow window"
 msgid "Compact mode"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:866
+#: src/qml/main_window/Main.qml:862
 msgctxt "@action:inmenu leave full screen"
 msgid "Exit full screen"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:867
+#: src/qml/main_window/Main.qml:863
 msgctxt "@action:inmenu"
 msgid "Full screen"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:914
+#: src/qml/main_window/Main.qml:910
 msgctxt "@info:status %1 is a number of peers"
 msgid "%1 peer on the network"
 msgid_plural "%1 peers on the network"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/qml/main_window/Main.qml:1273
+#: src/qml/main_window/Main.qml:1269
 msgctxt "@title:window"
 msgid "Clear this chat?"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:1274
+#: src/qml/main_window/Main.qml:1270
 msgctxt "@info"
 msgid "Every message in it is deleted from this device. There is no way back."
 msgstr ""
 
-#: src/qml/main_window/Main.qml:1278
+#: src/qml/main_window/Main.qml:1274
 msgctxt "@action:button"
 msgid "Clear"
 msgstr ""
 
-#: src/qml/main_window/Main.qml:1385
+#: src/qml/main_window/Main.qml:1386
 msgctxt "@info"
 msgid "Locations can only be shared over a server-backed chat."
 msgstr ""
 
-#: src/qml/main_window/Main.qml:1392
+#: src/qml/main_window/Main.qml:1393
 msgctxt "@info"
 msgid "This chat cannot share a location yet."
 msgstr ""
 
-#: src/qml/main_window/Main.qml:1430
+#: src/qml/main_window/Main.qml:1431
 msgctxt "@info"
 msgid "Polls can only be sent over a Matrix chat."
 msgstr ""
 
-#: src/qml/main_window/Main.qml:1445
+#: src/qml/main_window/Main.qml:1446
 msgctxt "@info"
 msgid "Forwarding messages is not implemented yet."
 msgstr ""
 
-#: src/qml/main_window/Main.qml:1487
+#: src/qml/main_window/Main.qml:1488
 msgctxt "@info:status"
 msgid "Settings saved"
 msgstr ""
@@ -3073,24 +3083,24 @@ msgctxt ""
 msgid "Apply connection settings"
 msgstr ""
 
-#: src/qml/shell/ConnectionRail.qml:37
+#: src/qml/shell/ConnectionRail.qml:38
 msgctxt ""
 "@item connection mode, peers found on the local network or over a VPN adapter"
 msgid "Local network or VPN"
 msgstr ""
 
-#: src/qml/shell/ConnectionRail.qml:39
+#: src/qml/shell/ConnectionRail.qml:40
 msgctxt "@info:tooltip why a connection mode cannot be used"
 msgid "no local interface is up"
 msgstr ""
 
-#: src/qml/shell/ConnectionRail.qml:43
+#: src/qml/shell/ConnectionRail.qml:44
 msgctxt ""
 "@item connection mode, a Matrix homeserver at whatever address is configured"
 msgid "Matrix"
 msgstr ""
 
-#: src/qml/shell/ConnectionRail.qml:45
+#: src/qml/shell/ConnectionRail.qml:46
 msgctxt "@info:tooltip why a connection mode cannot be used"
 msgid "not built yet"
 msgstr ""
@@ -3361,24 +3371,24 @@ msgctxt "@info:status the message was changed after it was sent"
 msgid "edited"
 msgstr ""
 
-#: src/qml/timeline/MessageTimeline.qml:284
+#: src/qml/timeline/MessageTimeline.qml:248
 msgctxt "@info an open conversation with no messages in it"
 msgid "Nothing here yet"
 msgstr ""
 
-#: src/qml/timeline/MessageTimeline.qml:285
+#: src/qml/timeline/MessageTimeline.qml:249
 msgctxt "@info"
 msgid "Write something below, or drop a file on this window to send it."
 msgstr ""
 
-#: src/qml/timeline/MessageTimeline.qml:298
+#: src/qml/timeline/MessageTimeline.qml:262
 msgctxt "@action:button go to the oldest message not yet read, %1 is a number"
 msgid "Jump to %1 unread message"
 msgid_plural "Jump to %1 unread messages"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/qml/timeline/MessageTimeline.qml:321
+#: src/qml/timeline/MessageTimeline.qml:283
 msgctxt "@action:button scroll the conversation back to the newest message"
 msgid "Jump to the latest message"
 msgstr ""
