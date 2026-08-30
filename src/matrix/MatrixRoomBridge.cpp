@@ -97,9 +97,8 @@ QString mediaKindName(MediaKind kind)
     return QString();
 }
 
-// whether a send can be encrypted the way the room wants. an unencrypted room
-// is always yes; an encrypted one is yes only with a key store - without it
-// libQuotient drops the event, and sending in the clear is never right.
+// Without a key store libQuotient drops the event, and sending in the clear
+// is never right.
 bool canSendEncrypted(const Room *room)
 {
     if (room == nullptr || !room->usesEncryption())
@@ -125,7 +124,7 @@ QString encryptionUnavailableReason()
                  "This room is end-to-end encrypted and this session could not open its encryption keys, so nothing was sent.");
 }
 
-// the room-local display name, falling back to the id. never blank.
+// never blank
 QString memberLabel(const Room *room, const QString &userId)
 {
     if (room == nullptr || userId.isEmpty())
@@ -134,7 +133,7 @@ QString memberLabel(const Room *room, const QString &userId)
     return name.isEmpty() ? userId : name;
 }
 
-// the media url of a member avatar, or empty when there is none or it is our own picture.
+// the media url of a member avatar, or empty when it is our own picture.
 QString memberAvatarUrl(const Room *room, const QString &userId)
 {
     if (room == nullptr || userId.isEmpty() || room->connection() == nullptr)
@@ -147,7 +146,7 @@ QString memberAvatarUrl(const Room *room, const QString &userId)
     return room->connection()->makeMediaUrl(avatar).toString();
 }
 
-// whether a member is currently joined. a direct room is the one with exactly one other member.
+// whether a member is currently joined.
 bool isJoinedMember(const Room *room, const QString &userId)
 {
     if (room == nullptr || userId.isEmpty())
@@ -155,7 +154,7 @@ bool isJoinedMember(const Room *room, const QString &userId)
     return room->memberState(userId) == Membership::Join;
 }
 
-// the picture a conversation row carries: the other member in a one-on-one, the room otherwise. empty when none.
+// the picture a conversation row carries. empty when none.
 QString roomAvatarUrl(const Room *room)
 {
     if (room == nullptr || room->connection() == nullptr)
@@ -176,7 +175,7 @@ QString roomAvatarUrl(const Room *room)
     return QString();
 }
 
-// which member-event case this is. the distinctions follow the NeoChat eventhandler.
+// Classify member events using the same distinctions as NeoChat.
 StateChange classifyMember(const Room *room, const RoomMemberEvent &event, QString &subject)
 {
     const bool aboutSomeoneElse = event.senderId() != event.userId();
@@ -227,7 +226,6 @@ StateChange classifyMember(const Room *room, const RoomMemberEvent &event, QStri
     return StateChange::Unknown;
 }
 
-// which state change an event is, and its one substituted string. None means no line.
 StateChange classifyState(const Room *room, const RoomEvent *event, QString &subject)
 {
     if (!event->isStateEvent())
@@ -296,13 +294,8 @@ void fillMedia(const Room *room, const RoomMessageEvent &message, koutnet::matri
         raw.mediaUrl = room->makeMediaUrl(message.id(), source).toString();
 }
 
-// Pull a poll out of an event's content no matter how the sender shaped it. A poll
-// arrives either as a standalone event (m.poll.start / org.matrix.msc3381.poll.start)
-// or as an m.room.message whose msgtype is one of those; the stable form nests the
-// data under "poll", the long-lived unstable MSC3381 form under
-// "org.matrix.msc3381.poll.start", and the text rides in org.matrix.msc1767.text.
-// Detecting by content rather than the exact type string means every client's shape
-// renders instead of falling through to a plain message showing only the question.
+// A poll arrives under several event types and content shapes; detect by
+// content so every client's poll renders instead of falling through to text.
 static QVariantMap pollFromContent(const QJsonObject &content)
 {
     QString pollKey;
@@ -368,11 +361,8 @@ koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
         return raw;
     }
 
-    // Polls are first-class event types once pollevent.h registers them with
-    // libQuotient, so the library hands us a typed PollStartEvent / PollResponseEvent
-    // (NeoChat's exact parsing) instead of a bare RoomEvent we must guess at. The
-    // unstable org.matrix.msc3381.poll.* wire form used by NeoChat and most servers
-    // is what these classes parse.
+    // Registered poll classes let libQuotient parse the unstable poll events
+    // without guessing at their wire format.
     if (const auto *poll = eventCast<const Quotient::PollStartEvent>(event)) {
         QVariantList answers;
         for (const auto &a : poll->answers()) {
@@ -460,9 +450,7 @@ koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
     return raw;
 }
 
-// the corrected text of an m.replace. the replacement body is the "* text"
-// fallback for clients that do not understand edits, and showing it is how the
-// asterisk lands in the timeline.
+// The "* text" fallback for clients that do not understand edits.
 QString replacementBody(const RoomMessageEvent &message)
 {
     const QJsonObject newContent = message.contentJson().value(QLatin1String("m.new_content")).toObject();
@@ -504,9 +492,9 @@ void MatrixRoomBridge::attach(Connection *connection)
         trackRoom(room);
     });
     connect(connection, &Connection::invitedRoom, this, [this](Room *room, Room *) {
-        // nothing to track yet (see trackRoom). the invitation goes to the list
-        // with accept/decline; the join moves it through joinedRoom() and the
-        // invite object is deleted, which is how the list knows it is gone.
+        // nothing to track yet (see trackRoom). The join moves it through
+        // joinedRoom() and the invite object is deleted, which is how the list
+        // knows it is gone.
         QString inviterId;
         QString inviterName;
         inviterOf(room, &inviterId, &inviterName);
@@ -592,16 +580,11 @@ void MatrixRoomBridge::trackRoom(Room *room)
     connect(room, &Room::addedMessages, this, [this, room](int fromIndex, int toIndex) {
         publishRange(room, fromIndex, toIndex);
     });
-    // Polls and poll votes are standalone events (m.poll.start / m.poll.response),
-    // not m.room.message, so addedMessages() never carries them. This signal does,
-    // for every event the room is about to add to its timeline - filter to the
-    // poll kinds and fold them into the conversation the same way.
+    // Standalone poll events bypass addedMessages(); publish them from this signal.
     connect(room, &Room::aboutToAddNewMessages, this, [this, room](const Quotient::RoomEventsRange &events) {
         for (const auto &ev : events) {
             const RoomEvent *event = ev.get();
-            // The poll event types are registered with libQuotient via pollevent.h,
-            // so a poll arrives typed as PollStartEvent / PollResponseEvent; publish it
-            // the same way as addedMessages so it lands in the conversation.
+            // Registered event types identify polls without inspecting raw JSON.
             if (eventCast<const Quotient::PollStartEvent>(event) || eventCast<const Quotient::PollResponseEvent>(event)) {
                 publishEvent(room, event);
             }
@@ -1074,12 +1057,9 @@ bool MatrixRoomBridge::supportsReactions(const QString &) const
 
 void MatrixRoomBridge::sendTyping(const QString &chatId)
 {
-    // the LAN side re-sends a typing datagram per keystroke with no stop packet;
-    // the homeserver side is the same - a typing event carries a timeout and the
-    // server clears it on its own, so there is no "stopped typing" here either.
-    // the difference is cost: one HTTP round trip per packet, so the bridge
-    // sends one only when the previous has been on the wire long enough. 4s is
-    // about a sentence at a normal pace.
+    // No stop packet: a typing event carries a timeout the server clears.
+    // Cost: one HTTP round trip per packet, so the bridge sends one only when
+    // the previous has been on the wire long enough. 4s ≈ a sentence.
     if (!m_manager || !m_manager->connection())
         return;
     Room *room = roomFor(chatId);
@@ -1092,10 +1072,7 @@ void MatrixRoomBridge::sendTyping(const QString &chatId)
         return;
     m_lastTypingSent.insert(chatId, now);
 
-    // sent to the server as the typing user, which is this session id;
-    // the room is where it shows. 10s is the conventional timeout every client
-    // keeps retyping under - short enough to clear a walk-away, long enough to
-    // survive a mid-sentence pause.
+    // 10s timeout: short enough to clear a walk-away, long enough to survive a pause.
     m_manager->connection()->callApi<SetTypingJob>(m_manager->connection()->userId(), room->id(), true, 10000);
 }
 
@@ -1128,10 +1105,7 @@ void MatrixRoomBridge::sendReaction(const QString &chatId, double ts, const QStr
         return;
     }
 
-    // removing a reaction is redacting the reaction event this session sent, and
-    // there may be several (one per emoji, or a retried send). all are found and
-    // redacted; the server does not care that redacting a reaction is redacting
-    // an event, and neither does anyone else.
+    // Redact all matching reaction events from this session.
     const auto &annotations = room->relatedEvents(eventId, EventRelation::AnnotationType);
     for (const RoomEvent *annotation : annotations) {
         const auto *reaction = eventCast<const ReactionEvent>(annotation);
@@ -1184,8 +1158,9 @@ static QVariantMap rowForEvent(const RoomEvent *ev)
     return m;
 }
 
-bool MatrixRoomBridge::sendReply(const QString &chatId, double ts, const QString &plainText)
+bool MatrixRoomBridge::sendReply(const QString &chatId, const QVariant &identifier, const QString &plainText)
 {
+    const double ts = identifier.toDouble();
     if (plainText.trimmed().isEmpty())
         return false;
     Room *room = roomFor(chatId);
@@ -1200,9 +1175,8 @@ bool MatrixRoomBridge::sendReply(const QString &chatId, double ts, const QString
     return true;
 }
 
-// Turn the lightweight markdown the composer accepts into an HTML fragment for
-// the formatted body. QTextDocument wraps a whole page, so the <body> inner is
-// pulled out and returned as the inline fragment the homeserver expects.
+// QTextDocument wraps a whole page, so the <body> inner is pulled out as the
+// inline fragment the homeserver expects.
 static QString markdownToHtml(const QString &markdown)
 {
     QTextDocument doc;
@@ -1272,8 +1246,11 @@ void MatrixRoomBridge::setRoomAvatar(const QString &chatId, const QString &local
     // and an attachment fail and recover the same way.
     const QMimeType mime = QMimeDatabase().mimeTypeForFile(localFilePath);
     auto job = room->connection()->uploadFile(localFilePath, mime.name());
-    connect(job.operator->(), &Quotient::BaseJob::success, this, [this, room, chatId, job]() {
-        Q_UNUSED(this)
+    connect(job.operator->(), &Quotient::BaseJob::success, this, [this, chatId, job]() {
+        // Re-resolve: the room may have been left while the upload was in flight.
+        Room *room = roomFor(chatId);
+        if (!room)
+            return;
         room->setState(Quotient::RoomAvatarEvent(job->contentUri()));
         Q_EMIT roomOperationSucceeded(chatId);
     });
@@ -1282,8 +1259,9 @@ void MatrixRoomBridge::setRoomAvatar(const QString &chatId, const QString &local
     });
 }
 
-void MatrixRoomBridge::pinMessage(const QString &chatId, double ts)
+void MatrixRoomBridge::pinMessage(const QString &chatId, const QVariant &identifier)
 {
+    const double ts = identifier.toDouble();
     Room *room = roomFor(chatId);
     if (room == nullptr)
         return;
@@ -1297,8 +1275,9 @@ void MatrixRoomBridge::pinMessage(const QString &chatId, double ts)
     }
 }
 
-void MatrixRoomBridge::unpinMessage(const QString &chatId, double ts)
+void MatrixRoomBridge::unpinMessage(const QString &chatId, const QVariant &identifier)
 {
+    const double ts = identifier.toDouble();
     Room *room = roomFor(chatId);
     if (room == nullptr)
         return;
@@ -1407,9 +1386,7 @@ void MatrixRoomBridge::sendSpoiler(const QString &chatId, const QString &text)
     room->postJson(QStringLiteral("m.room.message"), content);
 }
 
-// Upload a local image and send it as a sticker. The composer only has a path,
-// so the mxc id has to come from the homeserver first; the failure path is the
-// same sendFailed() the other sends use.
+// The composer has only a path, so the mxc id comes from the homeserver first.
 void MatrixRoomBridge::sendStickerFile(const QString &chatId, const QString &localFilePath)
 {
     Room *room = roomFor(chatId);
@@ -1433,8 +1410,10 @@ void MatrixRoomBridge::sendStickerFile(const QString &chatId, const QString &loc
     }
     const QString mimeName = QMimeDatabase().mimeTypeForFile(file).name();
     auto job = room->connection()->uploadFile(file.absoluteFilePath(), mimeName);
-    connect(job.operator->(), &Quotient::BaseJob::success, this, [this, room, chatId, file, mimeName, job]() {
-        Q_UNUSED(this)
+    connect(job.operator->(), &Quotient::BaseJob::success, this, [this, chatId, file, mimeName, job]() {
+        Room *room = roomFor(chatId);
+        if (!room)
+            return;
         QJsonObject content;
         content.insert(QStringLiteral("msgtype"), QStringLiteral("m.sticker"));
         content.insert(QStringLiteral("url"), job->contentUri().toString());
@@ -1450,9 +1429,7 @@ void MatrixRoomBridge::sendStickerFile(const QString &chatId, const QString &loc
     });
 }
 
-// A recorded voice message (MSC3245): an m.audio carrying the voice flag, so
-// clients that know the extension render a player with a waveform rather than a
-// plain file. The bytes go up the same way a file attachment does.
+// MSC3245 voice: an m.audio with the voice flag so clients render a player.
 void MatrixRoomBridge::sendVoice(const QString &chatId, const QString &localFilePath, int durationMs)
 {
     Room *room = roomFor(chatId);
@@ -1487,8 +1464,10 @@ void MatrixRoomBridge::sendVoice(const QString &chatId, const QString &localFile
     else if (ext == QStringLiteral("mp3"))
         mimeName = QStringLiteral("audio/mpeg");
     auto job = room->connection()->uploadFile(file.absoluteFilePath(), mimeName);
-    connect(job.operator->(), &Quotient::BaseJob::success, this, [this, room, chatId, file, mimeName, durationMs, job]() {
-        Q_UNUSED(this)
+    connect(job.operator->(), &Quotient::BaseJob::success, this, [this, chatId, file, mimeName, durationMs, job]() {
+        Room *room = roomFor(chatId);
+        if (!room)
+            return;
         const QString url = job->contentUri().toString();
         QJsonObject content;
         content.insert(QStringLiteral("msgtype"), QStringLiteral("m.audio"));
@@ -1517,8 +1496,7 @@ void MatrixRoomBridge::sendVoice(const QString &chatId, const QString &localFile
     });
 }
 
-// A poll (MSC3386, stable m.poll.start). disclosed shows each vote as it lands;
-// undisclosed keeps them hidden until the poll is closed.
+// Send a poll in the MSC3381 form used by NeoChat and current servers.
 void MatrixRoomBridge::sendPoll(const QString &chatId, const QString &question, const QStringList &answers, bool disclosed)
 {
     Room *room = roomFor(chatId);
@@ -1541,9 +1519,7 @@ void MatrixRoomBridge::sendPoll(const QString &chatId, const QString &question, 
         answersJson.append(entry);
         ++index;
     }
-    // The MSC3381 unstable form: NeoChat and many servers still speak it, and the
-    // stable m.poll.start is not yet what they render. Nesting the poll under the
-    // matching key is what the readers look for.
+    // Keep the unstable shape for compatibility with existing readers.
     QJsonObject inner;
     inner.insert(QStringLiteral("kind"),
                  disclosed ? QStringLiteral("org.matrix.msc3381.poll.disclosed")

@@ -19,6 +19,7 @@
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QVariant>
 
 #include "core/backend/ChatBackend.h"
 
@@ -85,7 +86,9 @@ public:
     // ---- features the interface must offer at parity with other clients ----
     // quote-reply to a message already on the timeline; ts is the row stamp the
     // window keeps, not the event id.
-    Q_INVOKABLE bool sendReply(const QString &chatId, double ts, const QString &plainText);
+    // identifier accepts a Matrix event id or the legacy timestamp used by the
+    // existing window. Event ids are preferred because timestamps can collide.
+    Q_INVOKABLE bool sendReply(const QString &chatId, const QVariant &identifier, const QString &plainText);
     // send formatted (HTML) text; plainText is the fallback body. the composer
     // derives the HTML from whatever markdown the user typed.
     Q_INVOKABLE bool sendRichText(const QString &chatId, const QString &plainText, const QString &html);
@@ -94,8 +97,8 @@ public:
     Q_INVOKABLE void setRoomTopic(const QString &chatId, const QString &topic);
     Q_INVOKABLE void setRoomAvatar(const QString &chatId, const QString &localFilePath);
     // pin / unpin a message by its row stamp; the room re-emits pinnedEventsChanged.
-    Q_INVOKABLE void pinMessage(const QString &chatId, double ts);
-    Q_INVOKABLE void unpinMessage(const QString &chatId, double ts);
+    Q_INVOKABLE void pinMessage(const QString &chatId, const QVariant &identifier);
+    Q_INVOKABLE void unpinMessage(const QString &chatId, const QVariant &identifier);
     // mute / unmute a user across the whole account.
     Q_INVOKABLE void ignoreUser(const QString &userId);
     Q_INVOKABLE void unignoreUser(const QString &userId);
@@ -256,6 +259,7 @@ Q_SIGNALS:
 private:
     void attach(Quotient::Connection *connection);
     void trackRoom(Quotient::Room *room);
+    bool isCurrentRoom(const Quotient::Room *room, quint64 generation) const;
     void publishRoom(Quotient::Room *room);
     void publishRange(Quotient::Room *room, int fromIndex, int toIndex);
     void publishEvent(Quotient::Room *room, const Quotient::RoomEvent *event);
@@ -291,6 +295,7 @@ private:
     // connections are still live, the pointer can. guarded because a room is a
     // child of its Connection, which can vanish without leftRoom() firing.
     QHash<QString, QPointer<QObject>> m_tracked;
+    quint64 m_roomGeneration = 0;
 
     // the window addresses rows by stamp, the homeserver by event id. both
     // directions are kept per room, so a reaction/edit/unsend resolves to the
