@@ -460,8 +460,12 @@ ColumnLayout {
         audioInput: AudioInput {}
         recorder: MediaRecorder {
             id: voiceRecorder
-            // Once the file is final, its path and length go to the bridge.
-            onActualLocationChanged: (loc) => root.voiceCaptured(loc.toLocalFile(), root.voiceMs)
+            audioBitRate: 24000
+            audioSampleRate: 48000
+            audioChannelCount: 1
+            // The clip is handed over when recording stops; relying on the
+            // actualLocation signal alone left sends that never fired.
+            onActualLocationChanged: (loc) => root.handVoiceOff(loc.toLocalFile())
         }
     }
 
@@ -474,9 +478,10 @@ ColumnLayout {
 
     function startVoice() {
         const dir = Labs.StandardPaths.writableLocation(Labs.StandardPaths.TempLocation)
-        root.voicePath = dir + "/koutnet-voice-" + Date.now() + ".m4a"
+        root.voicePath = dir + "/koutnet-voice-" + Date.now() + ".ogg"
         voiceRecorder.outputLocation = root.voicePath
         root.voiceMs = 0
+        root.voiceHandedOff = false
         voiceRecorder.record()
         root.recording = true
         voiceTimer.restart()
@@ -486,6 +491,19 @@ ColumnLayout {
         voiceRecorder.stop()
         voiceTimer.stop()
         root.recording = false
+        // Hand the finished clip to the bridge directly; the recorder has flushed
+        // it by the time stop() returns, so the path is valid and the send fires.
+        root.handVoiceOff(root.voicePath)
+    }
+
+    // Either the recorder's actualLocation signal or stopVoice() may fire; only
+    // the first one gets through so a clip is never uploaded twice.
+    property bool voiceHandedOff: false
+    function handVoiceOff(filePath) {
+        if (root.voiceHandedOff)
+            return
+        root.voiceHandedOff = true
+        root.voiceCaptured(filePath, root.voiceMs)
     }
 
     // A small form rather than a full poll editor: a question and a couple of

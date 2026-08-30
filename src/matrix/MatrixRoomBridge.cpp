@@ -317,36 +317,59 @@ koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
 
     // Polls are standalone events (m.poll.start / m.poll.response / m.poll.end),
     // not m.room.message, so they never arrive as a RoomMessageEvent. libQuotient
-    // keeps them as a bare RoomEvent; read the type straight off it. An m.poll.start
-    // is the poll itself; an m.poll.response is one vote that updates its tally.
+    // keeps them as a bare RoomEvent; read the type straight off it. Two wire
+    // forms exist in the wild: the stable m.poll.* and the long-lived unstable
+    // org.matrix.msc3381.poll.* that NeoChat and many servers still emit, so both
+    // are accepted on read. This client writes the MSC3381 form to match them.
     const QString matrixType = event->matrixType();
-    if (matrixType == QStringLiteral("m.poll.start")) {
+    const bool isPollStart = matrixType == QStringLiteral("m.poll.start")
+        || matrixType == QStringLiteral("org.matrix.msc3381.poll.start");
+    const bool isPollResponse = matrixType == QStringLiteral("m.poll.response")
+        || matrixType == QStringLiteral("org.matrix.msc3381.poll.response");
+    if (isPollStart) {
         const QJsonObject content = event->contentJson();
-        const QJsonObject poll = content.value(QStringLiteral("poll")).toObject();
-        const QString questionText = poll.value(QStringLiteral("question")).toObject().value(QStringLiteral("body")).toString();
+        const QString pollKey = matrixType == QStringLiteral("m.poll.start")
+            ? QStringLiteral("poll")
+            : QStringLiteral("org.matrix.msc3381.poll.start");
+        const QJsonObject poll = content.value(pollKey).toObject();
+        const QString textKey = QStringLiteral("org.matrix.msc1767.text");
+        QString questionText = poll.value(QStringLiteral("question")).toObject().value(textKey).toString();
+        if (questionText.isEmpty())
+            questionText = content.value(textKey).toString();
         QVariantList answers;
         const QJsonArray answersJson = poll.value(QStringLiteral("answers")).toArray();
         for (const QJsonValue &answer : answersJson) {
             const QJsonObject answerObj = answer.toObject();
             QVariantMap entry;
             entry.insert(QStringLiteral("id"), answerObj.value(QStringLiteral("id")).toString());
-            entry.insert(QStringLiteral("body"), answerObj.value(QStringLiteral("body")).toString());
+            entry.insert(QStringLiteral("body"), answerObj.value(textKey).toString());
             answers.append(entry);
         }
+        const QString kind = poll.value(QStringLiteral("kind")).toString();
+        const bool disclosed = kind == QStringLiteral("disclosed")
+            || kind == QStringLiteral("org.matrix.msc3381.poll.disclosed");
         QVariantMap pollMap;
         pollMap.insert(QStringLiteral("question"), questionText.isEmpty() ? content.value(QStringLiteral("body")).toString() : questionText);
         pollMap.insert(QStringLiteral("answers"), answers);
-        pollMap.insert(QStringLiteral("disclosed"), poll.value(QStringLiteral("kind")).toString() == QStringLiteral("disclosed"));
+        pollMap.insert(QStringLiteral("disclosed"), disclosed);
         raw.poll = pollMap;
         raw.body = pollMap.value(QStringLiteral("question")).toString();
         return raw;
     }
-    if (matrixType == QStringLiteral("m.poll.response")) {
+    if (isPollResponse) {
         const QJsonObject content = event->contentJson();
         const QJsonObject relates = content.value(QStringLiteral("m.relates_to")).toObject();
         raw.pollStartId = relates.value(QStringLiteral("event_id")).toString();
-        const QJsonArray answers = content.value(QStringLiteral("poll")).toObject().value(QStringLiteral("answers")).toArray();
-        raw.pollAnswerId = answers.isEmpty() ? QString() : answers.at(0).toObject().value(QStringLiteral("id")).toString();
+        const QString answerKey = matrixType == QStringLiteral("m.poll.response")
+            ? QStringLiteral("poll")
+            : QStringLiteral("org.matrix.msc3381.poll.response");
+        const QJsonArray answers = content.value(answerKey).toObject().value(QStringLiteral("answers")).toArray();
+        if (!answers.isEmpty()) {
+            const QJsonValue first = answers.at(0);
+            raw.pollAnswerId = first.isObject()
+                ? first.toObject().value(QStringLiteral("id")).toString()
+                : first.toString();
+        }
         return raw;
     }
 
@@ -1428,19 +1451,30 @@ void MatrixRoomBridge::sendVoice(const QString &chatId, const QString &localFile
         Q_EMIT sendFailed(chatId, i18nc("@info:status %1 is a file name", "%1 could not be read, so nothing was sent.", file.fileName()));
         return;
     }
-    const QString mimeName = QMimeDatabase().mimeTypeForFile(file).name();
+    const QString mimeName = QStringLiteral("audio/ogg");
     auto job = room->connection()->uploadFile(file.absoluteFilePath(), mimeName);
     connect(job.operator->(), &Quotient::BaseJob::success, this, [this, room, chatId, file, mimeName, durationMs, job]() {
         Q_UNUSED(this)
+        const QString url = job->contentUri().toString();
         QJsonObject content;
         content.insert(QStringLiteral("msgtype"), QStringLiteral("m.audio"));
-        content.insert(QStringLiteral("url"), job->contentUri().toString());
-        content.insert(QStringLiteral("body"), file.fileName());
+        content.insert(QStringLiteral("body"), QStringLiteral("Voice message"));
+        content.insert(QStringLiteral("url"), url);
+        QJsonObject fileInfo;
+        fileInfo.insert(QStringLiteral("mimetype"), mimeName);
+        fileInfo.insert(QStringLiteral("name"), QStringLiteral("Voice Message"));
+        fileInfo.insert(QStringLiteral("size"), file.size());
+        fileInfo.insert(QStringLiteral("url"), url);
+        content.insert(QStringLiteral("org.matrix.msc1767.file"), fileInfo);
         QJsonObject info;
         info.insert(QStringLiteral("mimetype"), mimeName);
         info.insert(QStringLiteral("size"), file.size());
         info.insert(QStringLiteral("duration"), durationMs);
         content.insert(QStringLiteral("info"), info);
+        QJsonObject audio;
+        audio.insert(QStringLiteral("duration"), durationMs);
+        audio.insert(QStringLiteral("waveform"), QJsonArray());
+        content.insert(QStringLiteral("org.matrix.msc1767.audio"), audio);
         content.insert(QStringLiteral("org.matrix.msc3245.voice"), QJsonObject());
         room->postJson(QStringLiteral("m.room.message"), content);
     });
@@ -1469,20 +1503,27 @@ void MatrixRoomBridge::sendPoll(const QString &chatId, const QString &question, 
             continue;
         QJsonObject entry;
         entry.insert(QStringLiteral("id"), QString::number(index));
-        entry.insert(QStringLiteral("body"), answer);
+        entry.insert(QStringLiteral("org.matrix.msc1767.text"), answer);
         answersJson.append(entry);
         ++index;
     }
-    QJsonObject poll;
-    QJsonObject questionJson;
-    questionJson.insert(QStringLiteral("body"), question);
-    poll.insert(QStringLiteral("question"), questionJson);
-    poll.insert(QStringLiteral("kind"), disclosed ? QStringLiteral("disclosed") : QStringLiteral("undisclosed"));
-    poll.insert(QStringLiteral("answers"), answersJson);
+    // The MSC3381 unstable form: NeoChat and many servers still speak it, and the
+    // stable m.poll.start is not yet what they render. Nesting the poll under the
+    // matching key is what the readers look for.
+    QJsonObject inner;
+    inner.insert(QStringLiteral("kind"),
+                 disclosed ? QStringLiteral("org.matrix.msc3381.poll.disclosed")
+                           : QStringLiteral("org.matrix.msc3381.poll.undisclosed"));
+    inner.insert(QStringLiteral("max_selections"), 1);
+    inner.insert(QStringLiteral("question"), QJsonObject{{QStringLiteral("org.matrix.msc1767.text"), question}});
+    inner.insert(QStringLiteral("answers"), answersJson);
+    QString fallback = question;
+    for (int i = 0; i < answers.count(); ++i)
+        fallback += QStringLiteral("\n%1. %2").arg(i + 1).arg(answers.at(i));
     QJsonObject content;
-    content.insert(QStringLiteral("body"), question);
-    content.insert(QStringLiteral("poll"), poll);
-    room->postJson(QStringLiteral("m.poll.start"), content);
+    content.insert(QStringLiteral("org.matrix.msc1767.text"), fallback);
+    content.insert(QStringLiteral("org.matrix.msc3381.poll.start"), inner);
+    room->postJson(QStringLiteral("org.matrix.msc3381.poll.start"), content);
 }
 
 void MatrixRoomBridge::sendPollVote(const QString &chatId, const QString &msgId, const QString &answerId)
@@ -1496,18 +1537,16 @@ void MatrixRoomBridge::sendPollVote(const QString &chatId, const QString &msgId,
         Q_EMIT sendFailed(chatId, encryptionUnavailableReason());
         return;
     }
-    QJsonObject answer;
-    answer.insert(QStringLiteral("id"), answerId);
     QJsonArray answers;
-    answers.append(answer);
-    QJsonObject votes;
-    votes.insert(QStringLiteral("answers"), answers);
+    answers.append(answerId);
+    QJsonObject response;
+    response.insert(QStringLiteral("answers"), answers);
     QJsonObject content;
     content.insert(QStringLiteral("body"), i18nc("@info a poll vote with no readable text", "Voted."));
+    content.insert(QStringLiteral("org.matrix.msc3381.poll.response"), response);
     content.insert(QStringLiteral("m.relates_to"),
                    QJsonObject{{QStringLiteral("rel_type"), QStringLiteral("m.reference")}, {QStringLiteral("event_id"), msgId}});
-    content.insert(QStringLiteral("poll"), votes);
-    room->postJson(QStringLiteral("m.poll.response"), content);
+    room->postJson(QStringLiteral("org.matrix.msc3381.poll.response"), content);
 }
 
 QVariantList MatrixRoomBridge::pinnedRows(Room *room) const
