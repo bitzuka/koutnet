@@ -364,7 +364,8 @@ koutnet::matrix::RawEvent flatten(const Room *room, const RoomEvent *event)
     // without guessing at their wire format.
     if (const auto *poll = eventCast<const Quotient::PollStartEvent>(event)) {
         QVariantList answers;
-        for (const auto &a : poll->answers()) {
+        const auto pollAnswers = poll->answers();
+        for (const auto &a : pollAnswers) {
             QVariantMap e;
             e.insert(QStringLiteral("id"), a.id);
             e.insert(QStringLiteral("body"), a.text);

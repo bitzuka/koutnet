@@ -1248,7 +1248,8 @@ void NetworkManager::sendChunksQueued(const QVector<QCborMap> &chunks, const QSt
                     if (it == m_outgoingTransfers.end())
                         return;
                     // Retransmit: send all chunks again.
-                    for (const QCborMap &chunk : it->chunks)
+                    const auto &chunks = it->chunks;
+                    for (const QCborMap &chunk : chunks)
                         sendUdp(chunk, it->toIp);
                     // Restart the timer for another attempt.
                     if (it->timer)
