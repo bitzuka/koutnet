@@ -241,7 +241,7 @@ QString TextHandler::renderSegment(QString segment, const QVariantMap &options) 
     // writer emits. Not done here: upstream is reading markdown somebody wrote
     // on purpose, and this is reading whatever was typed - which turns
     // some_variable_name into "some<u>variable</u>name" the first time anybody
-    // pastes an identifier.
+    // pastes an identifier. (if its works)
 
     segment = highlightMentions(std::move(segment), options.value(u"mentionName"_s).toString(), colour("mentionColor", u"#3daee9"_s));
 
