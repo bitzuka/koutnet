@@ -1753,7 +1753,7 @@ void MatrixRoomBridge::acceptCall(const QString &chatId, const QString &callId)
     call.callId = callId;
     call.role = QStringLiteral("answerer");
     call.peerAddresses.append(m_pending.peerAddress);
-    call.peerKeys.insert(m_pending.peerAddress, m_pending.peerKey);
+    call.peerKeys.insert(m_pending.peerAddress, offer.key);
     call.established = true;
     m_calls.insert(chatId, call);
 
@@ -1767,7 +1767,7 @@ void MatrixRoomBridge::acceptCall(const QString &chatId, const QString &callId)
     // lands, exactly like a LAN call: both sides dial each other voice port.
     // the shared key is in place first, so neither side has a moment in the clear.
     if (m_crypto != nullptr)
-        m_crypto->installSharedSession(m_pending.peerAddress, m_pending.peerKey);
+        m_crypto->installSharedSession(m_pending.peerAddress, offer.key);
     if (m_voice != nullptr)
         m_voice->call(m_pending.peerAddress);
 
