@@ -1,6 +1,7 @@
 # Translation template for KOutNet.
 # SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 # SPDX-FileCopyrightText: 2026 salt <ksuscha.777www@gmail.com>
+# SPDX-FileCopyrightText: 2026 SYFaren
 # SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #
 msgid ""
@@ -8,9 +9,9 @@ msgstr ""
 "Project-Id-Version: KOutNet\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-08-30 23:07+0000\n"
-"PO-Revision-Date: 2026-08-03 14:41+0000\n"
-"Last-Translator: salt <ksuscha.777www@gmail.com>\n"
-"Language-Team: none\n"
+"PO-Revision-Date: 2026-09-02 14:05+0500\n"
+"Last-Translator: SYFaren\n"
+"Language-Team: Russian\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -26,7 +27,7 @@ msgstr "Нет доступного устройства ввода звука."
 #: src/core/audio/AudioDevices.cpp:177
 msgctxt "@info:status"
 msgid "The input device rejects every format we can read."
-msgstr "Устройство ввода отклоняет все форматы которые мы можем прочитать."
+msgstr "Устройство ввода отклоняет все форматы, которые мы можем прочитать."
 
 #: src/core/audio/AudioDevices.cpp:187
 msgctxt "@info:status"
@@ -36,7 +37,7 @@ msgstr "Не удалось открыть устройство ввода."
 #: src/core/audio/AudioDevices.cpp:228
 msgctxt "@info:status"
 msgid "No audio output device available."
-msgstr "Нет доступных устройств вывода звука."
+msgstr "Нет доступного устройства вывода звука."
 
 #: src/core/audio/AudioDevices.cpp:241
 msgctxt "@info:status"
@@ -232,7 +233,7 @@ msgstr "[ошибка расшифровки: открытый текст в з�
 #: src/core/security/CryptoManager.cpp:1194
 msgctxt "@info shown in place of a message body"
 msgid "[decrypt error: empty packet]"
-msgstr "[Ошибка дешифрования: пустой пакет]"
+msgstr "[ошибка расшифровки: пустой пакет]"
 
 #: src/core/security/CryptoManager.cpp:1084
 #: src/core/security/CryptoManager.cpp:1182
@@ -347,7 +348,7 @@ msgstr "Автор и сопровождающий"
 #: src/main.cpp:110
 msgctxt "NAME OF TRANSLATORS"
 msgid "Your names"
-msgstr "salt"
+msgstr "salt, SYFaren"
 
 #: src/main.cpp:110
 msgctxt "EMAIL OF TRANSLATORS"
@@ -492,12 +493,12 @@ msgstr "Сохранённый вход принадлежит %1, а не %2. �
 #: src/matrix/MatrixManager.cpp:614
 msgctxt "@info:status Matrix SSO login"
 msgid "Choose a homeserver before completing SSO sign-in."
-msgstr ""
+msgstr "Выберите хоум-сервер перед завершением входа через SSO."
 
 #: src/matrix/MatrixManager.cpp:623
 msgctxt "@info:status Matrix SSO login"
 msgid "A login token is needed to sign in."
-msgstr ""
+msgstr "Для входа нужен маркер авторизации."
 
 #: src/matrix/MatrixRoomBridge.cpp:124
 msgctxt ""
@@ -546,12 +547,12 @@ msgstr "Не удалось прочитать %1, поэтому ничего �
 #: src/matrix/MatrixRoomBridge.cpp:1360
 msgctxt "@item a sticker with no caption"
 msgid "sticker"
-msgstr ""
+msgstr "стикер"
 
 #: src/matrix/MatrixRoomBridge.cpp:1555
 msgctxt "@info a poll vote with no readable text"
 msgid "Voted."
-msgstr ""
+msgstr "Голос отдан."
 
 #: src/matrix/MatrixTranslate.cpp:33
 msgctxt "@label an attached picture that arrived with no file name"
@@ -576,7 +577,7 @@ msgstr "Файл"
 #: src/matrix/MatrixTranslate.cpp:41
 msgctxt "@label a shared location that arrived with no name"
 msgid "Location"
-msgstr ""
+msgstr "Местоположение"
 
 #: src/matrix/MatrixTranslate.cpp:52
 msgctxt "@info in-timeline notice, a room member with no resolvable name"
@@ -845,7 +846,7 @@ msgstr "Количество фрагментов превышает лимит.
 #: src/network/FileTransferHandler.cpp:129
 msgctxt "@info:status file transfer refused"
 msgid "The chunk count changed during the transfer."
-msgstr ""
+msgstr "Количество фрагментов изменилось во время передачи."
 
 #: src/network/FileTransferHandler.cpp:139
 msgctxt "@info:status file transfer refused"
@@ -855,12 +856,12 @@ msgstr "Фрагмент был отправлен повторно с друг�
 #: src/network/FileTransferHandler.cpp:148
 msgctxt "@info:status file transfer refused"
 msgid "The transfer exceeded the pending memory limit."
-msgstr ""
+msgstr "Передача превысила лимит памяти для ожидания."
 
 #: src/network/FileTransferHandler.cpp:168
 msgctxt "@info:status file transfer refused"
 msgid "The received data does not match the announced size."
-msgstr ""
+msgstr "Полученные данные не соответствуют заявленному размеру."
 
 #: src/network/FileTransferHandler.cpp:178
 msgctxt "@info:status file transfer refused"
@@ -896,22 +897,22 @@ msgstr "Сбой прослушивания на порту %1."
 #: src/network/NetworkManager.cpp:515
 msgctxt "@info:status %1 is a host address"
 msgid "Unreadable packet from %1 - dropping it."
-msgstr ""
+msgstr "Нечитаемый пакет от %1 — отбрасываем."
 
 #: src/network/NetworkManager.cpp:523
 msgctxt "@info:status %1 is a host address"
 msgid "Mismatched frame from %1 - dropping it."
-msgstr ""
+msgstr "Несовпадающий кадр от %1 — отбрасываем."
 
 #: src/network/NetworkManager.cpp:536
 msgctxt "@info:status %1 is a message type, %2 a host address"
 msgid "Unauthenticated %1 from %2 - dropping."
-msgstr "Неаутентифицированный %1 из %2 - отбрасывается."
+msgstr "Неаутентифицированный %1 от %2 — отбрасываем."
 
 #: src/network/NetworkManager.cpp:541
 msgctxt "@info:status %1 is a host address"
 msgid "HMAC verification failed from %1 - dropping."
-msgstr "Проверка HMAC не удалась с %1 - отбрасывается."
+msgstr "Проверка HMAC не удалась от %1 — отбрасываем."
 
 #: src/network/NetworkManager.cpp:853
 msgctxt "@info:status %1 is a host address, %2 a byte count"
@@ -927,7 +928,7 @@ msgstr ""
 #: src/network/NetworkManager.cpp:1037
 msgctxt "@info:status"
 msgid "Failed to encrypt the group message - not sent."
-msgstr "Не удалось зашифровать групповое сообщение - не отправлено."
+msgstr "Не удалось зашифровать групповое сообщение — не отправлено."
 
 #: src/network/NetworkManager.cpp:1175
 msgctxt "@info:status %1 is a file path"
@@ -1038,37 +1039,37 @@ msgstr "Вставить эмодзи"
 #: src/qml/composer/Composer.qml:248
 msgctxt "@action:button send the next message hidden until revealed"
 msgid "Spoiler on: the message will be hidden"
-msgstr ""
+msgstr "Спойлер включён: сообщение будет скрыто"
 
 #: src/qml/composer/Composer.qml:249
 msgctxt "@action:button hide the next message until the reader reveals it"
 msgid "Hide the message as a spoiler"
-msgstr ""
+msgstr "Скрыть сообщение как спойлер"
 
 #: src/qml/composer/Composer.qml:261
 msgctxt "@action:button share a location in the message"
 msgid "Share a location"
-msgstr ""
+msgstr "Поделиться местоположением"
 
 #: src/qml/composer/Composer.qml:273
 msgctxt "@action:button stop recording the voice message"
 msgid "Stop recording"
-msgstr ""
+msgstr "Остановить запись"
 
 #: src/qml/composer/Composer.qml:274
 msgctxt "@action:button record and send a voice message"
 msgid "Send a voice message"
-msgstr ""
+msgstr "Отправить голосовое сообщение"
 
 #: src/qml/composer/Composer.qml:286
 msgctxt "@action:button send a picture as a sticker"
 msgid "Send a sticker"
-msgstr ""
+msgstr "Отправить стикер"
 
 #: src/qml/composer/Composer.qml:297
 msgctxt "@action:button create a poll to send"
 msgid "Create a poll"
-msgstr ""
+msgstr "Создать опрос"
 
 #: src/qml/composer/Composer.qml:316
 msgctxt "@info:placeholder"
@@ -1098,47 +1099,47 @@ msgstr "Отправить сообщение. Shift+Enter вместо этог
 #: src/qml/composer/Composer.qml:373
 msgctxt "@title:window share a location"
 msgid "Share a location"
-msgstr ""
+msgstr "Поделиться местоположением"
 
 #: src/qml/composer/Composer.qml:395
 msgctxt "@info:placeholder"
 msgid "Latitude, e.g. 48.858370"
-msgstr ""
+msgstr "Широта, напр. 48.858370"
 
 #: src/qml/composer/Composer.qml:402
 msgctxt "@info:placeholder"
 msgid "Longitude, e.g. 2.294481"
-msgstr ""
+msgstr "Долгота, напр. 2.294481"
 
 #: src/qml/composer/Composer.qml:409
 msgctxt "@info:placeholder a name for the shared place"
 msgid "Label (optional)"
-msgstr ""
+msgstr "Подпись (необязательно)"
 
 #: src/qml/composer/Composer.qml:416
 msgctxt "@action:button fill the coordinates from the device's position"
 msgid "Use my location"
-msgstr ""
+msgstr "Использовать моё местоположение"
 
 #: src/qml/composer/Composer.qml:509
 msgctxt "@title:window create a poll"
 msgid "Create a poll"
-msgstr ""
+msgstr "Создать опрос"
 
 #: src/qml/composer/Composer.qml:535
 msgctxt "@info:placeholder the poll question"
 msgid "Question"
-msgstr ""
+msgstr "Вопрос"
 
 #: src/qml/composer/Composer.qml:542
 msgctxt "@info:placeholder an answer option, %1 is its number"
 msgid "Answer %1"
-msgstr ""
+msgstr "Ответ %1"
 
 #: src/qml/composer/Composer.qml:550
 msgctxt "@action:button add another answer row to the poll"
 msgid "Add answer"
-msgstr ""
+msgstr "Добавить ответ"
 
 #: src/qml/composer/EmojiGrid.qml:87
 msgctxt "@info shown when a search matches no emoji"
@@ -1400,17 +1401,17 @@ msgstr "Прикрепить файл"
 #: src/qml/main_window/ChatPage.qml:422
 msgctxt "@title:window"
 msgid "Send a sticker"
-msgstr ""
+msgstr "Отправить стикер"
 
 #: src/qml/main_window/ChatPage.qml:423 src/qml/matrix/RoomInfoPage.qml:617
 msgctxt "@item file type filter"
 msgid "Images (*.png *.jpg *.jpeg *.gif *.webp)"
-msgstr ""
+msgstr "Изображения (*.png *.jpg *.jpeg *.gif *.webp)"
 
 #: src/qml/main_window/ChatPage.qml:423 src/qml/matrix/RoomInfoPage.qml:617
 msgctxt "@item file type filter"
 msgid "All files (*)"
-msgstr ""
+msgstr "Все файлы (*)"
 
 #: src/qml/main_window/ChatPage.qml:432
 msgctxt "@info"
@@ -1585,17 +1586,17 @@ msgstr "Очистить"
 #: src/qml/main_window/Main.qml:1386
 msgctxt "@info"
 msgid "Locations can only be shared over a server-backed chat."
-msgstr ""
+msgstr "Местоположением можно делиться только в чате с сервером."
 
 #: src/qml/main_window/Main.qml:1393
 msgctxt "@info"
 msgid "This chat cannot share a location yet."
-msgstr ""
+msgstr "В этом чате пока нельзя поделиться местоположением."
 
 #: src/qml/main_window/Main.qml:1431
 msgctxt "@info"
 msgid "Polls can only be sent over a Matrix chat."
-msgstr ""
+msgstr "Опросы можно отправлять только в чате Matrix."
 
 #: src/qml/main_window/Main.qml:1446
 msgctxt "@info"
@@ -1665,7 +1666,7 @@ msgstr "Локальная сеть / VPN"
 #: src/qml/main_window/NewChatPage.qml:93
 msgctxt "@title:tab a transport"
 msgid "Tox"
-msgstr ""
+msgstr "Tox"
 
 #: src/qml/main_window/NewChatPage.qml:106
 msgctxt "@title a transport"
@@ -1792,7 +1793,7 @@ msgstr "KOutNet слушает сеть, но пока здесь тихо..."
 #: src/qml/main_window/NewChatPage.qml:345
 msgctxt "@title a transport"
 msgid "Tox"
-msgstr ""
+msgstr "Tox"
 
 #: src/qml/matrix/DeviceVerificationDialog.qml:24
 msgctxt "@title:dialog"
@@ -2042,7 +2043,7 @@ msgstr "Пароль"
 #: src/qml/matrix/MatrixLoginPage.qml:114
 msgctxt "@action:button open the homeserver's single sign-on page in a browser"
 msgid "Sign in with single sign-on"
-msgstr ""
+msgstr "Войти через единый вход"
 
 #: src/qml/matrix/MatrixLoginPage.qml:116
 msgctxt "@info:whatsthis"
@@ -2050,21 +2051,23 @@ msgid ""
 "Opens your homeserver's login page in a browser. When it finishes, paste the "
 "token below or let the browser hand it back."
 msgstr ""
+"Открывает страницу входа вашего хоум-сервера в браузере. По завершении вставьте "
+"маркер ниже или позвольте браузеру вернуть его автоматически."
 
 #: src/qml/matrix/MatrixLoginPage.qml:123
 msgctxt "@label:textbox a Matrix SSO login token"
 msgid "SSO token"
-msgstr ""
+msgstr "Маркер SSO"
 
 #: src/qml/matrix/MatrixLoginPage.qml:124
 msgctxt "@info:placeholder"
 msgid "Paste the token from the browser"
-msgstr ""
+msgstr "Вставьте маркер из браузера"
 
 #: src/qml/matrix/MatrixLoginPage.qml:130
 msgctxt "@action:button submit a pasted SSO token"
 msgid "Use token"
-msgstr ""
+msgstr "Использовать маркер"
 
 #: src/qml/matrix/MatrixLoginPage.qml:144
 msgctxt "@action:button"
@@ -2365,52 +2368,52 @@ msgstr "Идентификатор комнаты"
 #: src/qml/matrix/RoomInfoPage.qml:413
 msgctxt "@title:group edit the room's name and topic"
 msgid "Room settings"
-msgstr ""
+msgstr "Настройки комнаты"
 
 #: src/qml/matrix/RoomInfoPage.qml:423
 msgctxt "@label:textbox the room's display name"
 msgid "Name"
-msgstr ""
+msgstr "Название"
 
 #: src/qml/matrix/RoomInfoPage.qml:429
 msgctxt "@label:textbox the room's topic"
 msgid "Topic"
-msgstr ""
+msgstr "Тема"
 
 #: src/qml/matrix/RoomInfoPage.qml:437
 msgctxt "@title:group messages pinned in this room"
 msgid "Pinned messages"
-msgstr ""
+msgstr "Закреплённые сообщения"
 
 #: src/qml/matrix/RoomInfoPage.qml:449
 msgctxt "@info no messages are pinned in this room"
 msgid "Nothing pinned yet"
-msgstr ""
+msgstr "Пока ничего не закреплено"
 
 #: src/qml/matrix/RoomInfoPage.qml:471
 msgctxt "@action:button unpin a message"
 msgid "Unpin"
-msgstr ""
+msgstr "Открепить"
 
 #: src/qml/matrix/RoomInfoPage.qml:481
 msgctxt "@title:group search the room history"
 msgid "Search"
-msgstr ""
+msgstr "Поиск"
 
 #: src/qml/matrix/RoomInfoPage.qml:492
 msgctxt "@label:textbox search the room history"
 msgid "Search"
-msgstr ""
+msgstr "Поиск"
 
 #: src/qml/matrix/RoomInfoPage.qml:493
 msgctxt "@info:placeholder type to search messages"
 msgid "Type to search messages"
-msgstr ""
+msgstr "Введите текст для поиска сообщений"
 
 #: src/qml/matrix/RoomInfoPage.qml:499
 msgctxt "@info no messages matched the search"
 msgid "No matches"
-msgstr ""
+msgstr "Совпадений нет"
 
 #: src/qml/matrix/RoomInfoPage.qml:533
 msgctxt "@title:group the people in a Matrix room"
@@ -2434,7 +2437,7 @@ msgstr ""
 #: src/qml/matrix/RoomInfoPage.qml:616
 msgctxt "@title:window"
 msgid "Set room avatar"
-msgstr ""
+msgstr "Установить аватар комнаты"
 
 #: src/qml/matrix/RoomMemberCard.qml:125
 msgctxt "@label:textbox caption over a Matrix user identifier"
@@ -2529,12 +2532,12 @@ msgstr "Заблокировать"
 #: src/qml/matrix/RoomMemberCard.qml:283
 msgctxt "@action:button mute a user across the whole account"
 msgid "Ignore"
-msgstr ""
+msgstr "Игнорировать"
 
 #: src/qml/matrix/RoomMemberCard.qml:286
 msgctxt "@info:status"
 msgid "Ignored %1"
-msgstr ""
+msgstr "%1 в списке игнорируемых"
 
 #: src/qml/matrix/RoomRoles.qml:22
 msgctxt "@info:status a Matrix room member with full power in the room"
@@ -3392,17 +3395,17 @@ msgstr "Открыть"
 #: src/qml/timeline/AttachmentBlock.qml:226
 msgctxt "@info shared location caption"
 msgid "Location: %1"
-msgstr ""
+msgstr "Местоположение: %1"
 
 #: src/qml/timeline/AttachmentBlock.qml:227
 msgctxt "@info shared location with no caption"
 msgid "Shared location"
-msgstr ""
+msgstr "Отправленное местоположение"
 
 #: src/qml/timeline/AttachmentBlock.qml:236
 msgctxt "@action:button open a shared location in a map"
 msgid "Open in map"
-msgstr ""
+msgstr "Открыть на карте"
 
 #: src/qml/timeline/AttachmentBlock.qml:247
 msgctxt "@info:status %1 is the attachment's name"
@@ -3452,7 +3455,7 @@ msgstr "Ответить"
 #: src/qml/timeline/MessageActions.qml:68
 msgctxt "@action:button pin this message to the room"
 msgid "Pin"
-msgstr ""
+msgstr "Закрепить"
 
 #: src/qml/timeline/MessageActions.qml:81
 msgctxt "@action:button change what this message says"
@@ -3482,12 +3485,12 @@ msgstr "Отправлено: %1"
 #: src/qml/timeline/MessageDelegate.qml:401
 msgctxt "@info poll tally, %1 is the number of votes cast"
 msgid "%1 vote(s)"
-msgstr ""
+msgstr "Голосов: %1"
 
 #: src/qml/timeline/MessageDelegate.qml:402
 msgctxt "@info poll votes are hidden until closed"
 msgid "Votes are private until the poll closes."
-msgstr ""
+msgstr "Голоса скрыты до закрытия опроса."
 
 #: src/qml/timeline/MessageDelegate.qml:467
 msgctxt "@info:status the message was changed after it was sent"
