@@ -1172,6 +1172,14 @@ private Q_SLOTS:
         QTRY_VERIFY_WITH_TIMEOUT(messages.count() >= 1, 60000);
         QTRY_VERIFY_WITH_TIMEOUT(messages.count() == koutnet::CryptoManager::kMaxPendingDecrypts, 60000);
     }
+
+    void sendFileMissingReturnsFalse()
+    {
+        Harness h;
+        QSignalSpy errors(&h.net, &NetworkManager::errorOccurred);
+        QVERIFY(!h.net.sendFile(kPeerIp, QStringLiteral("/no/such/file.bin")));
+        QCOMPARE(errors.count(), 1);
+    }
 };
 
 // Test mode keeps CryptoManager's config lookups in a scratch directory. No

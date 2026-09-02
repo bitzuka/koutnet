@@ -1391,8 +1391,7 @@ bool NetworkManager::sendFile(const QString &chatId, const QString &localFilePat
 {
     if (chatId.isEmpty())
         return false;
-    sendFileInternal(chatId, localFilePath, QByteArray(), QStringLiteral("file"));
-    return true;
+    return sendFileInternal(chatId, localFilePath, QByteArray(), QStringLiteral("file"));
 }
 
 void NetworkManager::markRead(const QString &chatId)

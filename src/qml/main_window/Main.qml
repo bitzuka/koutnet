@@ -1359,8 +1359,8 @@ Kirigami.ApplicationWindow {
                 return
             }
             const stamp = messagesModel.sendFile(localFilePath, root.looksLikeImage(localFilePath))
-            if (!isSelfChat)
-                chatTransport.sendFile(peerIp, localFilePath)
+            if (!isSelfChat && !chatTransport.sendFile(peerIp, localFilePath))
+                return
             messagesModel.markSent(stamp)
         }
         onSpoilerRequested: function(text) {
@@ -1405,8 +1405,8 @@ Kirigami.ApplicationWindow {
                 return
             }
             const stamp = messagesModel.sendFile(filePath, false)
-            if (!isSelfChat)
-                chatTransport.sendFile(peerIp, filePath)
+            if (!isSelfChat && !chatTransport.sendFile(peerIp, filePath))
+                return
             messagesModel.markSent(stamp)
         }
         onStickerRequested: function(localFilePath) {
@@ -1418,8 +1418,8 @@ Kirigami.ApplicationWindow {
                 return
             }
             const stamp = messagesModel.sendFile(localFilePath, root.looksLikeImage(localFilePath))
-            if (!isSelfChat)
-                chatTransport.sendFile(peerIp, localFilePath)
+            if (!isSelfChat && !chatTransport.sendFile(peerIp, localFilePath))
+                return
             messagesModel.markSent(stamp)
         }
         onPollRequested: function(question, answers) {
