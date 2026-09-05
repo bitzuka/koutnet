@@ -52,7 +52,7 @@ jobs:
       # but CryptoManagerTest's forged-peer helper still uses raw EVP.
       - name: Install build dependencies
         run: |
-          zypper --non-interactive install --no-recommends \
+          zypper --non-interactive install --no-recommends --force \
             gcc-c++ cmake ninja pkgconf-pkg-config \
             kf6-extra-cmake-modules \
             'cmake(Qt6Core)' \
@@ -111,7 +111,7 @@ jobs:
 
       - name: Install clazy and dependencies
         run: |
-          zypper --non-interactive install --no-recommends \
+          zypper --non-interactive install --no-recommends --force \
             gcc-c++ cmake ninja pkgconf-pkg-config clazy libomp-devel \
             kf6-extra-cmake-modules \
             'cmake(Qt6Core)' \
