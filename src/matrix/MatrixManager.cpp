@@ -6,7 +6,7 @@
 
 #include "MatrixLoginUtils.h"
 #include "core/constructor/AppSettings.h"
-#include "core/security/SecretStore.h"
+#include "core/security/KeepSecret.h"
 
 #include "koutnet_matrix_debug.h"
 
@@ -22,20 +22,20 @@
 
 namespace
 {
-// Wallet entry for the Matrix access token. Flat, like every other name in the
+// Store entry for the Matrix access token. Flat, like every other name in the
 // KOutNet folder - see CryptoManager and AppSettings.
-QString tokenWalletKey(const QString &userId)
+QString tokenStoreKey(const QString &userId)
 {
     // One slot per account. A single shared slot is how a sign-in as somebody
     // else used to hand the next session a token naming a different owner:
-    // the configuration said one user id, the wallet answered with another
+    // the configuration said one user id, the store answered with another
     // user's token, and only Quotient's log line said so.
     return QStringLiteral("matrix_access_token_") + userId;
 }
 
 // The slot every install before per-account keys wrote to. Read for migration
 // and removed the first time anything clears or rewrites the session.
-const QString &legacyTokenWalletKey()
+const QString &legacyTokenStoreKey()
 {
     static const QString key = QStringLiteral("matrix_access_token");
     return key;
@@ -69,7 +69,7 @@ MatrixManager::MatrixManager(AppSettings *settings, QObject *parent)
         // With E2EE on, connected() is emitted only after libQuotient has been
         // to the keychain for the pickle key and unpickled the Olm account, so a
         // fresh login that already holds a token is not waiting on the network
-        // at all - it is waiting on a wallet that has probably put a prompt
+        // at all - it is waiting on a store that has probably put a prompt
         // somewhere. Blaming the homeserver for that was the wrong sentence.
         // Only for a fresh login: assumeIdentity() sets the token before it has
         // asked anybody anything, so a resume cannot be told apart this way.
@@ -94,7 +94,7 @@ MatrixManager::MatrixManager(AppSettings *settings, QObject *parent)
                  serverAnswered
                      ? i18nc("@info:status Matrix login stalled after the password was accepted",
                              "The sign-in was accepted but the encryption keys could not be opened in time. "
-                             "Unlock the wallet if it is asking, and try again.")
+                             "Unlock the secret store if it is asking, and try again.")
                      : i18nc("@info:status Matrix login failed",
                              "The homeserver did not answer in time. Nothing was signed in; the attempt is still running and will report itself in the log."));
 
@@ -218,7 +218,7 @@ Quotient::Connection *MatrixManager::makeConnection()
         // state machine has nowhere honest to put "signed in but unencrypted".
         const QString message = i18nc("@info:status the Matrix session could not set up its encryption key store",
                                       "Encryption could not be started for this session, so encrypted rooms will stay unreadable. "
-                                      "This usually means the wallet could not be opened.");
+                                      "This usually means the secret store could not be opened.");
         qCWarning(KOUTNET_LOG_MATRIX) << "matrix session:" << message;
         Q_EMIT sessionError(message);
     });
@@ -523,14 +523,14 @@ bool MatrixManager::resumeSession()
         return false;
 
     QString token;
-    if ((!koutnet::SecretStore::read(tokenWalletKey(user), &token) || token.isEmpty())
-        && (!koutnet::SecretStore::read(legacyTokenWalletKey(), &token) || token.isEmpty())) {
+    if ((!koutnet::KeepSecret::read(tokenStoreKey(user), &token) || token.isEmpty())
+        && (!koutnet::KeepSecret::read(legacyTokenStoreKey(), &token) || token.isEmpty())) {
         // The token is the session. Without it the recorded user id and device id
         // are litter that would make the interface claim a session that is gone.
         clearStoredSession();
-        setState(
-            State::Failed,
-            i18nc("@info:status a stored Matrix session could not be reopened", "The saved sign-in could not be read back from the wallet. Sign in again."));
+        setState(State::Failed,
+                 i18nc("@info:status a stored Matrix session could not be reopened",
+                       "The saved sign-in could not be read back from the secret store. Sign in again."));
         return false;
     }
 
@@ -556,7 +556,7 @@ bool MatrixManager::resumeSession()
     c->assumeIdentity(user, device, token);
 
     // A resumed token has never been shown to the homeserver at this point, and
-    // a migrated one may name another owner entirely - the legacy wallet slot
+    // a migrated one may name another owner entirely - the legacy store slot
     // was shared between accounts. Ask whose token this is before any sync runs:
     // sending as the wrong account is worse than asking for a fresh sign-in.
     c->callApi<Quotient::GetTokenOwnerJob>().then(this, [this, c, user](const Quotient::GetTokenOwnerJob *job) {
@@ -671,11 +671,11 @@ void MatrixManager::storeSession()
         return;
 
     const QString token = QString::fromUtf8(m_connection->accessToken());
-    if (!koutnet::SecretStore::write(tokenWalletKey(m_connection->userId()), token)) {
+    if (!koutnet::KeepSecret::write(tokenStoreKey(m_connection->userId()), token)) {
         // Deliberately not falling back to the config file. The rest of the
         // session is not written either, so the next start asks again rather
         // than finding half a session it cannot use.
-        Q_EMIT sessionNotPersisted(koutnet::SecretStore::lastError());
+        Q_EMIT sessionNotPersisted(koutnet::KeepSecret::lastError());
         return;
     }
 
@@ -684,14 +684,14 @@ void MatrixManager::storeSession()
     m_settings->setMatrixHomeserver(m_connection->homeserver().toString());
     m_settings->save();
     // The pre-split slot, retired on the first successful write to the keyed one.
-    koutnet::SecretStore::remove(legacyTokenWalletKey());
+    koutnet::KeepSecret::remove(legacyTokenStoreKey());
 }
 
 void MatrixManager::clearStoredSession()
 {
     if (m_settings && !m_settings->matrixUserId().isEmpty())
-        koutnet::SecretStore::remove(tokenWalletKey(m_settings->matrixUserId()));
-    koutnet::SecretStore::remove(legacyTokenWalletKey());
+        koutnet::KeepSecret::remove(tokenStoreKey(m_settings->matrixUserId()));
+    koutnet::KeepSecret::remove(legacyTokenStoreKey());
     if (!m_settings)
         return;
     m_settings->setMatrixUserId(QString());
@@ -713,7 +713,7 @@ void MatrixManager::logout()
 
     // Local first, and whatever the homeserver does about it. Waiting for the
     // round trip is what left the button doing nothing against a server that
-    // never answered: the token is out of the wallet and the ids out of the
+    // never answered: the token is out of the store and the ids out of the
     // config before anything is asked of the network, so signing out always
     // ends signed out.
     auto *c = m_connection;

@@ -65,8 +65,8 @@
          These three are the part of one that is not a secret: the homeserver
          base URL, the full MXID, and the device id the homeserver issued. The
          access token is the fourth part and is deliberately absent - it is a
-         bearer credential, so MatrixManager puts it in KWallet through
-         SecretStore, the rule the identity keys and the group passphrase already
+         bearer credential, so MatrixManager puts it in KeepSecret,
+         the rule the identity keys and the group passphrase already
          follow. An empty user id or device id means there is nothing to resume,
          and the homeserver is kept past a logout because it is not a secret and
          it is what the login form should offer next time. -->

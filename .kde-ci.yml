@@ -19,9 +19,9 @@ Dependencies:
     'frameworks/kcoreaddons': '@latest-kf6'
     # Dark, light and follow-the-desktop go through KColorSchemeManager.
     'frameworks/kcolorscheme': '@latest-kf6'
-    # The private keys and the group passphrase live in KWallet, so this is a
-    # hard build dependency and not an optional integration.
-    'frameworks/kwallet': '@latest-kf6'
+    # The private keys and the group passphrase live in the encrypted store,
+    # backed by libsodium (no external daemon required).
+    # 'frameworks/kwallet': '@latest-kf6'  # no longer needed
     # A messenger that only tells you about a message while you are already
     # looking at it is not telling you anything. Owns the installed
     # koutnet.notifyrc as well.

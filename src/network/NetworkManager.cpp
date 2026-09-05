@@ -3,7 +3,7 @@
 // KOutNet - Network & Audio core
 #include "NetworkManager.h"
 #include "../core/security/CryptoManager.h"
-#include "../core/security/SecretStore.h"
+#include "../core/security/KeepSecret.h"
 #include "DiscoverySweep.h"
 #include "FileTransferHandler.h"
 #include "Protocol.h"
@@ -161,7 +161,7 @@ void NetworkManager::setGroupPassphrase(const QString &passphrase)
     m_groupPassphrase = passphrase;
 }
 
-QString NetworkManager::groupKeyWalletKey(const QString &gid)
+QString NetworkManager::groupKeyStoreKey(const QString &gid)
 {
     return QStringLiteral("group_key/") + gid;
 }
@@ -173,7 +173,7 @@ QString NetworkManager::groupKeyFor(const QString &gid)
         return it.value();
 
     QString key;
-    if (SecretStore::read(groupKeyWalletKey(gid), &key) && !key.isEmpty()) {
+    if (KeepSecret::read(groupKeyStoreKey(gid), &key) && !key.isEmpty()) {
         m_groupKeys.insert(gid, key);
         return key;
     }
@@ -184,11 +184,11 @@ void NetworkManager::setGroupKey(const QString &gid, const QString &key)
 {
     if (key.isEmpty()) {
         m_groupKeys.remove(gid);
-        SecretStore::remove(groupKeyWalletKey(gid));
+        KeepSecret::remove(groupKeyStoreKey(gid));
         return;
     }
     m_groupKeys.insert(gid, key);
-    SecretStore::write(groupKeyWalletKey(gid), key);
+    KeepSecret::write(groupKeyStoreKey(gid), key);
 }
 
 void NetworkManager::removeGroupKey(const QString &gid)
@@ -203,8 +203,8 @@ QString NetworkManager::ensureGroupKey(const QString &gid)
 
     const QString key = randomHex(32);
     m_groupKeys.insert(gid, key);
-    if (!SecretStore::write(groupKeyWalletKey(gid), key))
-        qCWarning(KOUTNET_LOG_NETWORK) << "group key for" << gid << "not persisted - KWallet unavailable, this session only";
+    if (!KeepSecret::write(groupKeyStoreKey(gid), key))
+        qCWarning(KOUTNET_LOG_NETWORK) << "group key for" << gid << "not persisted - secret store unavailable, this session only";
     return key;
 }
 
@@ -1020,7 +1020,7 @@ bool NetworkManager::sendPrivate(const QString &text, const QString &toIp)
 
 void NetworkManager::sendGroupMessage(const QString &gid, const QString &text, const QVector<QString> &members)
 {
-    // One key per group. Created on first message; without a wallet the generated
+    // One key per group. Created on first message; without the store the generated
     // key protects this session only.
     QString passphrase = groupKeyFor(gid);
     if (passphrase.isEmpty())

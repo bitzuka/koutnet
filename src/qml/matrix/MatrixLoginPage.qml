@@ -188,7 +188,7 @@ FormCard.FormCardPage {
                 : i18nc("@info:status the session has no encryption keys", "Encryption is off for this session")
             description: matrixManager.encryptionActive
                 ? i18nc("@info:whatsthis", "Encrypted rooms can be read and written. Until this session is verified, though, other clients may refuse to send it their room keys.")
-                : i18nc("@info:whatsthis", "The encryption keys could not be opened, so encrypted rooms cannot be read or written here. Check that the wallet is running and sign in again.")
+                : i18nc("@info:whatsthis", "The encryption keys could not be opened, so encrypted rooms cannot be read or written here. Sign in again to retry.")
         }
 
         // Only once there is a session and a key store. Offering this against a

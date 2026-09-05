@@ -11,7 +11,7 @@
 //
 // The Olm pickle key is the exception: libQuotient owns it and stores it via
 // QtKeychain under the application name. That is why the app name must never
-// change, and why a wallet that cannot be written drops encryption.
+// change, and why a store that cannot be written drops encryption.
 //
 // Two rules the states keep: no failure is silent (every error ends in Failed
 // with a message), and every non-failure state has a deadline. Nothing the
@@ -134,7 +134,7 @@ Q_SIGNALS:
     // encryptionActive() changed; separate from stateChanged since E2EE settles
     // after connect and before Online
     void encryptionActiveChanged();
-    // a session with no wallet; the UI must say so instead of implying persistence
+    // a session with no store; the UI must say so instead of implying persistence
     void sessionNotPersisted(QString reason);
 
     // one sentence per failure; statusText shows the same words on the sign-in

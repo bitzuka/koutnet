@@ -9,6 +9,9 @@
 # already there. kwallet-query can read an entry but not delete one, so this
 # goes through the same D-Bus interface KWallet::Wallet itself uses.
 #
+# KeepSecret now stores secrets in an encrypted file and no longer uses KWallet,
+# but runs from before the migration may have left entries in the real wallet.
+#
 #   tools/wallet-cleanup.sh                    list, change nothing
 #   tools/wallet-cleanup.sh --remove           delete the test-scope entries
 #   tools/wallet-cleanup.sh --remove --backups also delete the *_superseded ones

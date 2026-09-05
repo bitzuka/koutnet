@@ -15,8 +15,6 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(Sodium REQUIRED IMPORTED_TARGET libsodium>=1.0.18)
 # Kirigami is not optional: every QML file in qml/ imports it for the page
 # structure and the units, so a build without it fails at first window.
-# Wallet is required, not optional: the identity keys and the group passphrase
-# have nowhere else to go, and the app refuses to write them in plain text.
 # Config carries the generated settings class, CoreAddons the about data that
 # DrKonqi and --version read.
 # Notifications is not optional either: a messenger that only tells you about a
@@ -32,7 +30,7 @@ pkg_check_modules(Sodium REQUIRED IMPORTED_TARGET libsodium>=1.0.18)
 # IdleTime is what tells the notifications the difference between "the window is
 # behind something" and "nobody is there", which is the whole of the sound
 # behaviour. Package names: kidletime, kf6-kidletime, libkf6idletime-dev.
-find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS Config CoreAddons I18n IdleTime Kirigami Notifications StatusNotifierItem Wallet)
+find_package(KF6 ${KF_MIN_VERSION} REQUIRED COMPONENTS Config CoreAddons I18n IdleTime Kirigami Notifications StatusNotifierItem)
 
 # The i18n() call in QML comes from the localized context object, which lives
 # in a target of its own rather than in KF6::I18n.
@@ -175,8 +173,8 @@ qt_add_executable(KOutNet
     core/audio/AudioDevices.h
     core/security/CryptoManager.cpp
     core/security/CryptoManager.h
-    core/security/SecretStore.cpp
-    core/security/SecretStore.h
+    core/security/KeepSecret.cpp
+    core/security/KeepSecret.h
     core/constructor/AppSettings.cpp
     core/constructor/AppSettings.h
     core/chat/ChatAddress.cpp
@@ -328,7 +326,7 @@ target_link_libraries(KOutNet PRIVATE
     KF6::Kirigami
     KF6::Notifications
     KF6::StatusNotifierItem
-    KF6::Wallet
+
     QuotientQt6
 )
 

@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 # SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 # Not a singleton: koutnet::AppSettings derives from this class to add the
-# group passphrase, which belongs in KWallet and not in a config file.
+# group passphrase, which belongs in KeepSecret and not in a config file.
 File=koutnetsettings.kcfg
 ClassName=KOutNetSettings
 Mutators=true

@@ -76,7 +76,7 @@ public:
     static constexpr int kMaxPeerAddresses = 8;
 
     explicit CryptoManager(QObject *parent = nullptr);
-    // Identity kept under a suffix of its own, in the wallet and in the config
+    // Identity kept under a suffix of its own, in the encrypted store and in the config
     // file alike. Only tests pass a scope; it is what lets two peers live in
     // one process without the second loading the first one's keypair.
     explicit CryptoManager(const QString &storageScope, QObject *parent = nullptr);
@@ -229,8 +229,8 @@ private:
     bool m_valid = false;
 
     // Held as bytes rather than as library handles: libsodium has no key object,
-    // and the wallet already stores exactly these. The identity secret is the
-    // 64-byte expanded Ed25519 key; what reaches the wallet is its 32-byte seed.
+    // and the store already stores exactly these. The identity secret is the
+    // 64-byte expanded Ed25519 key; what reaches the store is its 32-byte seed.
     QByteArray m_identitySk;
     QByteArray m_dhSk; // crypto_kx secret key, 32 bytes
     QByteArray m_dhPubBytes;

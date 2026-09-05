@@ -52,11 +52,9 @@ skip the eight test suites.
 ctest --test-dir build --output-on-failure
 ```
 
-The suites need no display and no running `kwalletd` - `SecretStore` runs
+The suites need no display and no external daemon - `KeepSecret` runs
 against an in-memory store for the duration of a test run, so nothing
-touches your real keyring. If an earlier run predating this fix left
-entries behind, `tools/wallet-cleanup.sh` will list them and, given
-`--remove`, delete them.
+touches your real secrets file.
 
 Add or extend a test suite when you touch packet handling, chunk
 reassembly, crypto, or anything else with sharp edges. `koutnet-file-transfer-handler`

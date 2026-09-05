@@ -397,7 +397,7 @@ Kirigami.ApplicationWindow {
         target: matrixManager
 
         function onSessionNotPersisted(reason) {
-            root.notify(i18nc("@info:status %1 is the reason the wallet gave",
+            root.notify(i18nc("@info:status %1 is the reason the store gave",
                               "Signed in, but the session could not be saved: %1", reason),
                         Kirigami.MessageType.Warning)
         }

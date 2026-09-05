@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "CryptoManager.h"
-#include "SecretStore.h"
+#include "KeepSecret.h"
 #include "koutnet_crypto_debug.h"
 
 #include <KLocalizedString>
@@ -23,7 +23,7 @@
 namespace koutnet
 {
 
-// The wire and the wallet both assume these, so a libsodium that disagreed would
+// The wire and the store both assume these, so a libsodium that disagreed would
 // have to be found here rather than in a packet that will not open.
 static_assert(CryptoManager::kSaltLen == crypto_pwhash_SALTBYTES);
 static_assert(CryptoManager::kNonceLen == crypto_aead_xchacha20poly1305_ietf_NPUBBYTES);
@@ -119,19 +119,19 @@ private:
     T &m_buf;
 };
 
-// Wallet entry names; the QSettings paths they replaced are in migrateLegacyKeys().
+// Store entry names; the QSettings paths they replaced are in migrateLegacyKeys().
 // An empty scope is the application's own identity, so its names stay as they were.
-QString identityWalletKey(const QString &scope)
+QString identityStoreKey(const QString &scope)
 {
     return scope.isEmpty() ? QStringLiteral("identity_priv_b64") : QStringLiteral("identity_priv_b64_") + scope;
 }
 
-QString dhWalletKey(const QString &scope)
+QString dhStoreKey(const QString &scope)
 {
     return scope.isEmpty() ? QStringLiteral("dh_priv_b64") : QStringLiteral("dh_priv_b64_") + scope;
 }
 
-// Where builds before the wallet kept the same two keys, in clear text.
+// Where builds before the encrypted store kept the same two keys, in clear text.
 QStringList legacyConfigKeys(const QString &scope)
 {
     if (scope.isEmpty()) {
@@ -140,9 +140,9 @@ QStringList legacyConfigKeys(const QString &scope)
     return {QStringLiteral("security/%1_identity_priv_b64").arg(scope), QStringLiteral("security/%1_dh_priv_b64").arg(scope)};
 }
 
-QString supersededWalletKey(const QString &walletKey)
+QString supersededStoreKey(const QString &storeKey)
 {
-    return walletKey + QStringLiteral("_superseded");
+    return storeKey + QStringLiteral("_superseded");
 }
 
 QString bytesToFingerprint(const QByteArray &raw)
@@ -258,8 +258,8 @@ QByteArray CryptoManager::randomBytes(int n)
     return buf;
 }
 
-// The private keys live in KWallet, never in QSettings. A session without a
-// wallet still gets a keypair so the app works, it just forgets it on exit.
+// The private keys live in the encrypted store, never in QSettings. A session without a
+// store still gets a keypair so the app works, it just forgets it on exit.
 bool CryptoManager::initKeypairs()
 {
     if (!loadStoredKeys()) {
@@ -271,7 +271,7 @@ bool CryptoManager::initKeypairs()
         return false;
 
     // The public halves are recomputed from the secrets rather than stored, so a
-    // wallet entry that was tampered with cannot make us advertise a key we
+    // store entry that was tampered with cannot make us advertise a key we
     // cannot sign or agree with.
     m_dhPubBytes.resize(crypto_kx_PUBLICKEYBYTES);
     if (crypto_scalarmult_base(reinterpret_cast<unsigned char *>(m_dhPubBytes.data()), reinterpret_cast<const unsigned char *>(m_dhSk.constData())) != 0)
@@ -317,25 +317,25 @@ bool CryptoManager::migrateLegacyKeys(QString *outIdentityB64, QString *outDhB64
     *outIdentityB64 = legacyId;
     *outDhB64 = legacyDh;
 
-    // Only drop the plaintext copy once the wallet has both halves, otherwise a
-    // wallet that is merely unreachable today would cost the user their identity.
-    if (!SecretStore::write(identityWalletKey(m_storageScope), legacyId) || !SecretStore::write(dhWalletKey(m_storageScope), legacyDh)) {
+    // Only drop the plaintext copy once the store has both halves, otherwise a
+    // store that is merely unreachable today would cost the user their identity.
+    if (!KeepSecret::write(identityStoreKey(m_storageScope), legacyId) || !KeepSecret::write(dhStoreKey(m_storageScope), legacyDh)) {
         qCCritical(KOUTNET_LOG_CRYPTO,
                    "your private keys are still stored in plain text in the config file "
-                   "because they could not be moved into KWallet (%s). Start kwalletd and "
+                   "because they could not be moved into the secret store (%s). Make sure the store is accessible and "
                    "restart KOutNet.",
-                   qUtf8Printable(SecretStore::lastError()));
-        reportPlaintextKeysLeft(SecretStore::lastError());
+                   qUtf8Printable(KeepSecret::lastError()));
+        reportPlaintextKeysLeft(KeepSecret::lastError());
         return true;
     }
 
-    qCInfo(KOUTNET_LOG_CRYPTO, "copied the identity keys into KWallet");
+    qCInfo(KOUTNET_LOG_CRYPTO, "copied the identity keys into the secret store");
     dropLegacyPlaintextKeys();
     return true;
 }
 
 // Deliberately not part of the migration branch: deleting the plaintext used to be
-// a side effect of the one run that filled the wallet, so a deletion that never
+// a side effect of the one run that filled the store, so a deletion that never
 // reached the disk was never retried, and the readable copy stayed forever.
 void CryptoManager::dropLegacyPlaintextKeys()
 {
@@ -343,11 +343,11 @@ void CryptoManager::dropLegacyPlaintextKeys()
         return;
 
     QString detail;
-    if (SecretStore::purgePlaintextConfigKeys(legacyConfigKeys(m_storageScope), &detail))
+    if (KeepSecret::purgePlaintextConfigKeys(legacyConfigKeys(m_storageScope), &detail))
         return;
 
     qCCritical(KOUTNET_LOG_CRYPTO,
-               "KWallet holds your private keys, but the plaintext copy could NOT be "
+               "The secret store holds your private keys, but the plaintext copy could NOT be "
                "deleted from the config file: %s. Anyone who can read that file can "
                "impersonate you - delete the identity_priv_b64 and dh_priv_b64 entries "
                "by hand.",
@@ -355,19 +355,19 @@ void CryptoManager::dropLegacyPlaintextKeys()
     reportPlaintextKeysLeft(detail);
 }
 
-// The config file can carry a different key pair than the wallet: a run where the
-// wallet was unreachable generated a throwaway identity, or an old config file was
-// restored. That plaintext still has to go, but not before the wallet has a copy.
+// The config file can carry a different key pair than the store: a run where the
+// store was unreachable generated a throwaway identity, or an old config file was
+// restored. That plaintext still has to go, but not before the store has a copy.
 bool CryptoManager::stashSupersededPlaintextKeys()
 {
     QString legacyId;
     QString legacyDh;
-    QString walletId;
-    QString walletDh;
+    QString storeId;
+    QString storeDh;
     Wiper wipeId(legacyId);
     Wiper wipeDh(legacyDh);
-    Wiper wipeWalletId(walletId);
-    Wiper wipeWalletDh(walletDh);
+    Wiper wipeStoreId(storeId);
+    Wiper wipeStoreDh(storeDh);
     {
         QSettings settings;
         legacyId = settings.value(legacyConfigKeys(m_storageScope).at(0)).toString();
@@ -378,26 +378,26 @@ bool CryptoManager::stashSupersededPlaintextKeys()
 
     // A read that fails leaves the value empty, which compares as "not the pair
     // in the file" - the safe answer, since that path preserves before deleting.
-    SecretStore::read(identityWalletKey(m_storageScope), &walletId);
-    SecretStore::read(dhWalletKey(m_storageScope), &walletDh);
-    if (legacyId == walletId && legacyDh == walletDh)
-        return true; // the wallet already holds exactly this pair
+    KeepSecret::read(identityStoreKey(m_storageScope), &storeId);
+    KeepSecret::read(dhStoreKey(m_storageScope), &storeDh);
+    if (legacyId == storeId && legacyDh == storeDh)
+        return true; // the store already holds exactly this pair
 
-    if ((!legacyId.isEmpty() && !SecretStore::write(supersededWalletKey(identityWalletKey(m_storageScope)), legacyId))
-        || (!legacyDh.isEmpty() && !SecretStore::write(supersededWalletKey(dhWalletKey(m_storageScope)), legacyDh))) {
+    if ((!legacyId.isEmpty() && !KeepSecret::write(supersededStoreKey(identityStoreKey(m_storageScope)), legacyId))
+        || (!legacyDh.isEmpty() && !KeepSecret::write(supersededStoreKey(dhStoreKey(m_storageScope)), legacyDh))) {
         qCCritical(KOUTNET_LOG_CRYPTO,
-                   "the config file holds an identity that KWallet does not, and it could "
-                   "not be copied into the wallet (%s) - leaving the plaintext alone rather "
+                   "the config file holds an identity that the store does not, and it could "
+                   "not be copied into the store (%s) - leaving the plaintext alone rather "
                    "than destroying the only copy of it.",
-                   qUtf8Printable(SecretStore::lastError()));
-        reportPlaintextKeysLeft(SecretStore::lastError());
+                   qUtf8Printable(KeepSecret::lastError()));
+        reportPlaintextKeysLeft(KeepSecret::lastError());
         return false;
     }
 
     qCWarning(KOUTNET_LOG_CRYPTO,
               "the config file held a different identity than the one in use; it was copied "
-              "into KWallet as %s before the plaintext was deleted.",
-              qUtf8Printable(supersededWalletKey(identityWalletKey(m_storageScope))));
+              "into the store as %s before the plaintext was deleted.",
+              qUtf8Printable(supersededStoreKey(identityStoreKey(m_storageScope))));
     return true;
 }
 
@@ -416,14 +416,14 @@ bool CryptoManager::loadStoredKeys()
     QString dhB64;
     Wiper wipeIdB64(idB64);
     Wiper wipeDhB64(dhB64);
-    if (!SecretStore::read(identityWalletKey(m_storageScope), &idB64) || !SecretStore::read(dhWalletKey(m_storageScope), &dhB64) || idB64.isEmpty()
+    if (!KeepSecret::read(identityStoreKey(m_storageScope), &idB64) || !KeepSecret::read(dhStoreKey(m_storageScope), &dhB64) || idB64.isEmpty()
         || dhB64.isEmpty()) {
         if (!migrateLegacyKeys(&idB64, &dhB64))
             return false;
     } else {
-        // The wallet is the only copy used from here on, so anything left in the config
+        // The store is the only copy used from here on, so anything left in the config
         // file is pure liability. Checked on every start because an earlier run may
-        // have filled the wallet and then failed to rewrite the file.
+        // have filled the store and then failed to rewrite the file.
         dropLegacyPlaintextKeys();
     }
 
@@ -432,7 +432,7 @@ bool CryptoManager::loadStoredKeys()
     Wiper wipeIdRaw(idRaw);
     Wiper wipeDhRaw(dhRaw);
 
-    // The wallet holds the Ed25519 seed and the X25519 scalar, both 32 bytes -
+    // The store holds the Ed25519 seed and the X25519 scalar, both 32 bytes -
     // the same encoding the OpenSSL build wrote, so an existing identity and its
     // fingerprint survive this change. Guard against a truncated or corrupted
     // entry expanding into a garbage key.
@@ -490,14 +490,14 @@ bool CryptoManager::generateAndStoreKeys()
     idB64 = QString::fromLatin1(idRaw.toBase64());
     dhB64 = QString::fromLatin1(dhRaw.toBase64());
 
-    // A wallet we cannot reach is not a reason to refuse to run, but it is a reason
+    // A store we cannot reach is not a reason to refuse to run, but it is a reason
     // to say so: this keypair lasts the session, so peers see a new fingerprint next.
-    if (!SecretStore::write(identityWalletKey(m_storageScope), idB64) || !SecretStore::write(dhWalletKey(m_storageScope), dhB64)) {
+    if (!KeepSecret::write(identityStoreKey(m_storageScope), idB64) || !KeepSecret::write(dhStoreKey(m_storageScope), dhB64)) {
         qCCritical(KOUTNET_LOG_CRYPTO,
-                   "could not store the identity keys in KWallet (%s). Running with a "
+                   "could not store the identity keys in the secret store (%s). Running with a "
                    "throwaway identity for this session - it is NOT written to disk in "
                    "plain text.",
-                   qUtf8Printable(SecretStore::lastError()));
+                   qUtf8Printable(KeepSecret::lastError()));
         return true;
     }
 

@@ -86,8 +86,8 @@ jobs:
       - name: Build
         run: cmake --build build --parallel
 
-      # No display and no kwalletd here, which is the path the suites are
-      # written for: SecretStore keeps its secrets in memory whenever
+      # No display here, which is the path the suites are
+      # written for: KeepSecret keeps its secrets in memory whenever
       # QStandardPaths test mode is on, so no wallet daemon is needed.
       - name: Test
         run: ctest --test-dir build --output-on-failure

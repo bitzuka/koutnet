@@ -149,7 +149,7 @@ Kirigami.Dialog {
                     ? i18nc("@info:status this account has no other sessions to verify against",
                             "This account has no other sessions. Sign in with another Matrix client first, then come back here.")
                     : i18nc("@info:status verification needs a working key store",
-                            "This session could not open its encryption keys, so it cannot be verified. Check that the wallet is running and sign in again.")
+                            "This session could not open its encryption keys, so it cannot be verified. Sign in again to retry.")
                 textFormat: Text.PlainText
                 wrapMode: Text.WordWrap
             }

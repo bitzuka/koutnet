@@ -127,7 +127,7 @@ public:
 
     // One key per group, so opening one group's traffic says nothing about the
     // next. The key is generated on the group's first message and kept in
-    // KWallet under the gid; a group that predates this state still works, on
+    // KeepSecret under the gid; a group that predates this state still works, on
     // the shared passphrase, and a member without the group key falls back the
     // same way. Pushing an explicit key here is for tests and future UI; the
     // LAN path hands keys through invites, sealed under the session with the
@@ -316,12 +316,12 @@ private:
     // No relay / tunnel members here any more; the mode is gone for good.
     ConnectionMode m_mode = ConnectionMode::LanOrVpn;
     QString m_groupPassphrase;
-    // gid -> its own key. The mirror of what the wallet holds, kept because a
-    // wallet read on every decrypted group message would date every group chat.
-    QHash<QString, QString> m_groupKeys;
-    static QString groupKeyWalletKey(const QString &gid);
+    // gid -> its own key. The mirror of what the store holds, kept because a
+    // store read on every decrypted group message would date every group chat.
+    static QString groupKeyStoreKey(const QString &gid);
     QString groupKeyFor(const QString &gid);
     QString ensureGroupKey(const QString &gid);
+    QHash<QString, QString> m_groupKeys; // in-memory cache of group keys
     QString m_profileHandle;
     QString m_profileDisplayName;
     QString m_profileBio;

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
 // SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
 #include "AppSettings.h"
-#include "../security/SecretStore.h"
+#include "../security/KeepSecret.h"
 #include "koutnet_crypto_debug.h"
 
 #include <KConfigGroup>
@@ -17,8 +17,8 @@ namespace koutnet
 namespace
 {
 
-// Wallet entry for the group-chat passphrase, formerly "app/group_passphrase".
-QString passphraseWalletKey()
+// Store entry for the group-chat passphrase, formerly "app/group_passphrase".
+QString passphraseStoreKey()
 {
     return QStringLiteral("group_passphrase");
 }
@@ -203,9 +203,9 @@ void AppSettings::loadGroupPassphrase()
 {
     m_groupPassphrase.clear();
 
-    const QString walletKey = passphraseWalletKey();
-    if (SecretStore::read(walletKey, &m_groupPassphrase)) {
-        // Same reason as in CryptoManager: the wallet copy is the only one we
+    const QString storeKey = passphraseStoreKey();
+    if (KeepSecret::read(storeKey, &m_groupPassphrase)) {
+        // Same reason as in CryptoManager: the store copy is the only one we
         // use, and a previous run may have written it and then failed to rewrite
         // the file.
         dropLegacyPassphrase();
@@ -213,18 +213,18 @@ void AppSettings::loadGroupPassphrase()
     }
 
     // Older builds kept the passphrase next to the window geometry, in clear
-    // text. Move it, and only forget the old copy once the wallet has it.
+    // text. Move it, and only forget the old copy once the store has it.
     const QString legacy = QSettings().value(legacyConfigKeys().at(0)).toString();
     if (legacy.isEmpty())
         return;
 
     m_groupPassphrase = legacy;
-    if (!SecretStore::write(walletKey, legacy)) {
+    if (!KeepSecret::write(storeKey, legacy)) {
         qCCritical(KOUTNET_LOG_CRYPTO,
                    "the group passphrase is still in the config file in clear text because "
-                   "KWallet is unavailable (%s)",
-                   qUtf8Printable(SecretStore::lastError()));
-        reportSecretStoreProblem(SecretStore::lastError());
+                   "the secret store is unavailable (%s)",
+                   qUtf8Printable(KeepSecret::lastError()));
+        reportKeepSecretProblem(KeepSecret::lastError());
         return;
     }
     dropLegacyPassphrase();
@@ -233,17 +233,17 @@ void AppSettings::loadGroupPassphrase()
 void AppSettings::dropLegacyPassphrase()
 {
     QString detail;
-    if (SecretStore::purgePlaintextConfigKeys(legacyConfigKeys(), &detail))
+    if (KeepSecret::purgePlaintextConfigKeys(legacyConfigKeys(), &detail))
         return;
 
     qCCritical(KOUTNET_LOG_CRYPTO,
-               "KWallet holds the group passphrase, but the clear-text copy could NOT be "
+               "The secret store holds the group passphrase, but the clear-text copy could NOT be "
                "deleted from the config file: %s",
                qUtf8Printable(detail));
-    reportSecretStoreProblem(detail);
+    reportKeepSecretProblem(detail);
 }
 
-void AppSettings::reportSecretStoreProblem(const QString &reason)
+void AppSettings::reportKeepSecretProblem(const QString &reason)
 {
     QTimer::singleShot(0, this, [this, reason]() {
         Q_EMIT secretStoreUnavailable(reason);
@@ -255,13 +255,13 @@ void AppSettings::setGroupPassphrase(const QString &passphrase)
     if (m_groupPassphrase == passphrase)
         return;
     m_groupPassphrase = passphrase;
-    // A passphrase that cannot go into the wallet still applies to this session,
+    // A passphrase that cannot go into the store still applies to this session,
     // but it is not written anywhere - there is no acceptable second-best place
     // for it.
-    const bool stored = passphrase.isEmpty() ? SecretStore::remove(passphraseWalletKey()) : SecretStore::write(passphraseWalletKey(), passphrase);
+    const bool stored = passphrase.isEmpty() ? KeepSecret::remove(passphraseStoreKey()) : KeepSecret::write(passphraseStoreKey(), passphrase);
     if (!stored) {
-        Q_EMIT secretStoreUnavailable(SecretStore::lastError());
-        qCCritical(KOUTNET_LOG_CRYPTO, "the group passphrase was not saved (%s)", qUtf8Printable(SecretStore::lastError()));
+        Q_EMIT secretStoreUnavailable(KeepSecret::lastError());
+        qCCritical(KOUTNET_LOG_CRYPTO, "the group passphrase was not saved (%s)", qUtf8Printable(KeepSecret::lastError()));
     }
     Q_EMIT groupPassphraseChanged();
 }

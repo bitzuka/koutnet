@@ -41,14 +41,14 @@ as unsupported until somebody says otherwise.
   frame. A peer without a session for the sender still gets the old
   cleartext transfer, flagged as such; a transfer that fails to decrypt is
   dropped rather than saved.
-- **Key storage.** Private keys and the group passphrase go into KWallet.
-  Without a wallet the app keeps them in memory for that session and refuses
-  to write them anywhere in plain text.
+- **Key storage.** Private keys and the group passphrase go into an encrypted
+  file backed by libsodium. Without the store the app keeps them in memory for
+  that session and refuses to write them anywhere in plain text.
 - **Chat.** One-to-one and group messages, avatars, reactions, edit, delete,
   read receipts, typing indicators, per-chat history and unread counts. Every
-  group seals under a key of its own, kept in KWallet and handed to an invitee
-  only under the session with them; groups that predate this keep working on
-  the shared passphrase.
+  group seals under a key of its own, kept in the encrypted store and handed
+  to an invitee only under the session with them; groups that predate this
+  keep working on the shared passphrase.
 - **Polls.** Create and vote on polls with multiple choice answers. Votes are
   tallied live as responses arrive, with deduplication by voter. Polls work
   over both LAN and Matrix, and the renderer handles the MSC3381 format used
@@ -225,17 +225,12 @@ pass `-DBUILD_TESTING=OFF` to skip the suites.
 ctest --test-dir build --output-on-failure
 ```
 
-They need no display and no `kwalletd`, and they will not touch one that is
-running either: `SecretStore` is switched to an in-memory store for the length
-of a test run. That is a fix rather than politeness - there is one wallet per
-session and `QStandardPaths` test mode does not move it, so runs before this
-wrote their throwaway identity keys into the developer's own keyring and left
-them there. Keys staying in memory rather than quietly landing in a config file
-is still one of the paths under test.
+They need no display and no external daemon: `KeepSecret` is switched to an
+in-memory store for the length of a test run. Keys staying in memory rather
+than quietly landing in a config file is still one of the paths under test.
 
 If an earlier run left entries behind, `tools/wallet-cleanup.sh` lists them and,
-given `--remove`, deletes them. `kwallet-query` can read an entry but not remove
-one, so it goes through the same D-Bus interface KWallet itself uses.
+given `--remove`, deletes them.
 
 ## Contributing
 
