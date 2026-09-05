@@ -5,9 +5,11 @@
   <id>org.kde.koutnet</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL</project_license>
-  <!-- Only defensible now the id is under org.kde: the validator reads this as a
-       claim of KDE affiliation and objects when the id says otherwise. -->
-  <project_group>KDE</project_group>
+  <!-- project_group is not set: the project is not part of KDE yet, and
+       claiming affiliation before incubation is not honest. The org.kde id
+       stays because changing it would break the Olm pickle key path and
+       the QSettings file; the group tag is the one that matters to a
+       reviewer. -->
 
   <name>KOutNet</name>
   <summary>Encrypted messenger for local networks, VPNs and Matrix</summary>
