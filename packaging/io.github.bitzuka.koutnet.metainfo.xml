@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com> -->
+<!-- SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL -->
+<component type="desktop-application">
+  <id>io.github.bitzuka.koutnet</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL</project_license>
+  <!-- The id was org.kde.koutnet until the project dropped the KDE
+       project_group claim. It is now io.github.bitzuka.koutnet to match
+       the actual hosting. If the project enters KDE incubation the id
+       moves back under org.kde. -->
+
+  <name>KOutNet</name>
+  <summary>Encrypted messenger for local networks, VPNs and Matrix</summary>
+
+  <description>
+    <p>
+      KOutNet is a messenger that works without a central service. On a local
+      network or a VPN it finds its peers by itself and talks to them
+      directly. It can also connect to Matrix rooms through a homeserver.
+    </p>
+    <p>
+      Direct messages and voice calls are encrypted end to end with an X25519
+      key exchange and XChaCha20-Poly1305. It also carries a media player and a
+      notes tab, so the things people usually alt-tab away for stay in one
+      window.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.bitzuka.koutnet.desktop</launchable>
+  <url type="homepage">https://github.com/bitzuka/koutnet</url>
+  <url type="bugtracker">https://github.com/bitzuka/koutnet/issues</url>
+  <url type="vcs-browser">https://github.com/bitzuka/koutnet</url>
+  <url type="help">https://github.com/bitzuka/koutnet/blob/main/README.md</url>
+  <url type="contribute">https://github.com/bitzuka/koutnet/blob/main/README.md</url>
+
+  <!-- Names the gettext domain, so the store front ends pick up the
+       translated name and summary out of koutnet.mo. -->
+  <translation type="gettext">koutnet</translation>
+
+  <categories>
+    <category>Network</category>
+    <category>InstantMessaging</category>
+  </categories>
+
+  <keywords>
+    <keyword>messenger</keyword>
+    <keyword>chat</keyword>
+    <keyword>P2P</keyword>
+    <keyword>encryption</keyword>
+    <keyword>voice call</keyword>
+    <keyword>LAN</keyword>
+    <keyword>VPN</keyword>
+  </keywords>
+
+  <provides>
+    <binary>KOutNet</binary>
+  </provides>
+
+  <content_rating type="oars-1.1">
+    <content_attribute id="social-chat">intense</content_attribute>
+    <content_attribute id="social-audio">intense</content_attribute>
+  </content_rating>
+
+  <!-- The developer id is the author, not the application: reusing the
+       component id here made bitzuka and KOutNet look like the same entity. -->
+  <developer id="io.github.bitzuka.dev">
+    <name>bitzuka</name>
+  </developer>
+
+  <releases>
+    <release version="0.1" type="development" date="2026-08-03">
+      <description><p>Developer build. Not released yet.</p></description>
+    </release>
+  </releases>
+</component>

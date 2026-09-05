@@ -1,0 +1,16 @@
+# Commits that changed formatting only, and that git blame should look
+# through rather than at. Nothing here may contain a behaviour change.
+#
+# Use it with:
+#     git blame --ignore-revs-file .git-blame-ignore-revs
+# or once, for every command in this checkout:
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# One full 40-character SHA per line; abbreviated hashes are rejected and
+# git will refuse to use the file at all.
+
+# Run the tree through the .clang-format that was already sitting here
+5c03795def65448cdf0474a02145e29f413f2c9b
+
+# Run the tree through clang-format 18
+65d2b656fef97266f0bb22eb27fbb42259e8e161

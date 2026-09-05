@@ -1,0 +1,240 @@
+// SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com>
+// SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL
+// The K-Server sign-in, which is a Matrix sign-in. One card: where, who, and
+// the password, then the state of the session underneath it.
+//
+// No registration and no single sign-on here. Each of those is a flow of its
+// own and a half of one is worse than a link to a browser, which is what the
+// homeserver already has. Device verification is a flow of its own too, and it
+// has one - DeviceVerificationDialog, reached from here once there is a session
+// to verify.
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls as QQC2
+import org.kde.kirigami as Kirigami
+import org.kde.kirigamiaddons.formcard as FormCard
+import koutnet.app
+
+FormCard.FormCardPage {
+    id: root
+
+    title: i18nc("@title:window", "Matrix account")
+
+    // Handled by the window: the dialog is about the account and outlives this
+    // page being popped off the layer stack.
+    signal verifySessionsRequested()
+
+    // See Main.qml: FormCardPage starts a theme chain of its own.
+    Kirigami.Theme.highlightColor: Brand.accent
+
+    readonly property real kContentWidth: Math.max(Kirigami.Units.gridUnit * 20,
+        Math.min(root.width - Kirigami.Units.largeSpacing * 4, Kirigami.Units.gridUnit * 48))
+
+    FormCard.FormHeader {
+        maximumWidth: root.kContentWidth
+        title: i18nc("@title:group", "Matrix account")
+    }
+
+    FormCard.FormCard {
+        Layout.fillWidth: true
+        maximumWidth: root.kContentWidth
+
+        FormCard.FormTextDelegate {
+            id: explanation
+            text: i18nc("@info", "This signs in to a Matrix homeserver.")
+            description: i18nc("@info:whatsthis",
+                "Signing in here puts your Matrix rooms in the conversation list beside the peers found on the local network.")
+        }
+
+        FormCard.FormDelegateSeparator { above: explanation; below: homeserverField }
+
+        FormCard.FormTextFieldDelegate {
+            id: homeserverField
+            label: i18nc("@label:textbox", "Homeserver")
+            placeholderText: i18nc("@info:placeholder an example homeserver address", "matrix.org")
+            text: appSettings.matrixHomeserver
+            enabled: !matrixManager.loggedIn && !matrixManager.busy
+            // Left blank on purpose when the user id below is a full one: the
+            // homeserver is then in its domain, and asking twice is asking to
+            // have the two disagree.
+            statusMessage: i18nc("@info:whatsthis", "Optional if the user ID below is written in full.")
+        }
+
+        FormCard.FormDelegateSeparator { above: homeserverField; below: delegationSwitch }
+
+        // Only means anything when there is an address above to take at its
+        // word. With the field blank the server can only be found through the
+        // record, so the switch is disabled rather than quietly ignored.
+        FormCard.FormSwitchDelegate {
+            id: delegationSwitch
+            text: i18nc("@option:check whether to follow a homeserver's .well-known redirect",
+                        "Follow the server's published address")
+            description: homeserverField.text.trim().length === 0
+                ? i18nc("@info:whatsthis",
+                        "With no homeserver typed above, the address has to come from the server's published record, so this cannot be turned off.")
+                : i18nc("@info:whatsthis",
+                        "Matrix servers can publish a different address for clients to use. Leave this off to connect to exactly what you typed, which is what to do if the published address is blocked on your network.")
+            checked: appSettings.matrixFollowDelegation
+            enabled: !matrixManager.loggedIn && !matrixManager.busy && homeserverField.text.trim().length > 0
+            // No explicit save: AppSettings connects every generated property's
+            // notifier to its coalescing writer.
+            onToggled: appSettings.matrixFollowDelegation = checked
+        }
+
+        FormCard.FormDelegateSeparator { above: delegationSwitch; below: userField }
+
+        FormCard.FormTextFieldDelegate {
+            id: userField
+            label: i18nc("@label:textbox a Matrix user identifier", "User ID")
+            placeholderText: i18nc("@info:placeholder an example Matrix user id", "@you:matrix.org")
+            text: appSettings.matrixUserId
+            enabled: !matrixManager.loggedIn && !matrixManager.busy
+        }
+
+        FormCard.FormDelegateSeparator { above: userField; below: passwordField }
+
+        FormCard.FormPasswordFieldDelegate {
+            id: passwordField
+            label: i18nc("@label:textbox", "Password")
+            enabled: !matrixManager.loggedIn && !matrixManager.busy
+            // Never written anywhere: it is handed to libQuotient and the
+            // homeserver answers with a token, which is what gets stored.
+            onAccepted: root.signIn()
+        }
+
+        FormCard.FormDelegateSeparator { above: passwordField; below: ssoButton }
+
+        // Single sign-on is a flow of its own and the homeserver already serves
+        // it: open its page in a browser, then bring the token back. The OS may
+        // hand the browser's koutnet:// redirect straight to the app; if not,
+        // the token is pasted below. This stays a link to a browser, not a second
+        // sign-in form.
+        FormCard.FormButtonDelegate {
+            id: ssoButton
+            text: i18nc("@action:button open the homeserver's single sign-on page in a browser", "Sign in with single sign-on")
+            description: i18nc("@info:whatsthis",
+                              "Opens your homeserver's login page in a browser. When it finishes, paste the token below or let the browser hand it back.")
+            enabled: !matrixManager.loggedIn && !matrixManager.busy && homeserverField.text.trim().length > 0
+            onClicked: matrixManager.startSsoLogin(homeserverField.text.trim())
+        }
+
+        FormCard.FormTextFieldDelegate {
+            id: ssoTokenField
+            label: i18nc("@label:textbox a Matrix SSO login token", "SSO token")
+            placeholderText: i18nc("@info:placeholder", "Paste the token from the browser")
+            enabled: !matrixManager.loggedIn && !matrixManager.busy
+        }
+
+        FormCard.FormButtonDelegate {
+            id: ssoUseButton
+            text: i18nc("@action:button submit a pasted SSO token", "Use token")
+            enabled: !matrixManager.loggedIn && !matrixManager.busy && ssoTokenField.text.trim().length > 0
+            onClicked: {
+                matrixManager.completeSsoLogin(ssoTokenField.text.trim())
+                ssoTokenField.text = ""
+            }
+        }
+
+        FormCard.FormDelegateSeparator { above: ssoUseButton; below: actionButton }
+
+        FormCard.FormButtonDelegate {
+            id: actionButton
+            icon.name: matrixManager.loggedIn ? "system-log-out" : "network-connect"
+            text: matrixManager.loggedIn
+                ? i18nc("@action:button", "Sign out")
+                : i18nc("@action:button", "Sign in")
+            enabled: !matrixManager.busy
+            onClicked: {
+                if (matrixManager.loggedIn)
+                    matrixManager.logout()
+                else
+                    root.signIn()
+            }
+        }
+    }
+
+    FormCard.FormHeader {
+        maximumWidth: root.kContentWidth
+        title: i18nc("@title:group", "Session")
+    }
+
+    FormCard.FormCard {
+        Layout.fillWidth: true
+        maximumWidth: root.kContentWidth
+
+        FormCard.FormTextDelegate {
+            text: matrixManager.statusText
+            description: matrixManager.loggedIn && matrixManager.homeserver.length > 0
+                ? matrixManager.homeserver
+                : ""
+
+            leading: QQC2.BusyIndicator {
+                running: matrixManager.busy
+                visible: matrixManager.busy
+                implicitWidth: Kirigami.Units.iconSizes.smallMedium
+                implicitHeight: Kirigami.Units.iconSizes.smallMedium
+            }
+        }
+
+        // Said on the page where the session is, and only while there is one.
+        // A signed-in session whose encryption never started can still read the
+        // rooms that are not encrypted, so it does not look broken from here -
+        // it just silently stops being able to open the ones that are.
+        FormCard.FormTextDelegate {
+            visible: matrixManager.loggedIn
+            icon.name: matrixManager.encryptionActive ? "security-high" : "dialog-warning"
+            text: matrixManager.encryptionActive
+                ? i18nc("@info:status the session can decrypt and encrypt", "Encryption is on for this session")
+                : i18nc("@info:status the session has no encryption keys", "Encryption is off for this session")
+            description: matrixManager.encryptionActive
+                ? i18nc("@info:whatsthis", "Encrypted rooms can be read and written. Until this session is verified, though, other clients may refuse to send it their room keys.")
+                : i18nc("@info:whatsthis", "The encryption keys could not be opened, so encrypted rooms cannot be read or written here. Sign in again to retry.")
+        }
+
+        // Only once there is a session and a key store. Offering this against a
+        // session that cannot verify would be a button that does nothing, which
+        // is the state this page exists to not be in.
+        FormCard.FormButtonDelegate {
+            visible: matrixManager.loggedIn && matrixVerification.available
+            icon.name: "security-medium"
+            text: i18nc("@action:button open the device verification dialog", "Verify this session...")
+            description: i18nc("@info:whatsthis",
+                               "Compare emoji with another Matrix session of yours so that both sides know this one is really you.")
+            onClicked: root.verifySessionsRequested()
+        }
+    }
+
+    Kirigami.InlineMessage {
+        Layout.fillWidth: true
+        Layout.maximumWidth: root.kContentWidth
+        Layout.alignment: Qt.AlignHCenter
+        Layout.topMargin: Kirigami.Units.largeSpacing
+        Layout.leftMargin: Kirigami.Units.largeSpacing
+        Layout.rightMargin: Kirigami.Units.largeSpacing
+
+        type: Kirigami.MessageType.Error
+        // No longer hidden while signed in: a sync that dies under a session the
+        // interface still calls signed in is precisely the failure this used to
+        // swallow. Every state that is not a failure clears lastError, so the
+        // message being there is enough on its own.
+        visible: !matrixManager.busy && matrixManager.lastError.length > 0
+        text: matrixManager.lastError
+    }
+
+    function signIn() {
+        passwordField.statusMessage = ""
+        if (userField.text.trim().length === 0 || passwordField.text.length === 0) {
+            passwordField.statusMessage = i18nc("@info:status", "Enter a user ID and a password.")
+            return
+        }
+        appSettings.matrixHomeserver = homeserverField.text.trim()
+        // Written before the attempt, not after it: the id is worth remembering
+        // when the password was wrong too, and the C++ side only records it
+        // once the token has been granted.
+        appSettings.matrixUserId = userField.text.trim()
+        matrixManager.login(homeserverField.text, userField.text.trim(), passwordField.text)
+        // Cleared immediately: the field is the only copy this side keeps, and
+        // the window can stay open for the rest of the session.
+        passwordField.text = ""
+    }
+}

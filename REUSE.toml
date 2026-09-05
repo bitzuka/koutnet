@@ -1,0 +1,20 @@
+version = 1
+SPDX-PackageName = "KOutNet"
+SPDX-PackageSupplier = "bitzuka <bitzuka.koutnet@gmail.com>"
+SPDX-PackageDownloadLocation = "https://github.com/bitzuka/koutnet"
+
+# Binary assets and plain text that carries no header of its own.
+[[annotations]]
+path = ["src/assets/**", "README.md", ".gitignore", ".git-blame-ignore-revs"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 bitzuka <bitzuka.koutnet@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL"
+
+# Translation catalogs. The template is generated from the sources by
+# Messages.sh; the .po files carry their headers in gettext syntax, which
+# reuse does not read.
+[[annotations]]
+path = ["po/**/*.po", "po/*.pot"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 bitzuka <bitzuka.koutnet@gmail.com>"
+SPDX-License-Identifier = "GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL"
