@@ -100,13 +100,13 @@ int main(int argc, char *argv[])
     KAboutData aboutData(QStringLiteral("koutnet"),
                          i18nc("@title application name", "KOutNet"),
                          QStringLiteral(KOUTNET_VERSION_STRING),
-                         i18nc("@info:whatsthis", "P2P encrypted messenger for LAN, VPN and Matrix"),
+                         i18nc("@info:whatsthis", "P2P encrypted messenger for LAN, VPN and Matrix. Linux only; Windows and macOS are unsupported."),
                          KAboutLicense::GPL_V3,
                          i18nc("@info:credit", "Copyright 2026 bitzuka"));
     aboutData.addAuthor(i18nc("@info:credit", "bitzuka"), i18nc("@info:credit", "Author and maintainer"), QStringLiteral("bitzuka.koutnet@gmail.com"));
     aboutData.setHomepage(QStringLiteral("https://github.com/bitzuka/koutnet"));
     // DrKonqi files crashes here, so point it at a real tracker (metainfo uses github)
-    aboutData.setBugAddress(QByteArrayLiteral("https://bugs.kde.org/enter_bug.cgi?product=koutnet"));
+    aboutData.setBugAddress(QByteArrayLiteral("https://github.com/bitzuka/koutnet/issues"));
     aboutData.setTranslator(i18nc("NAME OF TRANSLATORS", "Your names"), i18nc("EMAIL OF TRANSLATORS", "Your emails"));
     // this is the AppStream id, not the app name; matching them would move QSettings
     // and re-key the Olm pickle libQuotient stores, breaking old encrypted history
