@@ -259,6 +259,7 @@ private Q_SLOTS:
         FileTransferHandler handler;
         QSignalSpy received(&handler, &FileTransferHandler::fileReceived);
         QSignalSpy rejected(&handler, &FileTransferHandler::transferRejected);
+        QSignalSpy saved(&handler, &FileTransferHandler::fileSaved);
 
         handler.setFileDecryptor([](const QString &, const QByteArray &) {
             return QByteArray();
@@ -271,8 +272,35 @@ private Q_SLOTS:
         handler.onChunkMessage(tid, 0, 1, QByteArrayLiteral("ciph"));
 
         QCOMPARE(received.count(), 0);
+        QCOMPARE(saved.count(), 0);
         QCOMPARE(rejected.count(), 1);
         QCOMPARE(handler.pendingTransferCount(), 0);
+    }
+
+    // chunks arrive in reverse order; the file must still assemble correctly
+    void outOfOrderChunksAssembleCorrectly()
+    {
+        FileTransferHandler handler;
+        QSignalSpy saved(&handler, &FileTransferHandler::fileSaved);
+        QSignalSpy rejected(&handler, &FileTransferHandler::transferRejected);
+
+        const QString tid = QStringLiteral("t-ooo");
+        const QByteArray a = QByteArrayLiteral("aaaa");
+        const QByteArray b = QByteArrayLiteral("bbbb");
+        const QByteArray c = QByteArrayLiteral("cccc");
+        handler.onMeta(metaFor(tid, 12, QStringLiteral("ooo.bin")));
+
+        // send 2, 0, 1 instead of 0, 1, 2
+        handler.onChunkMessage(tid, 2, 3, c);
+        QCOMPARE(saved.count(), 0);
+        handler.onChunkMessage(tid, 0, 3, a);
+        QCOMPARE(saved.count(), 0);
+        handler.onChunkMessage(tid, 1, 3, b);
+
+        QCOMPARE(rejected.count(), 0);
+        QCOMPARE(saved.count(), 1);
+        QCOMPARE(handler.pendingTransferCount(), 0);
+        QCOMPARE(handler.pendingBufferedBytes(), 0);
     }
 
     void aConflictingResendKillsTheTransfer()

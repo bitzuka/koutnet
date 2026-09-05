@@ -77,18 +77,18 @@ public:
     {
         m_typingCount++;
     }
-    void sendReaction(const QString &, double, const QString &emoji, bool) override
+    void sendReaction(const QString &, const QVariant &, const QString &emoji, bool) override
     {
         m_reactionCount++;
         m_lastReaction = emoji;
     }
-    bool sendEdit(const QString &, double, const QString &newText) override
+    bool sendEdit(const QString &, const QVariant &, const QString &newText) override
     {
         m_editCount++;
         m_lastEdit = newText;
         return m_sendOk;
     }
-    bool sendDelete(const QString &, double) override
+    bool sendDelete(const QString &, const QVariant &) override
     {
         m_deleteCount++;
         return m_sendOk;

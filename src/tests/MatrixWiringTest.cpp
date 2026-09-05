@@ -30,6 +30,7 @@ private Q_SLOTS:
     void fileStemSeparatesIdsThatUsedToCollide();
     void fileStemIsBounded();
     void fileStemIsStable();
+    void fileStemCannotEscapeTheHistoryDir();
 
     void rowForPlainText();
     void rowForOwnMessage();
@@ -142,6 +143,35 @@ void MatrixWiringTest::fileStemIsStable()
     // And it stays a legal file name.
     QVERIFY(!HistoryManager::stemFor(id).contains(QLatin1Char('/')));
     QVERIFY(!HistoryManager::stemFor(id).contains(QLatin1Char(':')));
+}
+
+void MatrixWiringTest::fileStemCannotEscapeTheHistoryDir()
+{
+    // a hostile chatId must never produce a stem that climbs out of the
+    // history directory, no matter what it contains
+    const QStringList hostile = {
+        QStringLiteral("../../etc/passwd"),
+        QStringLiteral("../../../../etc/shadow"),
+        QStringLiteral("/etc/passwd"),
+        QStringLiteral("..\\..\\Windows\\System32"),
+        QStringLiteral("../.."),
+        QStringLiteral(".."),
+        QStringLiteral("."),
+        QStringLiteral("foo/../../../bar"),
+        QStringLiteral("mx:!room/../../../steal:a.b"),
+        QString(QChar(u'\0')) + QStringLiteral("/../etc/passwd"),
+    };
+    const QString base = QStringLiteral("/fake/history");
+    for (const QString &id : hostile) {
+        const QString stem = HistoryManager::stemFor(id);
+        QVERIFY2(!stem.contains(QLatin1Char('/')), qPrintable(stem));
+        QVERIFY2(!stem.contains(QLatin1Char('\\')), qPrintable(stem));
+        QVERIFY2(stem != QLatin1String("."), qPrintable(stem));
+        QVERIFY2(stem != QLatin1String(".."), qPrintable(stem));
+        // the joined path must stay inside the directory
+        const QString joined = QDir::cleanPath(base + QLatin1Char('/') + stem + QStringLiteral(".json"));
+        QVERIFY2(joined.startsWith(base + QLatin1Char('/')), qPrintable(QStringLiteral("%1 escapes %2 (from chatId %3)").arg(joined, base, id)));
+    }
 }
 
 namespace
