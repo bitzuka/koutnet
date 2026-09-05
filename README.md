@@ -24,12 +24,14 @@ as unsupported until somebody says otherwise.
 
 ## What works
 
-- **Discovery.** UDP broadcast on port 42000, mDNS multicast on 224.0.0.251, a
-  /24 unicast sweep as a fallback where broadcast is filtered, and the Linux
-  ARP cache (`/proc/net/arp`). Peers that none of that reaches can be added
-  by address on the settings page: each presence cycle unicasts them a
-  packet until they answer. A VPN adapter is just another local interface,
-  so the same code covers LAN and tunnel.
+- **Discovery.** UDP broadcast on port 42000, mDNS multicast on 224.0.0.251
+  (IPv4) and ff02::fb (IPv6), a /24 unicast sweep as a fallback where broadcast
+  is filtered, and the Linux ARP/NDP cache (`/proc/net/arp` and
+  `/proc/net/neighbour`). Peers that none of that reaches can be added by
+  address on the settings page: each presence cycle unicasts them a packet until
+  they answer. A VPN adapter is just another local interface, so the same code
+  covers LAN and tunnel. Both IPv4 and IPv6 are supported on dual-stack systems;
+  the transport binds to `QHostAddress::Any` and handles both protocols.
 - **Encryption.** X25519 ECDH over the presence handshake (libsodium's
   crypto_kx), identities signed with Ed25519, XChaCha20-Poly1305 on messages
   and voice frames, Argon2id for the shared group passphrase, and libsodium's
@@ -96,11 +98,12 @@ as unsupported until somebody says otherwise.
 - **Parts of the E2EE support layer.** The session itself is encrypted and
   messages it holds keys for decrypt and send, the key backup unlocks with a
   recovery key, and emoji verification shares room keys from another device.
-  What is still missing is cross-signing and the automatic key gossip between
-  your own devices. A message this device has no key for shows a notice in
-  the timeline instead of its text, and sending to such a room is refused
-  when the session's key store never started. Spaces over Matrix are still to
-  come.
+  Cross-user verification is supported (SAS emoji), and the app signals when
+  cross-signing keys need to be set up. Megolm key gossip between verified
+  devices is handled by libQuotient internally. A message this device has no
+  key for shows a notice in the timeline instead of its text, and sending to
+  such a room is refused when the session's key store never started. Spaces
+  over Matrix are still to come.
 
 - **Telegram and Rocket.Chat.** The seam they would plug into is in place and
   their chat-id prefixes are reserved, but no transport has been written for

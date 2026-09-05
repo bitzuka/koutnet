@@ -50,6 +50,10 @@ Q_SIGNALS:
     // answer incoming call requests with the busy reply while one is live.
     void activeCallsChanged();
 
+    // No session key for this peer — voice frames are being dropped, not sent
+    // in the clear. The UI should tell the user what is going on.
+    void voiceEncryptionUnavailable(QString ip);
+
 private Q_SLOTS:
     void onCaptured(const QByteArray &data);
     void onPeerAudio(const QString &ip, const QByteArray &data);
@@ -61,6 +65,8 @@ private:
     QSet<QString> m_active;
     bool m_muted = false;
     bool m_deafened = false;
+    // one signal per peer, not per frame — avoids spamming the UI
+    QSet<QString> m_warnedNoCrypto;
 };
 
 } // namespace koutnet

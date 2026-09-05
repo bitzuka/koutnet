@@ -152,8 +152,8 @@ Kirigami.ApplicationWindow {
             // Every message in any chat, in either direction, from one place;
             // wiring the four send and receive sites instead breaks at the fifth.
             m.messageAdded.connect(root.onChatActivity)
-            m.reactionToggledLocally.connect((ts, emoji, added) => {
-                root.onLocalReaction(ip, ts, emoji, added)
+            m.reactionToggledLocally.connect((identifier, emoji, added) => {
+                root.onLocalReaction(ip, identifier, emoji, added)
             })
             chatModels[ip] = m
         }
@@ -176,9 +176,9 @@ Kirigami.ApplicationWindow {
     }
 
     // A reaction only leaves the window when the transport can carry it.
-    function onLocalReaction(chatId, ts, emoji, added) {
+    function onLocalReaction(chatId, identifier, emoji, added) {
         if (chatTransport.supportsReactions(chatId))
-            chatTransport.sendReaction(chatId, ts, emoji, added)
+            chatTransport.sendReaction(chatId, identifier, emoji, added)
     }
 
     // Called when a chat is opened and when a message arrives in the one already
@@ -1015,6 +1015,14 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    Connections {
+        target: voiceCallManager
+        function onVoiceEncryptionUnavailable(ip) {
+            root.reportError(i18nc("@info:status %1 is an IP address",
+                "Voice with %1 is muted: no encryption session. Verify the peer first.", ip))
+        }
+    }
+
     // A notification is the only thing here that can be clicked while the window
     // is behind something else, so everything it offers raises the window first.
     Connections {
@@ -1320,14 +1328,8 @@ Kirigami.ApplicationWindow {
                 // in every client that has tried it. sendFailed() reports
                 // whatever went wrong.
                 if (replyId && replyId.length > 0) {
-                    // replyId is the Matrix event id; the bridge resolves an
-                    // event by the row's stamp, so look the stamp up here.
-                    const row = messagesModel ? messagesModel.rowForMsgId(replyId) : -1
-                    const stamp = row >= 0 ? messagesModel.stampForRow(row) : 0
-                    if (stamp > 0)
-                        matrixRooms.sendReply(peerIp, stamp, text)
-                    else
-                        matrixRooms.sendRichText(peerIp, text, "")
+                    // replyId is the Matrix event id; pass it directly.
+                    matrixRooms.sendReply(peerIp, replyId, text)
                 } else if (chatTransport.transportName(peerIp) === "matrix") {
                     // Send formatted when the composer typed markdown; the bridge
                     // derives the HTML body, so plain text stays plain on the wire.
@@ -1449,13 +1451,13 @@ Kirigami.ApplicationWindow {
         // what is left is telling the peer, which needs the address only the
         // window has. Edits and unsends ride the chat's own transport, which
         // knows both how to say them and to whom.
-        onEditCommitted: (stamp, newText) => {
+        onEditCommitted: (msgId, newText) => {
             if (!isSelfChat && chatTransport.supportsEdits(peerIp))
-                chatTransport.sendEdit(peerIp, stamp, newText)
+                chatTransport.sendEdit(peerIp, msgId, newText)
         }
-        onDeleteCommitted: (stamp) => {
+        onDeleteCommitted: (msgId) => {
             if (!isSelfChat && chatTransport.supportsEdits(peerIp))
-                chatTransport.sendDelete(peerIp, stamp)
+                chatTransport.sendDelete(peerIp, msgId)
         }
     }
 

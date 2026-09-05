@@ -75,6 +75,11 @@ public:
     // Cap on the observed peer table: spoofed presences must not grow it without
     // bound, so the oldest entry gives way to a newcomer.
     static constexpr int kMaxPeers = 512;
+    // Presence packets are unsigned (the handshake rides inside them) and
+    // therefore cheaper to forge than any other type.  A per-address cap of
+    // five per second is generous for normal operation while making a spoofed
+    // flood expensive.
+    static constexpr int kMaxPresencePerSec = 5;
 
     bool start();
     void stop();
@@ -166,8 +171,8 @@ public:
     // second ringing window. NetworkManager deliberately does not know
     // VoiceCallManager.
     void setActiveCalls(const QSet<QString> &ips);
-    Q_INVOKABLE void sendMessageEdit(const QString &toIp, const QString &chatId, double ts, const QString &newText);
-    Q_INVOKABLE void sendMessageDelete(const QString &toIp, const QString &chatId, double ts);
+    Q_INVOKABLE void sendMessageEdit(const QString &toIp, const QString &chatId, const QVariant &identifier, const QString &newText);
+    Q_INVOKABLE void sendMessageDelete(const QString &toIp, const QString &chatId, const QVariant &identifier);
     Q_INVOKABLE void sendReadReceipt(const QString &toIp, const QString &chatId);
     Q_INVOKABLE void sendGroupInvite(const QString &gid, const QString &gname, const QString &toIp);
     bool sendFileInternal(const QString &toIp, const QString &filePath, const QByteArray &rawBytes = {}, const QString &filename = QStringLiteral("file"));
@@ -186,12 +191,12 @@ public:
     bool sendText(const QString &chatId, const QString &text) override;
     bool sendFile(const QString &chatId, const QString &localFilePath) override;
     void markRead(const QString &chatId) override;
-    void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added) override;
+    void sendReaction(const QString &chatId, const QVariant &identifier, const QString &emoji, bool added) override;
     void sendTyping(const QString &chatId) override;
     // ChatBackend's ts-keyed edit and unsend, which the window routes through
     // the registry; both resolve to the protocol packets below.
-    bool sendEdit(const QString &chatId, double ts, const QString &newText) override;
-    bool sendDelete(const QString &chatId, double ts) override;
+    bool sendEdit(const QString &chatId, const QVariant &identifier, const QString &newText) override;
+    bool sendDelete(const QString &chatId, const QVariant &identifier) override;
     bool leaveChat(const QString &chatId) override;
     QVariantMap roomInfo(const QString &chatId) const override;
     QVariantList roomMembers(const QString &chatId) const override;
@@ -332,6 +337,8 @@ private:
     QStringList m_staticPeers; // set via setStaticPeers()
     double m_lastScan = 0.0;
     double m_sweepIntervalMs = double(kSweepMinMs); // current /24 sweep gap, grows with backoff
+    // Per-address presence rate limiter: address -> timestamps of recent arrivals.
+    QHash<QString, QVector<double>> m_presenceRate;
 };
 
 } // namespace koutnet

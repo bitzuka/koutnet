@@ -28,12 +28,44 @@ namespace koutnet
 namespace
 {
 
+// Normalise a peer address: strip the IPv4-mapped prefix that dual-stack
+// sockets deliver (e.g. "::ffff:10.0.0.5" -> "10.0.0.5") and drop the
+// zone-id suffix that link-local IPv6 addresses carry on some platforms
+// (e.g. "fe80::1%eth0" -> "fe80::1").
+QString normaliseAddress(const QHostAddress &addr)
+{
+    QString s = addr.toString();
+    if (s.startsWith(QLatin1String("::ffff:")))
+        s = s.mid(7);
+    const int zone = s.indexOf(QLatin1Char('%'));
+    if (zone >= 0)
+        s.truncate(zone);
+    return s;
+}
+
+bool isLoopbackAddress(const QString &addr)
+{
+    return addr == QLatin1String("127.0.0.1") || addr == QLatin1String("::1") || addr == QLatin1String("0.0.0.0") || addr == QLatin1String("::");
+}
+
+bool isLinkLocal(const QString &addr)
+{
+    return addr.startsWith(QLatin1String("169.254.")) || addr.startsWith(QLatin1String("fe80:"));
+}
+
 QString localIpFallback()
 {
+    // Prefer an IPv4 address for the primary host ip: the LAN protocol's /24
+    // sweep and subnet broadcast are IPv4-only, and most LAN peers are IPv4.
     const auto addrs = QNetworkInterface::allAddresses();
     for (const auto &addr : addrs) {
         if (addr.protocol() == QAbstractSocket::IPv4Protocol && !addr.isLoopback())
-            return addr.toString();
+            return normaliseAddress(addr);
+    }
+    // Fall back to any non-loopback address (IPv6 included).
+    for (const auto &addr : addrs) {
+        if (!addr.isLoopback())
+            return normaliseAddress(addr);
     }
     return QStringLiteral("127.0.0.1");
 }
@@ -43,8 +75,8 @@ QSet<QString> allLocalIpsFallback()
     QSet<QString> result;
     const auto addrs = QNetworkInterface::allAddresses();
     for (const auto &addr : addrs) {
-        if (addr.protocol() == QAbstractSocket::IPv4Protocol)
-            result.insert(addr.toString());
+        if (!addr.isLoopback())
+            result.insert(normaliseAddress(addr));
     }
     return result;
 }
@@ -246,9 +278,11 @@ bool NetworkManager::start()
     const quint16 tcpPort = protocol::kTcpPortDefault;
 
     m_udp = new QUdpSocket(this);
-    bool bound = m_udp->bind(QHostAddress::AnyIPv4, udpPort, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
+    // Dual-stack: QHostAddress::Any binds to both IPv4 and IPv6 on systems
+    // that support it, so a single socket receives traffic from either protocol.
+    bool bound = m_udp->bind(QHostAddress::Any, udpPort, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
     if (!bound) {
-        bound = m_udp->bind(QHostAddress::AnyIPv4, udpPort + 1, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
+        bound = m_udp->bind(QHostAddress::Any, udpPort + 1, QUdpSocket::ShareAddress | QUdpSocket::ReuseAddressHint);
     }
     if (!bound) {
         // int(): KLocalizedString has no quint16 substitution overload.
@@ -258,11 +292,13 @@ bool NetworkManager::start()
     m_udpPort = m_udp->localPort();
     connect(m_udp, &QUdpSocket::readyRead, this, &NetworkManager::onUdpReadyRead);
 
+    // mDNS multicast: IPv4 (224.0.0.251) and IPv6 (ff02::fb).
     m_udp->joinMulticastGroup(QHostAddress(QStringLiteral("224.0.0.251")));
+    m_udp->joinMulticastGroup(QHostAddress(QStringLiteral("ff02::fb")));
 
     m_tcpServer = new QTcpServer(this);
-    if (!m_tcpServer->listen(QHostAddress::AnyIPv4, tcpPort)) {
-        if (!m_tcpServer->listen(QHostAddress::AnyIPv4, 0)) {
+    if (!m_tcpServer->listen(QHostAddress::Any, tcpPort)) {
+        if (!m_tcpServer->listen(QHostAddress::Any, 0)) {
             Q_EMIT errorOccurred(i18nc("@info:status %1 is a port number", "TCP listen failed on port %1.", int(tcpPort)));
             return false;
         }
@@ -322,20 +358,32 @@ void NetworkManager::stop()
 
 void NetworkManager::scanArpTable()
 {
-    // Reads the OS ARP cache and pings every neighbour with a presence packet.
-    // Linux: /proc/net/arp, the only parser written so far. Windows and
-    // macOS: TODO, the same via a process-based `arp -a` parse.
+    // Reads the OS ARP/NDP cache and pings every neighbour with a presence
+    // packet.  Linux: /proc/net/arp (IPv4) and /proc/net/neighbour (IPv6).
+    // Windows and macOS: TODO, the same via a process-based `arp -a` parse.
     if (!m_running)
         return;
 
     QSet<QString> ips;
 #ifdef Q_OS_LINUX
+    // IPv4 ARP table.
     QFile arpFile(QStringLiteral("/proc/net/arp"));
     if (arpFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         const auto lines = QString::fromUtf8(arpFile.readAll()).split(QLatin1Char('\n'));
         for (int i = 1; i < lines.size(); ++i) {
             const auto parts = lines[i].split(QLatin1Char(' '), Qt::SkipEmptyParts);
             if (parts.size() >= 4 && parts[2] != QLatin1String("0x0"))
+                ips.insert(parts[0]);
+        }
+    }
+    // IPv6 neighbour table.
+    QFile ndpFile(QStringLiteral("/proc/net/neighbour"));
+    if (ndpFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        const auto lines = QString::fromUtf8(ndpFile.readAll()).split(QLatin1Char('\n'));
+        for (int i = 1; i < lines.size(); ++i) {
+            const auto parts = lines[i].split(QLatin1Char(' '), Qt::SkipEmptyParts);
+            // Column 0 is IP, column 3 is state (0x2 = REACHABLE, 0x4 = STALE, etc.)
+            if (parts.size() >= 4 && parts[3] != QLatin1String("0x0"))
                 ips.insert(parts[0]);
         }
     }
@@ -349,15 +397,15 @@ void NetworkManager::scanArpTable()
     const QByteArray data = protocol::encodeFrame(payload);
     int sent = 0;
     for (const auto &ip : std::as_const(ips)) {
-        if (ip != m_hostIp && !ip.startsWith(QLatin1String("169.254"))) {
-            m_udp->writeDatagram(data, QHostAddress(ip), protocol::kUdpPortDefault);
-            if (m_udpPort != protocol::kUdpPortDefault)
-                m_udp->writeDatagram(data, QHostAddress(ip), m_udpPort);
-            ++sent;
-        }
+        if (ip == m_hostIp || isLinkLocal(ip) || isLoopbackAddress(ip))
+            continue;
+        m_udp->writeDatagram(data, QHostAddress(ip), protocol::kUdpPortDefault);
+        if (m_udpPort != protocol::kUdpPortDefault)
+            m_udp->writeDatagram(data, QHostAddress(ip), m_udpPort);
+        ++sent;
     }
     if (sent > 0)
-        qCDebug(KOUTNET_LOG_NETWORK) << "ARP scan: pinged" << sent << "neighbour(s)";
+        qCDebug(KOUTNET_LOG_NETWORK) << "ARP/NDP scan: pinged" << sent << "neighbour(s)";
 
     QTimer::singleShot(60'000, this, &NetworkManager::scanArpTable);
 }
@@ -421,9 +469,13 @@ void NetworkManager::onBroadcastTimer()
 
     const QJsonObject payload = presencePayload();
     const QByteArray data = protocol::encodeFrame(payload);
+    // mDNS multicast: IPv4 and IPv6.
     m_udp->writeDatagram(data, QHostAddress(QStringLiteral("224.0.0.251")), m_udpPort);
-    if (m_udpPort != protocol::kUdpPortDefault)
+    m_udp->writeDatagram(data, QHostAddress(QStringLiteral("ff02::fb")), m_udpPort);
+    if (m_udpPort != protocol::kUdpPortDefault) {
         m_udp->writeDatagram(data, QHostAddress(QStringLiteral("224.0.0.251")), protocol::kUdpPortDefault);
+        m_udp->writeDatagram(data, QHostAddress(QStringLiteral("ff02::fb")), protocol::kUdpPortDefault);
+    }
 
     QSet<QString> sentBroadcasts;
     const auto interfaces = QNetworkInterface::allInterfaces();
@@ -433,33 +485,70 @@ void NetworkManager::onBroadcastTimer()
             continue;
         const QList<QNetworkAddressEntry> entries = iface.addressEntries();
         for (const auto &entry : std::as_const(entries)) {
-            if (entry.ip().protocol() != QAbstractSocket::IPv4Protocol)
-                continue;
-            const QString bcast = entry.broadcast().toString();
-            if (!bcast.isEmpty() && bcast != QLatin1String("0.0.0.0") && !sentBroadcasts.contains(bcast)) {
-                m_udp->writeDatagram(data, entry.broadcast(), m_udpPort);
-                if (m_udpPort != protocol::kUdpPortDefault)
-                    m_udp->writeDatagram(data, entry.broadcast(), protocol::kUdpPortDefault);
-                sentBroadcasts.insert(bcast);
+            if (entry.ip().protocol() == QAbstractSocket::IPv4Protocol) {
+                // IPv4: subnet broadcast (e.g. 192.168.1.255).
+                const QString bcast = entry.broadcast().toString();
+                if (!bcast.isEmpty() && bcast != QLatin1String("0.0.0.0") && !sentBroadcasts.contains(bcast)) {
+                    m_udp->writeDatagram(data, entry.broadcast(), m_udpPort);
+                    if (m_udpPort != protocol::kUdpPortDefault)
+                        m_udp->writeDatagram(data, entry.broadcast(), protocol::kUdpPortDefault);
+                    sentBroadcasts.insert(bcast);
+                }
+            } else if (entry.ip().protocol() == QAbstractSocket::IPv6Protocol) {
+                // IPv6 has no subnet broadcast; use the all-nodes multicast
+                // (ff02::1) scoped to this interface's link.
+                const QHostAddress allNodes(QStringLiteral("ff02::1"));
+                const QNetworkAddressEntry *e = &entry;
+                const QString key = QStringLiteral("v6:%1").arg(iface.index());
+                if (!sentBroadcasts.contains(key)) {
+                    // Qt does not expose scope id on QNetworkAddressEntry in all
+                    // versions; the socket's outgoing interface index suffices for
+                    // link-local multicast on Linux.
+                    m_udp->writeDatagram(data, allNodes, m_udpPort);
+                    if (m_udpPort != protocol::kUdpPortDefault)
+                        m_udp->writeDatagram(data, allNodes, protocol::kUdpPortDefault);
+                    sentBroadcasts.insert(key);
+                }
+                Q_UNUSED(e)
             }
         }
     }
 
-    // /24 sweep: the noisy part. Only while no peer is known, with an exponential
-    // backoff plus +/-15% jitter so an empty network settles down instead of being
-    // scanned every 30-120s forever. The moment a peer answers we stop sweeping
-    // entirely (the beacon above keeps us visible) and reset the backoff, so the
-    // next empty period starts loud again for a quick first find.
+    // Subnet sweep: only while no peer is known, with exponential backoff
+    // plus jitter so an empty network settles down. Uses the real prefix
+    // length from the interface rather than assuming /24.  Subnets wider
+    // than /20 (4094 hosts) are skipped — sweeping a /16 would send 65k
+    // packets and that is not discovery, that is a scan.
     const double now = nowEpoch();
     const double jitter = 0.85 + 0.30 * QRandomGenerator::global()->generateDouble();
     if (koutnet::discovery::sweepTick(now, m_lastScan, m_sweepIntervalMs, m_peers.isEmpty(), kSweepMinMs, kSweepMaxMs, jitter)) {
-        const auto parts = m_hostIp.split(QLatin1Char('.'));
-        if (parts.size() == 4) {
-            const QString prefix = parts[0] + QLatin1Char('.') + parts[1] + QLatin1Char('.') + parts[2] + QLatin1Char('.');
-            for (int last = 1; last < 255; ++last) {
-                const QString target = prefix + QString::number(last);
-                if (target != m_hostIp)
-                    m_udp->writeDatagram(data, QHostAddress(target), m_udpPort);
+        const QHostAddress hostAddr(m_hostIp);
+        if (hostAddr.protocol() == QAbstractSocket::IPv4Protocol) {
+            // find the interface entry that owns our primary IP so we get
+            // the actual prefix length instead of guessing /24
+            int prefix = 24;
+            const auto ifaces = QNetworkInterface::allInterfaces();
+            for (const auto &iface : ifaces) {
+                for (const auto &entry : iface.addressEntries()) {
+                    if (entry.ip() == hostAddr && entry.prefixLength() > 0) {
+                        prefix = entry.prefixLength();
+                        break;
+                    }
+                }
+            }
+            // skip anything wider than /20 — too many hosts to sweep
+            if (prefix >= 20) {
+                const quint32 ip = hostAddr.toIPv4Address();
+                const quint32 mask = prefix < 32 ? ~((1u << (32 - prefix)) - 1u) : 0xFFFFFFFFu;
+                const quint32 net = ip & mask;
+                const quint32 bcast = net | ~mask;
+                // first usable host = net+1, last = bcast-1
+                for (quint32 addr = net + 1; addr < bcast; ++addr) {
+                    if (addr == ip)
+                        continue;
+                    const QHostAddress target(addr);
+                    m_udp->writeDatagram(data, target, m_udpPort);
+                }
             }
         }
     }
@@ -497,9 +586,7 @@ void NetworkManager::onUdpReadyRead()
 {
     while (m_udp && m_udp->hasPendingDatagrams()) {
         const QNetworkDatagram dg = m_udp->receiveDatagram();
-        QString host = dg.senderAddress().toString();
-        if (host.startsWith(QLatin1String("::ffff:")))
-            host = host.mid(7);
+        const QString host = normaliseAddress(dg.senderAddress());
 
         handleDatagram(host, dg.data());
     }
@@ -724,10 +811,30 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
     const QSet<QString> myIps = m_localIps.isEmpty() ? QSet<QString>{m_hostIp} : m_localIps;
     if (myIps.contains(advertised) || myIps.contains(host))
         return;
-    if (host.isEmpty() || host == QLatin1String("0.0.0.0"))
+    if (host.isEmpty() || host == QLatin1String("0.0.0.0") || host == QLatin1String("::"))
         return; // nowhere to file it and nowhere to answer
 
+    // Presence packets are unsigned (the handshake rides inside them) and
+    // therefore the cheapest packet to forge.  A per-address cap of
+    // kMaxPresencePerSec keeps normal operation unaffected while making a
+    // spoofed flood pointless.
+    {
+        const double now = nowEpoch();
+        QVector<double> &window = m_presenceRate[host];
+        QVector<double> kept;
+        kept.reserve(window.size());
+        for (double t : std::as_const(window)) {
+            if (now - t < 1.0)
+                kept.append(t);
+        }
+        window = kept;
+        if (window.size() >= kMaxPresencePerSec)
+            return;
+        window.append(now);
+    }
+
     QString peerId;
+    bool handshakeProcessed = false;
     if (m_crypto) {
         const QString nonce = msg.value(QStringLiteral("nonce")).toString();
         const double ts = msg.value(QStringLiteral("ts")).toDouble();
@@ -748,6 +855,7 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
             // warning shows, and a refused packet rewriting those aids the spoofer.
             if (m_crypto->processHandshakeFrom(host, msg, &peerId) == CryptoManager::HandshakeOutcome::AddressTaken)
                 return;
+            handshakeProcessed = true;
             // The identity bucket gets the nonce too, or a capture replayed from a
             // second address - where the address bucket above is empty - would slip
             // through and keep a dead peer looking alive. Only when the address was
@@ -782,7 +890,12 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
     } else {
         m_peers[key] = msg;
     }
-    if (!peerId.isEmpty())
+    // Only update the identity→address mapping when a handshake was processed in
+    // this presence (meaning a session was established or refreshed).  A bare
+    // presence without crypto material must not teach the routing table a new
+    // owner for an identity, because an attacker can forge the "from_id" field
+    // in an unsigned packet.
+    if (!peerId.isEmpty() && handshakeProcessed)
         m_peerKeyById[peerId] = key;
 
     if (isNew)
@@ -811,9 +924,7 @@ void NetworkManager::onNewTcpConnection()
 {
     while (m_tcpServer && m_tcpServer->hasPendingConnections()) {
         QTcpSocket *sock = m_tcpServer->nextPendingConnection();
-        QString ip = sock->peerAddress().toString();
-        if (ip.startsWith(QLatin1String("::ffff:")))
-            ip = ip.mid(7);
+        const QString ip = normaliseAddress(sock->peerAddress());
 
         // A reconnecting peer arrives while the last socket is still in the map.
         replaceVoiceSocket(ip, sock);
@@ -993,25 +1104,25 @@ QVector<QString> NetworkManager::deliveryAddresses(const QString &toIp) const
 
 bool NetworkManager::sendPrivate(const QString &text, const QString &toIp)
 {
-    QString outText = text;
-    bool encrypted = false;
+    if (!m_crypto) {
+        Q_EMIT errorOccurred(i18nc("@info:status", "Encryption unavailable - message not sent."));
+        return false;
+    }
 
-    if (m_crypto) {
-        // A session is the better key when there is one.
-        const QString passphrase = m_crypto->hasSession(toIp) ? QString() : m_groupPassphrase;
-        const QString cipherText = m_crypto->encrypt(text, passphrase, toIp);
-        if (cipherText != text) {
-            outText = cipherText;
-            encrypted = true;
-        }
+    // A session is the better key when there is one.
+    const QString passphrase = m_crypto->hasSession(toIp) ? QString() : m_groupPassphrase;
+    const QString cipherText = m_crypto->encrypt(text, passphrase, toIp);
+    if (cipherText.isEmpty() || cipherText == text) {
+        Q_EMIT errorOccurred(i18nc("@info:status", "Failed to encrypt private message - not sent."));
+        return false;
     }
 
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgPrivate;
-    payload[QStringLiteral("text")] = outText;
+    payload[QStringLiteral("text")] = cipherText;
     payload[QStringLiteral("to")] = toIp;
     payload[QStringLiteral("from_ip")] = m_hostIp;
-    payload[QStringLiteral("encrypted")] = encrypted;
+    payload[QStringLiteral("encrypted")] = true;
 
     // One signed datagram copied to every address this peer answers on.
     sendUdpToAll(payload, deliveryAddresses(toIp));
@@ -1102,8 +1213,9 @@ void NetworkManager::sendCallEnd(const QString &toIp)
     sendUdp(payload, toIp);
 }
 
-void NetworkManager::sendReaction(const QString &chatId, double ts, const QString &emoji, bool added)
+void NetworkManager::sendReaction(const QString &chatId, const QVariant &identifier, const QString &emoji, bool added)
 {
+    const double ts = identifier.toDouble();
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgReaction;
     payload[QStringLiteral("from_ip")] = m_hostIp;
@@ -1111,22 +1223,46 @@ void NetworkManager::sendReaction(const QString &chatId, double ts, const QStrin
     payload[QStringLiteral("msg_ts")] = ts;
     payload[QStringLiteral("emoji")] = emoji;
     payload[QStringLiteral("added")] = added;
+    // Reactions carry no user-visible text but the emoji is content the user
+    // expects to be private.  Encrypt under the session when there is one.
+    if (m_crypto && m_crypto->hasSession(chatId)) {
+        const QString plain = emoji;
+        const QString cipher = m_crypto->encrypt(plain, QString(), chatId);
+        if (!cipher.isEmpty() && cipher != plain) {
+            payload[QStringLiteral("emoji")] = cipher;
+            payload[QStringLiteral("encrypted")] = true;
+        }
+    }
     sendUdp(payload, chatId);
 }
 
-void NetworkManager::sendMessageEdit(const QString &toIp, const QString &chatId, double ts, const QString &newText)
+void NetworkManager::sendMessageEdit(const QString &toIp, const QString &chatId, const QVariant &identifier, const QString &newText)
 {
+    const double ts = identifier.toDouble();
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgEdit;
     payload[QStringLiteral("from_ip")] = m_hostIp;
     payload[QStringLiteral("chat_id")] = chatId;
     payload[QStringLiteral("msg_ts")] = ts;
-    payload[QStringLiteral("new_text")] = newText;
+    // Edits contain the corrected text and must be encrypted.
+    if (m_crypto && m_crypto->hasSession(toIp)) {
+        const QString cipher = m_crypto->encrypt(newText, QString(), toIp);
+        if (!cipher.isEmpty() && cipher != newText) {
+            payload[QStringLiteral("new_text")] = cipher;
+            payload[QStringLiteral("encrypted")] = true;
+        } else {
+            Q_EMIT errorOccurred(i18nc("@info:status", "Failed to encrypt edited message - not sent."));
+            return;
+        }
+    } else {
+        payload[QStringLiteral("new_text")] = newText;
+    }
     sendUdp(payload, toIp);
 }
 
-void NetworkManager::sendMessageDelete(const QString &toIp, const QString &chatId, double ts)
+void NetworkManager::sendMessageDelete(const QString &toIp, const QString &chatId, const QVariant &identifier)
 {
+    const double ts = identifier.toDouble();
     QJsonObject payload;
     payload[QStringLiteral("type")] = protocol::kMsgDelete;
     payload[QStringLiteral("from_ip")] = m_hostIp;
@@ -1181,14 +1317,16 @@ bool NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
     }
 
     // Sealed whole before chunking: one nonce and tag for the transfer.
-    bool encrypted = false;
-    if (m_crypto) {
-        const QByteArray sealed = m_crypto->encryptFileBytes(toIp, data);
-        if (!sealed.isEmpty()) {
-            data = sealed;
-            encrypted = true;
-        }
+    if (!m_crypto) {
+        Q_EMIT errorOccurred(i18nc("@info:status %1 is a file path", "Encryption unavailable for %1 - not sent.", filePath));
+        return false;
     }
+    const QByteArray sealed = m_crypto->encryptFileBytes(toIp, data);
+    if (sealed.isEmpty()) {
+        Q_EMIT errorOccurred(i18nc("@info:status %1 is a file path", "Failed to encrypt %1 - not sent.", filePath));
+        return false;
+    }
+    data = sealed;
 
     // The far side refuses anything past this cap.
     if (data.size() > FileTransferHandler::kMaxTransferBytes) {
@@ -1207,7 +1345,7 @@ bool NetworkManager::sendFileInternal(const QString &toIp, const QString &filePa
     meta[QStringLiteral("filename")] = fname;
     meta[QStringLiteral("size")] = data.size();
     meta[QStringLiteral("is_image")] = isImage;
-    meta[QStringLiteral("encrypted")] = encrypted;
+    meta[QStringLiteral("encrypted")] = true;
     meta[QStringLiteral("from_ip")] = m_hostIp;
     meta[QStringLiteral("to")] = toIp.isEmpty() ? QStringLiteral("public") : toIp;
     meta[QStringLiteral("ts")] = nowEpoch();
@@ -1410,16 +1548,16 @@ bool NetworkManager::leaveChat(const QString &)
     return false; // there is nothing to leave: a LAN chat is an address
 }
 
-bool NetworkManager::sendEdit(const QString &chatId, double ts, const QString &newText)
+bool NetworkManager::sendEdit(const QString &chatId, const QVariant &identifier, const QString &newText)
 {
     // A LAN chat's identifier is its address, so both ends are the same string.
-    sendMessageEdit(chatId, chatId, ts, newText);
+    sendMessageEdit(chatId, chatId, identifier, newText);
     return true;
 }
 
-bool NetworkManager::sendDelete(const QString &chatId, double ts)
+bool NetworkManager::sendDelete(const QString &chatId, const QVariant &identifier)
 {
-    sendMessageDelete(chatId, chatId, ts);
+    sendMessageDelete(chatId, chatId, identifier);
     return true;
 }
 

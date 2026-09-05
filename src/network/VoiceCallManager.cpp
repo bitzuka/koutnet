@@ -55,6 +55,7 @@ void VoiceCallManager::hangup(const QString &ip)
         return;
 
     m_active.remove(ip);
+    m_warnedNoCrypto.remove(ip);
     m_audio->mixer().removePeer(ip);
     m_net->disconnectVoice(ip);
 
@@ -111,15 +112,27 @@ void VoiceCallManager::setAudioVolume(qreal volume)
 
 void VoiceCallManager::onCaptured(const QByteArray &data)
 {
-    // A peer we hold no session key for is skipped rather than sent cleartext:
-    // a gap in the audio is recoverable, a leaked call is not.
-    if (!m_crypto)
+    // no crypto at all — every peer is unencryptable
+    if (!m_crypto) {
+        for (const auto &ip : std::as_const(m_active)) {
+            if (!m_warnedNoCrypto.contains(ip)) {
+                m_warnedNoCrypto.insert(ip);
+                Q_EMIT voiceEncryptionUnavailable(ip);
+            }
+        }
         return;
+    }
 
     for (const auto &ip : std::as_const(m_active)) {
         const QByteArray toSend = m_crypto->encryptBytes(ip, data);
-        if (toSend.isEmpty())
+        if (toSend.isEmpty()) {
+            // no session key for this peer — tell the UI once, not every frame
+            if (!m_warnedNoCrypto.contains(ip)) {
+                m_warnedNoCrypto.insert(ip);
+                Q_EMIT voiceEncryptionUnavailable(ip);
+            }
             continue;
+        }
         m_net->sendVoice(ip, toSend);
     }
 }
