@@ -237,27 +237,22 @@ given `--remove`, deletes them.
 
 ## Contributing
 
-Patches, bug reports and questions are welcome. Right now everything happens
-on GitHub: <https://github.com/bitzuka/koutnet>.
-
-KOutNet is heading for the KDE Incubator. Once that goes through, development
-moves to <https://invent.kde.org> and bugs to
-<https://bugs.kde.org/enter_bug.cgi?product=koutnet>, which is already the
-address DrKonqi offers after a crash. Until the move, the GitHub tracker is
-the one that gets read.
-
-A few things worth knowing before sending a patch:
-
-- The build enforces `QT_NO_KEYWORDS` and `QT_NO_CAST_FROM_ASCII`, so it is
-  `Q_SIGNALS`/`Q_SLOTS`/`Q_EMIT` and `QStringLiteral`, not the lowercase
-  keywords and bare string literals.
-- Formatting is the KDE `.clang-format` at the root.
-  `kde_configure_git_pre_commit_hook` installs a pre-commit hook in a git
-  checkout that checks it for you.
-- Every user-visible string needs `i18nc` with a real context. `Messages.sh`
-  regenerates the template.
-- Licensing follows REUSE. `reuse lint` runs in CI, and every new file needs
-  its SPDX header.
+-Patches, bug reports and questions are welcome. Right now everything happens
+-on GitHub: <https://github.com/bitzuka/koutnet>.
+-
+-KOutNet is heading for the KDE Incubator. Once that goes through, development
+-moves to <https://invent.kde.org> and bugs to
+-<https://bugs.kde.org/enter_bug.cgi?product=koutnet>, which is already the
+-address DrKonqi offers after a crash. Until the move, the GitHub tracker is
+-the one that gets read.
++Patches, bug reports and questions are welcome. Development now happens on
++KDE Invent: <https://invent.kde.org/bitzuka/koutnetwork>. GitHub
++(<https://github.com/bitzuka/koutnet>) is kept as a mirror.
++
++KOutNet is heading for the KDE Incubator. Once that goes through, bugs move
++to <https://bugs.kde.org/enter_bug.cgi?product=koutnet>, which is already the
++address DrKonqi offers after a crash. Until then, issues on either host get
++read, but patches against Invent are preferred.
 
 ## License
 
