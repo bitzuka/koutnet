@@ -79,9 +79,9 @@ public:
     bool supportsEdits(const QString &chatId) const override;
     bool supportsReactions(const QString &chatId) const override;
     void sendTyping(const QString &chatId) override;
-    void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added) override;
-    bool sendEdit(const QString &chatId, double ts, const QString &newText) override;
-    bool sendDelete(const QString &chatId, double ts) override;
+    void sendReaction(const QString &chatId, const QVariant &identifier, const QString &emoji, bool added) override;
+    bool sendEdit(const QString &chatId, const QVariant &identifier, const QString &newText) override;
+    bool sendDelete(const QString &chatId, const QVariant &identifier) override;
 
     // ---- features the interface must offer at parity with other clients ----
     // quote-reply to a message already on the timeline; ts is the row stamp the

@@ -133,6 +133,11 @@ public:
     // once at least one of them is verified - see the note on the
     // implementation - so the interface offers verifyOwnDevice() first.
     Q_INVOKABLE void verifyFromVerifiedSessions();
+    // Start verifying another user (cross-signing). userId must be a member of
+    // a room we share; deviceId is the device to verify. The SAS flow is the
+    // same as for own devices but the trust conclusion cross-signs the user's
+    // master key rather than a single device key.
+    Q_INVOKABLE void verifyUser(const QString &userId, const QString &deviceId);
 
     // The four decisions. All of them are no-ops unless the session is in the
     // state that gives them a meaning, so a double click cannot send twice.

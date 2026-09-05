@@ -615,7 +615,9 @@ void ChatModel::toggleReaction(int row, const QString &emoji, const QString &use
         return;
     const MessageEntry &m = m_messages.at(row);
     const bool added = m_reactions->toggle(m.chatId.isEmpty() ? QStringLiteral("public") : m.chatId, m.ts, emoji, username);
-    Q_EMIT reactionToggledLocally(m.ts, emoji, added);
+    // Pass the msgId (opaque identifier) rather than the stamp: a double is
+    // lossy and two events can share a millisecond.
+    Q_EMIT reactionToggledLocally(m.msgId, emoji, added);
 }
 
 void ChatModel::markOwnMessagesRead()
@@ -657,6 +659,13 @@ double ChatModel::stampForRow(int row) const
     if (row < 0 || row >= m_messages.size())
         return 0.0;
     return m_messages.at(row).ts;
+}
+
+QString ChatModel::msgIdForRow(int row) const
+{
+    if (row < 0 || row >= m_messages.size())
+        return {};
+    return m_messages.at(row).msgId;
 }
 
 int ChatModel::rowForStamp(double ts) const

@@ -93,10 +93,10 @@ public:
     {
         Q_UNUSED(chatId)
     }
-    void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added) override
+    void sendReaction(const QString &chatId, const QVariant &identifier, const QString &emoji, bool added) override
     {
         Q_UNUSED(chatId)
-        Q_UNUSED(ts)
+        Q_UNUSED(identifier)
         Q_UNUSED(emoji)
         Q_UNUSED(added)
     }

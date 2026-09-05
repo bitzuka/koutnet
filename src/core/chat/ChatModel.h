@@ -162,6 +162,7 @@ public:
     // identifier on the wire, so rowForStamp() resolves a peer's edit.
     Q_INVOKABLE double stampForRow(int row) const;
     Q_INVOKABLE int rowForStamp(double ts) const;
+    Q_INVOKABLE QString msgIdForRow(int row) const;
     Q_INVOKABLE bool editMessage(int row, const QString &newText);
     Q_INVOKABLE bool deleteMessage(int row);
 
@@ -192,7 +193,7 @@ Q_SIGNALS:
 
     // A reaction toggled on a message in this store; the window routes it
     // to the chat's transport when the backend supports reactions.
-    void reactionToggledLocally(double ts, const QString &emoji, bool added);
+    void reactionToggledLocally(const QVariant &identifier, const QString &emoji, bool added);
 
 private:
     void reload();

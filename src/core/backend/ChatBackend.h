@@ -84,7 +84,7 @@ public:
     virtual bool sendFile(const QString &chatId, const QString &localFilePath) = 0;
     virtual void markRead(const QString &chatId) = 0;
     virtual void sendTyping(const QString &chatId) = 0;
-    virtual void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added) = 0;
+    virtual void sendReaction(const QString &chatId, const QVariant &identifier, const QString &emoji, bool added) = 0;
     virtual bool leaveChat(const QString &chatId) = 0;
 
     // Rewriting a message already on the server replaces it there; deleting it
@@ -92,17 +92,21 @@ public:
     // unsend. Defaults refuse, so a transport without edits answers the same
     // way it answers a message it cannot carry - and the capability flags keep
     // the window from asking in the first place.
-    virtual bool sendEdit(const QString &chatId, double ts, const QString &newText)
+    //
+    // identifier: a QVariant carrying either a double (LAN stamp) or a string
+    // (Matrix event id).  Each backend resolves it to whatever its protocol
+    // needs.
+    virtual bool sendEdit(const QString &chatId, const QVariant &identifier, const QString &newText)
     {
         Q_UNUSED(chatId)
-        Q_UNUSED(ts)
+        Q_UNUSED(identifier)
         Q_UNUSED(newText)
         return false;
     }
-    virtual bool sendDelete(const QString &chatId, double ts)
+    virtual bool sendDelete(const QString &chatId, const QVariant &identifier)
     {
         Q_UNUSED(chatId)
-        Q_UNUSED(ts)
+        Q_UNUSED(identifier)
         return false;
     }
 

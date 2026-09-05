@@ -49,22 +49,22 @@ void ChatBackendRegistry::sendTyping(const QString &chatId)
         backend->sendTyping(chatId);
 }
 
-void ChatBackendRegistry::sendReaction(const QString &chatId, double ts, const QString &emoji, bool added)
+void ChatBackendRegistry::sendReaction(const QString &chatId, const QVariant &identifier, const QString &emoji, bool added)
 {
     if (ChatBackend *backend = backendFor(chatId))
-        backend->sendReaction(chatId, ts, emoji, added);
+        backend->sendReaction(chatId, identifier, emoji, added);
 }
 
-bool ChatBackendRegistry::sendEdit(const QString &chatId, double ts, const QString &newText)
+bool ChatBackendRegistry::sendEdit(const QString &chatId, const QVariant &identifier, const QString &newText)
 {
     ChatBackend *backend = backendFor(chatId);
-    return backend && backend->sendEdit(chatId, ts, newText);
+    return backend && backend->sendEdit(chatId, identifier, newText);
 }
 
-bool ChatBackendRegistry::sendDelete(const QString &chatId, double ts)
+bool ChatBackendRegistry::sendDelete(const QString &chatId, const QVariant &identifier)
 {
     ChatBackend *backend = backendFor(chatId);
-    return backend && backend->sendDelete(chatId, ts);
+    return backend && backend->sendDelete(chatId, identifier);
 }
 
 bool ChatBackendRegistry::leaveChat(const QString &chatId)

@@ -50,10 +50,10 @@ Kirigami.Page {
     signal ownProfileRequested(Item anchorItem)
     signal newChatRequested()
     signal forwardRequested(int row)
-    // Raised after this page's own model has already been changed. The stamp
+    // Raised after this page's own model has already been changed. The msgId
     // rather than the row: a row number means nothing on the other end of a socket.
-    signal editCommitted(double stamp, string newText)
-    signal deleteCommitted(double stamp)
+    signal editCommitted(string msgId, string newText)
+    signal deleteCommitted(string msgId)
     signal typingNotice()
     signal notifyRequested(string text)
     signal readReached()
@@ -361,18 +361,18 @@ Kirigami.Page {
     function commitEdit(row, newText) {
         if (!root.messagesModel)
             return
-        const stamp = root.messagesModel.stampForRow(row)
+        const msgId = root.messagesModel.msgIdForRow(row)
         if (root.messagesModel.editMessage(row, newText))
-            root.editCommitted(stamp, newText)
+            root.editCommitted(msgId, newText)
     }
 
     function commitDelete(row) {
         if (!root.messagesModel)
             return
         // Read before the row goes, or there is nothing left to read it from.
-        const stamp = root.messagesModel.stampForRow(row)
+        const msgId = root.messagesModel.msgIdForRow(row)
         if (root.messagesModel.deleteMessage(row))
-            root.deleteCommitted(stamp)
+            root.deleteCommitted(msgId)
     }
 
     function startReply(author, excerpt, msgId) {
@@ -386,9 +386,8 @@ Kirigami.Page {
         // Pinning is a Matrix room feature; a LAN peer has no room to pin to.
         if (chatTransport.transportName(root.peerIp) !== "matrix" || !root.messagesModel)
             return
-        const row = root.messagesModel.rowForMsgId(msgId)
-        if (row >= 0)
-            matrixRooms.pinMessage(root.peerIp, root.messagesModel.stampForRow(row))
+        // Pass the event id directly: it is exact and cannot collide.
+        matrixRooms.pinMessage(root.peerIp, msgId)
     }
 
     function clearReply() {

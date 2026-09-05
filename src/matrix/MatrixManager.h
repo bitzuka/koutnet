@@ -145,6 +145,9 @@ Q_SIGNALS:
     void keyBackupUnlocked();
     // the typed string did not unlock the backup (wrong key, or none behind it)
     void keyBackupFailed(QString reason);
+    // the account has no cross-signing keys yet; the UI should offer to set
+    // them up so other devices and users can verify this session
+    void crossSigningRequired();
 
 private:
     void setState(State state, const QString &error = QString());

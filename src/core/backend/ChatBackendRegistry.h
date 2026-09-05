@@ -40,9 +40,9 @@ public:
     Q_INVOKABLE bool sendFile(const QString &chatId, const QString &localFilePath);
     Q_INVOKABLE void markRead(const QString &chatId);
     Q_INVOKABLE void sendTyping(const QString &chatId);
-    Q_INVOKABLE void sendReaction(const QString &chatId, double ts, const QString &emoji, bool added);
-    Q_INVOKABLE bool sendEdit(const QString &chatId, double ts, const QString &newText);
-    Q_INVOKABLE bool sendDelete(const QString &chatId, double ts);
+    Q_INVOKABLE void sendReaction(const QString &chatId, const QVariant &identifier, const QString &emoji, bool added);
+    Q_INVOKABLE bool sendEdit(const QString &chatId, const QVariant &identifier, const QString &newText);
+    Q_INVOKABLE bool sendDelete(const QString &chatId, const QVariant &identifier);
     Q_INVOKABLE bool leaveChat(const QString &chatId);
     Q_INVOKABLE QVariantMap roomInfo(const QString &chatId) const;
     Q_INVOKABLE QVariantList roomMembers(const QString &chatId) const;

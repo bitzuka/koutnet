@@ -222,6 +222,13 @@ Quotient::Connection *MatrixManager::makeConnection()
         qCWarning(KOUTNET_LOG_MATRIX) << "matrix session:" << message;
         Q_EMIT sessionError(message);
     });
+    // The account has no cross-signing keys. This happens on a fresh account
+    // or on one whose keys were reset; until the master, self-signing and
+    // user-signing keys exist, other devices will not send us room keys.
+    connect(c, &Quotient::Connection::crossSigningSetupRequired, this, [this]() {
+        qCInfo(KOUTNET_LOG_MATRIX) << "cross-signing keys not found; setup required";
+        Q_EMIT crossSigningRequired();
+    });
     connect(c, &Quotient::Connection::loginError, this, [this](const QString &message, const QString &details) {
         m_pendingUser.clear();
         m_pendingPassword.clear();

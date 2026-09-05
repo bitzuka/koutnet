@@ -1074,14 +1074,16 @@ void MatrixRoomBridge::sendTyping(const QString &chatId)
     m_manager->connection()->callApi<SetTypingJob>(m_manager->connection()->userId(), room->id(), true, 10000);
 }
 
-void MatrixRoomBridge::sendReaction(const QString &chatId, double ts, const QString &emoji, bool added)
+void MatrixRoomBridge::sendReaction(const QString &chatId, const QVariant &identifier, const QString &emoji, bool added)
 {
     Room *room = roomFor(chatId);
-    // the event id is resolved from the stamp the window filed the row under;
-    // an event older than the loaded timeline has no stamp here and no reaction
-    // can be sent - the window offers none either, since a row never shown
-    // cannot be reacted to.
-    const QString eventId = m_tsToEventId.value(chatId).value(ts);
+    // identifier is either a string (event id) or a double (stamp).  The string
+    // path is preferred: it is exact and cannot collide.
+    QString eventId;
+    if (identifier.canConvert<QString>())
+        eventId = identifier.toString();
+    else
+        eventId = m_tsToEventId.value(chatId).value(identifier.toDouble());
     if (room == nullptr || eventId.isEmpty() || emoji.isEmpty())
         return;
 
@@ -1112,12 +1114,16 @@ void MatrixRoomBridge::sendReaction(const QString &chatId, double ts, const QStr
     }
 }
 
-bool MatrixRoomBridge::sendEdit(const QString &chatId, double ts, const QString &newText)
+bool MatrixRoomBridge::sendEdit(const QString &chatId, const QVariant &identifier, const QString &newText)
 {
     if (newText.trimmed().isEmpty())
         return false;
     Room *room = roomFor(chatId);
-    const QString eventId = m_tsToEventId.value(chatId).value(ts);
+    QString eventId;
+    if (identifier.canConvert<QString>())
+        eventId = identifier.toString();
+    else
+        eventId = m_tsToEventId.value(chatId).value(identifier.toDouble());
     if (room == nullptr || eventId.isEmpty())
         return false;
     if (!canSendEncrypted(room)) {
@@ -1132,10 +1138,14 @@ bool MatrixRoomBridge::sendEdit(const QString &chatId, double ts, const QString 
     return true;
 }
 
-bool MatrixRoomBridge::sendDelete(const QString &chatId, double ts)
+bool MatrixRoomBridge::sendDelete(const QString &chatId, const QVariant &identifier)
 {
     Room *room = roomFor(chatId);
-    const QString eventId = m_tsToEventId.value(chatId).value(ts);
+    QString eventId;
+    if (identifier.canConvert<QString>())
+        eventId = identifier.toString();
+    else
+        eventId = m_tsToEventId.value(chatId).value(identifier.toDouble());
     if (room == nullptr || eventId.isEmpty())
         return false;
 

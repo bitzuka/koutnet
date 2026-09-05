@@ -368,6 +368,30 @@ void MatrixVerification::verifyFromVerifiedSessions()
     connection()->startSelfVerification();
 }
 
+void MatrixVerification::verifyUser(const QString &userId, const QString &deviceId)
+{
+    auto *c = connection();
+    if (!available() || userId.isEmpty() || deviceId.isEmpty())
+        return;
+    if (!m_session.isNull())
+        return;
+    // Do not allow self-verification through this path; use verifyOwnDevice()
+    // for that.
+    if (userId == c->userId()) {
+        verifyOwnDevice(deviceId);
+        return;
+    }
+
+    Session *session = c->startKeyVerificationSession(userId, deviceId);
+    if (session == nullptr) {
+        qCWarning(KOUTNET_LOG_MATRIX) << "libQuotient refused to start a cross-user verification with" << userId << deviceId;
+        return;
+    }
+    m_incoming = false;
+    session->sendRequest();
+    Q_EMIT changed();
+}
+
 void MatrixVerification::acceptRequest()
 {
     if (m_session.isNull() || !awaitingAccept())

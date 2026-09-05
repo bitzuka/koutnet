@@ -469,7 +469,7 @@ Kirigami.ScrollablePage {
                         QQC2.Button {
                             icon.name: "pin-remove"
                             text: i18nc("@action:button unpin a message", "Unpin")
-                            onClicked: matrixRooms.unpinMessage(root.chatId, pinDelegate.modelData.ts)
+                            onClicked: matrixRooms.unpinMessage(root.chatId, pinDelegate.modelData.eventId)
                         }
                     }
                 }
