@@ -2,14 +2,13 @@
 <!-- SPDX-FileCopyrightText: 2026 bitzuka <bitzuka.koutnet@gmail.com> -->
 <!-- SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL -->
 <component type="desktop-application">
-  <id>org.kde.koutnet</id>
+  <id>io.github.bitzuka.koutnet</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-only OR LicenseRef-KDE-Accepted-GPL</project_license>
-  <!-- project_group is not set: the project is not part of KDE yet, and
-       claiming affiliation before incubation is not honest. The org.kde id
-       stays because changing it would break the Olm pickle key path and
-       the QSettings file; the group tag is the one that matters to a
-       reviewer. -->
+  <!-- The id was org.kde.koutnet until the project dropped the KDE
+       project_group claim. It is now io.github.bitzuka.koutnet to match
+       the actual hosting. If the project enters KDE incubation the id
+       moves back under org.kde. -->
 
   <name>KOutNet</name>
   <summary>Encrypted messenger for local networks, VPNs and Matrix</summary>
@@ -28,7 +27,7 @@
     </p>
   </description>
 
-  <launchable type="desktop-id">org.kde.koutnet.desktop</launchable>
+  <launchable type="desktop-id">io.github.bitzuka.koutnet.desktop</launchable>
   <url type="homepage">https://github.com/bitzuka/koutnet</url>
   <url type="bugtracker">https://github.com/bitzuka/koutnet/issues</url>
   <url type="vcs-browser">https://github.com/bitzuka/koutnet</url>

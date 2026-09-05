@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
     aboutData.setTranslator(i18nc("NAME OF TRANSLATORS", "Your names"), i18nc("EMAIL OF TRANSLATORS", "Your emails"));
     // this is the AppStream id, not the app name; matching them would move QSettings
     // and re-key the Olm pickle libQuotient stores, breaking old encrypted history
-    aboutData.setDesktopFileName(QStringLiteral("org.kde.koutnet"));
+    aboutData.setDesktopFileName(QStringLiteral("io.github.bitzuka.koutnet"));
     KAboutData::setApplicationData(aboutData);
 
     // call this after setApplicationData, else QSettings lands in the wrong file
@@ -124,9 +124,9 @@ int main(int argc, char *argv[])
     aboutData.processCommandLine(&parser);
 
     // Wayland takes the icon from the desktop file app_id; X11 uses the hint below
-    QGuiApplication::setDesktopFileName(QStringLiteral("org.kde.koutnet"));
+    QGuiApplication::setDesktopFileName(QStringLiteral("io.github.bitzuka.koutnet"));
     // resources live under the URI path, not /qt/qml (older CMake resource policy)
-    const QIcon appIcon(QStringLiteral(":/koutnet/app/assets/512-apps-org.kde.koutnet.png"));
+    const QIcon appIcon(QStringLiteral(":/koutnet/app/assets/512-apps-io.github.bitzuka.koutnet.png"));
     if (appIcon.isNull())
         qCWarning(KOUTNET_LOG_APP, "application icon missing from the QML module resources");
     app.setWindowIcon(appIcon);

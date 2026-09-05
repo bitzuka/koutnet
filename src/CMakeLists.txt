@@ -297,7 +297,7 @@ qt_add_qml_module(KOutNet
         qml/call/ActiveCallWindow.qml
         qml/welcome/WelcomeScreen.qml
     RESOURCES
-        assets/512-apps-org.kde.koutnet.png
+        assets/512-apps-io.github.bitzuka.koutnet.png
 )
 
 # The settings class is generated from the kcfg rather than written by hand: the
@@ -333,9 +333,9 @@ target_link_libraries(KOutNet PRIVATE
 install(TARGETS KOutNet ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 
 ki18n_install(${CMAKE_CURRENT_SOURCE_DIR}/../po)
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/org.kde.koutnet.desktop
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/io.github.bitzuka.koutnet.desktop
         DESTINATION ${KDE_INSTALL_APPDIR})
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/org.kde.koutnet.metainfo.xml
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/io.github.bitzuka.koutnet.metainfo.xml
         DESTINATION ${KDE_INSTALL_METAINFODIR})
 # Named after the KAboutData component name rather than the application name,
 # because that is what NotificationManager sets on every KNotification it makes.
@@ -345,7 +345,7 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/../packaging/koutnet.notifyrc
 # what ecm_install_icons reads it out of. It is still a single 512px bitmap: a
 # scalable icon is what this actually wants, and drawing one is its own job.
 ecm_install_icons(
-    ICONS ${CMAKE_CURRENT_SOURCE_DIR}/assets/512-apps-org.kde.koutnet.png
+    ICONS ${CMAKE_CURRENT_SOURCE_DIR}/assets/512-apps-io.github.bitzuka.koutnet.png
     DESTINATION ${KDE_INSTALL_ICONDIR}
 )
 # Lets a bug reporter find the category names without reading the source.
