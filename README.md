@@ -32,12 +32,13 @@ as unsupported until somebody says otherwise.
   they answer. A VPN adapter is just another local interface, so the same code
   covers LAN and tunnel. Both IPv4 and IPv6 are supported on dual-stack systems;
   the transport binds to `QHostAddress::Any` and handles both protocols.
-- **Encryption.** X25519 ECDH over the presence handshake (libsodium's
-  crypto_kx), identities signed with Ed25519, XChaCha20-Poly1305 on messages
-  and voice frames, Argon2id for the shared group passphrase, and libsodium's
-  crypto_auth (HMAC-SHA-512/256) on control packets. A replay window over nonce
-  and timestamp, plus per-IP rate limiting, both with hard caps so a flood
-  cannot grow them without bound.
+- **Encryption.** Noise_XX handshake over the presence exchange: X25519 ECDH
+  derives a symmetric session key via HKDF-SHA256, identities signed with
+  Ed25519, XChaCha20-Poly1305 on messages and voice frames, Argon2id for the
+  shared group passphrase. Counter-based replay protection (high-water mark on
+  the nonce counter, keyed on identity so a capture from another address doesn't
+  help) plus per-IP rate limiting, both with hard caps so a flood cannot grow
+  them without bound.
 - **File encryption.** File bytes are sealed with the session key before
   chunking, with a tag of its own so a file can never be replayed as a voice
   frame. A peer without a session for the sender still gets the old
@@ -237,22 +238,13 @@ given `--remove`, deletes them.
 
 ## Contributing
 
--Patches, bug reports and questions are welcome. Right now everything happens
--on GitHub: <https://github.com/bitzuka/koutnet>.
--
--KOutNet is heading for the KDE Incubator. Once that goes through, development
--moves to <https://invent.kde.org> and bugs to
--<https://bugs.kde.org/enter_bug.cgi?product=koutnet>, which is already the
--address DrKonqi offers after a crash. Until the move, the GitHub tracker is
--the one that gets read.
-+Patches, bug reports and questions are welcome. Development now happens on
-+KDE Invent: <https://invent.kde.org/bitzuka/koutnetwork>. GitHub
-+(<https://github.com/bitzuka/koutnet>) is kept as a mirror.
-+
-+KOutNet is heading for the KDE Incubator. Once that goes through, bugs move
-+to <https://bugs.kde.org/enter_bug.cgi?product=koutnet>, which is already the
-+address DrKonqi offers after a crash. Until then, issues on either host get
-+read, but patches against Invent are preferred.
+Patches, bug reports and questions are welcome. Development happens on KDE
+Invent: <https://invent.kde.org/bitzuka/koutnetwork>. GitHub
+(<https://github.com/bitzuka/koutnet>) is kept as a mirror.
+
+Bugs go to <https://bugs.kde.org/enter_bug.cgi?product=koutnet>, which is
+already the address DrKonqi offers after a crash. Patches against Invent are
+preferred, but issues on either host get read.
 
 ## License
 

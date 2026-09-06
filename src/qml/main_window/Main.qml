@@ -409,6 +409,31 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // CryptoManager signals: secret store failures and identity changes are not
+    // things the user should discover by accident.  Every degradation gets a
+    // visible banner so the user can decide whether to fix the store or accept
+    // the weaker fallback.
+    Connections {
+        target: cryptoManager
+
+        function onStoreDegraded(reason) {
+            root.notify(i18nc("@info:status %1 is why the store failed",
+                              "Secret store unavailable (%1). "
+                              + "Keys are stored in an encrypted file for this session only "
+                              + "and will be lost on restart.  Fix the store to keep your identity.",
+                              reason),
+                        Kirigami.MessageType.Warning)
+        }
+
+        function onPlaintextKeysLeftInConfig(reason) {
+            root.notify(i18nc("@info:status %1 explains why the deletion failed",
+                              "Your private keys are still readable in the config file (%1). "
+                              + "Delete the identity_priv_b64 and dh_priv_b64 entries by hand.",
+                              reason),
+                        Kirigami.MessageType.Error)
+        }
+    }
+
     // peersModel.count is read only to register a dependency, so this
     // re-evaluates as peers come and go.
     function peerInfoFor(ip) {

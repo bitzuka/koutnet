@@ -68,17 +68,12 @@ public:
     // jitter up to the cap so an empty network is not hammered forever.
     static constexpr int kSweepMinMs = 2000;
     static constexpr int kSweepMaxMs = 120000;
-    // How many addresses one message is copied to. The list comes from the peer, and
-    // one advertising five thousand of them would have us send five thousand datagrams
-    // per keystroke. Four covers a LAN address, a VPN address and a spare.
+    // Max addresses per message. Four is enough for LAN + VPN + spare.
     static constexpr int kMaxDeliveryAddresses = 4;
     // Cap on the observed peer table: spoofed presences must not grow it without
     // bound, so the oldest entry gives way to a newcomer.
     static constexpr int kMaxPeers = 512;
-    // Presence packets are unsigned (the handshake rides inside them) and
-    // therefore cheaper to forge than any other type.  A per-address cap of
-    // five per second is generous for normal operation while making a spoofed
-    // flood expensive.
+    // Presence is unsigned (handshake rides inside), so cap at 5/s per address.
     static constexpr int kMaxPresencePerSec = 5;
 
     bool start();
@@ -225,8 +220,7 @@ Q_SIGNALS:
     void fileChunkBytes(QString tid, int idx, int total, QByteArray chunk); // file_data -> FileTransferHandler
     void groupInvite(QString groupId, QString name, QString fromIp);
     void errorOccurred(QString message);
-    // fromIp is the address the packet arrived on, which is the key a conversation is
-    // filed under - a username is a string a peer chooses, and two can match.
+    // fromIp is the address the packet arrived on — conversations are keyed by address.
     void typing(QString username, QString chatId, QString fromIp);
     void voiceConnected(QString ip);
     void voiceDisconnected(QString ip);
@@ -339,6 +333,15 @@ private:
     double m_sweepIntervalMs = double(kSweepMinMs); // current /24 sweep gap, grows with backoff
     // Per-address presence rate limiter: address -> timestamps of recent arrivals.
     QHash<QString, QVector<double>> m_presenceRate;
+    // Counter-based replay guard for presence packets: source address -> last
+    // accepted nonce counter.  Separate from CryptoManager's session counters
+    // because presence is broadcast and unsigned, so there is no session yet.
+    QHash<QString, quint64> m_lastPresenceNonce;
+    // Monotonic counter for outgoing presence nonces, incremented with each
+    // broadcast.  Replaces the old random hex nonce so receivers can do O(1)
+    // counter-based replay detection instead of the old timestamp window.
+    // Mutable because presencePayload() is const.
+    mutable quint64 m_presenceNonceCounter = 0;
 };
 
 } // namespace koutnet

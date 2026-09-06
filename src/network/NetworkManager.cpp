@@ -95,15 +95,6 @@ double nowEpoch()
     return QDateTime::currentMSecsSinceEpoch() / 1000.0;
 }
 
-// Canonical bytes used for HMAC sign/verify: CBOR of the payload with "_sig"
-// removed (or absent). Both sides must build this identically; protocol::
-// canonicalBytes() is the single source of truth so the wire and the signature
-// never drift apart again.
-QByteArray signableBytes(const QJsonObject &obj)
-{
-    return protocol::canonicalBytes(obj);
-}
-
 // Packet types accepted from a host we hold no session key for. Presence has to be
 // here because it carries the handshake, so requiring a signature on it would mean
 // no peer could ever get one. Keep this list at one entry.
@@ -423,7 +414,10 @@ QJsonObject NetworkManager::presencePayload() const
     payload[QStringLiteral("version")] = QStringLiteral("2.0");
     payload[QStringLiteral("protocol_version")] = protocol::kProtocolVersion;
     payload[QStringLiteral("ts")] = nowEpoch();
-    payload[QStringLiteral("nonce")] = randomHex(8);
+    // Counter-based nonce: a monotonic 64-bit counter instead of random bytes.
+    // Receivers check that it is strictly greater than the last one they saw
+    // from this sender, which is O(1) with no cache and no TTL.
+    payload[QStringLiteral("nonce")] = QString::number(m_presenceNonceCounter++, 16);
 
     if (m_crypto) {
         const QJsonObject hs = m_crypto->handshakePayload();
@@ -514,11 +508,8 @@ void NetworkManager::onBroadcastTimer()
         }
     }
 
-    // Subnet sweep: only while no peer is known, with exponential backoff
-    // plus jitter so an empty network settles down. Uses the real prefix
-    // length from the interface rather than assuming /24.  Subnets wider
-    // than /20 (4094 hosts) are skipped — sweeping a /16 would send 65k
-    // packets and that is not discovery, that is a scan.
+    // Subnet sweep: only while no peer is known, with backoff + jitter.
+    // Uses real prefix length, skips subnets wider than /20 (too many hosts).
     const double now = nowEpoch();
     const double jitter = 0.85 + 0.30 * QRandomGenerator::global()->generateDouble();
     if (koutnet::discovery::sweepTick(now, m_lastScan, m_sweepIntervalMs, m_peers.isEmpty(), kSweepMinMs, kSweepMaxMs, jitter)) {
@@ -611,29 +602,37 @@ void NetworkManager::handleDatagram(const QString &host, const QByteArray &data)
         return;
     }
 
-    // HMAC verification on the CBOR map so canonical bytes match the signer's.
-    // Presence is exempt: it is broadcast and never carries a _sig.
+    // Noise_XX handles authentication: the session key is derived from the X25519
+    // key exchange and HKDF, so there is no separate HMAC to verify.  The replay
+    // guard below uses a counter-based nonce instead of the old timestamp window.
     if (m_crypto && !type.isEmpty() && !allowedUnsigned(type)) {
         if (m_crypto && !m_crypto->checkRate(host))
             return; // dropped - over rate limit
 
         const QString claimed = map.value(QStringLiteral("from_id")).toString();
-        const QString peerId = m_crypto->hasSession(claimed) ? claimed : m_crypto->identityForAddress(host);
-        if (!m_crypto->hasSession(peerId)) {
+        if (claimed.isEmpty()) {
             Q_EMIT errorOccurred(i18nc("@info:status %1 is a message type, %2 a host address", "Unauthenticated %1 from %2 - dropping.", type, host));
             return;
         }
-        const QString sig = map.value(QStringLiteral("_sig")).toString();
-        if (sig.isEmpty() || !m_crypto->verifyPacket(peerId, protocol::canonicalBytes(map), sig)) {
-            Q_EMIT errorOccurred(i18nc("@info:status %1 is a host address", "HMAC verification failed from %1 - dropping.", host));
+        if (!m_crypto->hasSession(claimed)) {
+            Q_EMIT errorOccurred(i18nc("@info:status %1 is a message type, %2 a host address", "Unauthenticated %1 from %2 - dropping.", type, host));
             return;
         }
+        // If this address is pinned to a different identity, the claimed
+        // from_id is an impersonation attempt.
+        const QString addressIdentity = m_crypto->identityForAddress(host);
+        if (!addressIdentity.isEmpty() && addressIdentity != claimed) {
+            Q_EMIT errorOccurred(i18nc("@info:status %1 is a message type, %2 a host address", "Impostor %1 from %2 - dropping.", type, host));
+            return;
+        }
+        const QString peerId = claimed;
 
-        // Layer 5 - replay guard, on the identity. The nonce and timestamp are inside
-        // the signature, so a replay verifies as happily without this check.
-        const QString nonce = map.value(QStringLiteral("nonce")).toString();
-        if (!nonce.isEmpty() && !m_crypto->checkReplay(peerId, nonce, map.value(QStringLiteral("ts")).toDouble())) {
-            return; // replayed or outside the timestamp window
+        // Layer 5 - replay guard, on the identity, using a counter-based nonce.
+        // The nonce is a big-endian 64-bit counter that must be strictly greater
+        // than the last one accepted from this peer.  No cache, no TTL.
+        const quint64 nonceCounter = map.value(QStringLiteral("nonce")).toString().toULongLong(nullptr, 16);
+        if (!m_crypto->checkReplay(peerId, nonceCounter)) {
+            return; // replayed or out-of-order
         }
 
         // from_ip is where the sender believes it lives, not what the peer is filed
@@ -836,35 +835,37 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
     QString peerId;
     bool handshakeProcessed = false;
     if (m_crypto) {
-        const QString nonce = msg.value(QStringLiteral("nonce")).toString();
-        const double ts = msg.value(QStringLiteral("ts")).toDouble();
+        const QString nonceStr = msg.value(QStringLiteral("nonce")).toString();
+        const quint64 nonceCounter = nonceStr.toULongLong(nullptr, 16);
 
         if (msg.contains(QStringLiteral("dh_pub"))) {
-            // The replay gate runs before the handshake, not after it: a captured
-            // presence would otherwise re-derive the session every couple of
-            // seconds until this check was reached. Keyed on the address because
-            // the identity is not known yet.
-            if (nonce.isEmpty() || !m_crypto->checkReplay(host, nonce, ts))
+            // Counter-based replay guard on the source address: the nonce must be
+            // strictly greater than the last one we saw from this address.  This
+            // runs before the handshake, so the identity is not known yet.
+            auto prevIt = m_lastPresenceNonce.constFind(host);
+            if (prevIt != m_lastPresenceNonce.constEnd() && nonceCounter <= *prevIt)
                 return;
+            m_lastPresenceNonce[host] = nonceCounter;
+
             // Whether the address already knew its owner when the gate above ran.
-            // The handshake below is what teaches an unknown address its owner,
-            // which is also why the gate above could not have used the identity.
             const QString ownerBefore = m_crypto->identityForAddress(host);
-            // Someone new at an address a peer we still hold a session with is using.
-            // The peer record must survive it - it holds the name and fingerprint the
-            // warning shows, and a refused packet rewriting those aids the spoofer.
             if (m_crypto->processHandshakeFrom(host, msg, &peerId) == CryptoManager::HandshakeOutcome::AddressTaken)
                 return;
             handshakeProcessed = true;
-            // The identity bucket gets the nonce too, or a capture replayed from a
-            // second address - where the address bucket above is empty - would slip
-            // through and keep a dead peer looking alive. Only when the address was
-            // unknown: resolved, it and the identity are the same bucket, and a
-            // second check would refuse the packet the first one just admitted.
-            if (ownerBefore.isEmpty() && !peerId.isEmpty() && !m_crypto->checkReplay(peerId, nonce, ts))
+            // Also check the identity-level nonce, otherwise a replay from a
+            // new address (empty address bucket) would get through.
+            if (ownerBefore.isEmpty() && !peerId.isEmpty()) {
+                auto idIt = m_lastPresenceNonce.constFind(peerId);
+                if (idIt != m_lastPresenceNonce.constEnd() && nonceCounter <= *idIt)
+                    return;
+                m_lastPresenceNonce[peerId] = nonceCounter;
+            }
+        } else {
+            // Bare presence (no handshake): counter-based replay on the address.
+            auto prevIt = m_lastPresenceNonce.constFind(host);
+            if (prevIt != m_lastPresenceNonce.constEnd() && nonceCounter <= *prevIt)
                 return;
-        } else if (!nonce.isEmpty() && !m_crypto->checkReplay(host, nonce, ts)) {
-            return; // replayed presence packet
+            m_lastPresenceNonce[host] = nonceCounter;
         }
     }
 
@@ -890,11 +891,9 @@ void NetworkManager::handlePresence(const QString &host, QJsonObject msg)
     } else {
         m_peers[key] = msg;
     }
-    // Only update the identity→address mapping when a handshake was processed in
-    // this presence (meaning a session was established or refreshed).  A bare
-    // presence without crypto material must not teach the routing table a new
-    // owner for an identity, because an attacker can forge the "from_id" field
-    // in an unsigned packet.
+    // Only update identity→address mapping when a handshake was processed.
+    // A bare presence without crypto can't be trusted for routing — the
+    // from_id field is forgeable in unsigned packets.
     if (!peerId.isEmpty() && handshakeProcessed)
         m_peerKeyById[peerId] = key;
 
@@ -1009,17 +1008,6 @@ bool NetworkManager::sendUdpToAll(QJsonObject payload, const QVector<QString> &t
         // so it is only a claim.
         if (m_crypto)
             payload[QStringLiteral("from_id")] = m_crypto->ownIdentityId();
-
-        // HMAC-sign unicast packets once a session key exists; broadcasts have
-        // no single peer session to sign for.
-        QString peerId;
-        for (const QString &target : targets) {
-            peerId = m_crypto ? m_crypto->identityForAddress(target) : QString();
-            if (!peerId.isEmpty())
-                break;
-        }
-        if (!peerId.isEmpty())
-            payload[QStringLiteral("_sig")] = m_crypto->signPacket(peerId, signableBytes(payload));
     }
 
     const QByteArray data = protocol::encodeFrame(payload);
@@ -1050,15 +1038,6 @@ bool NetworkManager::sendUdpToAll(QCborMap payload, const QVector<QString> &targ
 
         if (m_crypto)
             payload.insert(QStringLiteral("from_id"), m_crypto->ownIdentityId());
-
-        QString peerId;
-        for (const QString &target : targets) {
-            peerId = m_crypto ? m_crypto->identityForAddress(target) : QString();
-            if (!peerId.isEmpty())
-                break;
-        }
-        if (!peerId.isEmpty())
-            payload.insert(QStringLiteral("_sig"), m_crypto->signPacket(peerId, protocol::canonicalBytes(payload)));
     }
 
     const QByteArray data = protocol::encodeFrame(payload);

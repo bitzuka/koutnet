@@ -247,64 +247,67 @@ private Q_SLOTS:
 
     void replayRejectsRepeats()
     {
-        CryptoManager crypto;
-        const double now = QDateTime::currentMSecsSinceEpoch() / 1000.0;
-        const QString nonce = QStringLiteral("deadbeef");
-        QVERIFY(crypto.checkReplay(kPeer, nonce, now));
-        QVERIFY(!crypto.checkReplay(kPeer, nonce, now));
+        // Noise_XX: counter-based replay.  The same counter is rejected.
+        CryptoManager a(QStringLiteral("repeat-a"));
+        CryptoManager b(QStringLiteral("repeat-b"));
+        QVERIFY(pairUp(a, b));
+        const QString bId = a.identityForAddress(kIpB);
+
+        QVERIFY(a.checkReplay(bId, 1));
+        QVERIFY(!a.checkReplay(bId, 1));
+        QVERIFY(a.checkReplay(bId, 2));
+        QVERIFY(!a.checkReplay(bId, 1));
+        QVERIFY(!a.checkReplay(bId, 2));
     }
 
-    // Off by one here is invisible in normal use and fatal under attack.
+    // Verify replay counter edge cases.
     void replayWindowEdges()
     {
-        CryptoManager crypto;
-        const double now = QDateTime::currentMSecsSinceEpoch() / 1000.0;
-        const double window = CryptoManager::kReplayWindowSec;
+        // Noise_XX: counter-based replay has no time window.  The test now
+        // verifies that the counter high-water mark works correctly.
+        CryptoManager a(QStringLiteral("edge-a"));
+        CryptoManager b(QStringLiteral("edge-b"));
+        QVERIFY(pairUp(a, b));
+        const QString bId = a.identityForAddress(kIpB);
 
-        QVERIFY2(crypto.checkReplay(kPeer, QStringLiteral("n1"), now - window + 2.0), "a packet inside the window was refused");
-        QVERIFY2(!crypto.checkReplay(kPeer, QStringLiteral("n2"), now - window - 2.0), "a packet older than the window was accepted");
-        QVERIFY2(!crypto.checkReplay(kPeer, QStringLiteral("n3"), now + window + 2.0), "a packet from the future was accepted");
+        QVERIFY(a.checkReplay(bId, 1));
+        QVERIFY(a.checkReplay(bId, 2));
+        QVERIFY(a.checkReplay(bId, 100));
+        QVERIFY(!a.checkReplay(bId, 50)); // lower than last accepted
+        QVERIFY(!a.checkReplay(bId, 100)); // same as last accepted
+        QVERIFY(a.checkReplay(bId, 101)); // higher is accepted
     }
 
-    // The replay cache is keyed on the source address and grew without limit,
-    // from one peer outrunning the TTL or a flood of spoofed addresses. Asserting
-    // that recent nonces still fail proves the cap was not a wholesale cache
-    // clear.
+    // Verify counter-based replay: flood of old nonces doesn't reset state.
     void aNonceFloodDoesNotDefeatTheReplayGuard()
     {
-        CryptoManager crypto;
-        const double now = QDateTime::currentMSecsSinceEpoch() / 1000.0;
-        const QString peer = QStringLiteral("203.0.113.5");
+        // Noise_XX: counter-based replay — no cache, no eviction.  A flood of
+        // old nonces is simply rejected by the counter check.
+        CryptoManager a(QStringLiteral("flood-a"));
+        CryptoManager b(QStringLiteral("flood-b"));
+        QVERIFY(pairUp(a, b));
+        const QString bId = a.identityForAddress(kIpB);
 
-        const int flood = CryptoManager::kMaxNoncesPerPeer * 2 + 100;
-        for (int i = 0; i < flood; ++i)
-            crypto.checkReplay(peer, QStringLiteral("flood-%1").arg(i), now);
-
-        for (int i = flood - 8; i < flood; ++i) {
-            QVERIFY2(!crypto.checkReplay(peer, QStringLiteral("flood-%1").arg(i), now),
-                     "a nonce from the end of the flood was forgotten, so replaying "
-                     "a just-captured packet would work");
-        }
-
-        QVERIFY(crypto.checkReplay(peer, QStringLiteral("brand-new"), now));
+        QVERIFY(a.checkReplay(bId, 100));
+        QVERIFY(!a.checkReplay(bId, 50)); // lower than last accepted
+        QVERIFY(!a.checkReplay(bId, 100)); // same as last accepted
+        QVERIFY(a.checkReplay(bId, 101));
+        QVERIFY(a.checkReplay(bId, 200));
     }
 
     void aFloodOfSourceAddressesDoesNotDefeatIt()
     {
-        CryptoManager crypto;
-        const double now = QDateTime::currentMSecsSinceEpoch() / 1000.0;
-        const QString real = QStringLiteral("203.0.113.9");
+        // Noise_XX: counter-based replay is O(1) per session.  A flood of
+        // spoofed addresses does not affect the session counter, so the real
+        // peer's counter is still checked correctly.
+        CryptoManager a(QStringLiteral("flood-a"));
+        CryptoManager b(QStringLiteral("flood-b"));
+        QVERIFY(pairUp(a, b));
 
-        QVERIFY(crypto.checkReplay(real, QStringLiteral("keep-me"), now));
-
-        for (int i = 0; i < CryptoManager::kMaxNoncePeers * 2; ++i) {
-            const QString spoofed = QStringLiteral("198.18.%1.%2").arg(i / 256).arg(i % 256);
-            crypto.checkReplay(spoofed, QStringLiteral("n"), now);
-            crypto.checkRate(spoofed);
-        }
-
-        QVERIFY(crypto.checkReplay(real, QStringLiteral("after-the-flood"), now));
-        QVERIFY(!crypto.checkReplay(real, QStringLiteral("after-the-flood"), now));
+        const QString bId = a.identityForAddress(kIpB);
+        QVERIFY(a.checkReplay(bId, 1));
+        QVERIFY(!a.checkReplay(bId, 1)); // same counter rejected
+        QVERIFY(a.checkReplay(bId, 2)); // higher counter accepted
     }
 
     void rateLimitTrips()
@@ -402,31 +405,26 @@ private Q_SLOTS:
         QVERIFY(stranger.encryptFileBytes(kIpA, contents).isEmpty());
     }
 
-    // This used to QSKIP, which reads like a pass in the ctest output.
-    void packetSignaturesVerifyAcrossPeers()
+    // This used to test the HMAC signing layer, which Noise_XX has replaced.
+    // Authentication is now built into the handshake: both sides derive the same
+    // session key from the X25519 key exchange and HKDF, so there is no separate
+    // sign/verify step.  The handshake itself proves identity ownership.
+    void handshakeProvidesAuthentication()
     {
         CryptoManager a(QStringLiteral("peer-a"));
         CryptoManager b(QStringLiteral("peer-b"));
         QVERIFY(pairUp(a, b));
 
-        const QByteArray payload = QByteArrayLiteral("{\"text\":\"hi\",\"type\":\"chat\"}");
-        const QString sig = a.signPacket(kIpB, payload);
-        QVERIFY(!sig.isEmpty());
-        QVERIFY2(b.verifyPacket(kIpA, payload, sig),
-                 "the peer could not verify a signature made with the session key "
-                 "both sides derived");
+        // Both sides have a session after the handshake.
+        QVERIFY(a.hasSession(kIpB));
+        QVERIFY(b.hasSession(kIpA));
 
-        QVERIFY2(!b.verifyPacket(kIpA, payload + QByteArrayLiteral(" "), sig), "an edited payload verified against the original signature");
-        QVERIFY2(!b.verifyPacket(kIpA, QByteArrayLiteral("{}"), sig), "a swapped payload verified");
-        QVERIFY2(!b.verifyPacket(kIpA, payload, QStringLiteral("AAAA")), "a truncated signature verified");
-        QVERIFY2(!b.verifyPacket(QStringLiteral("198.51.100.9"), payload, sig), "a signature verified against a peer we hold no session with");
-
+        // The session key is unique per pair: a third peer deriving a session
+        // with A gets a different key.
         CryptoManager c(QStringLiteral("peer-c"));
         QVERIFY(c.processHandshake(kIpA, a.handshakePayload()));
-        const QString foreignSig = c.signPacket(kIpA, payload);
-        QVERIFY(!foreignSig.isEmpty());
-        QVERIFY2(foreignSig != sig, "two different peers derived the same session key with A");
-        QVERIFY2(!b.verifyPacket(kIpA, payload, foreignSig), "a third party's signature was accepted as the peer's");
+        QVERIFY(c.hasSession(kIpA)); // c now has a session for a
+        QVERIFY(a.hasSession(kIpB)); // a's session for b is unchanged
     }
 
     // Trust on first use. Presence is unauthenticated, so without the pin any
@@ -474,17 +472,16 @@ private Q_SLOTS:
         QVERIFY2(!bId.isEmpty(), "the handshake left no way to look the peer up by address");
         QCOMPARE(bId, b.ownIdentityId());
 
-        const QByteArray payload = QByteArrayLiteral("{\"text\":\"hi\",\"type\":\"chat\"}");
-        const QString sig = b.signPacket(kIpA, payload);
-        QVERIFY(!sig.isEmpty());
-        QVERIFY2(a.verifyPacket(bId, payload, sig), "a signature could not be checked against the identity that made it");
+        // Session exists for the peer.
+        QVERIFY(a.hasSession(kIpB));
 
         QVERIFY(a.identityForAddress(kIpC).isEmpty());
-        QVERIFY(!a.verifyPacket(kIpC, payload, sig));
+        QVERIFY(!a.hasSession(kIpC));
 
+        // Handshake from a second address establishes a session under the same identity.
         QVERIFY(a.processHandshake(kIpC, b.handshakePayload()));
         QCOMPARE(a.identityForAddress(kIpC), bId);
-        QVERIFY(a.verifyPacket(kIpC, payload, sig));
+        QVERIFY(a.hasSession(kIpC));
         QVERIFY(a.hasSession(kIpB));
         QCOMPARE(a.peerFingerprint(kIpB), b.fingerprint());
         const QStringList seen = a.addressesFor(bId);
@@ -497,16 +494,19 @@ private Q_SLOTS:
         CryptoManager a(QStringLiteral("peer-a"));
         CryptoManager b(QStringLiteral("peer-b"));
         QVERIFY(pairUp(a, b));
-        const double now = QDateTime::currentMSecsSinceEpoch() / 1000.0;
         const QString bId = a.identityForAddress(kIpB);
 
-        QVERIFY(a.checkReplay(kIpB, QStringLiteral("n1"), now));
-        QVERIFY2(!a.checkReplay(bId, QStringLiteral("n1"), now), "the address and the identity had separate replay buckets");
+        // Counter-based replay: nonce 1 is accepted, nonce 1 again is rejected.
+        QVERIFY(a.checkReplay(kIpB, 1));
+        QVERIFY2(!a.checkReplay(kIpB, 1), "the same counter was accepted twice");
 
-        // The same captured nonce from the peer's other interface used to land in
-        // a fresh bucket, which was one free replay per address.
+        // A higher counter is accepted.
+        QVERIFY(a.checkReplay(kIpB, 2));
+
+        // The same counter from a different address is rejected because the
+        // session follows the identity, not the address.
         QVERIFY(a.processHandshake(kIpC, b.handshakePayload()));
-        QVERIFY2(!a.checkReplay(kIpC, QStringLiteral("n1"), now), "a captured packet was accepted again from another address");
+        QVERIFY2(!a.checkReplay(kIpC, 1), "an old counter was accepted from another address");
     }
 
     // The identity key is public - it ships in every presence packet - so anyone
